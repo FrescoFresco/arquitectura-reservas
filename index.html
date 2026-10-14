@@ -13,16 +13,45 @@
 .viewswitch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f3f6fb;border:1px solid #e1e7f0;border-radius:14px;padding:4px;margin:0 0 18px}
 .viewswitch button{border:0;background:transparent;border-radius:11px;padding:11px 14px;cursor:pointer;text-align:left;color:#52657e}
 .viewswitch button[aria-selected="true"]{background:#fff;color:#185aba;box-shadow:0 1px 3px #24334a1a}
-.switch-title{display:block;font-size:14px;font-weight:800;letter-spacing:-.01em}
+.switch-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;letter-spacing:-.01em}
 .switch-sub{display:block;margin-top:3px;font-size:12px;font-weight:550;color:#7b8ba0;line-height:1.35}
 .viewswitch button[aria-selected="true"] .switch-sub{color:#4f74aa}
 .sidetabs{display:flex;gap:2px;border-bottom:1px solid #e7ebf2;margin:0 0 12px}
-.sidetabs button{border:0;border-bottom:2px solid transparent;background:transparent;color:#52657e;padding:10px 16px;margin-bottom:-1px;font-size:13px;font-weight:800;cursor:pointer}
+.sidetabs button{display:inline-flex;align-items:center;gap:7px;border:0;border-bottom:2px solid transparent;background:transparent;color:#52657e;padding:10px 16px;margin-bottom:-1px;font-size:13px;font-weight:800;cursor:pointer}
 .sidetabs button[aria-selected="true"]{color:#185aba;border-bottom-color:#185aba}
 .tabs{scrollbar-width:thin;scrollbar-color:#d5deea transparent}
 .tabs::-webkit-scrollbar{height:8px}
 .tabs::-webkit-scrollbar-thumb{background:#d5deea;border-radius:8px}
 @media(max-width:760px){.viewswitch{grid-template-columns:1fr 1fr}.viewswitch button{padding:10px 10px}.switch-title{font-size:13px}.switch-sub{font-size:11px}}
+
+.ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}
+.h-ico{display:flex;align-items:center;gap:8px}
+.caselist{display:flex;flex-direction:column;gap:14px}
+.case{border:1px solid #e3e9f2;border-radius:16px;background:#fff;overflow:hidden}
+.case.inner{background:#f8fafc}
+.casehead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:#f5f8fc;border-bottom:1px solid #e7edf5}
+.case.inner>.casehead{background:#eef3f9}
+.caselabel{display:inline-flex;align-items:center;gap:6px;color:#5c7190;font-size:12px;font-weight:800}
+.casehead strong{font-size:14px;color:#1c2b3e}
+.state{margin-left:auto;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;background:#eef2f7;color:#44556c}
+.state.ok{background:#e7f6ee;color:#0f7a45}
+.state.warn{background:#fff4d6;color:#8a5a00}
+.state.bad{background:#fde8e8;color:#a12626}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px 16px;margin:0;padding:14px 14px 6px}
+.metafield dt{margin:0 0 3px;font-size:11px;font-weight:800;letter-spacing:.01em;color:#7d8da3}
+.metafield dd{margin:0;font-size:13px;line-height:1.45;color:#243246;overflow-wrap:anywhere}
+.metafield.wide{grid-column:1/-1}
+.metafield.wide dd{white-space:pre-wrap}
+.nestblock{margin:8px 12px 12px;border:1px solid #d9e3f0;border-left:3px solid #8eb0e4;border-radius:12px;background:#fbfdff}
+.nesthead{display:flex;gap:8px;align-items:flex-start;padding:10px 12px 0;color:#2459a9}
+.nesthead h4{margin:0;font-size:13px;color:#1d3f73}
+.nesthead p{margin:2px 0 0;font-size:11px;font-weight:600;color:#7b8ba0}
+.nestbody{padding:8px 12px 12px}
+.nestbody>.caselist{gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+.chips li{background:#eef3fa;border-radius:999px;padding:5px 9px;font-size:12px;color:#2c3e55}
+.empty{margin:0;color:#8b98a9;font-size:13px}
+@media(max-width:760px){.meta{grid-template-columns:1fr}.state{margin-left:0}}
 </style>
 </head>
 <body>
@@ -197,43 +226,90 @@ const outputExamples = {"Detectar procesos":[{"estado":"encontrada","nombre_nego
 const inputExamples = {"Detectar procesos":[{"url_negocio":"https://www.restaurante-el-muelle.es"},{"url_negocio":"https://www.hotel-costa-mar.es"},{"url_negocio":"https://www.pescaderia-norte.es"}],"Identificar software":[{"resultado_detectar":{"estado":"encontrada","nombre_negocio":"Restaurante El Muelle","procesos":[{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},{"id_proceso":"terraza","alcance":"Terraza solo comida","url_reservas":"https://www.restaurante-el-muelle.es/terraza"}]},"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"}},{"resultado_detectar":{"estado":"encontrada","nombre_negocio":"Restaurante El Muelle","procesos":[{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},{"id_proceso":"terraza","alcance":"Terraza solo comida","url_reservas":"https://www.restaurante-el-muelle.es/terraza"}]},"proceso":{"id_proceso":"terraza","alcance":"Terraza solo comida","url_reservas":"https://www.restaurante-el-muelle.es/terraza"}},{"resultado_detectar":{"estado":"pendiente","nombre_negocio":null,"procesos":[],"incertidumbres":["El acceso quedó bloqueado"]},"proceso":{"id_proceso":null,"alcance":null,"url_reservas":null}}],"Investigar integración":[{"software_identificado":{"nombre":"CoverManager","funcion_observada":"Formulario de reserva","evidencias":["widget covermanager.com"]},"investigacion_previa":null},{"software_identificado":{"nombre":"CoverManager","funcion_observada":"Formulario de reserva","evidencias":["widget covermanager.com"]},"investigacion_previa":{"estado":"documentada","operaciones_documentadas":["consultar huecos","crear reserva"]}},{"software_identificado":{"nombre":null,"funcion_observada":null,"evidencias":[]},"investigacion_previa":null}],"Función de reserva":[{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"investigacion_integracion":{"estado":"documentada","operaciones_documentadas":["consultar huecos","crear reserva"]},"acceso_al_recorrido":"https://www.restaurante-el-muelle.es/reservar, sesión de observación","resultado_verificacion":null,"artefactos_previos":null},{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"investigacion_integracion":{"estado":"documentada","operaciones_documentadas":["consultar huecos","crear reserva"]},"acceso_al_recorrido":"https://www.restaurante-el-muelle.es/reservar","resultado_verificacion":{"estado":"referencia_parcial","alertas":[{"tipo":"formulario_cambiado","estado":"abierta"}]},"artefactos_previos":{"funcion_json":"versión 2","script_js":"versión 2"}},{"proceso":{"id_proceso":"terraza","alcance":"Terraza solo comida","url_reservas":"https://www.restaurante-el-muelle.es/terraza"},"investigacion_integracion":{"estado":"no_localizada"},"acceso_al_recorrido":"https://www.restaurante-el-muelle.es/terraza","resultado_verificacion":null,"artefactos_previos":null}],"Canal de cancelación":[{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"resultado_identificacion":{"estado":"identificado","software_identificado":[{"nombre":"CoverManager","funcion_observada":"Formulario de reserva","evidencias":["widget covermanager.com"]}]},"investigacion_integracion":{"estado":"documentada","operaciones_documentadas":["consultar huecos","crear reserva"]}},{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"resultado_identificacion":{"estado":"identificado","software_identificado":[{"nombre":"CoverManager","funcion_observada":"Formulario de reserva","evidencias":["widget covermanager.com"]}]},"investigacion_integracion":null},{"proceso":{"id_proceso":"terraza","alcance":"Terraza solo comida","url_reservas":"https://www.restaurante-el-muelle.es/terraza"},"resultado_identificacion":{"estado":"no_identificado","software_identificado":[]},"investigacion_integracion":null}],"Automática":[{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"resultado_identificacion":{"estado":"identificado"},"investigacion_integracion":{"estado":"documentada","operaciones_documentadas":["consultar huecos","crear reserva"]},"resultado_canal_cancelacion":{"estado":"encontrado","canal_preferido":{"tipo":"telefono","valor":"+34 928 000 111"}},"identidad_prueba":{"nombre":"Ana Rojas","email":"ana.rojas@example.com","telefono":"+34 600 000 111","responsable":"Operador de guardia","nota_para_negocio":"Reserva de prueba, se cancelará hoy"},"accesos_disponibles":{"api":"credencial concedida"},"responsable_evaluacion":"Operador de guardia","funcion_reserva":{"estado_generacion":"generada","funcion_json":{"name":"reservar"},"script_js":{"version":"3","huella":"sha256:ab12cd34"}},"script_reserva":{"version":"3","huella":"sha256:ab12cd34","referencia_codigo":"commit 9f3a1c"},"datos_reserva_prueba":{"fecha":"2026-10-16","hora":"20:30","comensales":2,"nombre":"Ana Rojas","telefono":"+34 600 000 111"},"autorizacion_para_confirmar_prueba":true,"gestion_reserva_prueba":"Cancelar por teléfono antes de las 20:00"},{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"resultado_identificacion":{"estado":"identificado"},"investigacion_integracion":null,"resultado_canal_cancelacion":{"estado":"encontrado","canal_preferido":{"tipo":"telefono","valor":"+34 928 000 111"}},"identidad_prueba":{"nombre":"Ana Rojas","email":"ana.rojas@example.com","telefono":"+34 600 000 111","responsable":"Operador de guardia","nota_para_negocio":null},"accesos_disponibles":{},"responsable_evaluacion":"Operador de guardia","funcion_reserva":{"estado_generacion":"generada","funcion_json":{"name":"reservar"},"script_js":{"version":"3","huella":"sha256:ab12cd34"}},"script_reserva":{"version":"3","huella":"sha256:ab12cd34","referencia_codigo":"commit 9f3a1c"},"datos_reserva_prueba":{"fecha":"2026-10-16","hora":"20:30","comensales":2,"nombre":"Ana Rojas","telefono":"+34 600 000 111"},"autorizacion_para_confirmar_prueba":false,"gestion_reserva_prueba":null},{"proceso":{"id_proceso":"terraza","alcance":"Terraza solo comida","url_reservas":"https://www.restaurante-el-muelle.es/terraza"},"resultado_identificacion":{"estado":"pendiente"},"investigacion_integracion":null,"resultado_canal_cancelacion":{"estado":"pendiente","canal_preferido":null},"identidad_prueba":{"nombre":"Ana Rojas","email":"ana.rojas@example.com","telefono":"+34 600 000 111","responsable":"Operador de guardia","nota_para_negocio":null},"accesos_disponibles":{},"responsable_evaluacion":"Operador de guardia","funcion_reserva":{"estado_generacion":"pendiente","funcion_json":null,"script_js":null},"script_reserva":null,"datos_reserva_prueba":{"fecha":"2026-10-16","hora":"20:30","comensales":null,"nombre":"Ana Rojas","telefono":"+34 600 000 111"},"autorizacion_para_confirmar_prueba":false,"gestion_reserva_prueba":null}],"Enlace asistido":[{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"resultado_identificacion":{"estado":"identificado"},"investigacion_integracion":{"estado":"documentada","operaciones_documentadas":["consultar huecos","crear reserva"]},"resultado_canal_cancelacion":{"estado":"encontrado","canal_preferido":{"tipo":"telefono","valor":"+34 928 000 111"}},"identidad_prueba":{"nombre":"Ana Rojas","email":"ana.rojas@example.com","telefono":"+34 600 000 111","responsable":"Operador de guardia","nota_para_negocio":"Reserva de prueba, se cancelará hoy"},"resultado_automatico":{"estado":"apta","reserva_prueba":{"estado":"confirmada","referencia":"RES-1042","apertura_verificada":{"abierto_ahora":true}}},"funcion_reserva":{"estado_generacion":"generada","funcion_json":{"name":"reservar"},"script_js":{"version":"3","huella":"sha256:ab12cd34"}},"script_reserva":{"version":"3","huella":"sha256:ab12cd34","referencia_codigo":"commit 9f3a1c"},"responsable_evaluacion":"Operador de guardia","datos_reserva_prueba":{"fecha":"2026-10-16","hora":"20:30","comensales":2,"nombre":"Ana Rojas","telefono":"+34 600 000 111"}},{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"resultado_identificacion":{"estado":"identificado"},"investigacion_integracion":null,"resultado_canal_cancelacion":{"estado":"encontrado","canal_preferido":{"tipo":"telefono","valor":"+34 928 000 111"}},"identidad_prueba":{"nombre":"Ana Rojas","email":"ana.rojas@example.com","telefono":"+34 600 000 111","responsable":"Operador de guardia","nota_para_negocio":null},"resultado_automatico":{"estado":"pendiente","reserva_prueba":{"estado":"pendiente_apertura","referencia":null,"apertura_verificada":{"abierto_ahora":false,"motivo_pendiente":"Hoy es festivo insular","proxima_hora_valida":"2026-10-15T11:00:00+01:00"}}},"funcion_reserva":{"estado_generacion":"generada","funcion_json":{"name":"reservar"},"script_js":{"version":"3","huella":"sha256:ab12cd34"}},"script_reserva":{"version":"3","huella":"sha256:ab12cd34","referencia_codigo":"commit 9f3a1c"},"responsable_evaluacion":"Operador de guardia","datos_reserva_prueba":{"fecha":"2026-10-16","hora":"20:30","comensales":2,"nombre":"Ana Rojas","telefono":"+34 600 000 111"}},{"proceso":{"id_proceso":"terraza","alcance":"Terraza solo comida","url_reservas":"https://www.restaurante-el-muelle.es/terraza"},"resultado_identificacion":{"estado":"no_identificado"},"investigacion_integracion":null,"resultado_canal_cancelacion":{"estado":"pendiente","canal_preferido":null},"identidad_prueba":{"nombre":"Ana Rojas","email":"ana.rojas@example.com","telefono":"+34 600 000 111","responsable":"Operador de guardia","nota_para_negocio":null},"resultado_automatico":{"estado":"no_intentada","reserva_prueba":{"estado":"no_realizada","referencia":null}},"funcion_reserva":{"estado_generacion":"pendiente","funcion_json":null,"script_js":null},"script_reserva":null,"responsable_evaluacion":"Operador de guardia","datos_reserva_prueba":{"fecha":"2026-10-16","hora":"20:30","comensales":null,"nombre":"Ana Rojas","telefono":"+34 600 000 111"}}],"Verificación y vigilancia":[{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"resultado_automatico":{"estado":"apta","reserva_prueba":{"estado":"confirmada","referencia":"RES-1042","apertura_verificada":{"abierto_ahora":true}}},"resultado_asistido":{"estado":"apta"},"funcion_reserva":{"estado_generacion":"generada","funcion_json":{"name":"reservar"},"script_js":{"version":"3","huella":"sha256:ab12cd34"}},"script_reserva":{"version":"3","huella":"sha256:ab12cd34","referencia_codigo":"commit 9f3a1c"},"reserva_prueba":{"estado":"confirmada","referencia":"RES-1042","apertura_verificada":{"abierto_ahora":true}},"referencia_previa":null,"plan_vigilancia":{"operacion":"recorrido seguro sin crear reservas","frecuencia_propuesta":"cada 6 horas"},"responsable_evaluacion":"Operador de guardia"},{"proceso":{"id_proceso":"cena-sala","alcance":"Cenas en sala para 1 a 8 personas","url_reservas":"https://www.restaurante-el-muelle.es/reservar"},"resultado_automatico":{"estado":"pendiente","reserva_prueba":{"estado":"pendiente_apertura","referencia":null,"apertura_verificada":{"abierto_ahora":false,"motivo_pendiente":"Hoy es festivo insular","proxima_hora_valida":"2026-10-15T11:00:00+01:00"}}},"resultado_asistido":null,"funcion_reserva":{"estado_generacion":"generada","funcion_json":{"name":"reservar"},"script_js":{"version":"3","huella":"sha256:ab12cd34"}},"script_reserva":{"version":"3","huella":"sha256:ab12cd34","referencia_codigo":"commit 9f3a1c"},"reserva_prueba":{"estado":"pendiente_apertura","referencia":null,"apertura_verificada":{"abierto_ahora":false,"motivo_pendiente":"Hoy es festivo insular","proxima_hora_valida":"2026-10-15T11:00:00+01:00"}},"referencia_previa":{"estado":"referencia_parcial"},"plan_vigilancia":{"operacion":null,"frecuencia_propuesta":null},"responsable_evaluacion":"Operador de guardia"},{"proceso":{"id_proceso":"terraza","alcance":"Terraza solo comida","url_reservas":"https://www.restaurante-el-muelle.es/terraza"},"resultado_automatico":{"estado":"no_intentada"},"resultado_asistido":{"estado":"no_intentada"},"funcion_reserva":{"estado_generacion":"pendiente","funcion_json":null,"script_js":null},"script_reserva":null,"reserva_prueba":null,"referencia_previa":null,"plan_vigilancia":{"operacion":null,"frecuencia_propuesta":"cada 24 horas"},"responsable_evaluacion":"Operador de guardia"}],"Input de configuración":[{"identidad_prueba":{"nombre":"Ana Rojas","email":"ana.rojas@example.com","telefono":"+34 600 000 111","responsable":"Operador de guardia","nota_para_negocio":"Reserva de prueba, se cancelará hoy"}},{"identidad_prueba":{"nombre":"Ana Rojas","email":"ana.rojas@example.com","telefono":"+34 600 000 111","responsable":"Operador de guardia","nota_para_negocio":null}},{"identidad_prueba":{"nombre":"Luis Martín","email":"luis.martin@example.com","telefono":"+34 600 000 222","responsable":"Operador de tarde","nota_para_negocio":null}}]};
 const content=document.getElementById('content');
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iconSvg={
+definition:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h5"/></svg>',
+examples:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+input:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>',
+output:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+instructions:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+case:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>',
+nested:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="M15 10l5 5-5 5"/></svg>'
+};
+function icon(name){return '<span class="ico" aria-hidden="true">'+(iconSvg[name]||'')+'</span>'}
+function isPlainObject(value){return value!==null&&typeof value==='object'&&!Array.isArray(value)}
 function isNested(value){return value!==null&&typeof value==='object'}
-function simpleCell(value){
-  if(value===null||value===undefined) return '<span class="nullcell">null</span>';
-  if(typeof value==='object') return renderNested(value);
+function fieldLabel(key){return String(key).replaceAll('_',' ')}
+function stateClass(value){
+  const v=String(value);
+  if(/pendiente|no_intentada|inconclusa|parcial/.test(v)) return 'warn';
+  if(/^(no_|error)|requiere_revision|cambios_solicitados/.test(v)) return 'bad';
+  if(/apta$|encontrad|identificado|generada|aprobada|fiable|referencia_completa|documentada|confirmada|habilitada/.test(v)) return 'ok';
+  return '';
+}
+function caseHeading(obj){
+  const preferred=['nombre_negocio','nombre','id_proceso','software','tipo','origen','fuente'];
+  const parts=[];
+  preferred.forEach(key=>{
+    const value=obj[key];
+    if(value!==null&&value!==undefined&&typeof value!=='object'){
+      const text=String(value);
+      if(text&&text.length<80) parts.push(text);
+    }
+  });
+  const estadoKey=['estado','estado_generacion','estado_revision','fiabilidad','estado_sistema'].find(key=>obj[key]!==null&&obj[key]!==undefined&&typeof obj[key]!=='object'&&String(obj[key]).length<42);
+  return {title:parts[0]||'',extra:parts[1]&&parts[1]!==parts[0]?parts[1]:'',estado:estadoKey?String(obj[estadoKey]):''};
+}
+function renderScalar(value){
+  if(value===null||value===undefined||value==='') return '<span class="nullcell">vacío</span>';
+  if(typeof value==='boolean') return value?'sí':'no';
   return escapeHtml(String(value));
 }
-function nestedTabs(row, cols){
-  if(!cols.length) return '';
-  const buttons=cols.map((c,i)=>'<button type="button" data-example-tab="'+i+'" aria-selected="'+(i===0?'true':'false')+'">'+escapeHtml(c)+'</button>').join('');
-  const panels=cols.map((c,i)=>'<div class="example-panel" data-example-panel="'+i+'"'+(i===0?'':' hidden')+'>'+renderNested(row?row[c]:null)+'</div>').join('');
-  return '<div class="example-nest"><div class="example-tabs" role="tablist">'+buttons+'</div>'+panels+'</div>';
+function renderMeta(obj, keys){
+  if(!keys.length) return '';
+  return '<dl class="meta">'+keys.map(key=>{
+    const value=obj[key];
+    const text=value===null||value===undefined?'':String(value);
+    const wide=text.length>72||/_md$|explicacion|motivo|mapeo|observacion|justificante/.test(key);
+    return '<div class="metafield'+(wide?' wide':'')+'"><dt>'+escapeHtml(fieldLabel(key))+'</dt><dd>'+renderScalar(value)+'</dd></div>';
+  }).join('')+'</dl>';
+}
+function renderChips(values){
+  return '<ul class="chips">'+values.map(item=>'<li>'+renderScalar(item)+'</li>').join('')+'</ul>';
+}
+function renderValue(value){
+  if(value===null||value===undefined) return '<p class="empty">Vacío</p>';
+  if(Array.isArray(value)){
+    if(!value.length) return '<p class="empty">Ninguno</p>';
+    if(value.every(item=>isPlainObject(item))) return '<div class="caselist">'+value.map((item,index)=>renderCase(item,index,true)).join('')+'</div>';
+    if(value.every(item=>item===null||typeof item!=='object')) return renderChips(value);
+    return value.map(item=>'<div class="nestbody">'+renderValue(item)+'</div>').join('');
+  }
+  if(isPlainObject(value)) return renderCase(value,0,true);
+  return renderScalar(value);
+}
+function renderNestedSection(key, value){
+  const list=Array.isArray(value);
+  const count=list?value.length:(isPlainObject(value)?1:0);
+  const empty=value===null||value===undefined||(list&&!value.length);
+  const hint=empty?'Nada dentro de este caso':(list?(count===1?'1 elemento dentro de este caso':count+' elementos dentro de este caso'):'Dentro de este caso');
+  return '<section class="nestblock"><header class="nesthead">'+icon('nested')+'<div><h4>'+escapeHtml(fieldLabel(key))+'</h4><p>'+hint+'</p></div></header><div class="nestbody">'+(empty?'<p class="empty">Ninguno</p>':renderValue(value))+'</div></section>';
+}
+function renderCase(obj, index, inner){
+  if(!obj||typeof obj!=='object'||Array.isArray(obj)) return renderValue(obj);
+  const keys=Object.keys(obj);
+  const meta=keys.filter(key=>obj[key]===null||typeof obj[key]!=='object');
+  const nested=keys.filter(key=>obj[key]!==null&&typeof obj[key]==='object');
+  const head=caseHeading(obj);
+  const badge=head.estado?'<span class="state '+stateClass(head.estado)+'">'+escapeHtml(head.estado)+'</span>':'';
+  const title=head.title?'<strong>'+escapeHtml(head.title)+'</strong>':'';
+  const extra=head.extra?'<span class="caselabel">'+escapeHtml(head.extra)+'</span>':'';
+  const label=inner?icon('case'):icon('case')+'<span>Caso '+(index+1)+'</span>';
+  return '<article class="case'+(inner?' inner':'')+'"><header class="casehead"><span class="caselabel">'+label+'</span>'+title+extra+badge+'</header>'+renderMeta(obj, meta)+nested.map(key=>renderNestedSection(key, obj[key])).join('')+'</article>';
 }
 function renderRecordTable(data){
-  const columns=[];
-  data.forEach(row=>{ if(!row||typeof row!=='object'||Array.isArray(row)) return; Object.keys(row).forEach(k=>{ if(!columns.includes(k)) columns.push(k); }); });
-  if(!columns.length) return '<span class="nullcell">sin campos</span>';
-  const nestedCols=columns.filter(c=>data.some(row=>row&&isNested(row[c])));
-  const simpleCols=columns.filter(c=>!nestedCols.includes(c));
-  if(!simpleCols.length) return data.map(row=>nestedTabs(row, nestedCols)).join('');
-  const head=simpleCols.map(c=>'<th>'+escapeHtml(c)+'</th>').join('');
-  const body=data.map(row=>{
-    const cells=simpleCols.map(c=>'<td>'+simpleCell(row?row[c]:null)+'</td>').join('');
-    const sub=nestedCols.length?'<tr class="example-subrow"><td colspan="'+simpleCols.length+'">'+nestedTabs(row, nestedCols)+'</td></tr>':'';
-    return '<tr>'+cells+'</tr>'+sub;
-  }).join('');
-  return '<div class="tablewrap"><table class="example-table"><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>';
-}
-function renderNested(value){
-  if(value===null||value===undefined) return '<span class="nullcell">null</span>';
-  if(Array.isArray(value)){
-    if(!value.length) return '<span class="nullcell">sin registros</span>';
-    if(value.every(item=>item&&typeof item==='object'&&!Array.isArray(item))) return renderRecordTable(value);
-    if(value.every(item=>item===null||typeof item!=='object')) return '<div class="tablewrap"><table class="example-table"><tbody>'+value.map(item=>'<tr><td>'+simpleCell(item)+'</td></tr>').join('')+'</tbody></table></div>';
-    return value.map(item=>'<div class="example-nest">'+renderNested(item)+'</div>').join('');
-  }
-  if(typeof value==='object') return renderRecordTable([value]);
-  return escapeHtml(String(value));
+  if(!Array.isArray(data)||!data.length) return '<p class="empty">Ninguno</p>';
+  if(data.every(item=>isPlainObject(item))) return '<div class="caselist">'+data.map((item,index)=>renderCase(item,index,false)).join('')+'</div>';
+  return renderValue(data);
 }
 function loadExampleRows(label, schema, rows){
   const data=rows||outputExamples[label];
@@ -246,19 +322,7 @@ function loadExampleRows(label, schema, rows){
   return data;
 }
 function exampleSection(label, schema, rows){
-  return '<section class="card"><h3>Ejemplo en base de datos</h3><p class="intro">Cada fila conserva los campos simples. Cada campo anidado abre una subpestaña dentro de esa fila; si dentro hay otra anidación, esa pestaña tiene las suyas.</p>'+renderRecordTable(loadExampleRows(label, schema, rows))+'</section>';
-}
-if(!content.dataset.exampleTabs){
-  content.dataset.exampleTabs='1';
-  content.addEventListener('click',event=>{
-    const btn=event.target.closest('[data-example-tab]');
-    if(!btn) return;
-    const nest=btn.closest('.example-nest');
-    if(!nest) return;
-    const id=btn.getAttribute('data-example-tab');
-    nest.querySelectorAll(':scope > .example-tabs [data-example-tab]').forEach(b=>b.setAttribute('aria-selected', b===btn?'true':'false'));
-    nest.querySelectorAll(':scope > [data-example-panel]').forEach(p=>{p.hidden=p.getAttribute('data-example-panel')!==id;});
-  });
+  return '<section class="card"><h3 class="h-ico">'+icon('examples')+'Ejemplo guardado</h3><p class="intro">Cada tarjeta es un caso. Arriba están sus datos. Lo que pertenece a ese caso, como una lista de procesos, va dentro de la tarjeta.</p>'+renderRecordTable(loadExampleRows(label, schema, rows))+'</section>';
 }
 
 let section=0,contractTab=0,contractView=0,contractExample=0,validationTab=0;
@@ -270,13 +334,13 @@ function renderFlow(){content.innerHTML=heading('Vista general','Flujo completo'
 function renderContracts(){
   const d=contracts[contractTab];
   const summary=`<p class="intro contract-summary">${escapeHtml(d.summary)}</p>`;
-  const switcher=`<div class="viewswitch" role="tablist" aria-label="Vista de la instrucción"><button type="button" role="tab" id="vista-definicion" aria-controls="panel-vista" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">Definición</span><span class="switch-sub">Input, instrucciones y output</span></button><button type="button" role="tab" id="vista-ejemplos" aria-controls="panel-vista" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">Ejemplos</span><span class="switch-sub">Tablas de entrada y salida</span></button></div>`;
-  const definition=`<div id="panel-vista" role="tabpanel" aria-labelledby="vista-definicion"><section class="card"><h3>Input</h3><pre>${escapeHtml(JSON.stringify(d.input,null,2))}</pre></section><section class="card prompt"><div class="prompthead"><h3>Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section><section class="card"><h3>Output</h3><pre>${escapeHtml(JSON.stringify(d.output,null,2))}</pre></section><div class="notice">Los JSON describen el contrato, no un caso guardado. El id_proceso conecta las evaluaciones de cada recorrido. «No intentada» indica que una vía aún no se investigó.</div></div>`;
+  const switcher=`<div class="viewswitch" role="tablist" aria-label="Vista de la instrucción"><button type="button" role="tab" id="vista-definicion" aria-controls="panel-vista" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">${icon('definition')} Definición</span><span class="switch-sub">Input, instrucciones y output</span></button><button type="button" role="tab" id="vista-ejemplos" aria-controls="panel-vista" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">${icon('examples')} Ejemplos</span><span class="switch-sub">Casos de entrada y salida</span></button></div>`;
+  const definition=`<div id="panel-vista" role="tabpanel" aria-labelledby="vista-definicion"><section class="card"><h3 class="h-ico">${icon('input')} Input</h3><pre>${escapeHtml(JSON.stringify(d.input,null,2))}</pre></section><section class="card prompt"><div class="prompthead"><h3 class="h-ico">${icon('instructions')} Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section><section class="card"><h3 class="h-ico">${icon('output')} Output</h3><pre>${escapeHtml(JSON.stringify(d.output,null,2))}</pre></section><div class="notice">Los JSON describen el contrato, no un caso guardado. El id_proceso conecta las evaluaciones de cada recorrido. «No intentada» indica que una vía aún no se investigó.</div></div>`;
   const exampleRows=contractExample===0?inputExamples[d.label]:outputExamples[d.label];
   const exampleSchema=contractExample===0?d.input:d.output;
-  const exampleHint=contractExample===0?'Cada fila es un caso de entrada: lo que recibiría este bloque.':'Cada fila es un caso de salida, como quedaría guardado. Un campo anidado se abre en su pestaña, dentro de esa fila.';
-  const examples=`<div id="panel-vista" role="tabpanel" aria-labelledby="vista-ejemplos"><div class="sidetabs" role="tablist" aria-label="Tabla de ejemplo"><button type="button" role="tab" aria-selected="${contractExample===0}" data-side="0">Input</button><button type="button" role="tab" aria-selected="${contractExample===1}" data-side="1">Output</button></div><p class="intro">${exampleHint}</p><section class="card">${renderRecordTable(loadExampleRows(d.label, exampleSchema, exampleRows))}</section></div>`;
-  content.innerHTML=heading('Propósitos e interfaces','Instrucciones','Dentro de cada bloque, el contrato y las tablas de ejemplo van por separado.','8 instrucciones')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos" role="tabpanel" aria-labelledby="contratos-${contractTab}">${summary}${switcher}${contractView===0?definition:examples}</div>`;
+  const exampleHint=contractExample===0?'Cada tarjeta es un caso de entrada. Arriba, lo que recibe el bloque. Dentro, lo que forma parte de ese caso.':'Cada tarjeta es un caso de salida. Arriba, los datos del caso. Dentro, lo que le pertenece, como sus procesos.';
+  const examples=`<div id="panel-vista" role="tabpanel" aria-labelledby="vista-ejemplos"><div class="sidetabs" role="tablist" aria-label="Lado del ejemplo"><button type="button" role="tab" aria-selected="${contractExample===0}" data-side="0">${icon('input')} Input</button><button type="button" role="tab" aria-selected="${contractExample===1}" data-side="1">${icon('output')} Output</button></div><p class="intro">${exampleHint}</p><section class="card">${renderRecordTable(loadExampleRows(d.label, exampleSchema, exampleRows))}</section></div>`;
+  content.innerHTML=heading('Propósitos e interfaces','Instrucciones','Dentro de cada bloque, el contrato y los casos de ejemplo van por separado.','8 instrucciones')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos" role="tabpanel" aria-labelledby="contratos-${contractTab}">${summary}${switcher}${contractView===0?definition:examples}</div>`;
   bindTabs('contratos',i=>{contractTab=i;renderContracts()});
   content.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{contractView=Number(b.dataset.view);renderContracts()}));
   content.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{contractExample=Number(b.dataset.side);contractView=1;renderContracts()}));
