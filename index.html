@@ -852,7 +852,7 @@ const identidadConfig={
  }
 };
 const identidadGuidance="Configuración fija de ejecución, no un bloque de investigación. Introduce los datos reales de forma protegida; no publiques valores personales en esta web, el Markdown, las evidencias o una URL. Automática y Enlace asistido reciben esta configuración y solo mapean los valores que correspondan a parámetros justificados. En el enlace final de un cliente se usan los datos que ese cliente facilite, no la identidad de prueba. La nota es opcional y nunca debe prometer una cancelación que no esté acordada.";
-const flow="flowchart TD\n  U[\"URL del negocio\"] --\u003e FIC[\"Ficha del negocio\"]\n  FIC --\u003e PA[\"Punto A\"]\n  FIC --\u003e AP[\"Apertura\"]\n  FIC --\u003e CT[\"Contactos\"]\n  PA --\u003e R{\"¿Hay enlace?\"}\n  R --\u003e|No| NA[\"SIN RESERVA ONLINE\"]\n  R --\u003e|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R --\u003e|Por proceso| S[\"Identificar software\"]\n  R --\u003e|Por proceso| O[\"Observar formulario\"]\n  R --\u003e|Por proceso| C[\"Canal de cancelación\"]\n  S --\u003e I[\"Integración\"]\n  CT --\u003e C\n  O --\u003e J[\"Justificante\"]\n  J --\u003e FN[\"Función\"]\n  FN --\u003e SC[\"Script\"]\n  SC --\u003e REV{\"¿Función y script OK?\"}\n  REV --\u003e|Sí| AU[\"Automática\"]\n  REV --\u003e|Sí| EN[\"Enlace asistido\"]\n  REV --\u003e|No| NI[\"Vías no intentadas\"]\n  I -.-\u003e|pista| AU\n  AP --\u003e G[\"Compuerta\"]\n  C --\u003e G\n  CT --\u003e G\n  AU --\u003e G\n  EN --\u003e G\n  G --\u003e|Abierta| V[\"Verificación\"]\n  G --\u003e|Cerrado| PEND[\"pendiente_apertura\"]\n  G --\u003e|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --\u003e Z[\"Resultado\"]\n  NI --\u003e Z\n  PEND --\u003e Z\n  SC2 --\u003e Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PEND pending\n  class Z summary\n  click FIC call abrirNodo\n  click PA call abrirNodo\n  click AP call abrirNodo\n  click CT call abrirNodo\n  click S call abrirNodo\n  click O call abrirNodo\n  click C call abrirNodo\n  click I call abrirNodo\n  click J call abrirNodo\n  click FN call abrirNodo\n  click SC call abrirNodo\n  click AU call abrirNodo\n  click EN call abrirNodo\n  click V call abrirNodo\n  click G call abrirResultado\n  click Z call abrirResultado";
+const flow="flowchart TD\n  U[\"URL del negocio\"] --> FIC[\"Ficha del negocio\"]\n  FIC --> PA[\"Punto A\"]\n  FIC --> AP[\"Apertura\"]\n  FIC --> CT[\"Contactos\"]\n  PA --> R{\"¿Hay enlace?\"}\n  R -->|No| NA[\"SIN RESERVA ONLINE\"]\n  R -->|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R -->|Por proceso| S[\"Identificar software\"]\n  R -->|Por proceso| O[\"Observar formulario\"]\n  R -->|Por proceso| C[\"Canal de cancelación\"]\n  S --> I[\"Integración\"]\n  CT --> C\n  O --> J[\"Justificante\"]\n  J --> FN[\"Función\"]\n  FN --> SC[\"Script\"]\n  SC --> REV{\"¿Función y script OK?\"}\n  REV -->|Sí| AU[\"Automática\"]\n  REV -->|Sí| EN[\"Enlace asistido\"]\n  REV -->|No| NI[\"Vías no intentadas\"]\n  I -.->|pista| AU\n  AP --> G[\"Compuerta\"]\n  C --> G\n  CT --> G\n  AU --> G\n  EN --> G\n  G -->|Abierta| V[\"Verificación\"]\n  G -->|Cerrado| PEND[\"pendiente_apertura\"]\n  G -->|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --> Z[\"Resultado\"]\n  NI --> Z\n  PEND --> Z\n  SC2 --> Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PEND pending\n  class Z summary";
 const nodoABloque={"FIC": "Ficha del negocio", "PA": "Punto A", "AP": "Apertura", "CT": "Contactos del negocio", "S": "Identificar software", "O": "Observar formulario", "C": "Canal de cancelación", "I": "Investigar integración", "J": "Justificante", "FN": "Función", "SC": "Script", "AU": "Automática", "EN": "Enlace asistido", "V": "Verificación y vigilancia"};
 const outputExamples = {
  "Ficha del negocio": [
@@ -2506,8 +2506,28 @@ function renderFlow(){
   el.textContent=flow;
   if(!window.mermaid){el.className='map-fallback';status.textContent='Mapa en texto: requiere conexión para visualizar el diagrama.';return}
   try{
-    mermaid.initialize({startOnLoad:false,securityLevel:'loose',theme:'default',flowchart:{useMaxWidth:true,htmlLabels:true,nodeSpacing:28,rankSpacing:36}});
-    mermaid.run({nodes:[el]}).then(()=>{status.textContent='Pulsa un bloque del mapa para abrir su instrucción'}).catch(()=>{el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'});
+    mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'default',flowchart:{useMaxWidth:true,htmlLabels:true,nodeSpacing:28,rankSpacing:36}});
+    mermaid.run({nodes:[el]}).then(()=>{
+      status.textContent='Pulsa un bloque del mapa para abrir su instrucción';
+      const byText={
+        'Ficha del negocio':'Ficha del negocio','Punto A':'Punto A','Apertura':'Apertura',
+        'Contactos':'Contactos del negocio','Identificar software':'Identificar software',
+        'Observar formulario':'Observar formulario','Canal de cancelación':'Canal de cancelación',
+        'Integración':'Investigar integración','Justificante':'Justificante','Función':'Función',
+        'Script':'Script','Automática':'Automática','Enlace asistido':'Enlace asistido',
+        'Verificación':'Verificación y vigilancia','Compuerta':null,'Resultado':null
+      };
+      el.querySelectorAll('.node').forEach(node=>{
+        const raw=(node.textContent||'').replace(/\s+/g,' ').trim();
+        let label=null; let goResult=false;
+        for (const [text,lab] of Object.entries(byText)){
+          if(raw.includes(text)){ if(lab===null) goResult=true; else label=lab; break; }
+        }
+        if(!label && !goResult) return;
+        node.style.cursor='pointer';
+        node.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation(); if(goResult) abrirResultado(); else irAInstruccion(label);});
+      });
+    }).catch(()=>{el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'});
   }catch(e){el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'}
 }
 function renderContracts(){
