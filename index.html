@@ -198,29 +198,33 @@ const contracts=[
   }
  },
  {
-  "label": "Apertura",
-  "summary": "Comprobar si el negocio está abierto ahora, con horario oficial, festivos y margen de una hora.",
-  "input": {
-   "url_negocio": "URL del negocio",
-   "telefono_cancelacion": "número | null"
-  },
-  "instructions": "Comprueba si el negocio está abierto ahora. No pruebes la reserva ni decidas si la vía es apta. Horario y festivo pueden salir aunque telefono_cancelacion sea null. Horario de hoy: usa la fuente oficial (web del negocio, del hotel o del centro comercial), registra la URL en fuente_horario y, si solo hay fuentes de terceros, dilo. Festivos y cierres: comprueba festivo nacional, de Canarias, de la isla y municipal, cierre semanal, vacaciones, cierre temporal o evento privado en su web, redes o ficha de Google; registra fuente_festivos. Calcula margen_hasta_cierre_min. abierto_ahora es true solo si está dentro del horario, no hay festivo ni cierre y quedan al menos 60 minutos. Es false si está cerrado o el margen es menor de 1 hora. Es indeterminado si horario o festivo no se pueden comprobar. Si falta el teléfono, anótalo en motivo_pendiente y no lo trates como cerrado. Si no está abierto, indica proxima_hora_valida en la zona del negocio. Registra telefono_cancelacion tal como llega y comprobado_en con la zona del negocio. No envíes una reserva. No inventes horarios, festivos ni contactos. No confirmes sin evidencia. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
-  "output": {
-   "abierto_ahora": "true | false | indeterminado",
-   "horario_hoy": "texto | null",
-   "fuente_horario": "URL | null",
-   "festivo_o_cierre": "ninguno | descripción",
-   "fuente_festivos": "URL | null",
-   "margen_hasta_cierre_min": "number | null",
-   "telefono_cancelacion": "número | null",
-   "motivo_pendiente": "texto | null",
-   "proxima_hora_valida": "ISO 8601 con la zona del negocio | null",
-   "comprobado_en": "ISO 8601 con la zona horaria del negocio",
-   "fecha_evaluacion": "ISO 8601",
-   "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  }
+ "label": "Apertura",
+ "summary": "Investigar horario y apertura y dejarlo en un Markdown versionado con timestamp.",
+ "input": {
+  "url_negocio": "URL del negocio",
+  "telefono_cancelacion": "número | null",
+  "informe_previo": "informe de apertura anterior | null"
  },
+ "instructions": "Tu propósito es investigar si el negocio está abierto ahora y dejar esa investigación en un Markdown versionado con timestamp. No pruebes la reserva ni decides si la vía es apta.\n\nPrimero escribe observacion_apertura_md. Relata en Markdown todo lo que observes sobre horario, festivos, cierres, teléfono y señales de apertura: la web del negocio (horario, contacto, avisos, vacaciones, eventos), Google Maps o la ficha pública equivalente (horario del día, abierto o cerrado ahora, avisos temporales) y cualquier otra fuente oficial que consultes. Cita cada URL o ficha, la hora de la consulta y qué decía exactamente. Separa hechos de interpretaciones. No inventes horarios, festivos ni contactos.\n\nCada ejecución crea un informe nuevo. Si informe_previo llega vacío, version es v1. Si llega un informe anterior, version es la siguiente (v2, v3…). timestamp es el instante de esta investigación, en la zona del negocio. No reescribas el Markdown anterior: guarda uno nuevo. Las versiones anteriores se conservan como historial.\n\nDespués del Markdown, rellena solo el resumen que necesita la compuerta: abierto_ahora, horario_hoy, fuente_horario, festivo_o_cierre, fuente_festivos, margen_hasta_cierre_min, telefono_cancelacion, motivo_pendiente, proxima_hora_valida y comprobado_en. Esos campos salen del Markdown; no sustituyen al informe. abierto_ahora es true solo si está dentro del horario, no hay festivo ni cierre y quedan al menos 60 minutos. Es false si está cerrado o el margen es menor de 1 hora. Es indeterminado si horario o festivo no se pueden comprobar. Horario y festivo pueden salir aunque telefono_cancelacion sea null. Si falta el teléfono, anótalo en motivo_pendiente y no lo trates como cerrado.\n\nNo envíes una reserva. No confirmes sin evidencia. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+ "output": {
+  "version": "v1 | v2 | v3 | …",
+  "timestamp": "ISO 8601 con la zona del negocio; instante de este informe",
+  "observacion_apertura_md": "Informe Markdown de todo lo observado en la web, Google Maps y otras fuentes; no sustituye a versiones anteriores",
+  "abierto_ahora": "true | false | indeterminado",
+  "horario_hoy": "texto | null",
+  "fuente_horario": "URL | null",
+  "festivo_o_cierre": "ninguno | descripción",
+  "fuente_festivos": "URL | null",
+  "margen_hasta_cierre_min": "number | null",
+  "telefono_cancelacion": "número | null",
+  "motivo_pendiente": "texto | null",
+  "proxima_hora_valida": "ISO 8601 con la zona del negocio | null",
+  "comprobado_en": "ISO 8601 con la zona horaria del negocio",
+  "fecha_evaluacion": "ISO 8601",
+  "fecha_validacion": "ISO 8601 | null",
+  "explicacion": "string"
+ }
+},
  {
   "label": "Investigar integración",
   "summary": "Investigar una vez por proveedor qué integración oficial existe y qué condiciones tiene.",
@@ -552,33 +556,37 @@ const validations=[
   "outcome": "Aprobado con estado encontrado, canal preferido verificado y política usable. no_encontrado y pendiente son resultados distintos: ambos frenan el envío real y ninguno demuestra que la vía sea técnicamente incapaz."
  },
  {
-  "label": "Apertura",
-  "intro": "Revisión independiente de si el negocio está abierto ahora. No decide la aptitud de la vía. fecha_validacion solo se completa aquí, en una revisión concluyente.",
-  "input": "url_negocio y el output de Apertura: abierto_ahora, horario de hoy, fuentes, festivo o cierre, margen hasta el cierre, teléfono si ya existe, motivo pendiente, próxima hora válida y momento de la comprobación.",
-  "checks": [
-   [
-    "Fuentes oficiales",
-    "El horario de hoy cita la web del negocio, del hotel o del centro comercial. Si solo hay fuentes de terceros, queda dicho."
-   ],
-   [
-    "Festivos",
-    "Se comprueban festivo nacional, de Canarias, de la isla y municipal, cierre semanal, vacaciones, cierre temporal y evento privado."
-   ],
-   [
-    "Margen",
-    "abierto_ahora en true exige estar dentro del horario y al menos una hora hasta el cierre, con la fuente citada."
-   ],
-   [
-    "Aptitud aparte",
-    "Esta revisión no declara la vía apta ni no_apta. Un local cerrado es un hecho de apertura, con próxima hora válida si se conoce."
-   ],
-   [
-    "Fecha",
-    "fecha_validacion solo se completa aquí si horario, festivo y margen quedan comprobados."
-   ]
+ "label": "Apertura",
+ "intro": "Revisión independiente del informe Markdown de apertura y del resumen que usa la compuerta. No decide la aptitud de la vía. fecha_validacion solo se completa aquí, en una revisión concluyente.",
+ "input": "url_negocio, informe_previo si existe, y el output de Apertura: version, timestamp, observacion_apertura_md y el resumen (abierto_ahora, horarios, fuentes, margen, teléfono, motivos).",
+ "checks": [
+  [
+   "Markdown primero",
+   "Existe observacion_apertura_md. Relata lo visto en la web del negocio y en Google Maps u otra ficha pública, con URL o ficha y hora de consulta."
   ],
-  "outcome": "Abierto solo con fuentes citadas, sin festivo y con margen de al menos una hora. Cerrado o no comprobable deja abierto_ahora en false o indeterminado, sin cambiar la aptitud de Automática ni del enlace."
- },
+  [
+   "Versionado",
+   "version y timestamp identifican este informe. Si había informe_previo, version es la siguiente y el Markdown es nuevo, no una edición silenciosa del anterior."
+  ],
+  [
+   "Fuentes",
+   "El horario y los festivos del resumen citan fuentes que aparecen en el Markdown. Si solo hay terceros, el informe lo dice."
+  ],
+  [
+   "Margen",
+   "abierto_ahora en true exige horario, sin festivo y al menos una hora hasta el cierre, sostenidos por el Markdown."
+  ],
+  [
+   "Aptitud aparte",
+   "Esta revisión no declara la vía apta ni no_apta. Un local cerrado es un hecho de apertura, con próxima hora válida si se conoce."
+  ],
+  [
+   "Fecha",
+   "fecha_validacion solo se completa aquí si el Markdown y el resumen quedan comprobados."
+  ]
+ ],
+ "outcome": "Aprobado solo si el Markdown versionado sostiene el resumen. Cerrado o no comprobable deja abierto_ahora en false o indeterminado, sin cambiar la aptitud de Automática ni del enlace."
+},
  {
   "label": "Investigar integración",
   "intro": "Revisión independiente de la integración oficial del proveedor. El investigador no rellena fecha_validacion. Solo esta revisión la completa, y solo si es concluyente.",
@@ -994,52 +1002,61 @@ const outputExamples = {
   }
  ],
  "Apertura": [
-  {
-   "abierto_ahora": true,
-   "horario_hoy": "13:00-16:00, 20:00-23:30",
-   "fuente_horario": "web del negocio",
-   "festivo_o_cierre": false,
-   "fuente_festivos": "calendario insular de Canarias",
-   "margen_hasta_cierre_min": 95,
-   "telefono_cancelacion": "+34 922 000 222",
-   "motivo_pendiente": null,
-   "proxima_hora_valida": null,
-   "comprobado_en": "2026-10-14T21:55:00+01:00",
-   "fecha_evaluacion": "2026-10-14",
-   "fecha_validacion": "2026-10-14",
-   "explicacion": "Restaurante El Muelle está abierto en el turno de cena y queda más de una hora hasta el cierre. El teléfono de cancelación ya está localizado."
-  },
-  {
-   "abierto_ahora": false,
-   "horario_hoy": "cerrado por festivo insular",
-   "fuente_horario": "web del negocio",
-   "festivo_o_cierre": "festivo insular (Día de Canarias)",
-   "fuente_festivos": "calendario insular de Canarias",
-   "margen_hasta_cierre_min": 0,
-   "telefono_cancelacion": null,
-   "motivo_pendiente": null,
-   "proxima_hora_valida": "2026-06-01T09:00:00+01:00",
-   "comprobado_en": "2026-05-30T12:00:00+01:00",
-   "fecha_evaluacion": "2026-05-30",
-   "fecha_validacion": "2026-05-30",
-   "explicacion": "Hotel Costa Mar está cerrado por festivo insular. La próxima hora válida es el 1 de junio a las 09:00."
-  },
-  {
-   "abierto_ahora": "indeterminado",
-   "horario_hoy": null,
-   "fuente_horario": null,
-   "festivo_o_cierre": null,
-   "fuente_festivos": null,
-   "margen_hasta_cierre_min": null,
-   "telefono_cancelacion": null,
-   "motivo_pendiente": "Pescadería Norte no publica horario ni calendario de cierre.",
-   "proxima_hora_valida": null,
-   "comprobado_en": "2026-10-14T21:55:00+01:00",
-   "fecha_evaluacion": "2026-10-14",
-   "fecha_validacion": null,
-   "explicacion": "No hay fuente para decidir si Pescadería Norte está abierta ahora."
-  }
- ],
+ {
+  "version": "v1",
+  "timestamp": "2026-10-14T21:55:00+01:00",
+  "observacion_apertura_md": "# Apertura — Restaurante El Muelle\n**version:** v1  \n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web del negocio\n- Fuente: https://www.elmuelle.example/horario (consultada 2026-10-14T21:50:00+01:00)\n- Horario publicado hoy: comida 13:00-16:00, cena 20:00-23:30.\n- Aviso visible: sin cierre temporal ni vacaciones.\n\n## Google Maps\n- Ficha: Restaurante El Muelle (consultada 2026-10-14T21:52:00+01:00)\n- Estado mostrado: Abierto · cierra a las 23:30.\n- Horario de hoy coincide con la web.\n\n## Teléfono\n- En web de contacto: +34 922 000 222, publicado para cancelaciones.\n\n## Lectura\nDentro del turno de cena, sin festivo, margen mayor de 60 minutos.\n",
+  "abierto_ahora": true,
+  "horario_hoy": "13:00-16:00, 20:00-23:30",
+  "fuente_horario": "https://www.elmuelle.example/horario",
+  "festivo_o_cierre": "ninguno",
+  "fuente_festivos": "https://www.elmuelle.example/horario",
+  "margen_hasta_cierre_min": 95,
+  "telefono_cancelacion": "+34 922 000 222",
+  "motivo_pendiente": null,
+  "proxima_hora_valida": null,
+  "comprobado_en": "2026-10-14T21:55:00+01:00",
+  "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
+  "fecha_validacion": "2026-10-14T22:10:00+01:00",
+  "explicacion": "Informe v1: web y Maps coinciden; abierto en cena con margen de más de una hora."
+ },
+ {
+  "version": "v2",
+  "timestamp": "2026-05-30T12:00:00+01:00",
+  "observacion_apertura_md": "# Apertura — Hotel Costa Mar\n**version:** v2  \n**timestamp:** 2026-05-30T12:00:00+01:00\n\n## Web del negocio\n- Fuente: https://www.hotelcostamar.example (consultada 2026-05-30T11:50:00+01:00)\n- Aviso de cierre por festivo insular (Día de Canarias).\n- Próxima apertura indicada: 1 de junio, 09:00.\n\n## Google Maps\n- Ficha: Hotel Costa Mar (consultada 2026-05-30T11:55:00+01:00)\n- Estado mostrado: Cerrado · abre el lunes a las 09:00.\n- Coincide con el aviso de la web.\n\n## Teléfono\n- No llegó telefono_cancelacion en esta ejecución.\n\n## Lectura\nCerrado ahora. La próxima hora válida es 2026-06-01T09:00:00+01:00.\n",
+  "abierto_ahora": false,
+  "horario_hoy": "cerrado por festivo insular",
+  "fuente_horario": "https://www.hotelcostamar.example",
+  "festivo_o_cierre": "festivo insular (Día de Canarias)",
+  "fuente_festivos": "https://www.hotelcostamar.example",
+  "margen_hasta_cierre_min": 0,
+  "telefono_cancelacion": null,
+  "motivo_pendiente": null,
+  "proxima_hora_valida": "2026-06-01T09:00:00+01:00",
+  "comprobado_en": "2026-05-30T12:00:00+01:00",
+  "fecha_evaluacion": "2026-05-30T12:00:00+01:00",
+  "fecha_validacion": "2026-05-30T12:30:00+01:00",
+  "explicacion": "Informe v2 tras una nueva ejecución: cerrado por festivo; la aptitud de la vía no cambia."
+ },
+ {
+  "version": "v1",
+  "timestamp": "2026-10-14T21:55:00+01:00",
+  "observacion_apertura_md": "# Apertura — Pescadería Norte\n**version:** v1  \n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web del negocio\n- Fuente: https://www.pescaderianorte.example (consultada 2026-10-14T21:50:00+01:00)\n- No publica horario ni calendario de cierres.\n- Solo muestra mostrador y teléfono genérico sin franja.\n\n## Google Maps\n- Ficha: Pescadería Norte (consultada 2026-10-14T21:53:00+01:00)\n- Sin horario semanal legible; estado del día no aparece.\n\n## Teléfono\n- telefono_cancelacion no llegó.\n\n## Lectura\nNo hay fuente suficiente para decidir si está abierta ahora.\n",
+  "abierto_ahora": "indeterminado",
+  "horario_hoy": null,
+  "fuente_horario": null,
+  "festivo_o_cierre": null,
+  "fuente_festivos": null,
+  "margen_hasta_cierre_min": null,
+  "telefono_cancelacion": null,
+  "motivo_pendiente": "Pescadería Norte no publica horario ni calendario de cierre.",
+  "proxima_hora_valida": null,
+  "comprobado_en": "2026-10-14T21:55:00+01:00",
+  "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
+  "fecha_validacion": null,
+  "explicacion": "Informe v1 sin fuente suficiente; abierto_ahora queda indeterminado."
+ }
+],
  "Investigar integración": [
   {
    "software": "CoverManager",
@@ -1650,19 +1667,26 @@ const inputExamples = {
   }
  ],
  "Apertura": [
-  {
-   "url_negocio": "https://www.elmuelle.example",
-   "telefono_cancelacion": "+34 922 000 222"
-  },
-  {
-   "url_negocio": "https://www.hotelcostamar.example",
-   "telefono_cancelacion": null
-  },
-  {
-   "url_negocio": "https://www.pescaderianorte.example",
-   "telefono_cancelacion": null
+ {
+  "url_negocio": "https://www.elmuelle.example",
+  "telefono_cancelacion": "+34 922 000 222",
+  "informe_previo": null
+ },
+ {
+  "url_negocio": "https://www.hotelcostamar.example",
+  "telefono_cancelacion": null,
+  "informe_previo": {
+   "version": "v1",
+   "timestamp": "2026-05-29T18:00:00+01:00",
+   "observacion_apertura_md": "# Apertura — Hotel Costa Mar\n**version:** v1\n**timestamp:** 2026-05-29T18:00:00+01:00\n\nInforme anterior: horario habitual sin festivo."
   }
- ],
+ },
+ {
+  "url_negocio": "https://www.pescaderianorte.example",
+  "telefono_cancelacion": null,
+  "informe_previo": null
+ }
+],
  "Investigar integración": [
   {
    "software": "CoverManager",
