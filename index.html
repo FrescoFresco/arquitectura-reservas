@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arquitectura de reservas web</title>
-<meta name="description" content="Doce instrucciones con responsabilidades separadas: enlace de inicio, lecturas en paralelo, función, script y dos vías.">
+<meta name="description" content="Catorce instrucciones en capas: ficha del negocio, apertura y contactos una vez, ramas por proceso, y compuerta.">
 <style>
 :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17212f;background:#f6f8fb}*{box-sizing:border-box}body{margin:0}button{font:inherit}header{background:white;border-bottom:1px solid #e5eaf1;padding:20px clamp(16px,4vw,54px)}.brand{max-width:1180px;margin:auto;display:flex;align-items:center;gap:13px}.brandmark{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:12px;background:#eaf1ff;color:#1c63d5;font-size:22px}h1{font-size:21px;margin:0 0 5px}header p{margin:0;color:#677488;font-size:13px}.layout{display:grid;grid-template-columns:230px minmax(0,1fr);max-width:1180px;margin:24px auto;gap:24px;padding:0 16px}nav,.main{background:white;border:1px solid #e7ebf2;border-radius:18px;box-shadow:0 8px 30px #24334a08}nav{padding:14px;height:max-content;position:sticky;top:16px}.navtitle{font-size:11px;color:#8490a1;letter-spacing:.09em;font-weight:800;padding:8px 12px 12px;text-transform:uppercase}nav button{width:100%;border:0;background:transparent;text-align:left;padding:13px 12px;border-radius:11px;margin-bottom:5px;display:flex;align-items:center;gap:11px;cursor:pointer;color:#344156;font-size:13px}nav button.active{background:#eaf1ff;color:#165bd4;font-weight:750}.num{display:grid;place-items:center;border:1px solid #dce3ed;background:#f4f7fb;width:29px;height:29px;border-radius:9px;font-size:12px;flex:none}.active .num{background:#dbe9ff}.main{min-height:570px;padding:clamp(22px,4vw,45px)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.1em;color:#4579dc}.pill{font-size:11px;background:#edf3ff;color:#315eb6;border-radius:40px;padding:8px 11px;font-weight:700}h2{font-size:28px;letter-spacing:-.035em;margin:12px 0}p.desc{font-size:15px;color:#5f6f84;line-height:1.65;max-width:750px;margin:0 0 22px}.tabs{display:flex;gap:8px;overflow-x:auto;border-bottom:1px solid #e7ebf2;margin:25px 0 20px;padding-bottom:9px}.tabs button{flex:none;border:1px solid #dce5f2;border-radius:10px;background:#fff;color:#52657e;padding:11px 14px;font-size:13px;font-weight:700;cursor:pointer}.tabs button[aria-selected="true"]{background:#eaf1ff;border-color:#a9c5ef;color:#185aba}button:focus-visible{outline:2px solid #266bd1;outline-offset:2px}.card{border:1px solid #e7ebf1;border-radius:14px;padding:19px;margin:15px 0;background:#fff}.card h3{font-size:14px;margin:0 0 13px}.card.prompt{border-color:#bbd1f5;background:#f7faff}.prompthead{display:flex;align-items:center;justify-content:space-between;gap:10px}.prompthead h3{color:#2459a9}.copy{border:1px solid #a6c3ef;border-radius:9px;background:white;color:#2459a9;padding:8px 11px;cursor:pointer;font-weight:700;font-size:12px}pre{margin:0;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:15px;color:#34445b;font-size:12px;line-height:1.6}.prompttext{white-space:pre-line;color:#364b65;font-size:14px;line-height:1.8;margin:0}.intro{font-size:13px;color:#66758a;line-height:1.6;margin:0 0 8px}.notice{background:#eff5ff;color:#315784;padding:14px 16px;border-radius:11px;font-size:13px;line-height:1.6;margin-top:19px}.criteria{list-style:none;margin:0;padding:0}.criteria li{border-top:1px solid #edf0f5;padding:12px 0;font-size:13px;line-height:1.6;color:#4c5c70}.criteria li:first-child{border-top:0;padding-top:0}.criteria li:last-child{padding-bottom:0}.criteria strong{color:#27384d}.result-row{display:grid;grid-template-columns:155px 1fr;gap:12px;border-top:1px solid #edf0f5;padding:13px 0;font-size:13px;line-height:1.55}.result-row:first-of-type{border-top:0}.result-row strong{color:#315784}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}th,td{padding:12px 10px;border-bottom:1px solid #e7ebf2;line-height:1.5}th{background:#f6f8fc;color:#64748b;font-weight:700}td strong{color:#315784}.map-panel{border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;overflow:hidden}.map-panel>summary{list-style:none;display:flex;gap:12px;align-items:center;cursor:pointer;padding:17px 20px;font-size:14px;font-weight:800;color:#245bb2}.map-panel>summary::-webkit-details-marker{display:none}.map-panel .hint{display:block;color:#75859a;font-size:11px;font-weight:500;margin-top:3px}.map-body{padding:0 16px 20px}.mermaid{overflow:auto;text-align:center;min-height:110px;max-height:72vh;max-width:100%;border-radius:12px}.mermaid svg{display:block;width:100%!important;max-width:100%!important;height:auto!important;min-width:0!important;margin:auto}.map-fallback{white-space:pre-wrap;overflow:auto;max-height:360px;padding:16px;background:#f3f6fc;border-radius:10px;font-size:11px;color:#334155}.mapstatus{color:#75859a;font-size:12px;margin:10px 0 0}@media(max-width:760px){.layout{display:block;margin:12px auto}nav{position:relative;top:0;margin-bottom:12px;display:flex;overflow-x:auto;gap:5px}nav .navtitle{display:none}nav button{min-width:132px;margin:0;padding:10px;font-size:11px}.main{min-height:520px}.result-row{grid-template-columns:1fr;gap:3px}h2{font-size:24px}}
 .doclink{margin-left:auto;flex:none;display:inline-block;padding:10px 14px;border:1px solid #b9cef0;border-radius:10px;text-decoration:none;color:#2459a9;background:#f7faff;font-size:12px;font-weight:700}.doclink:hover{background:#eaf1ff}.doclink:focus-visible{outline:2px solid #266bd1;outline-offset:2px}@media(max-width:760px){.brand{flex-wrap:wrap}.doclink{margin-left:55px}}
@@ -55,26 +55,114 @@
 </style>
 </head>
 <body>
-<header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de reservas web</h1><p>Punto A · lecturas en paralelo · función y script · dos vías · compuerta</p></div></div></header>
+<header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de reservas web</h1><p>Ficha · Punto A · Apertura y contactos · ramas por proceso · compuerta</p></div></div></header>
 <div class="layout"><nav id="nav" aria-label="Secciones"></nav><main class="main" id="content"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
 const contracts=[
  {
-  "label": "Punto A",
-  "summary": "Localizar cada enlace donde el negocio empieza una reserva.",
+  "label": "Ficha del negocio",
+  "summary": "Centralizar una vez los datos del negocio que no pertenecen a ninguna rama: nombre, zona horaria y ámbito festivo.",
   "input": {
    "url_negocio": "URL del negocio"
   },
-  "instructions": "Localiza cada enlace en el que el negocio empieza una reserva. Explora la web y los destinos a los que conduce, incluidos widgets o servicios externos. Para cada inicio registra id_proceso, url_inicio y alcance. Separa procesos con enlace o cobertura distinta; agrupa accesos que abren el mismo inicio y explica por qué. No identifiques software, no recorras el formulario y no busques cancelación, horario ni vías. Usa no_encontrada solo si la exploración basta para sostener que no hay reserva online. Bloqueo, web a medias o falta de acceso, datos o evidencia es pendiente. No confundas no haber hallado un enlace con haber confirmado que no existe. El resultado de negocio es sin_reserva_online o pendiente, nunca no_apto. No inventes enlaces ni contactos. No confirmes una reserva. Registra fecha_evaluacion y deja fecha_validacion vacía hasta que la revisión independiente sea concluyente.",
+  "instructions": "Tu propósito es crear la ficha del negocio: los datos que valen para todas las ramas y no deben repetirse después.\n\nCon url_negocio, identifica nombre_negocio, zona_horaria (IANA, por ejemplo Atlantic/Canary) y ambito_festivo (país, comunidad o región, isla o provincia, municipio) con fuentes atribuibles: web del negocio, ficha pública tipo Google Maps u otra fuente oficial. Cita cada fuente. No inventes nombre, zona ni ámbito.\n\nestado es completa si nombre, zona y ámbito quedan sostenidos; pendiente si falta alguno esencial. No busques enlaces de reserva (eso es Punto A). No armes la pila de cron (eso es Apertura). No listes teléfonos ni canales (eso es Contactos del negocio). No confirmes una reserva.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "output": {
+   "estado": "completa | pendiente",
+   "url_negocio": "URL del negocio",
+   "nombre_negocio": "string | null",
+   "zona_horaria": "IANA | null",
+   "ambito_festivo": {
+    "pais": "string | null",
+    "comunidad_o_region": "string | null",
+    "isla_o_provincia": "string | null",
+    "municipio": "string | null"
+   },
+   "evidencias": [
+    {
+     "origen": "URL o ficha",
+     "fragmento": "string",
+     "explicacion": "string"
+    }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "ISO 8601",
+   "fecha_validacion": "ISO 8601 | null",
+   "explicacion": "string"
+  }
+ },
+ {
+  "label": "Punto A",
+  "summary": "Localizar cada enlace donde el negocio empieza una reserva. No redefine la ficha.",
+  "input": {
+   "url_negocio": "URL del negocio (la misma de la ficha)"
+  },
+  "instructions": "Tu propósito es localizar cada enlace en el que el negocio empieza una reserva. La ficha del negocio ya concentra nombre, zona y ámbito festivo: no los reescribas aquí.\n\nExplora la web y los destinos a los que conduce, incluidos widgets o servicios externos. Para cada inicio registra id_proceso, url_inicio y alcance. Separa procesos con enlace o cobertura distinta; agrupa accesos que abren el mismo inicio y explica por qué.\n\nUsa no_encontrada solo si la exploración basta para sostener que no hay reserva online. Bloqueo, web a medias o falta de evidencia es pendiente. El resultado de negocio es sin_reserva_online o pendiente, nunca no_apto.\n\nNo identifiques software, no recorras el formulario, no busques cancelación ni horario. No inventes enlaces. No confirmes una reserva. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
   "output": {
    "estado": "encontrada | no_encontrada | pendiente",
-   "nombre_negocio": "string | null",
    "procesos": [
     {
      "id_proceso": "Identificador del proceso",
      "url_inicio": "URL de inicio de la reserva",
      "alcance": "Reservas que cubre"
+    }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "ISO 8601",
+   "fecha_validacion": "ISO 8601 | null",
+   "explicacion": "string"
+  }
+ },
+ {
+  "label": "Apertura",
+  "summary": "Una vez por negocio: Markdown versionado y pila de cron. La zona horaria sale de la ficha, no de cada cron.",
+  "input": {
+   "url_negocio": "URL del negocio",
+   "zona_horaria": "IANA de la ficha | null",
+   "ambito_festivo": "Ámbito de la ficha | null",
+   "informe_previo": "informe de apertura anterior | null"
+  },
+  "instructions": "Tu propósito es investigar si el negocio está abierto ahora. Se ejecuta una sola vez por negocio, no por cada enlace de reserva.\n\nPrimero escribe observacion_apertura_md: web del negocio y Google Maps u otra ficha pública, con URL, hora de consulta y lo observado. Cada ejecución crea un informe nuevo (v1, v2…). timestamp es el instante de este informe en la zona de la ficha. No reescribas el Markdown anterior.\n\nDespués construye pila_cron. Cada job tiene tipo, efecto (abierto|cerrado), cron de 5 campos, fuente y nota. No incluyas zona en el job: la zona_horaria vive en la ficha del negocio y se usa al evaluar. Los cierres van después de los horarios ordinarios; entre jobs que coinciden gana el último.\n\nEvalúa la pila en timestamp con la zona de la ficha. abierto_ahora es true solo con job ganador abierto y margen ≥ 60 minutos. Si zona_horaria falta, abierto_ahora es indeterminado. No registres teléfonos (Contactos del negocio). No decidas aptitud de vía. No envíes reservas.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "output": {
+   "version": "v1 | v2 | v3 | …",
+   "timestamp": "ISO 8601; instante de este informe",
+   "observacion_apertura_md": "Informe Markdown web + Maps",
+   "pila_cron": [
+    {
+     "tipo": "horario_ordinario | cierre_semanal | festivo | vacaciones | evento_privado | horario_especial",
+     "efecto": "abierto | cerrado",
+     "cron": "minuto hora día-mes mes día-semana",
+     "fuente": "URL o ficha",
+     "nota": "string | null"
+    }
+   ],
+   "abierto_ahora": "true | false | indeterminado",
+   "margen_hasta_cierre_min": "number | null",
+   "proxima_hora_valida": "ISO 8601 | null",
+   "fecha_evaluacion": "ISO 8601",
+   "fecha_validacion": "ISO 8601 | null",
+   "explicacion": "string"
+  }
+ },
+ {
+  "label": "Contactos del negocio",
+  "summary": "Una vez por negocio: canales de contacto publicados (teléfono, WhatsApp, email, formulario).",
+  "input": {
+   "url_negocio": "URL del negocio"
+  },
+  "instructions": "Tu propósito es reunir los canales de contacto que el negocio publica. Se ejecuta una vez por negocio.\n\nBusca en la web, la ficha pública y fuentes oficiales: teléfono, WhatsApp, email, formulario. Cada canal lleva tipo, valor, fuente, fecha_consulta y evidencia. Distingue uso publicado (contacto general, reservas, otro). No inventes contactos. WhatsApp solo si el negocio lo señala.\n\nestado es encontrado si hay al menos un canal verificable; no_encontrado si la búsqueda bastó y no hay canal; pendiente si la exploración quedó a medias. No decidas todavía el canal preferido de cancelación de un proceso (eso es Canal de cancelación). No armes horarios. No confirmes reservas.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "output": {
+   "estado": "encontrado | no_encontrado | pendiente",
+   "canales_contacto": [
+    {
+     "tipo": "whatsapp | telefono | email | formulario",
+     "valor": "string",
+     "tipo_linea": "movil | fijo | no_aplica | desconocido",
+     "uso_publicado": "contacto | reservas | desconocido",
+     "verificado_como_contacto": "boolean",
+     "fuente": "URL",
+     "fecha_consulta": "ISO 8601",
+     "evidencia": "string"
     }
    ],
    "incertidumbres": [],
@@ -138,14 +226,14 @@ const contracts=[
  },
  {
   "label": "Canal de cancelación",
-  "summary": "Averiguar cómo se cancelaría una reserva de este proceso y qué canal verificable ofrece el negocio.",
+  "summary": "Por proceso: cómo se cancelaría una reserva de este recorrido. Los teléfonos del negocio se citan desde Contactos.",
   "input": {
    "id_proceso": "Identificador del proceso",
    "url_inicio": "URL de inicio de la reserva",
-   "url_negocio": "URL del negocio",
-   "software": "nombre | null"
+   "software": "nombre | null",
+   "contactos_negocio": "Output de Contactos del negocio | null"
   },
-  "instructions": "Averigua cómo se cancelaría una reserva de este proceso y qué canal verificable permitiría gestionarla. Empieza con id_proceso, url_inicio y url_negocio. El nombre de software, si llega, es una pista: no es requisito para empezar y no esperes a la integración. Revisa primero las opciones del propio sistema: enlace o instrucciones de cancelación, gestión desde la confirmación o el área de reservas, u operación oficial si la pista de software la señala. Después busca canales publicados por el negocio en fuentes oficiales o en una ficha pública que controle. Registra cada canal con valor, fuente, fecha y evidencia. Distingue fijo de móvil solo si la fuente o una clasificación fiable lo sostiene. Marca WhatsApp solo cuando el negocio lo identifica como tal; un número no demuestra WhatsApp. Diferencia cancelación directa de una solicitud al negocio. Un canal de contacto puede servir para solicitarla y no demuestra que la petición se haya recibido o ejecutado. Documenta fuentes, opciones y limitaciones en busqueda_realizada. Recoge plazo, coste, penalización o garantía de tarjeta cuando se publiquen. Elige canal_preferido entre opciones cuya utilidad esté respaldada: primero el mecanismo del sistema, después un canal escrito y al final una llamada. Usa encontrado si hay al menos una vía útil verificada; no_encontrado si la búsqueda de fuentes y opciones razonables fue suficiente y no apareció ninguna vía verificable; pendiente si quedó incompleta. no_encontrado es el resultado de una búsqueda documentada, no una prueba de inexistencia. no_encontrado bloquea el envío real con motivo sin_canal_de_cancelacion y no convierte la vía en no_apta. No inventes contactos. No des por cancelada una reserva sin confirmación verificable. No confirmes una reserva. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "instructions": "Tu propósito es averiguar cómo se cancelaría una reserva de este proceso. No reúnes de nuevo la agenda de contactos del negocio: eso ya está en Contactos del negocio.\n\nRevisa cancelación del sistema (enlace, área de reservas, operación del proveedor) con evidencia. Usa contactos_negocio como catálogo: elige canal_preferido_cancelacion citando un contacto ya verificado o el método del sistema. No copies la lista entera de contactos en el output. Si contactos_negocio es null o vacío, puedes dejar canal preferido pendiente; no inventes teléfonos.\n\nestado encontrado exige método usable y canal preferido respaldado. no_encontrado: búsqueda suficiente sin vía verificable (bloquea envío real con sin_canal_de_cancelacion; no hace la vía no_apta). pendiente: exploración incompleta. Registra politica_cancelacion publicada.\n\nNo pruebes la reserva. No evalúes horario. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
   "output": {
    "id_proceso": "Identificador del proceso",
    "estado": "encontrado | no_encontrado | pendiente",
@@ -166,20 +254,8 @@ const contracts=[
      }
     ]
    },
-   "canales_contacto": [
-    {
-     "tipo": "whatsapp | telefono | email | formulario",
-     "valor": "string",
-     "tipo_linea": "movil | fijo | no_aplica | desconocido",
-     "uso_publicado": "contacto | cancelaciones | desconocido",
-     "verificado_como_contacto": "boolean",
-     "uso_cancelacion": "cancelacion_directa | solicitar_al_negocio | no_verificado",
-     "fuente": "URL",
-     "fecha_consulta": "ISO 8601",
-     "evidencia": "string"
-    }
-   ],
-   "canal_preferido": {
+   "canal_preferido_cancelacion": {
+    "origen": "sistema | contacto_negocio | null",
     "tipo": "string | null",
     "valor": "string | null",
     "metodo": "string | null",
@@ -197,37 +273,6 @@ const contracts=[
    "explicacion": "string"
   }
  },
- {
- "label": "Apertura",
- "summary": "Investigar horario y apertura en un Markdown versionado y dejarlo como pila de cron.",
- "input": {
-  "url_negocio": "URL del negocio",
-  "informe_previo": "informe de apertura anterior | null"
- },
- "instructions": "Tu propósito es investigar si el negocio está abierto ahora y dejar esa investigación en un Markdown versionado y en una pila de cron. No pruebes la reserva ni decides si la vía es apta. No busques ni registres el teléfono de cancelación: eso pertenece a Canal de cancelación.\n\nPrimero escribe observacion_apertura_md. Relata en Markdown todo lo que observes sobre horario, festivos, cierres y señales de apertura: la web del negocio (horario, avisos, vacaciones, eventos) y Google Maps u otra ficha pública (horario del día, abierto o cerrado ahora, avisos temporales). Cita cada URL o ficha, la hora de la consulta y qué decía exactamente. Separa hechos de interpretaciones. No inventes horarios ni festivos.\n\nCada ejecución crea un informe nuevo. Si informe_previo llega vacío, version es v1. Si llega un informe anterior, version es la siguiente (v2, v3…). timestamp es el instante de esta investigación, en la zona del negocio. No reescribas el Markdown anterior: guarda uno nuevo.\n\nDespués del Markdown, construye pila_cron. Cada elemento es un cron job apilable:\n- tipo: horario_ordinario | cierre_semanal | festivo | vacaciones | evento_privado | horario_especial\n- efecto: abierto | cerrado\n- cron: expresión cron de 5 campos (minuto hora día-mes mes día-semana)\n- zona: zona IANA del negocio (por ejemplo Atlantic/Canary)\n- fuente: URL o ficha que lo sostiene\n- nota: texto corto opcional\n\nApila varias franjas como jobs distintos (comida y cena = dos crons). Los cierres (festivo, vacaciones, cierre semanal, evento) van después de los horarios ordinarios: al evaluar un instante, entre los jobs que coinciden gana el último de la pila. No uses un string libre tipo «13:00-23:30» como representación del horario; el horario vive en la pila.\n\nEvalúa la pila en comprobado_en:\n- abierto_ahora es true solo si el job ganador tiene efecto abierto y quedan al menos 60 minutos hasta que deje de coincidir.\n- Es false si el ganador es cerrado o el margen es menor de 1 hora.\n- Es indeterminado si no hay jobs suficientes o las fuentes no permiten decidir.\nCalcula margen_hasta_cierre_min y, si no está abierto, proxima_hora_valida en la zona del negocio.\n\nNo envíes una reserva. No confirmes sin evidencia. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
- "output": {
-  "version": "v1 | v2 | v3 | …",
-  "timestamp": "ISO 8601 con la zona del negocio; instante de este informe",
-  "observacion_apertura_md": "Informe Markdown de lo observado en la web, Google Maps y otras fuentes",
-  "pila_cron": [
-   {
-    "tipo": "horario_ordinario | cierre_semanal | festivo | vacaciones | evento_privado | horario_especial",
-    "efecto": "abierto | cerrado",
-    "cron": "minuto hora día-mes mes día-semana",
-    "zona": "IANA, ej. Atlantic/Canary",
-    "fuente": "URL o ficha",
-    "nota": "string | null"
-   }
-  ],
-  "abierto_ahora": "true | false | indeterminado",
-  "margen_hasta_cierre_min": "number | null",
-  "proxima_hora_valida": "ISO 8601 con la zona del negocio | null",
-  "comprobado_en": "ISO 8601 con la zona horaria del negocio",
-  "fecha_evaluacion": "ISO 8601",
-  "fecha_validacion": "ISO 8601 | null",
-  "explicacion": "string"
- }
-},
  {
   "label": "Investigar integración",
   "summary": "Investigar una vez por proveedor qué integración oficial existe y qué condiciones tiene.",
@@ -349,7 +394,7 @@ const contracts=[
    "acceso_api": "Acceso de la integración oficial si Investigar integración lo tiene; si no, vacío",
    "compuerta_envio": "Dictamen de la compuerta de envío real"
   },
-  "instructions": "Tu propósito es conseguir un método reutilizable para consultar disponibilidad y, solo si la compuerta lo permite, completar una reserva de prueba en este proceso. Citas la función, el script, Apertura, la compuerta de envío y, si existe, el acceso de integración. No copies el expediente de detección, software ni cancelación.\n\nUsa únicamente la función y el script aprobados. Pasa datos_reserva_prueba conforme a su esquema y conserva la version y la huella ejecutadas. No construyas campos propios, no uses una implementación paralela con campos fijos y no rellenes datos que el justificante no sostenga.\n\nSin función aprobada, o con el script sin la misma revisión, el estado es no_intentada y no ejecutes nada. Si Verificación y vigilancia tiene abierta la alerta formulario_cambiado, la versión vieja está bloqueada: el estado es no_intentada hasta que Observar formulario, Justificante, Función y Script se regeneren y se revisen como una versión nueva.\n\nLa identidad de prueba solo se mapea a parámetros que el esquema justificado pide. No fuerces nombre, email, teléfono u otros datos si el proceso no los pide, y no publiques esos valores en la explicación, las pruebas ni una URL. Si no puede cubrir un parámetro requerido, pide solo ese dato a quien evalúa y deja la vía pendiente.\n\nSi acceso_api trae una integración oficial aplicable, comprueba si cubre la operación y respeta las condiciones del proveedor. Si viene vacío o la integración no se localizó, sigue con la función y el script. La falta de API o de acceso no es no_apta.\n\nPrueba las operaciones que el método permita y compáralas con lo que muestra el proceso real. Corrige un error de implementación y vuelve a probar cuando haya una mejora concreta. Distingue un límite técnico demostrado de una restricción de acceso, un permiso pendiente o un dato que falta. No inventes resultados. Si aparece CAPTCHA, login, tarjeta, antibot u otro control, detén ese paso y regístralo: no lo evadas. Eso no declara el proceso no_apta por sí solo; la vía queda pendiente de revisión del control.\n\nEl horario, el festivo y el margen viven en Apertura (pila de cron). El teléfono de cancelación vive en Canal de cancelación. No reescribas esas reglas ni las recalcules aquí. Enviar una reserva real es la compuerta de envío, no una decisión de esta vía: exige función y script con revisión aprobada, canal de cancelación verificado, autorización y negocio abierto según Apertura. Si la compuerta no está abierta, no envíes. Conserva su motivo. Si el motivo es pendiente_apertura, reserva_prueba.estado es pendiente_apertura. Si el motivo es sin_canal_de_cancelacion, no confirmes. La falta de permiso o de canal no es no_apta, y un local cerrado no convierte en pendiente un mecanismo que ya funciona.\n\nreserva_prueba.estado es no_realizada si no se creó una reserva, confirmada solo con una señal verificable de confirmación tras un envío permitido por la compuerta, cancelada solo con una confirmación verificable de la cancelación, incierta si el resultado no se puede verificar y pendiente_apertura cuando la compuerta cierre por la apertura. Una solicitud de cancelación sin confirmación no es cancelada.\n\nestado de la vía es apta cuando las pruebas demuestran el método, no_apta solo ante un impedimento técnico demostrado, pendiente cuando falta prueba, un dato de identidad requerido o la lectura de un control, y no_intentada cuando no hay función aprobada. Registra metodo_utilizado, pruebas_realizadas e impedimento con la version y la huella exactas.\n\nRegistra fecha_evaluacion en ISO 8601 y deja fecha_validacion en null hasta la revisión independiente.",
+  "instructions": "Tu propósito es conseguir un método reutilizable para consultar disponibilidad y, solo si la compuerta lo permite, completar una reserva de prueba en este proceso. Citas la función, el script, Apertura, la compuerta de envío y, si existe, el acceso de integración. No copies el expediente de detección, software ni cancelación.\n\nUsa únicamente la función y el script aprobados. Pasa datos_reserva_prueba conforme a su esquema y conserva la version y la huella ejecutadas. No construyas campos propios, no uses una implementación paralela con campos fijos y no rellenes datos que el justificante no sostenga.\n\nSin función aprobada, o con el script sin la misma revisión, el estado es no_intentada y no ejecutes nada. Si Verificación y vigilancia tiene abierta la alerta formulario_cambiado, la versión vieja está bloqueada: el estado es no_intentada hasta que Observar formulario, Justificante, Función y Script se regeneren y se revisen como una versión nueva.\n\nLa identidad de prueba solo se mapea a parámetros que el esquema justificado pide. No fuerces nombre, email, teléfono u otros datos si el proceso no los pide, y no publiques esos valores en la explicación, las pruebas ni una URL. Si no puede cubrir un parámetro requerido, pide solo ese dato a quien evalúa y deja la vía pendiente.\n\nSi acceso_api trae una integración oficial aplicable, comprueba si cubre la operación y respeta las condiciones del proveedor. Si viene vacío o la integración no se localizó, sigue con la función y el script. La falta de API o de acceso no es no_apta.\n\nPrueba las operaciones que el método permita y compáralas con lo que muestra el proceso real. Corrige un error de implementación y vuelve a probar cuando haya una mejora concreta. Distingue un límite técnico demostrado de una restricción de acceso, un permiso pendiente o un dato que falta. No inventes resultados. Si aparece CAPTCHA, login, tarjeta, antibot u otro control, detén ese paso y regístralo: no lo evadas. Eso no declara el proceso no_apta por sí solo; la vía queda pendiente de revisión del control.\n\nEl horario y el margen viven en Apertura (pila de cron; zona en la ficha). El teléfono vive en Contactos del negocio; el canal preferido de cancelación del proceso vive en Canal de cancelación. No reescribas esas reglas ni las recalcules aquí. Enviar una reserva real es la compuerta de envío, no una decisión de esta vía: exige función y script con revisión aprobada, canal de cancelación verificado, autorización y negocio abierto según Apertura. Si la compuerta no está abierta, no envíes. Conserva su motivo. Si el motivo es pendiente_apertura, reserva_prueba.estado es pendiente_apertura. Si el motivo es sin_canal_de_cancelacion, no confirmes. La falta de permiso o de canal no es no_apta, y un local cerrado no convierte en pendiente un mecanismo que ya funciona.\n\nreserva_prueba.estado es no_realizada si no se creó una reserva, confirmada solo con una señal verificable de confirmación tras un envío permitido por la compuerta, cancelada solo con una confirmación verificable de la cancelación, incierta si el resultado no se puede verificar y pendiente_apertura cuando la compuerta cierre por la apertura. Una solicitud de cancelación sin confirmación no es cancelada.\n\nestado de la vía es apta cuando las pruebas demuestran el método, no_apta solo ante un impedimento técnico demostrado, pendiente cuando falta prueba, un dato de identidad requerido o la lectura de un control, y no_intentada cuando no hay función aprobada. Registra metodo_utilizado, pruebas_realizadas e impedimento con la version y la huella exactas.\n\nRegistra fecha_evaluacion en ISO 8601 y deja fecha_validacion en null hasta la revisión independiente.",
   "output": {
    "id_proceso": "Identificador del proceso",
    "estado": "apta | no_apta | pendiente | no_intentada",
@@ -373,9 +418,12 @@ const contracts=[
    "id_proceso": "Identificador del proceso",
    "funcion_reserva": "Función aprobada, con version y huella",
    "script_reserva": "Script aprobado de la misma versión, con version, huella y referencia_codigo",
-   "datos_reserva_prueba": "Objeto dinámico que cumple el esquema de funcion_json"
+   "datos_reserva_prueba": "Objeto dinámico que cumple el esquema de funcion_json",
+   "identidad_prueba": "Configuración protegida de identidad de prueba | null",
+   "autorizacion_para_confirmar_prueba": "boolean",
+   "compuerta_envio": "Dictamen de la compuerta de envío real"
   },
-  "instructions": "Tu propósito es comprobar si se puede entregar un enlace que conserve el progreso necesario y deje solo la acción final. Citas la función y el script aprobados. No esperes a Automática, no leas su output y no guardes su resultado. El estado de esta vía es independiente.\n\nUsa la función y el script aprobados, con sus parámetros dinámicos. No trabajes con campos fijos ni añadas datos que no estén en el justificante. Conserva version y huella. Sin función y script aprobados, el estado es no_intentada. Si la alerta formulario_cambiado está abierta, no ejecutes la versión vieja: no_intentada hasta que la versión nueva salga de Observar formulario y quede revisada.\n\nPrepara el enlace y pruébalo en una sesión independiente, sin cookies ni estado de la sesión de generación. Un enlace que solo funciona con la sesión original no cumple el propósito. Registra en prueba_en_sesion_independiente qué datos conserva y cuál es la accion_pendiente_del_cliente. Una reserva preparada no es una reserva confirmada.\n\nLa identidad de prueba, si hace falta para evaluar el recorrido, no es la identidad del cliente. Solo entra en parámetros justificados del esquema. En el enlace que usará el cliente van los datos que esa persona facilite. La URL no lleva datos personales sensibles, credenciales, tokens ni datos de pago.\n\nSi para probar el enlace hubiera que enviar una reserva real, no la envíes desde aquí. Cita Apertura (pila de cron) y Canal de cancelación, y deja el envío a la compuerta, sin reescribir horario, festivo, margen ni canal. La compuerta es quien decide el envío. Si no está abierta, detén la confirmación y puedes seguir hasta el último paso que no cree una reserva. La falta de permiso, de canal o de apertura no es no_apta.\n\nestado es apta si el enlace cumple la prueba en sesión independiente, no_apta solo ante un impedimento demostrado, pendiente si falta evidencia o un dato requerido por la función, y no_intentada si todavía no hay función aprobada que probar. Corrige un error de implementación cuando exista una mejora concreta y distingue ese error de un límite demostrado.\n\nSi aparece CAPTCHA, login, tarjeta, antibot u otro control, detén ese paso y regístralo en impedimento o en la prueba. No lo evadas.\n\nRegistra fecha_evaluacion en ISO 8601 y deja fecha_validacion en null hasta la revisión independiente.",
+  "instructions": "Tu propósito es comprobar si se puede entregar un enlace que conserve el progreso necesario y deje solo la acción final. Citas la función y el script aprobados. No esperes a Automática, no leas su output y no guardes su resultado. El estado de esta vía es independiente.\n\nUsa la función y el script aprobados, con sus parámetros dinámicos. No trabajes con campos fijos ni añadas datos que no estén en el justificante. Conserva version y huella. Sin función y script aprobados, el estado es no_intentada. Si la alerta formulario_cambiado está abierta, no ejecutes la versión vieja: no_intentada hasta que la versión nueva salga de Observar formulario y quede revisada.\n\nPrepara el enlace y pruébalo en una sesión independiente, sin cookies ni estado de la sesión de generación. Un enlace que solo funciona con la sesión original no cumple el propósito. Registra en prueba_en_sesion_independiente qué datos conserva y cuál es la accion_pendiente_del_cliente. Una reserva preparada no es una reserva confirmada.\n\nLa identidad de prueba, si hace falta para evaluar el recorrido, no es la identidad del cliente. Solo entra en parámetros justificados del esquema. En el enlace que usará el cliente van los datos que esa persona facilite. La URL no lleva datos personales sensibles, credenciales, tokens ni datos de pago.\n\nSi para probar el enlace hubiera que enviar una reserva real, no la envíes desde aquí. Cita Apertura, Contactos, Canal de cancelación y el dictamen de compuerta_envio. No reescribas horario, zona, margen ni canales. La compuerta es quien decide el envío. Si no está abierta, detén la confirmación y puedes seguir hasta el último paso que no cree una reserva. La falta de permiso, de canal o de apertura no es no_apta.\n\nestado es apta si el enlace cumple la prueba en sesión independiente, no_apta solo ante un impedimento demostrado, pendiente si falta evidencia o un dato requerido por la función, y no_intentada si todavía no hay función aprobada que probar. Corrige un error de implementación cuando exista una mejora concreta y distingue ese error de un límite demostrado.\n\nSi aparece CAPTCHA, login, tarjeta, antibot u otro control, detén ese paso y regístralo en impedimento o en la prueba. No lo evadas.\n\nRegistra fecha_evaluacion en ISO 8601 y deja fecha_validacion en null hasta la revisión independiente.",
   "output": {
    "id_proceso": "Identificador del proceso",
    "estado": "apta | no_apta | pendiente | no_intentada",
@@ -455,32 +503,92 @@ const contracts=[
 ];
 const validations=[
  {
-  "label": "Punto A",
-  "intro": "Revisión independiente del enlace donde empieza la reserva. No sustituye el estado del bloque. fecha_validacion solo se completa aquí, y solo si la revisión es concluyente.",
-  "input": "url_negocio y el output de Punto A: estado, nombre del negocio, procesos con id_proceso, url_inicio y alcance, incertidumbres y explicación.",
+  "label": "Ficha del negocio",
+  "intro": "Revisión independiente de la ficha única del negocio. No decide reservas ni aptitud.",
+  "input": "url_negocio y el output: nombre, zona_horaria, ambito_festivo, evidencias.",
   "checks": [
    [
-    "Enlace de inicio",
-    "Cada url_inicio abre un recorrido de reserva del negocio."
+    "Una vez",
+    "La ficha es única por negocio. No se repite en cada proceso."
    ],
    [
-    "Alcance separado",
-    "Procesos con recorrido o cobertura distinta quedan separados. Accesos al mismo proceso se agrupan y se explica por qué."
+    "Zona",
+    "zona_horaria es IANA y tiene fuente. No se copia dentro de los cron de Apertura."
    ],
    [
-    "Ausencia demostrada",
-    "no_encontrada solo tras una exploración suficiente de la web y de las opciones que pueden iniciar una reserva."
+    "Ámbito",
+    "ambito_festivo sostiene país/región/isla/municipio o declara qué falta."
    ],
    [
-    "Bloqueo",
-    "Un bloqueo, una web a medias o falta de acceso queda en pendiente. No se usa no_encontrada."
-   ],
-   [
-    "Fecha",
-    "El bloque deja fecha_validacion vacía. Esta revisión la completa solo si cierra."
+    "Límites",
+    "No incluye teléfonos, horarios cron ni enlaces de reserva."
    ]
   ],
-  "outcome": "Encontrada y revisada: cada enlace sigue a software, observación, cancelación y apertura. Exploración suficiente sin reserva: sin_reserva_online. Bloqueo o búsqueda a medias: pendiente, con fecha_validacion vacía si la revisión no cierra."
+  "outcome": "Completa solo con nombre, zona y ámbito sostenidos. Pendiente si falta un dato esencial."
+ },
+ {
+  "label": "Punto A",
+  "intro": "Revisión de los enlaces de inicio. No reabre la ficha.",
+  "input": "url_negocio y output de Punto A (procesos, sin redefinir nombre ni zona).",
+  "checks": [
+   [
+    "Inicio real",
+    "Cada URL conduce a un proceso de reserva."
+   ],
+   [
+    "Sin ficha duplicada",
+    "No reescribe nombre_negocio ni zona_horaria."
+   ],
+   [
+    "Ausencia",
+    "no_encontrada exige exploración suficiente."
+   ]
+  ],
+  "outcome": "Encontrada: seguir ramas por proceso. Sin reserva: sin_reserva_online."
+ },
+ {
+  "label": "Apertura",
+  "intro": "Revisión del Markdown y la pila de cron. Una vez por negocio. Zona fuera de cada job.",
+  "input": "Ficha (zona, ámbito), informe y output de Apertura.",
+  "checks": [
+   [
+    "Una vez",
+    "No hay un informe de apertura por cada enlace de reserva."
+   ],
+   [
+    "Sin zona en cron",
+    "pila_cron no lleva zona; usa la de la ficha."
+   ],
+   [
+    "Sin teléfono",
+    "No aparece teléfono de cancelación."
+   ],
+   [
+    "Evaluación",
+    "abierto_ahora y margen salen de evaluar la pila con la zona de la ficha."
+   ]
+  ],
+  "outcome": "Aprobado si Markdown y pila son coherentes con la ficha."
+ },
+ {
+  "label": "Contactos del negocio",
+  "intro": "Revisión de los canales publicados una vez por negocio.",
+  "input": "url_negocio y output de Contactos.",
+  "checks": [
+   [
+    "Una vez",
+    "Los contactos no se reescriben en cada proceso."
+   ],
+   [
+    "Evidencia",
+    "Cada canal tiene fuente y fecha."
+   ],
+   [
+    "WhatsApp",
+    "Solo si el negocio lo señala."
+   ]
+  ],
+  "outcome": "Encontrado con al menos un canal verificable. No sustituye a Canal de cancelación."
  },
  {
   "label": "Identificar software",
@@ -532,64 +640,24 @@ const validations=[
  },
  {
   "label": "Canal de cancelación",
-  "intro": "Revisión independiente de cómo se cancelaría la reserva. No sustituye el estado del bloque ni prueba incapacidad técnica. fecha_validacion solo se completa aquí, en una revisión concluyente.",
-  "input": "id_proceso, url_inicio, url_negocio y el output del canal: búsqueda realizada, cancelación del sistema, canales, canal preferido, política, incertidumbres y explicación.",
+  "intro": "Revisión de la cancelación de este proceso. Cita Contactos; no vuelve a listar la agenda.",
+  "input": "Proceso, contactos_negocio y output del canal de cancelación.",
   "checks": [
    [
-    "Fuentes",
-    "Cada canal trae valor, fuente exacta, fecha y evidencia. busqueda_realizada lista fuentes, opciones y limitaciones."
+    "Sin agenda duplicada",
+    "No incluye la lista completa de canales del negocio."
    ],
    [
-    "WhatsApp",
-    "WhatsApp solo cuando el negocio lo identifica como tal. Un número publicado no basta para marcarlo."
+    "Preferido",
+    "canal_preferido_cancelacion cita sistema o un contacto ya verificado."
    ],
    [
-    "Estados distintos",
-    "no_encontrado es una búsqueda suficiente sin vía verificable. pendiente es una búsqueda incompleta o no concluyente."
-   ],
-   [
-    "Vía abierta",
-    "no_encontrado bloquea el envío real con el motivo sin_canal_de_cancelacion. La vía puede seguir siendo apta."
-   ],
-   [
-    "Fecha",
-    "fecha_validacion la escribe esta revisión, solo si es concluyente."
+    "Envío",
+    "no_encontrado bloquea envío real (sin_canal_de_cancelacion) sin hacer la vía no_apta."
    ]
   ],
-  "outcome": "Aprobado con estado encontrado, canal preferido verificado y política usable. no_encontrado y pendiente son resultados distintos: ambos frenan el envío real y ninguno demuestra que la vía sea técnicamente incapaz."
+  "outcome": "Encontrado solo con método usable y preferido respaldado."
  },
- {
- "label": "Apertura",
- "intro": "Revisión independiente del Markdown de apertura y de la pila de cron. No decide la aptitud de la vía. No exige teléfono de cancelación.",
- "input": "url_negocio, informe_previo si existe, y el output: version, timestamp, observacion_apertura_md, pila_cron y el resultado de evaluarla (abierto_ahora, margen, próxima hora, comprobado_en).",
- "checks": [
-  [
-   "Sin teléfono",
-   "No aparece teléfono de cancelación. Ese dato pertenece a Canal de cancelación."
-  ],
-  [
-   "Markdown primero",
-   "observacion_apertura_md relata web y Google Maps (u otra ficha), con URL o ficha y hora de consulta."
-  ],
-  [
-   "Versionado",
-   "version y timestamp identifican este informe. Si había informe_previo, version es la siguiente y el Markdown es nuevo."
-  ],
-  [
-   "Pila de cron",
-   "El horario está en pila_cron, no en un string libre. Cada job tiene tipo, efecto, cron de 5 campos, zona y fuente citada en el Markdown."
-  ],
-  [
-   "Evaluación",
-   "abierto_ahora, margen y próxima hora salen de evaluar la pila en comprobado_en. Entre jobs que coinciden gana el último."
-  ],
-  [
-   "Fecha",
-   "fecha_validacion solo se completa aquí si el Markdown y la pila quedan comprobados."
-  ]
- ],
- "outcome": "Aprobado si el Markdown sostiene la pila y la evaluación es coherente. Cerrado o no comprobable no cambia la aptitud de Automática ni del enlace."
-},
  {
   "label": "Investigar integración",
   "intro": "Revisión independiente de la integración oficial del proveedor. El investigador no rellena fecha_validacion. Solo esta revisión la completa, y solo si es concluyente.",
@@ -800,12 +868,78 @@ const identidadConfig={
  }
 };
 const identidadGuidance="Configuración fija de ejecución, no un bloque de investigación. Introduce los datos reales de forma protegida; no publiques valores personales en esta web, el Markdown, las evidencias o una URL. Automática y Enlace asistido reciben esta configuración y solo mapean los valores que correspondan a parámetros justificados. En el enlace final de un cliente se usan los datos que ese cliente facilite, no la identidad de prueba. La nota es opcional y nunca debe prometer una cancelación que no esté acordada.";
-const flow="flowchart TD\n  U[\"URL del negocio\"] --> A[\"Punto A: enlace de inicio\"]\n  A --> R{\"¿Hay enlace?\"}\n  R -->|No encontrada| NA[\"SIN RESERVA ONLINE\"]\n  R -->|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R -->|Por cada enlace| S[\"1 Identificar software\"]\n  R -->|Por cada enlace| O[\"2 Observar formulario\"]\n  R -->|Por cada enlace| C[\"3 Canal de cancelación\"]\n  R -->|Por cada enlace| AP[\"4 Apertura\"]\n  S --> I[\"Integración por software\"]\n  O --> J[\"Justificante\"]\n  J --> F[\"Función\"]\n  F --> SC[\"Script\"]\n  SC --> REV{\"¿Función y script aprobados?\"}\n  REV -->|Sí| AU[\"Automática\"]\n  REV -->|Sí| EN[\"Enlace asistido\"]\n  REV -->|No| NI[\"Vías no intentadas\"]\n  I -.->|pista, no bloquea| AU\n  C --> G[\"Compuerta de envío\"]\n  AP --> G\n  AU --> G\n  EN --> G\n  G -->|Abierta| V[\"Verificación y vigilancia\"]\n  G -->|Cerrado| PA[\"pendiente_apertura\"]\n  G -->|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --> Z[\"Resultado: aptitud, fiabilidad y oferta\"]\n  NI --> Z\n  PA --> Z\n  SC2 --> Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PA pending\n  class Z summary";
+const flow="flowchart TD\n  U[\"URL del negocio\"] --\u003e FIC[\"Ficha del negocio\"]\n  FIC --\u003e PA[\"Punto A: enlaces\"]\n  FIC --\u003e AP[\"Apertura 1× negocio\"]\n  FIC --\u003e CT[\"Contactos 1× negocio\"]\n  PA --\u003e R{\"¿Hay enlace?\"}\n  R --\u003e|No| NA[\"SIN RESERVA ONLINE\"]\n  R --\u003e|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R --\u003e|Por cada proceso| S[\"Identificar software\"]\n  R --\u003e|Por cada proceso| O[\"Observar formulario\"]\n  R --\u003e|Por cada proceso| C[\"Canal cancelación proceso\"]\n  S --\u003e I[\"Integración 1× software\"]\n  CT --\u003e C\n  O --\u003e J[\"Justificante\"]\n  J --\u003e FN[\"Función\"]\n  FN --\u003e SC[\"Script\"]\n  SC --\u003e REV{\"¿Función y script OK?\"}\n  REV --\u003e|Sí| AU[\"Automática\"]\n  REV --\u003e|Sí| EN[\"Enlace asistido\"]\n  REV --\u003e|No| NI[\"Vías no intentadas\"]\n  I -.-\u003e|pista| AU\n  AP --\u003e G[\"Compuerta de envío\"]\n  C --\u003e G\n  CT --\u003e G\n  AU --\u003e G\n  EN --\u003e G\n  G --\u003e|Abierta| V[\"Verificación\"]\n  G --\u003e|Cerrado| PEND[\"pendiente_apertura\"]\n  G --\u003e|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --\u003e Z[\"Resultado\"]\n  NI --\u003e Z\n  PEND --\u003e Z\n  SC2 --\u003e Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PEND pending\n  class Z summary";
 const outputExamples = {
+ "Ficha del negocio": [
+  {
+   "estado": "completa",
+   "url_negocio": "https://www.elmuelle.example",
+   "nombre_negocio": "Restaurante El Muelle",
+   "zona_horaria": "Atlantic/Canary",
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": "Canarias",
+    "isla_o_provincia": "Tenerife",
+    "municipio": "Santa Cruz de Tenerife"
+   },
+   "evidencias": [
+    {
+     "origen": "https://www.elmuelle.example",
+     "fragmento": "El Muelle · Tenerife",
+     "explicacion": "Nombre y municipio en la web"
+    }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-10-14T10:00:00+01:00",
+   "fecha_validacion": "2026-10-14T11:00:00+01:00",
+   "explicacion": "Ficha completa con zona Atlantic/Canary."
+  },
+  {
+   "estado": "completa",
+   "url_negocio": "https://www.hotelcostamar.example",
+   "nombre_negocio": "Hotel Costa Mar",
+   "zona_horaria": "Atlantic/Canary",
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": "Canarias",
+    "isla_o_provincia": "Gran Canaria",
+    "municipio": "Las Palmas"
+   },
+   "evidencias": [
+    {
+     "origen": "Maps",
+     "fragmento": "Atlantic/Canary",
+     "explicacion": "Zona de la ficha"
+    }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-05-29T09:00:00+01:00",
+   "fecha_validacion": "2026-05-29T10:00:00+01:00",
+   "explicacion": "Hotel con ámbito insular claro."
+  },
+  {
+   "estado": "pendiente",
+   "url_negocio": "https://www.pescaderianorte.example",
+   "nombre_negocio": "Pescadería Norte",
+   "zona_horaria": null,
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": null,
+    "isla_o_provincia": null,
+    "municipio": null
+   },
+   "evidencias": [],
+   "incertidumbres": [
+    "Sin zona horaria publicitada"
+   ],
+   "fecha_evaluacion": "2026-10-14T10:05:00+01:00",
+   "fecha_validacion": null,
+   "explicacion": "Falta zona y ámbito fino."
+  }
+ ],
  "Punto A": [
   {
    "estado": "encontrada",
-   "nombre_negocio": "Restaurante El Muelle",
    "procesos": [
     {
      "id_proceso": "proc-muelle-sala",
@@ -825,7 +959,6 @@ const outputExamples = {
   },
   {
    "estado": "no_encontrada",
-   "nombre_negocio": "Pescadería Norte",
    "procesos": [],
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
@@ -834,7 +967,6 @@ const outputExamples = {
   },
   {
    "estado": "pendiente",
-   "nombre_negocio": "Hotel Costa Mar",
    "procesos": [],
    "incertidumbres": [
     "La página de reservas del hotel no terminó de cargar."
@@ -842,6 +974,129 @@ const outputExamples = {
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
    "explicacion": "Hotel Costa Mar podría tener reserva, pero la exploración quedó a medias. No se concluye que no haya enlace."
+  }
+ ],
+ "Apertura": [
+  {
+   "version": "v1",
+   "timestamp": "2026-10-14T21:55:00+01:00",
+   "observacion_apertura_md": "# Apertura — Restaurante El Muelle\n**version:** v1\n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web\n- https://www.elmuelle.example/horario — comida 13-16, cena 20-23:30, L-S; domingo cerrado.\n\n## Maps\n- Abierto · cierra 23:30.\n\n## Lectura\nDos crons ordinarios + cierre domingo. Zona: ficha Atlantic/Canary.\n",
+   "pila_cron": [
+    {
+     "tipo": "horario_ordinario",
+     "efecto": "abierto",
+     "cron": "0 13-15 * * 1-6",
+     "fuente": "https://www.elmuelle.example/horario",
+     "nota": "comida"
+    },
+    {
+     "tipo": "horario_ordinario",
+     "efecto": "abierto",
+     "cron": "0 20-22 * * 1-6",
+     "fuente": "https://www.elmuelle.example/horario",
+     "nota": "cena"
+    },
+    {
+     "tipo": "cierre_semanal",
+     "efecto": "cerrado",
+     "cron": "0 0 * * 0",
+     "fuente": "https://www.elmuelle.example/horario",
+     "nota": "domingo"
+    }
+   ],
+   "abierto_ahora": true,
+   "margen_hasta_cierre_min": 95,
+   "proxima_hora_valida": null,
+   "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
+   "fecha_validacion": "2026-10-14T22:10:00+01:00",
+   "explicacion": "Evaluado con zona de la ficha; gana cron de cena."
+  },
+  {
+   "version": "v2",
+   "timestamp": "2026-05-30T12:00:00+01:00",
+   "observacion_apertura_md": "# Apertura v2 Hotel Costa Mar — festivo insular 30 may. Maps cerrado.",
+   "pila_cron": [
+    {
+     "tipo": "horario_ordinario",
+     "efecto": "abierto",
+     "cron": "0 9-21 * * *",
+     "fuente": "https://www.hotelcostamar.example",
+     "nota": "habitual"
+    },
+    {
+     "tipo": "festivo",
+     "efecto": "cerrado",
+     "cron": "0 0 30 5 *",
+     "fuente": "https://www.hotelcostamar.example",
+     "nota": "Día de Canarias"
+    }
+   ],
+   "abierto_ahora": false,
+   "margen_hasta_cierre_min": 0,
+   "proxima_hora_valida": "2026-06-01T09:00:00+01:00",
+   "fecha_evaluacion": "2026-05-30T12:00:00+01:00",
+   "fecha_validacion": "2026-05-30T12:30:00+01:00",
+   "explicacion": "Festivo gana al horario ordinario."
+  },
+  {
+   "version": "v1",
+   "timestamp": "2026-10-14T21:55:00+01:00",
+   "observacion_apertura_md": "# Sin horario publicitado.",
+   "pila_cron": [],
+   "abierto_ahora": "indeterminado",
+   "margen_hasta_cierre_min": null,
+   "proxima_hora_valida": null,
+   "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
+   "fecha_validacion": null,
+   "explicacion": "Sin zona en ficha y sin pila: indeterminado."
+  }
+ ],
+ "Contactos del negocio": [
+  {
+   "estado": "encontrado",
+   "canales_contacto": [
+    {
+     "tipo": "telefono",
+     "valor": "+34 922 000 222",
+     "tipo_linea": "fijo",
+     "uso_publicado": "contacto",
+     "verificado_como_contacto": true,
+     "fuente": "https://www.elmuelle.example/contacto",
+     "fecha_consulta": "2026-10-14T12:00:00+01:00",
+     "evidencia": "Publicado en Contacto"
+    }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-10-14T12:05:00+01:00",
+   "fecha_validacion": "2026-10-14T13:00:00+01:00",
+   "explicacion": "Teléfono verificado una vez para el negocio."
+  },
+  {
+   "estado": "encontrado",
+   "canales_contacto": [
+    {
+     "tipo": "email",
+     "valor": "reservas@hotelcostamar.example",
+     "tipo_linea": "no_aplica",
+     "uso_publicado": "reservas",
+     "verificado_como_contacto": true,
+     "fuente": "https://www.hotelcostamar.example",
+     "fecha_consulta": "2026-05-29T11:00:00+01:00",
+     "evidencia": "Email de reservas"
+    }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-05-29T11:05:00+01:00",
+   "fecha_validacion": "2026-05-29T12:00:00+01:00",
+   "explicacion": "Email de reservas del hotel."
+  },
+  {
+   "estado": "no_encontrado",
+   "canales_contacto": [],
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-10-14T12:10:00+01:00",
+   "fecha_validacion": "2026-10-14T13:10:00+01:00",
+   "explicacion": "Búsqueda suficiente sin canal verificable."
   }
  ],
  "Identificar software": [
@@ -930,163 +1185,125 @@ const outputExamples = {
  ],
  "Canal de cancelación": [
   {
-   "id_proceso": "proc-muelle-sala",
+   "id_proceso": "cena-sala",
    "estado": "encontrado",
    "busqueda_realizada": {
-    "suficiente": true,
-    "paginas": [
-     "https://www.elmuelle.example",
-     "https://www.elmuelle.example/reservas/cena-sala"
+    "fuentes_consultadas": [
+     "confirmación",
+     "web"
+    ],
+    "opciones_revisadas": [
+     "enlace sistema",
+     "teléfono"
+    ],
+    "limitaciones": []
+   },
+   "cancelacion_sistema": {
+    "disponible": "si",
+    "metodo": "enlace de confirmación",
+    "url_o_instrucciones": "https://www.elmuelle.example/cancelar",
+    "evidencias": [
+     {
+      "fuente": "https://www.elmuelle.example/cancelar",
+      "fecha_consulta": "2026-10-14T13:40:00+01:00",
+      "fragmento": "Cancelar reserva"
+     }
+    ]
+   },
+   "canal_preferido_cancelacion": {
+    "origen": "contacto_negocio",
+    "tipo": "telefono",
+    "valor": "+34 922 000 222",
+    "metodo": "llamada",
+    "motivo": "Contacto verificado en Contactos; atienden cancelaciones"
+   },
+   "politica_cancelacion": {
+    "resumen": "Sin coste hasta 2 horas antes",
+    "plazo": "2 horas",
+    "coste_o_penalizacion": "sin coste",
+    "garantia_tarjeta": null
+   },
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-10-14T13:45:00+01:00",
+   "fecha_validacion": "2026-10-14T17:10:00+01:00",
+   "explicacion": "Prefiere el teléfono ya verificado en Contactos."
+  },
+  {
+   "id_proceso": "habitacion",
+   "estado": "no_encontrado",
+   "busqueda_realizada": {
+    "fuentes_consultadas": [
+     "web",
+     "email"
+    ],
+    "opciones_revisadas": [
+     "sistema"
+    ],
+    "limitaciones": []
+   },
+   "cancelacion_sistema": {
+    "disponible": "no",
+    "metodo": null,
+    "url_o_instrucciones": null,
+    "evidencias": []
+   },
+   "canal_preferido_cancelacion": {
+    "origen": null,
+    "tipo": null,
+    "valor": null,
+    "metodo": null,
+    "motivo": null
+   },
+   "politica_cancelacion": {
+    "resumen": null,
+    "plazo": null,
+    "coste_o_penalizacion": null,
+    "garantia_tarjeta": null
+   },
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-05-30T10:00:00+01:00",
+   "fecha_validacion": "2026-05-30T11:00:00+01:00",
+   "explicacion": "Sin vía de cancelación de este proceso; el email de Contactos no basta como cancelación verificada."
+  },
+  {
+   "id_proceso": "terraza",
+   "estado": "pendiente",
+   "busqueda_realizada": {
+    "fuentes_consultadas": [
+     "web"
+    ],
+    "opciones_revisadas": [],
+    "limitaciones": [
+     "Contactos aún no disponibles"
     ]
    },
    "cancelacion_sistema": {
-    "disponible": true,
-    "via": "enlace del correo de confirmación de CoverManager"
+    "disponible": "desconocido",
+    "metodo": null,
+    "url_o_instrucciones": null,
+    "evidencias": []
    },
-   "canales_contacto": [
-    {
-     "tipo": "telefono",
-     "valor": "+34 922 000 222",
-     "verificado": true
-    }
-   ],
-   "canal_preferido": {
-    "tipo": "telefono",
-    "valor": "+34 922 000 222",
-    "verificado": true
+   "canal_preferido_cancelacion": {
+    "origen": null,
+    "tipo": null,
+    "valor": null,
+    "metodo": null,
+    "motivo": null
    },
    "politica_cancelacion": {
-    "resumen": "Sin coste hasta 2 horas antes de la mesa.",
-    "usable": true
+    "resumen": null,
+    "plazo": null,
+    "coste_o_penalizacion": null,
+    "garantia_tarjeta": null
    },
-   "incertidumbres": [],
-   "fecha_evaluacion": "2026-10-12",
-   "fecha_validacion": "2026-10-13",
-   "explicacion": "El Muelle publica teléfono y una política usable. CoverManager añade el enlace de anulación en la confirmación."
-  },
-  {
-   "id_proceso": "proc-muelle-terraza",
-   "estado": "no_encontrado",
-   "busqueda_realizada": {
-    "suficiente": true,
-    "paginas": [
-     "https://www.elmuelle.example",
-     "https://www.elmuelle.example/reservas/terraza"
-    ]
-   },
-   "cancelacion_sistema": null,
-   "canales_contacto": [],
-   "canal_preferido": null,
-   "politica_cancelacion": null,
-   "incertidumbres": [],
-   "fecha_evaluacion": "2026-10-12",
-   "fecha_validacion": "2026-10-13",
-   "explicacion": "En la terraza no aparece canal ni política. La búsqueda fue suficiente: la vía puede ser apta, pero la compuerta de envío queda bloqueada por sin canal de cancelación."
-  },
-  {
-   "id_proceso": "proc-costa-mar",
-   "estado": "pendiente",
-   "busqueda_realizada": {
-    "suficiente": false,
-    "paginas": [
-     "https://www.hotelcostamar.example"
-    ]
-   },
-   "cancelacion_sistema": null,
-   "canales_contacto": [],
-   "canal_preferido": null,
-   "politica_cancelacion": null,
    "incertidumbres": [
-    "Falta revisar la ficha de contacto del hotel."
+    "Falta Contactos del negocio"
    ],
-   "fecha_evaluacion": "2026-10-12",
+   "fecha_evaluacion": "2026-10-14T13:50:00+01:00",
    "fecha_validacion": null,
-   "explicacion": "La búsqueda de cancelación de Hotel Costa Mar no está terminada."
+   "explicacion": "Sin catálogo de contactos la preferencia queda pendiente."
   }
  ],
- "Apertura": [
- {
-  "version": "v1",
-  "timestamp": "2026-10-14T21:55:00+01:00",
-  "observacion_apertura_md": "# Apertura — Restaurante El Muelle\n**version:** v1\n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web del negocio\n- Fuente: https://www.elmuelle.example/horario (consultada 2026-10-14T21:50:00+01:00)\n- Comida 13:00-16:00 y cena 20:00-23:30, lunes a sábado.\n- Domingo cerrado. Sin vacaciones anunciadas.\n\n## Google Maps\n- Ficha: Restaurante El Muelle (consultada 2026-10-14T21:52:00+01:00)\n- Estado: Abierto · cierra a las 23:30.\n- Coincide con la web.\n\n## Lectura para la pila\nDos crons de horario_ordinario (comida y cena), un cierre_semanal el domingo.\n",
-  "pila_cron": [
-   {
-    "tipo": "horario_ordinario",
-    "efecto": "abierto",
-    "cron": "0 13-15 * * 1-6",
-    "zona": "Atlantic/Canary",
-    "fuente": "https://www.elmuelle.example/horario",
-    "nota": "comida"
-   },
-   {
-    "tipo": "horario_ordinario",
-    "efecto": "abierto",
-    "cron": "0 20-22 * * 1-6",
-    "zona": "Atlantic/Canary",
-    "fuente": "https://www.elmuelle.example/horario",
-    "nota": "cena"
-   },
-   {
-    "tipo": "cierre_semanal",
-    "efecto": "cerrado",
-    "cron": "0 0 * * 0",
-    "zona": "Atlantic/Canary",
-    "fuente": "https://www.elmuelle.example/horario",
-    "nota": "domingo"
-   }
-  ],
-  "abierto_ahora": true,
-  "margen_hasta_cierre_min": 95,
-  "proxima_hora_valida": null,
-  "comprobado_en": "2026-10-14T21:55:00+01:00",
-  "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
-  "fecha_validacion": "2026-10-14T22:10:00+01:00",
-  "explicacion": "Pila v1: a las 21:55 gana el cron de cena; margen mayor de una hora."
- },
- {
-  "version": "v2",
-  "timestamp": "2026-05-30T12:00:00+01:00",
-  "observacion_apertura_md": "# Apertura — Hotel Costa Mar\n**version:** v2\n**timestamp:** 2026-05-30T12:00:00+01:00\n\n## Web del negocio\n- Fuente: https://www.hotelcostamar.example (consultada 2026-05-30T11:50:00+01:00)\n- Horario habitual 09:00-22:00 todos los días.\n- Aviso: cerrado el 30 de mayo por festivo insular (Día de Canarias). Reabre 1 de junio a las 09:00.\n\n## Google Maps\n- Ficha: Hotel Costa Mar (consultada 2026-05-30T11:55:00+01:00)\n- Estado: Cerrado · abre el lunes a las 09:00.\n\n## Lectura para la pila\nUn cron horario_ordinario diario y un cron festivo el 30 de mayo (efecto cerrado, gana al apilarse después).\n",
-  "pila_cron": [
-   {
-    "tipo": "horario_ordinario",
-    "efecto": "abierto",
-    "cron": "0 9-21 * * *",
-    "zona": "Atlantic/Canary",
-    "fuente": "https://www.hotelcostamar.example",
-    "nota": "horario habitual"
-   },
-   {
-    "tipo": "festivo",
-    "efecto": "cerrado",
-    "cron": "0 0 30 5 *",
-    "zona": "Atlantic/Canary",
-    "fuente": "https://www.hotelcostamar.example",
-    "nota": "Día de Canarias"
-   }
-  ],
-  "abierto_ahora": false,
-  "margen_hasta_cierre_min": 0,
-  "proxima_hora_valida": "2026-06-01T09:00:00+01:00",
-  "comprobado_en": "2026-05-30T12:00:00+01:00",
-  "fecha_evaluacion": "2026-05-30T12:00:00+01:00",
-  "fecha_validacion": "2026-05-30T12:30:00+01:00",
-  "explicacion": "Pila v2: el festivo está después del horario ordinario y gana; cerrado."
- },
- {
-  "version": "v1",
-  "timestamp": "2026-10-14T21:55:00+01:00",
-  "observacion_apertura_md": "# Apertura — Pescadería Norte\n**version:** v1\n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web del negocio\n- Fuente: https://www.pescaderianorte.example (consultada 2026-10-14T21:50:00+01:00)\n- No publica horario ni calendario de cierres.\n\n## Google Maps\n- Ficha: Pescadería Norte (consultada 2026-10-14T21:53:00+01:00)\n- Sin horario semanal legible.\n\n## Lectura para la pila\nSin jobs fiables. abierto_ahora queda indeterminado.\n",
-  "pila_cron": [],
-  "abierto_ahora": "indeterminado",
-  "margen_hasta_cierre_min": null,
-  "proxima_hora_valida": null,
-  "comprobado_en": "2026-10-14T21:55:00+01:00",
-  "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
-  "fecha_validacion": null,
-  "explicacion": "Sin fuentes de horario; la pila queda vacía y abierto_ahora indeterminado."
- }
-],
  "Investigar integración": [
   {
    "software": "CoverManager",
@@ -1593,13 +1810,13 @@ const outputExamples = {
    "procesos": [
     {
      "id_proceso": "cena-sala",
-     "url_inicio": "https://www.restaurante-el-muelle.es/reservar",
-     "software": "identificado: CoverManager",
+     "url_inicio": "https://www.elmuelle.example/reservar",
+     "software": "CoverManager",
      "integracion": "documentada",
-     "funcion": "generada v3",
-     "script": "generado v3 sha256:ab12cd34",
+     "funcion": "generada",
+     "script": "generado",
      "cancelacion": "encontrado",
-     "apertura": "abierto, margen 95 min",
+     "apertura": "abierto (pila v1)",
      "automatica": "apta",
      "asistida": "apta",
      "clasificacion": "apto_automatico",
@@ -1619,8 +1836,8 @@ const outputExamples = {
    "procesos": [
     {
      "id_proceso": "habitacion",
-     "url_inicio": "https://www.hotel-costa-mar.es/reservar",
-     "software": "identificado: motor propio",
+     "url_inicio": "https://www.hotelcostamar.example/reservar",
+     "software": "motor propio",
      "integracion": null,
      "funcion": "generada",
      "script": "generado",
@@ -1637,6 +1854,17 @@ const outputExamples = {
  ]
 };
 const inputExamples = {
+ "Ficha del negocio": [
+  {
+   "url_negocio": "https://www.elmuelle.example"
+  },
+  {
+   "url_negocio": "https://www.hotelcostamar.example"
+  },
+  {
+   "url_negocio": "https://www.pescaderianorte.example"
+  }
+ ],
  "Punto A": [
   {
    "url_negocio": "https://www.elmuelle.example"
@@ -1646,6 +1874,57 @@ const inputExamples = {
   },
   {
    "url_negocio": "https://www.hotelcostamar.example"
+  }
+ ],
+ "Apertura": [
+  {
+   "url_negocio": "https://www.elmuelle.example",
+   "zona_horaria": "Atlantic/Canary",
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": "Canarias",
+    "isla_o_provincia": "Tenerife",
+    "municipio": "Santa Cruz de Tenerife"
+   },
+   "informe_previo": null
+  },
+  {
+   "url_negocio": "https://www.hotelcostamar.example",
+   "zona_horaria": "Atlantic/Canary",
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": "Canarias",
+    "isla_o_provincia": "Gran Canaria",
+    "municipio": "Las Palmas"
+   },
+   "informe_previo": {
+    "version": "v1",
+    "timestamp": "2026-05-29T18:00:00+01:00",
+    "observacion_apertura_md": "# v1 sin festivo",
+    "pila_cron": []
+   }
+  },
+  {
+   "url_negocio": "https://www.pescaderianorte.example",
+   "zona_horaria": null,
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": null,
+    "isla_o_provincia": null,
+    "municipio": null
+   },
+   "informe_previo": null
+  }
+ ],
+ "Contactos del negocio": [
+  {
+   "url_negocio": "https://www.elmuelle.example"
+  },
+  {
+   "url_negocio": "https://www.hotelcostamar.example"
+  },
+  {
+   "url_negocio": "https://www.pescaderianorte.example"
   }
  ],
  "Identificar software": [
@@ -1678,52 +1957,60 @@ const inputExamples = {
  ],
  "Canal de cancelación": [
   {
-   "id_proceso": "proc-muelle-sala",
-   "url_inicio": "https://www.elmuelle.example/reservas/cena-sala",
-   "url_negocio": "https://www.elmuelle.example",
-   "software": "CoverManager"
+   "id_proceso": "cena-sala",
+   "url_inicio": "https://www.elmuelle.example/reservar",
+   "software": "CoverManager",
+   "contactos_negocio": {
+    "estado": "encontrado",
+    "canales_contacto": [
+     {
+      "tipo": "telefono",
+      "valor": "+34 922 000 222",
+      "tipo_linea": "fijo",
+      "uso_publicado": "contacto",
+      "verificado_como_contacto": true,
+      "fuente": "https://www.elmuelle.example/contacto",
+      "fecha_consulta": "2026-10-14T12:00:00+01:00",
+      "evidencia": "Publicado en Contacto"
+     }
+    ],
+    "incertidumbres": [],
+    "fecha_evaluacion": "2026-10-14T12:05:00+01:00",
+    "fecha_validacion": "2026-10-14T13:00:00+01:00",
+    "explicacion": "Teléfono verificado una vez para el negocio."
+   }
   },
   {
-   "id_proceso": "proc-muelle-terraza",
-   "url_inicio": "https://www.elmuelle.example/reservas/terraza",
-   "url_negocio": "https://www.elmuelle.example",
-   "software": null
-  },
-  {
-   "id_proceso": "proc-costa-mar",
+   "id_proceso": "habitacion",
    "url_inicio": "https://www.hotelcostamar.example/reservar",
-   "url_negocio": "https://www.hotelcostamar.example",
-   "software": null
+   "software": null,
+   "contactos_negocio": {
+    "estado": "encontrado",
+    "canales_contacto": [
+     {
+      "tipo": "email",
+      "valor": "reservas@hotelcostamar.example",
+      "tipo_linea": "no_aplica",
+      "uso_publicado": "reservas",
+      "verificado_como_contacto": true,
+      "fuente": "https://www.hotelcostamar.example",
+      "fecha_consulta": "2026-05-29T11:00:00+01:00",
+      "evidencia": "Email de reservas"
+     }
+    ],
+    "incertidumbres": [],
+    "fecha_evaluacion": "2026-05-29T11:05:00+01:00",
+    "fecha_validacion": "2026-05-29T12:00:00+01:00",
+    "explicacion": "Email de reservas del hotel."
+   }
+  },
+  {
+   "id_proceso": "terraza",
+   "url_inicio": "https://www.elmuelle.example/terraza",
+   "software": null,
+   "contactos_negocio": null
   }
  ],
- "Apertura": [
- {
-  "url_negocio": "https://www.elmuelle.example",
-  "informe_previo": null
- },
- {
-  "url_negocio": "https://www.hotelcostamar.example",
-  "informe_previo": {
-   "version": "v1",
-   "timestamp": "2026-05-29T18:00:00+01:00",
-   "observacion_apertura_md": "# Apertura — Hotel Costa Mar\n**version:** v1\nInforme anterior sin festivo.",
-   "pila_cron": [
-    {
-     "tipo": "horario_ordinario",
-     "efecto": "abierto",
-     "cron": "0 9-21 * * *",
-     "zona": "Atlantic/Canary",
-     "fuente": "https://www.hotelcostamar.example",
-     "nota": null
-    }
-   ]
-  }
- },
- {
-  "url_negocio": "https://www.pescaderianorte.example",
-  "informe_previo": null
- }
-],
  "Investigar integración": [
   {
    "software": "CoverManager",
@@ -1966,55 +2253,61 @@ const inputExamples = {
  ],
  "Enlace asistido": [
   {
-   "id_proceso": "proc-muelle-sala",
+   "id_proceso": "cena-sala",
    "funcion_reserva": {
-    "name": "reservar_el_muelle_cena_sala",
-    "version": "1.0.0",
-    "huella": "fn-sala-v1",
-    "aprobada": true
+    "version": "3",
+    "huella": "sha256:ab12"
    },
    "script_reserva": {
-    "version": "1.0.0",
-    "huella": "script-sala-v1",
-    "aprobado": true
+    "version": "3",
+    "huella": "sha256:ab12",
+    "referencia_codigo": "commit 9f3a1c"
    },
    "datos_reserva_prueba": {
-    "fecha": "2026-10-18",
-    "hora": "21:00",
-    "comensales": 2,
-    "zona": "cena-sala",
-    "nombre": "Ana Rojas"
+    "fecha": "2026-10-16",
+    "hora": "20:30",
+    "comensales": 2
+   },
+   "identidad_prueba": null,
+   "autorizacion_para_confirmar_prueba": false,
+   "compuerta_envio": {
+    "estado": "abierta",
+    "motivo": null
    }
   },
   {
-   "id_proceso": "proc-muelle-terraza",
+   "id_proceso": "cena-sala",
    "funcion_reserva": {
-    "name": "reservar_el_muelle_terraza",
-    "version": "1.0.0",
-    "huella": "fn-terraza-v1",
-    "aprobada": true
+    "version": "3",
+    "huella": "sha256:ab12"
    },
    "script_reserva": {
-    "version": "1.0.0",
-    "huella": "script-terraza-v1",
-    "aprobado": true
+    "version": "3",
+    "huella": "sha256:ab12",
+    "referencia_codigo": "commit 9f3a1c"
    },
    "datos_reserva_prueba": {
-    "fecha": "2026-10-18",
-    "hora": "21:30",
-    "comensales": 4,
-    "zona": "terraza",
-    "nombre": "Ana Rojas"
+    "fecha": "2026-10-16",
+    "hora": "20:30",
+    "comensales": 2
+   },
+   "identidad_prueba": null,
+   "autorizacion_para_confirmar_prueba": false,
+   "compuerta_envio": {
+    "estado": "cerrada",
+    "motivo": "pendiente_apertura"
    }
   },
   {
-   "id_proceso": "proc-costa-mar",
+   "id_proceso": "terraza",
    "funcion_reserva": null,
    "script_reserva": null,
-   "datos_reserva_prueba": {
-    "fecha": "2026-10-20",
-    "noches": 2,
-    "nombre": "Ana Rojas"
+   "datos_reserva_prueba": {},
+   "identidad_prueba": null,
+   "autorizacion_para_confirmar_prueba": false,
+   "compuerta_envio": {
+    "estado": "cerrada",
+    "motivo": "funcion_pendiente"
    }
   }
  ],
@@ -2210,7 +2503,7 @@ function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span clas
 function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${escapeHtml(item.label)}</button>`).join('')}</div>`}
 function bindTabs(name,callback){content.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>callback(Number(b.dataset.tab))))}
 function renderConfig(){content.innerHTML=heading('Datos de ejecución','Configuración','La identidad de prueba es una configuración fija que reciben Automática y Enlace asistido; no es un agente ni una investigación.','Identidad')+`<p class="intro">${escapeHtml(identidadGuidance)}</p><section class="card"><h3>Input de configuración</h3><pre>${escapeHtml(JSON.stringify(identidadConfig,null,2))}</pre></section>${exampleSection('Input de configuración',identidadConfig,inputExamples['Input de configuración'])}<section class="card"><h3>Condiciones de uso</h3><ul class="criteria"><li><strong>Completitud.</strong> Solo son obligatorios los datos de configuración que correspondan a parámetros requeridos por funcion.json; si falta uno de ellos, no se confirma la prueba y queda pendiente.</li><li><strong>Reserva de prueba.</strong> Se usa únicamente con autorización explícita y para completar los parámetros que pida funcion.json, respetando las restricciones observadas para este proceso.</li><li><strong>Cancelación.</strong> Tras crear una reserva de prueba, registra la solicitud y el resultado real de la cancelación; conserva evidencia de la confirmación.</li><li><strong>Privacidad.</strong> Los valores se suministran de forma protegida al ejecutar los agentes; aquí solo se publica el esquema.</li><li><strong>Enlace del cliente.</strong> La identidad de prueba nunca se reutiliza como identidad del cliente que vaya a reservar.</li></ul></section><div class="notice">Antes de confirmar una prueba real, también debe estar aprobado el Canal de cancelación y existir un plan viable para gestionar la reserva.</div>`}
-function renderFlow(){content.innerHTML=heading('Vista general','Flujo completo','La identidad de prueba se configura una vez. Punto A solo localiza cada enlace de inicio. Por enlace, en paralelo: software, formulario, cancelación y apertura. La integración se investiga una vez por software y no frena la observación. Después, en serie: justificante, función y script. Con ambos aprobados arrancan Automática y Enlace asistido, cada uno con su propia salida. La compuerta de envío no es un agente.','Mapa lógico')+`<details class="map-panel" open><summary>🗺️ <span>Mapa del sistema<span class="hint">Pulsa para contraer o expandir</span></span></summary><div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div></details><div class="notice">Una confirmación real exige función y script aprobados, cancelación en estado encontrado con canal preferido (incluido el teléfono, si ese es el canal), autorización explícita, y negocio abierto con margen de al menos una hora según la pila de cron de Apertura. Si falta el canal, el motivo es sin_canal_de_cancelacion y la aptitud no cambia. Si el negocio está cerrado, el motivo es pendiente_apertura y la aptitud no cambia. La vigilancia no crea reservas. Si el formulario cambia, Verificación devuelve el proceso a Observar y bloquea la versión anterior.</div>`;const el=document.getElementById('flowMermaid'),status=document.getElementById('mapStatus');el.textContent=flow;if(!window.mermaid){el.className='map-fallback';status.textContent='Mapa en texto: requiere conexión para visualizar el diagrama.';return}try{mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'default',flowchart:{useMaxWidth:true,htmlLabels:true,nodeSpacing:28,rankSpacing:36}});mermaid.run({nodes:[el]}).then(()=>status.textContent='Mapa ajustado al ancho de la página').catch(()=>{el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'})}catch(e){el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'}}
+function renderFlow(){content.innerHTML=heading('Vista general','Flujo completo','La ficha del negocio concentra nombre, zona horaria y ámbito festivo. Apertura y Contactos se ejecutan una vez por negocio. Punto A solo localiza enlaces. Por proceso: software, formulario y cancelación del recorrido. Integración una vez por software. En serie: justificante, función y script. Automática y Enlace reciben el mismo dictamen de compuerta. La zona no se repite en cada cron.','Mapa lógico')+`<details class="map-panel" open><summary>🗺️ <span>Mapa del sistema<span class="hint">Pulsa para contraer o expandir</span></span></summary><div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div></details><div class="notice">Una confirmación real exige función y script aprobados, canal de cancelación del proceso en encontrado, contactos del negocio cuando el preferido es un contacto, autorización explícita, y negocio abierto según Apertura (zona de la ficha). Sin canal: sin_canal_de_cancelacion. Cerrado: pendiente_apertura. La vigilancia no crea reservas. Formulario cambiado vuelve a Observar.</div>`;const el=document.getElementById('flowMermaid'),status=document.getElementById('mapStatus');el.textContent=flow;if(!window.mermaid){el.className='map-fallback';status.textContent='Mapa en texto: requiere conexión para visualizar el diagrama.';return}try{mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'default',flowchart:{useMaxWidth:true,htmlLabels:true,nodeSpacing:28,rankSpacing:36}});mermaid.run({nodes:[el]}).then(()=>status.textContent='Mapa ajustado al ancho de la página').catch(()=>{el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'})}catch(e){el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'}}
 function renderContracts(){
   const d=contracts[contractTab];
   const summary=`<p class="intro contract-summary">${escapeHtml(d.summary)}</p>`;
@@ -2220,14 +2513,14 @@ function renderContracts(){
   const exampleSchema=contractExample===0?d.input:d.output;
   const exampleHint=contractExample===0?'Cada tarjeta es un caso de entrada. Arriba, lo que recibe el bloque. Dentro, lo que forma parte de ese caso.':'Cada tarjeta es un caso de salida. Arriba, los datos del caso. Dentro, lo que le pertenece, como sus procesos.';
   const examples=`<div id="panel-vista" role="tabpanel" aria-labelledby="vista-ejemplos"><div class="sidetabs" role="tablist" aria-label="Lado del ejemplo"><button type="button" role="tab" aria-selected="${contractExample===0}" data-side="0">${icon('input')} Input</button><button type="button" role="tab" aria-selected="${contractExample===1}" data-side="1">${icon('output')} Output</button></div><p class="intro">${exampleHint}</p><section class="card">${renderRecordTable(loadExampleRows(d.label, exampleSchema, exampleRows))}</section></div>`;
-  content.innerHTML=heading('Propósitos e interfaces','Instrucciones','Dentro de cada bloque, el contrato y los casos de ejemplo van por separado.','12 instrucciones')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos" role="tabpanel" aria-labelledby="contratos-${contractTab}">${summary}${switcher}${contractView===0?definition:examples}</div>`;
+  content.innerHTML=heading('Propósitos e interfaces','Instrucciones','Dentro de cada bloque, el contrato y los casos de ejemplo van por separado.','14 instrucciones')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos" role="tabpanel" aria-labelledby="contratos-${contractTab}">${summary}${switcher}${contractView===0?definition:examples}</div>`;
   bindTabs('contratos',i=>{contractTab=i;renderContracts()});
   content.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{contractView=Number(b.dataset.view);renderContracts()}));
   content.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{contractExample=Number(b.dataset.side);contractView=1;renderContracts()}));
   const copy=document.getElementById('copyPrompt');
   if(copy) copy.onclick=async()=>{try{await navigator.clipboard.writeText(d.instructions);copy.textContent='Copiado'}catch(e){const t=document.createElement('textarea');t.value=d.instructions;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();copy.textContent='Copiado'}};
 }
-function renderValidations(){const v=validations[validationTab];content.innerHTML=heading('Pruebas independientes','Validar','Cada bloque de investigación y cada vía tienen una revisión propia. La revisión conserva evidencias, hallazgos y fecha; no sustituye el resultado del bloque revisado.','12 revisiones')+tabs(validations,validationTab,'pruebas')+`<div id="panel-pruebas" role="tabpanel" aria-labelledby="pruebas-${validationTab}"><p class="intro">${escapeHtml(v.intro)}</p><section class="card"><h3>Qué se recibe</h3><p class="intro">${escapeHtml(v.input)}</p></section><section class="card"><h3>Qué se comprueba</h3><ul class="criteria">${v.checks.map(([label,detail])=>`<li><strong>${escapeHtml(label)}.</strong> ${escapeHtml(detail)}</li>`).join('')}</ul></section><div class="notice">${escapeHtml(v.outcome)}</div><section class="card"><h3>Output de la revisión</h3><pre>${escapeHtml(JSON.stringify(validationOutput,null,2))}</pre></section>${exampleSection('Output de la revisión', validationOutput)}</div>`;bindTabs('pruebas',i=>{validationTab=i;renderValidations()})}
+function renderValidations(){const v=validations[validationTab];content.innerHTML=heading('Pruebas independientes','Validar','Cada bloque de investigación y cada vía tienen una revisión propia. La revisión conserva evidencias, hallazgos y fecha; no sustituye el resultado del bloque revisado.','14 revisiones')+tabs(validations,validationTab,'pruebas')+`<div id="panel-pruebas" role="tabpanel" aria-labelledby="pruebas-${validationTab}"><p class="intro">${escapeHtml(v.intro)}</p><section class="card"><h3>Qué se recibe</h3><p class="intro">${escapeHtml(v.input)}</p></section><section class="card"><h3>Qué se comprueba</h3><ul class="criteria">${v.checks.map(([label,detail])=>`<li><strong>${escapeHtml(label)}.</strong> ${escapeHtml(detail)}</li>`).join('')}</ul></section><div class="notice">${escapeHtml(v.outcome)}</div><section class="card"><h3>Output de la revisión</h3><pre>${escapeHtml(JSON.stringify(validationOutput,null,2))}</pre></section>${exampleSection('Output de la revisión', validationOutput)}</div>`;bindTabs('pruebas',i=>{validationTab=i;renderValidations()})}
 function clasificarDeteccion(estado){
  if(estado==='encontrada')return 'procesos_identificados';
  if(estado==='no_encontrada')return 'sin_reserva_online';
@@ -2262,9 +2555,9 @@ function renderResult(){
   ['pendiente','fiable','abierta']
  ];
  const ofertaTexto={habilitada:'HABILITADA',bloqueada_revision:'BLOQUEADA POR REVISIÓN',pendiente:'PENDIENTE'};
- const result={nombre_negocio:'string | null',deteccion:'procesos_identificados | sin_reserva_online | pendiente',procesos:[{id_proceso:'Identificador del proceso',url_inicio:'URL de inicio',software:'Cita del output de Identificar software',integracion:'Cita del output de Investigar integración | null',funcion:'Cita del output de Función',script:'Cita del output de Script',cancelacion:'Cita del output de Canal de cancelación',apertura:'Cita del output de Apertura',automatica:'Cita del output de Automática | no_intentada',asistida:'Cita del output de Enlace asistido | no_intentada',clasificacion:'apto_automatico | apto_asistido | no_apto | pendiente',fiabilidad:'fiable | requiere_revision | pendiente',oferta:'habilitada | bloqueada_revision | pendiente'}]};
+ const result={nombre_negocio:'de la ficha | null',zona_horaria:'de la ficha | null',deteccion:'procesos_identificados | sin_reserva_online | pendiente',procesos:[{id_proceso:'Identificador del proceso',url_inicio:'URL de inicio',software:'Cita del output de Identificar software',integracion:'Cita del output de Investigar integración | null',funcion:'Cita del output de Función',script:'Cita del output de Script',cancelacion:'Cita del output de Canal de cancelación',apertura:'Cita del output de Apertura',automatica:'Cita del output de Automática | no_intentada',asistida:'Cita del output de Enlace asistido | no_intentada',clasificacion:'apto_automatico | apto_asistido | no_apto | pendiente',fiabilidad:'fiable | requiere_revision | pendiente',oferta:'habilitada | bloqueada_revision | pendiente'}]};
  const deteccionTexto=estado=>clasificarDeteccion(estado).replaceAll('_',' ').toUpperCase();
- content.innerHTML=heading('Estados por proceso','Resultado','El resultado cita cada bloque por su identificador. No copia los expedientes. La aptitud de la vía, la fiabilidad y la oferta se calculan por separado.')+`<section class="card"><h3>Resultado de la detección</h3><div class="result-row"><strong>Sin reserva online</strong><span>No encontrada tras una exploración suficiente → ${deteccionTexto('no_encontrada')}. No es no apto.</span></div><div class="result-row"><strong>Búsqueda inconclusa</strong><span>${deteccionTexto('pendiente')}. Un bloqueo o una web a medias no prueban ausencia.</span></div><div class="result-row"><strong>Enlaces encontrados</strong><span>${deteccionTexto('encontrada')}. Cada enlace sigue en paralelo a software, formulario, cancelación y apertura.</span></div></section><section class="card"><h3>Cómo se combina cada proceso</h3><p class="intro">Si la función o el script no están aprobados, las dos vías quedan en no intentada y la clasificación es PENDIENTE. no_apto solo cuando las dos vías son no aptas.</p><div class="tablewrap"><table><thead><tr><th>Automática</th><th>Enlace asistido</th><th>Aptitud</th></tr></thead><tbody>${cases.map(([a,b])=>`<tr><td>${estadoTexto[a]}</td><td>${estadoTexto[b]}</td><td><strong>${etiquetas[clasificarVias(a,b)]}</strong></td></tr>`).join('')}</tbody></table></div></section><section class="card"><h3>Compuerta de envío</h3><p class="intro">No es un agente. Decide si una reserva real puede salir. No cambia la aptitud de Automática ni la del Enlace asistido.</p><ul class="criteria"><li><strong>Función y script.</strong> Revisión aprobada de los dos.</li><li><strong>Cancelación.</strong> Estado encontrado y canal preferido verificado.</li><li><strong>Autorización.</strong> Permiso explícito y plan para gestionar la reserva de prueba.</li><li><strong>Apertura.</strong> abierto_ahora en true y margen de al menos una hora según la pila de cron.</li><li><strong>Teléfono.</strong> Sale del canal de cancelación preferido, no de Apertura; tiene que poder atender.</li><li><strong>Sin canal.</strong> Búsqueda suficiente y canal no encontrado → motivo sin_canal_de_cancelacion. La aptitud se conserva.</li><li><strong>Cerrado.</strong> Negocio cerrado o sin margen → motivo pendiente_apertura, con proxima_hora_valida. La aptitud se conserva.</li></ul></section><section class="card"><h3>Oferta</h3><div class="tablewrap"><table><thead><tr><th>Aptitud</th><th>Fiabilidad</th><th>Compuerta</th><th>Oferta</th></tr></thead><tbody>${ofertaCasos.map(([c,f,g])=>`<tr><td>${etiquetas[c]||c}</td><td>${f.replaceAll('_',' ')}</td><td>${g}</td><td><strong>${ofertaTexto[clasificarOferta(c,f,g)]}</strong></td></tr>`).join('')}</tbody></table></div></section><section class="card"><h3>Output combinado</h3><pre>${escapeHtml(JSON.stringify(result,null,2))}</pre>${exampleSection('Output combinado', result)}<p class="intro" style="margin-top:12px">Cada bloque conserva fecha_evaluacion. fecha_validacion solo se completa en la revisión, cuando la comprobación es concluyente.</p></section><div class="notice">Una alerta abierta de formulario cambiado, script, control nuevo o fallo deja la oferta en bloqueada por revisión y devuelve el formulario cambiado a Observar. La aptitud técnica previa se conserva. ok en una ejecución solo significa que la respuesta se pudo interpretar. Ninguna reserva se comunica como confirmada sin confirmación real del sistema.</div>`;
+ content.innerHTML=heading('Estados por proceso','Resultado','El resultado cita cada bloque por su identificador. No copia los expedientes. La aptitud de la vía, la fiabilidad y la oferta se calculan por separado.')+`<section class="card"><h3>Resultado de la detección</h3><div class="result-row"><strong>Sin reserva online</strong><span>No encontrada tras una exploración suficiente → ${deteccionTexto('no_encontrada')}. No es no apto.</span></div><div class="result-row"><strong>Búsqueda inconclusa</strong><span>${deteccionTexto('pendiente')}. Un bloqueo o una web a medias no prueban ausencia.</span></div><div class="result-row"><strong>Enlaces encontrados</strong><span>${deteccionTexto('encontrada')}. Cada enlace sigue en paralelo a software, formulario, cancelación y apertura.</span></div></section><section class="card"><h3>Cómo se combina cada proceso</h3><p class="intro">Si la función o el script no están aprobados, las dos vías quedan en no intentada y la clasificación es PENDIENTE. no_apto solo cuando las dos vías son no aptas.</p><div class="tablewrap"><table><thead><tr><th>Automática</th><th>Enlace asistido</th><th>Aptitud</th></tr></thead><tbody>${cases.map(([a,b])=>`<tr><td>${estadoTexto[a]}</td><td>${estadoTexto[b]}</td><td><strong>${etiquetas[clasificarVias(a,b)]}</strong></td></tr>`).join('')}</tbody></table></div></section><section class="card"><h3>Compuerta de envío</h3><p class="intro">No es un agente. Decide si una reserva real puede salir. No cambia la aptitud de Automática ni la del Enlace asistido.</p><ul class="criteria"><li><strong>Función y script.</strong> Revisión aprobada de los dos.</li><li><strong>Cancelación.</strong> Estado encontrado y canal preferido verificado.</li><li><strong>Autorización.</strong> Permiso explícito y plan para gestionar la reserva de prueba.</li><li><strong>Apertura.</strong> abierto_ahora en true y margen de al menos una hora según la pila de cron (zona de la ficha).</li><li><strong>Contactos.</strong> Si el canal preferido de cancelación es un contacto, sale de Contactos del negocio y tiene que poder atender.</li><li><strong>Sin canal.</strong> Búsqueda suficiente y canal no encontrado → motivo sin_canal_de_cancelacion. La aptitud se conserva.</li><li><strong>Cerrado.</strong> Negocio cerrado o sin margen → motivo pendiente_apertura, con proxima_hora_valida. La aptitud se conserva.</li></ul></section><section class="card"><h3>Oferta</h3><div class="tablewrap"><table><thead><tr><th>Aptitud</th><th>Fiabilidad</th><th>Compuerta</th><th>Oferta</th></tr></thead><tbody>${ofertaCasos.map(([c,f,g])=>`<tr><td>${etiquetas[c]||c}</td><td>${f.replaceAll('_',' ')}</td><td>${g}</td><td><strong>${ofertaTexto[clasificarOferta(c,f,g)]}</strong></td></tr>`).join('')}</tbody></table></div></section><section class="card"><h3>Output combinado</h3><pre>${escapeHtml(JSON.stringify(result,null,2))}</pre>${exampleSection('Output combinado', result)}<p class="intro" style="margin-top:12px">Cada bloque conserva fecha_evaluacion. fecha_validacion solo se completa en la revisión, cuando la comprobación es concluyente.</p></section><div class="notice">Una alerta abierta de formulario cambiado, script, control nuevo o fallo deja la oferta en bloqueada por revisión y devuelve el formulario cambiado a Observar. La aptitud técnica previa se conserva. ok en una ejecución solo significa que la respuesta se pudo interpretar. Ninguna reserva se comunica como confirmada sin confirmación real del sistema.</div>`;
 }
 const sections=[['Flujo completo',renderFlow],['Configuración',renderConfig],['Instrucciones',renderContracts],['Validar',renderValidations],['Resultado',renderResult]];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num">${i+1}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
