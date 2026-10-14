@@ -197,35 +197,30 @@ const contracts=[
  },
  {
   "label": "Identificar software",
-  "summary": "Decir qué software usa el enlace de inicio y con qué señal directa.",
+  "summary": "Decir qué software usa el enlace de inicio, con un razonamiento completo en Markdown y evidencia aparte.",
   "input": {
    "id_proceso": "Identificador del proceso",
    "url_inicio": "URL de inicio de la reserva"
   },
-  "instructions": "Identifica el software de este enlace de inicio y la señal directa que lo sostiene. Trabaja solo con id_proceso y url_inicio; no uses el expediente de Punto A. Revisa recursos, dominios, código visible, llamadas de red, textos y comportamiento del widget. No te limites a una lista fija de proveedores. Por cada software registra nombre, función observada y evidencias con origen exacto, fragmento observado y por qué une ese software a este proceso. Distingue evidencia directa de indicios débiles. Un logo aislado, una mención incidental o un script ajeno no bastan. Si hay varios componentes, explica la función de cada uno. Usa identificado cuando la atribución se sostiene con evidencia directa; no_identificado si la búsqueda fue suficiente y no hay proveedor atribuible; pendiente si la búsqueda quedó a medias. No investigues la integración, no definas la función y no generes script. No inventes proveedores. No evadas controles. No confirmes una reserva. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "instructions": "Identifica el software de este enlace de inicio. Trabaja solo con id_proceso y url_inicio; no uses el expediente de Punto A. Revisa recursos, dominios, código visible, llamadas de red, textos y comportamiento del widget. No te limites a una lista fija de proveedores.\n\nLa conclusión estructurada es corta: estado y, si aplica, software_identificado con nombre y funcion_observada. El razonamiento no va en un campo corto ni rellena huecos: escribe observaciones_md como un Markdown completo con todo lo observado y por qué atribuyes (o no) ese software. Escribe evidencias_md como otro Markdown solo de evidencia: origen, fragmento, fecha y qué sostiene. Distingue evidencia directa de indicios débiles. Un logo aislado, una mención incidental o un script ajeno no bastan. Si hay varios componentes, explica la función de cada uno en observaciones_md.\n\nUsa identificado cuando la atribución se sostiene con evidencia directa; no_identificado si la búsqueda fue suficiente y no hay proveedor atribuible; pendiente si la búsqueda quedó a medias. No investigues la integración, no definas la función y no generes script. No inventes proveedores. No evadas controles. No confirmes una reserva. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
   "output": {
    "id_proceso": "Identificador del proceso",
    "estado": "identificado | no_identificado | pendiente",
    "software_identificado": [
     {
      "nombre": "string",
-     "funcion_observada": "string",
-     "evidencias": [
-      {
-       "origen": "URL o recurso",
-       "fragmento": "Señal observada",
-       "explicacion": "Cómo sustenta la atribución"
-      }
-     ]
+     "funcion_observada": "string"
     }
    ],
+   "observaciones_md": "Markdown completo: observaciones y por qué se identifica (o no) ese software",
+   "evidencias_md": "Markdown de evidencia: origen, fragmento, fecha y qué sostiene",
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
    "explicacion": "string"
   },
   "review": {
-   "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
+   "intro": "Aprueba o rechaza el output que este bloque acaba de producir. Comprueba que observaciones_md y evidencias_md sostienen el estado y software_identificado. No investiga el negocio otra vez.",
    "input": "Output del bloque",
    "checks": [],
    "outcome": "aprobada | cambios_solicitados | inconclusa"
@@ -852,37 +847,39 @@ const outputExamples = {
    "software_identificado": [
     {
      "nombre": "CoverManager",
-     "funcion_observada": "widget de disponibilidad y confirmación de mesa en cena-sala",
-     "evidencias": [
-      "marca CoverManager visible en el formulario",
-      "script del widget en la página de cena-sala"
-     ]
+     "funcion_observada": "widget de disponibilidad y confirmación en el inicio cena-sala"
     }
    ],
+   "observaciones_md": "# Observaciones — proc-muelle-sala\n\nURL de inicio: `https://www.elmuelle.example/reservas/cena-sala`.\n\n## Qué se vio\n\n1. Al cargar la URL, el documento inserta un contenedor de widget y un script cuyo host apunta al dominio del proveedor CoverManager.\n2. En el pie del formulario aparece la marca «Powered by CoverManager».\n3. Las peticiones de red al buscar disponibilidad van a endpoints del mismo proveedor; la respuesta trae huecos y, si procede, alternativas.\n4. No aparece otro motor de reservas en paralelo en este recorrido.\n\n## Por qué CoverManager\n\nLa atribución se sostiene porque el script, la marca visible y las llamadas de disponibilidad coinciden en el mismo proveedor, en la propia página del proceso. Un logo aislado no bastaría; aquí hay tres señales alineadas en el mismo recorrido.\n\n## Alternativas descartadas\n\nNo hay indicios de un motor propio del negocio ni de otro SaaS en este `url_inicio`.\n",
+   "evidencias_md": "# Evidencias — proc-muelle-sala\n\n## 1. Script del widget\n- **Origen:** `https://www.elmuelle.example/reservas/cena-sala` (HTML)\n- **Fragmento:** script cuyo `src` incluye el host de CoverManager\n- **Fecha:** 2026-10-12\n- **Sostiene:** el proceso carga el runtime del proveedor\n\n## 2. Marca en el formulario\n- **Origen:** mismo documento, pie del widget\n- **Fragmento:** «Powered by CoverManager»\n- **Fecha:** 2026-10-12\n- **Sostiene:** atribución explícita en UI\n\n## 3. Llamadas de disponibilidad\n- **Origen:** red al buscar hueco\n- **Fragmento:** requests a endpoints del proveedor con respuesta de huecos/alternativas\n- **Fecha:** 2026-10-12\n- **Sostiene:** el proveedor opera la disponibilidad de este proceso\n",
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "El enlace de cena-sala de El Muelle usa CoverManager. La señal es directa, en la propia página."
+   "explicacion": "Conclusión: CoverManager en cena-sala, sostenido por observaciones_md y evidencias_md."
   },
   {
    "id_proceso": "proc-muelle-terraza",
    "estado": "no_identificado",
    "software_identificado": [],
+   "observaciones_md": "# Observaciones — proc-muelle-terraza\n\nURL de inicio: `https://www.elmuelle.example/reservas/terraza`.\n\n## Qué se vio\n\n1. El formulario se sirve desde el mismo origen del negocio.\n2. No hay marca de proveedor, ni script de un SaaS de reservas, ni llamadas a un host de terceros al consultar huecos.\n3. La búsqueda de red y del HTML fue completa para este recorrido.\n\n## Por qué no hay proveedor atribuible\n\nTras una exploración suficiente, no aparece señal directa que una este proceso a un software de terceros. El comportamiento es el de un formulario propio.\n",
+   "evidencias_md": "# Evidencias — proc-muelle-terraza\n\n## 1. Origen del formulario\n- **Origen:** `https://www.elmuelle.example/reservas/terraza`\n- **Fragmento:** assets y POST de disponibilidad en el mismo host del negocio\n- **Fecha:** 2026-10-12\n- **Sostiene:** no hay runtime de un proveedor externo en este proceso\n\n## 2. Ausencia de marca/SaaS\n- **Origen:** HTML y red del recorrido\n- **Fragmento:** sin «powered by», sin script de terceros de reservas\n- **Fecha:** 2026-10-12\n- **Sostiene:** estado `no_identificado` tras búsqueda suficiente\n",
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "La terraza de El Muelle tiene formulario propio. La búsqueda fue suficiente y no aparece un proveedor."
+   "explicacion": "Conclusión: sin proveedor atribuible en terraza; razonamiento en los dos Markdown."
   },
   {
    "id_proceso": "proc-costa-mar",
    "estado": "pendiente",
    "software_identificado": [],
+   "observaciones_md": "# Observaciones — proc-costa-mar\n\nURL de inicio: `https://www.hotelcostamar.example/reservar`.\n\n## Qué se vio\n\n1. La URL responde, pero el formulario no termina de renderizarse.\n2. No se alcanzan scripts del widget ni llamadas de disponibilidad.\n\n## Por qué pendiente\n\nLa búsqueda quedó a medias: sin UI completa no hay base para atribuir ni para declarar ausencia de proveedor.\n",
+   "evidencias_md": "# Evidencias — proc-costa-mar\n\n## 1. Carga incompleta\n- **Origen:** `https://www.hotelcostamar.example/reservar`\n- **Fragmento:** respuesta inicial sin formulario usable\n- **Fecha:** 2026-10-12\n- **Sostiene:** la identificación no puede cerrarse; estado `pendiente`\n",
    "incertidumbres": [
     "El formulario del hotel no llegó a renderizarse."
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "No se puede nombrar el software de Hotel Costa Mar porque la página quedó a medias."
+   "explicacion": "Conclusión pendiente: falta render del formulario; documentado en los Markdown."
   }
  ],
  "Observar formulario": [
@@ -2311,7 +2308,7 @@ function renderOperaciones(opts){
   const summary=`<p class="intro contract-summary">${escapeHtml(d.summary)}</p>`;
   const viewswitch=`<div class="viewswitch three" role="tablist" aria-label="Vista del bloque"><button type="button" role="tab" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">${icon('definition')} Contrato</span><span class="switch-sub">Input, instrucciones, output</span></button><button type="button" role="tab" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">${icon('instructions')} Revisión</span><span class="switch-sub">Veredicto sobre este output</span></button><button type="button" role="tab" aria-selected="${contractView===2}" data-view="2"><span class="switch-title">${icon('examples')} Ejemplos</span><span class="switch-sub">Casos de entrada y salida</span></button></div>`;
   const contrato=`<div id="panel-vista" role="tabpanel"><section class="card"><h3 class="h-ico">${icon('input')} Input</h3><pre>${escapeHtml(JSON.stringify(d.input,null,2))}</pre></section><section class="card prompt"><div class="prompthead"><h3 class="h-ico">${icon('instructions')} Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section><section class="card"><h3 class="h-ico">${icon('output')} Output</h3><pre>${escapeHtml(JSON.stringify(d.output,null,2))}</pre></section></div>`;
-  const revision=`<div id="panel-vista" role="tabpanel"><p class="intro">Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.</p><section class="card"><h3>Veredicto</h3><pre>${escapeHtml(JSON.stringify(validationOutput,null,2))}</pre></section>${exampleSection('Output de la revisión', validationOutput)}</div>`;
+  const revision=`<div id="panel-vista" role="tabpanel"><p class="intro">${escapeHtml(d.review.intro)}</p><section class="card"><h3>Veredicto</h3><pre>${escapeHtml(JSON.stringify(validationOutput,null,2))}</pre></section>${exampleSection('Output de la revisión', validationOutput)}</div>`;
   const exampleRows=contractExample===0?inputExamples[d.label]:outputExamples[d.label];
   const exampleSchema=contractExample===0?d.input:d.output;
   const exampleHint=contractExample===0?'Cada tarjeta es un caso de entrada.':'Cada tarjeta es un caso de salida.';
