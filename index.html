@@ -2285,12 +2285,14 @@ function ensureActiveBlockTabVisible(){
   const active=content.querySelector('.tabs button[aria-selected="true"]');
   if(!row||!active) return;
   const pad=12;
-  const left=active.offsetLeft;
-  const right=left+active.offsetWidth;
+  const rowRect=row.getBoundingClientRect();
+  const tabRect=active.getBoundingClientRect();
+  const left=tabRect.left-rowRect.left+row.scrollLeft;
+  const right=left+tabRect.width;
   const viewLeft=row.scrollLeft;
   const viewRight=viewLeft+row.clientWidth;
   if(left<viewLeft+pad) row.scrollLeft=Math.max(0,left-pad);
-  else if(right>viewRight-pad) row.scrollLeft=right-row.clientWidth+pad;
+  else if(right>viewRight-pad) row.scrollLeft=Math.min(row.scrollWidth-row.clientWidth,right-row.clientWidth+pad);
 }
 function restoreOpsScroll(pageY){
   const apply=()=>{
@@ -2300,7 +2302,7 @@ function restoreOpsScroll(pageY){
     if(active) active.focus({preventScroll:true});
   };
   apply();
-  requestAnimationFrame(apply);
+  requestAnimationFrame(()=>requestAnimationFrame(apply));
 }
 function renderOperaciones(opts){
   const preserveScroll=!!(opts&&opts.preserveScroll);
