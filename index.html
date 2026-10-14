@@ -199,25 +199,28 @@ const contracts=[
  },
  {
  "label": "Apertura",
- "summary": "Investigar horario y apertura y dejarlo en un Markdown versionado con timestamp.",
+ "summary": "Investigar horario y apertura en un Markdown versionado y dejarlo como pila de cron.",
  "input": {
   "url_negocio": "URL del negocio",
-  "telefono_cancelacion": "número | null",
   "informe_previo": "informe de apertura anterior | null"
  },
- "instructions": "Tu propósito es investigar si el negocio está abierto ahora y dejar esa investigación en un Markdown versionado con timestamp. No pruebes la reserva ni decides si la vía es apta.\n\nPrimero escribe observacion_apertura_md. Relata en Markdown todo lo que observes sobre horario, festivos, cierres, teléfono y señales de apertura: la web del negocio (horario, contacto, avisos, vacaciones, eventos), Google Maps o la ficha pública equivalente (horario del día, abierto o cerrado ahora, avisos temporales) y cualquier otra fuente oficial que consultes. Cita cada URL o ficha, la hora de la consulta y qué decía exactamente. Separa hechos de interpretaciones. No inventes horarios, festivos ni contactos.\n\nCada ejecución crea un informe nuevo. Si informe_previo llega vacío, version es v1. Si llega un informe anterior, version es la siguiente (v2, v3…). timestamp es el instante de esta investigación, en la zona del negocio. No reescribas el Markdown anterior: guarda uno nuevo. Las versiones anteriores se conservan como historial.\n\nDespués del Markdown, rellena solo el resumen que necesita la compuerta: abierto_ahora, horario_hoy, fuente_horario, festivo_o_cierre, fuente_festivos, margen_hasta_cierre_min, telefono_cancelacion, motivo_pendiente, proxima_hora_valida y comprobado_en. Esos campos salen del Markdown; no sustituyen al informe. abierto_ahora es true solo si está dentro del horario, no hay festivo ni cierre y quedan al menos 60 minutos. Es false si está cerrado o el margen es menor de 1 hora. Es indeterminado si horario o festivo no se pueden comprobar. Horario y festivo pueden salir aunque telefono_cancelacion sea null. Si falta el teléfono, anótalo en motivo_pendiente y no lo trates como cerrado.\n\nNo envíes una reserva. No confirmes sin evidencia. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+ "instructions": "Tu propósito es investigar si el negocio está abierto ahora y dejar esa investigación en un Markdown versionado y en una pila de cron. No pruebes la reserva ni decides si la vía es apta. No busques ni registres el teléfono de cancelación: eso pertenece a Canal de cancelación.\n\nPrimero escribe observacion_apertura_md. Relata en Markdown todo lo que observes sobre horario, festivos, cierres y señales de apertura: la web del negocio (horario, avisos, vacaciones, eventos) y Google Maps u otra ficha pública (horario del día, abierto o cerrado ahora, avisos temporales). Cita cada URL o ficha, la hora de la consulta y qué decía exactamente. Separa hechos de interpretaciones. No inventes horarios ni festivos.\n\nCada ejecución crea un informe nuevo. Si informe_previo llega vacío, version es v1. Si llega un informe anterior, version es la siguiente (v2, v3…). timestamp es el instante de esta investigación, en la zona del negocio. No reescribas el Markdown anterior: guarda uno nuevo.\n\nDespués del Markdown, construye pila_cron. Cada elemento es un cron job apilable:\n- tipo: horario_ordinario | cierre_semanal | festivo | vacaciones | evento_privado | horario_especial\n- efecto: abierto | cerrado\n- cron: expresión cron de 5 campos (minuto hora día-mes mes día-semana)\n- zona: zona IANA del negocio (por ejemplo Atlantic/Canary)\n- fuente: URL o ficha que lo sostiene\n- nota: texto corto opcional\n\nApila varias franjas como jobs distintos (comida y cena = dos crons). Los cierres (festivo, vacaciones, cierre semanal, evento) van después de los horarios ordinarios: al evaluar un instante, entre los jobs que coinciden gana el último de la pila. No uses un string libre tipo «13:00-23:30» como representación del horario; el horario vive en la pila.\n\nEvalúa la pila en comprobado_en:\n- abierto_ahora es true solo si el job ganador tiene efecto abierto y quedan al menos 60 minutos hasta que deje de coincidir.\n- Es false si el ganador es cerrado o el margen es menor de 1 hora.\n- Es indeterminado si no hay jobs suficientes o las fuentes no permiten decidir.\nCalcula margen_hasta_cierre_min y, si no está abierto, proxima_hora_valida en la zona del negocio.\n\nNo envíes una reserva. No confirmes sin evidencia. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
  "output": {
   "version": "v1 | v2 | v3 | …",
   "timestamp": "ISO 8601 con la zona del negocio; instante de este informe",
-  "observacion_apertura_md": "Informe Markdown de todo lo observado en la web, Google Maps y otras fuentes; no sustituye a versiones anteriores",
+  "observacion_apertura_md": "Informe Markdown de lo observado en la web, Google Maps y otras fuentes",
+  "pila_cron": [
+   {
+    "tipo": "horario_ordinario | cierre_semanal | festivo | vacaciones | evento_privado | horario_especial",
+    "efecto": "abierto | cerrado",
+    "cron": "minuto hora día-mes mes día-semana",
+    "zona": "IANA, ej. Atlantic/Canary",
+    "fuente": "URL o ficha",
+    "nota": "string | null"
+   }
+  ],
   "abierto_ahora": "true | false | indeterminado",
-  "horario_hoy": "texto | null",
-  "fuente_horario": "URL | null",
-  "festivo_o_cierre": "ninguno | descripción",
-  "fuente_festivos": "URL | null",
   "margen_hasta_cierre_min": "number | null",
-  "telefono_cancelacion": "número | null",
-  "motivo_pendiente": "texto | null",
   "proxima_hora_valida": "ISO 8601 con la zona del negocio | null",
   "comprobado_en": "ISO 8601 con la zona horaria del negocio",
   "fecha_evaluacion": "ISO 8601",
@@ -346,7 +349,7 @@ const contracts=[
    "acceso_api": "Acceso de la integración oficial si Investigar integración lo tiene; si no, vacío",
    "compuerta_envio": "Dictamen de la compuerta de envío real"
   },
-  "instructions": "Tu propósito es conseguir un método reutilizable para consultar disponibilidad y, solo si la compuerta lo permite, completar una reserva de prueba en este proceso. Citas la función, el script, Apertura, la compuerta de envío y, si existe, el acceso de integración. No copies el expediente de detección, software ni cancelación.\n\nUsa únicamente la función y el script aprobados. Pasa datos_reserva_prueba conforme a su esquema y conserva la version y la huella ejecutadas. No construyas campos propios, no uses una implementación paralela con campos fijos y no rellenes datos que el justificante no sostenga.\n\nSin función aprobada, o con el script sin la misma revisión, el estado es no_intentada y no ejecutes nada. Si Verificación y vigilancia tiene abierta la alerta formulario_cambiado, la versión vieja está bloqueada: el estado es no_intentada hasta que Observar formulario, Justificante, Función y Script se regeneren y se revisen como una versión nueva.\n\nLa identidad de prueba solo se mapea a parámetros que el esquema justificado pide. No fuerces nombre, email, teléfono u otros datos si el proceso no los pide, y no publiques esos valores en la explicación, las pruebas ni una URL. Si no puede cubrir un parámetro requerido, pide solo ese dato a quien evalúa y deja la vía pendiente.\n\nSi acceso_api trae una integración oficial aplicable, comprueba si cubre la operación y respeta las condiciones del proveedor. Si viene vacío o la integración no se localizó, sigue con la función y el script. La falta de API o de acceso no es no_apta.\n\nPrueba las operaciones que el método permita y compáralas con lo que muestra el proceso real. Corrige un error de implementación y vuelve a probar cuando haya una mejora concreta. Distingue un límite técnico demostrado de una restricción de acceso, un permiso pendiente o un dato que falta. No inventes resultados. Si aparece CAPTCHA, login, tarjeta, antibot u otro control, detén ese paso y regístralo: no lo evadas. Eso no declara el proceso no_apta por sí solo; la vía queda pendiente de revisión del control.\n\nEl horario, el festivo, el margen y el teléfono viven en la instrucción Apertura. No reescribas esa regla ni la recalcules aquí. Enviar una reserva real es la compuerta de envío, no una decisión de esta vía: exige función y script con revisión aprobada, canal de cancelación verificado, autorización y negocio abierto según Apertura. Si la compuerta no está abierta, no envíes. Conserva su motivo. Si el motivo es pendiente_apertura, reserva_prueba.estado es pendiente_apertura. Si el motivo es sin_canal_de_cancelacion, no confirmes. La falta de permiso o de canal no es no_apta, y un local cerrado no convierte en pendiente un mecanismo que ya funciona.\n\nreserva_prueba.estado es no_realizada si no se creó una reserva, confirmada solo con una señal verificable de confirmación tras un envío permitido por la compuerta, cancelada solo con una confirmación verificable de la cancelación, incierta si el resultado no se puede verificar y pendiente_apertura cuando la compuerta cierre por la apertura. Una solicitud de cancelación sin confirmación no es cancelada.\n\nestado de la vía es apta cuando las pruebas demuestran el método, no_apta solo ante un impedimento técnico demostrado, pendiente cuando falta prueba, un dato de identidad requerido o la lectura de un control, y no_intentada cuando no hay función aprobada. Registra metodo_utilizado, pruebas_realizadas e impedimento con la version y la huella exactas.\n\nRegistra fecha_evaluacion en ISO 8601 y deja fecha_validacion en null hasta la revisión independiente.",
+  "instructions": "Tu propósito es conseguir un método reutilizable para consultar disponibilidad y, solo si la compuerta lo permite, completar una reserva de prueba en este proceso. Citas la función, el script, Apertura, la compuerta de envío y, si existe, el acceso de integración. No copies el expediente de detección, software ni cancelación.\n\nUsa únicamente la función y el script aprobados. Pasa datos_reserva_prueba conforme a su esquema y conserva la version y la huella ejecutadas. No construyas campos propios, no uses una implementación paralela con campos fijos y no rellenes datos que el justificante no sostenga.\n\nSin función aprobada, o con el script sin la misma revisión, el estado es no_intentada y no ejecutes nada. Si Verificación y vigilancia tiene abierta la alerta formulario_cambiado, la versión vieja está bloqueada: el estado es no_intentada hasta que Observar formulario, Justificante, Función y Script se regeneren y se revisen como una versión nueva.\n\nLa identidad de prueba solo se mapea a parámetros que el esquema justificado pide. No fuerces nombre, email, teléfono u otros datos si el proceso no los pide, y no publiques esos valores en la explicación, las pruebas ni una URL. Si no puede cubrir un parámetro requerido, pide solo ese dato a quien evalúa y deja la vía pendiente.\n\nSi acceso_api trae una integración oficial aplicable, comprueba si cubre la operación y respeta las condiciones del proveedor. Si viene vacío o la integración no se localizó, sigue con la función y el script. La falta de API o de acceso no es no_apta.\n\nPrueba las operaciones que el método permita y compáralas con lo que muestra el proceso real. Corrige un error de implementación y vuelve a probar cuando haya una mejora concreta. Distingue un límite técnico demostrado de una restricción de acceso, un permiso pendiente o un dato que falta. No inventes resultados. Si aparece CAPTCHA, login, tarjeta, antibot u otro control, detén ese paso y regístralo: no lo evadas. Eso no declara el proceso no_apta por sí solo; la vía queda pendiente de revisión del control.\n\nEl horario, el festivo y el margen viven en Apertura (pila de cron). El teléfono de cancelación vive en Canal de cancelación. No reescribas esas reglas ni las recalcules aquí. Enviar una reserva real es la compuerta de envío, no una decisión de esta vía: exige función y script con revisión aprobada, canal de cancelación verificado, autorización y negocio abierto según Apertura. Si la compuerta no está abierta, no envíes. Conserva su motivo. Si el motivo es pendiente_apertura, reserva_prueba.estado es pendiente_apertura. Si el motivo es sin_canal_de_cancelacion, no confirmes. La falta de permiso o de canal no es no_apta, y un local cerrado no convierte en pendiente un mecanismo que ya funciona.\n\nreserva_prueba.estado es no_realizada si no se creó una reserva, confirmada solo con una señal verificable de confirmación tras un envío permitido por la compuerta, cancelada solo con una confirmación verificable de la cancelación, incierta si el resultado no se puede verificar y pendiente_apertura cuando la compuerta cierre por la apertura. Una solicitud de cancelación sin confirmación no es cancelada.\n\nestado de la vía es apta cuando las pruebas demuestran el método, no_apta solo ante un impedimento técnico demostrado, pendiente cuando falta prueba, un dato de identidad requerido o la lectura de un control, y no_intentada cuando no hay función aprobada. Registra metodo_utilizado, pruebas_realizadas e impedimento con la version y la huella exactas.\n\nRegistra fecha_evaluacion en ISO 8601 y deja fecha_validacion en null hasta la revisión independiente.",
   "output": {
    "id_proceso": "Identificador del proceso",
    "estado": "apta | no_apta | pendiente | no_intentada",
@@ -372,7 +375,7 @@ const contracts=[
    "script_reserva": "Script aprobado de la misma versión, con version, huella y referencia_codigo",
    "datos_reserva_prueba": "Objeto dinámico que cumple el esquema de funcion_json"
   },
-  "instructions": "Tu propósito es comprobar si se puede entregar un enlace que conserve el progreso necesario y deje solo la acción final. Citas la función y el script aprobados. No esperes a Automática, no leas su output y no guardes su resultado. El estado de esta vía es independiente.\n\nUsa la función y el script aprobados, con sus parámetros dinámicos. No trabajes con campos fijos ni añadas datos que no estén en el justificante. Conserva version y huella. Sin función y script aprobados, el estado es no_intentada. Si la alerta formulario_cambiado está abierta, no ejecutes la versión vieja: no_intentada hasta que la versión nueva salga de Observar formulario y quede revisada.\n\nPrepara el enlace y pruébalo en una sesión independiente, sin cookies ni estado de la sesión de generación. Un enlace que solo funciona con la sesión original no cumple el propósito. Registra en prueba_en_sesion_independiente qué datos conserva y cuál es la accion_pendiente_del_cliente. Una reserva preparada no es una reserva confirmada.\n\nLa identidad de prueba, si hace falta para evaluar el recorrido, no es la identidad del cliente. Solo entra en parámetros justificados del esquema. En el enlace que usará el cliente van los datos que esa persona facilite. La URL no lleva datos personales sensibles, credenciales, tokens ni datos de pago.\n\nSi para probar el enlace hubiera que enviar una reserva real, no la envíes desde aquí. Cita la instrucción Apertura y la compuerta de envío, sin reescribir la regla de horario, festivo, margen ni teléfono. La compuerta es quien decide el envío. Si no está abierta, detén la confirmación y puedes seguir hasta el último paso que no cree una reserva. La falta de permiso, de canal o de apertura no es no_apta.\n\nestado es apta si el enlace cumple la prueba en sesión independiente, no_apta solo ante un impedimento demostrado, pendiente si falta evidencia o un dato requerido por la función, y no_intentada si todavía no hay función aprobada que probar. Corrige un error de implementación cuando exista una mejora concreta y distingue ese error de un límite demostrado.\n\nSi aparece CAPTCHA, login, tarjeta, antibot u otro control, detén ese paso y regístralo en impedimento o en la prueba. No lo evadas.\n\nRegistra fecha_evaluacion en ISO 8601 y deja fecha_validacion en null hasta la revisión independiente.",
+  "instructions": "Tu propósito es comprobar si se puede entregar un enlace que conserve el progreso necesario y deje solo la acción final. Citas la función y el script aprobados. No esperes a Automática, no leas su output y no guardes su resultado. El estado de esta vía es independiente.\n\nUsa la función y el script aprobados, con sus parámetros dinámicos. No trabajes con campos fijos ni añadas datos que no estén en el justificante. Conserva version y huella. Sin función y script aprobados, el estado es no_intentada. Si la alerta formulario_cambiado está abierta, no ejecutes la versión vieja: no_intentada hasta que la versión nueva salga de Observar formulario y quede revisada.\n\nPrepara el enlace y pruébalo en una sesión independiente, sin cookies ni estado de la sesión de generación. Un enlace que solo funciona con la sesión original no cumple el propósito. Registra en prueba_en_sesion_independiente qué datos conserva y cuál es la accion_pendiente_del_cliente. Una reserva preparada no es una reserva confirmada.\n\nLa identidad de prueba, si hace falta para evaluar el recorrido, no es la identidad del cliente. Solo entra en parámetros justificados del esquema. En el enlace que usará el cliente van los datos que esa persona facilite. La URL no lleva datos personales sensibles, credenciales, tokens ni datos de pago.\n\nSi para probar el enlace hubiera que enviar una reserva real, no la envíes desde aquí. Cita Apertura (pila de cron) y Canal de cancelación, y deja el envío a la compuerta, sin reescribir horario, festivo, margen ni canal. La compuerta es quien decide el envío. Si no está abierta, detén la confirmación y puedes seguir hasta el último paso que no cree una reserva. La falta de permiso, de canal o de apertura no es no_apta.\n\nestado es apta si el enlace cumple la prueba en sesión independiente, no_apta solo ante un impedimento demostrado, pendiente si falta evidencia o un dato requerido por la función, y no_intentada si todavía no hay función aprobada que probar. Corrige un error de implementación cuando exista una mejora concreta y distingue ese error de un límite demostrado.\n\nSi aparece CAPTCHA, login, tarjeta, antibot u otro control, detén ese paso y regístralo en impedimento o en la prueba. No lo evadas.\n\nRegistra fecha_evaluacion en ISO 8601 y deja fecha_validacion en null hasta la revisión independiente.",
   "output": {
    "id_proceso": "Identificador del proceso",
    "estado": "apta | no_apta | pendiente | no_intentada",
@@ -557,35 +560,35 @@ const validations=[
  },
  {
  "label": "Apertura",
- "intro": "Revisión independiente del informe Markdown de apertura y del resumen que usa la compuerta. No decide la aptitud de la vía. fecha_validacion solo se completa aquí, en una revisión concluyente.",
- "input": "url_negocio, informe_previo si existe, y el output de Apertura: version, timestamp, observacion_apertura_md y el resumen (abierto_ahora, horarios, fuentes, margen, teléfono, motivos).",
+ "intro": "Revisión independiente del Markdown de apertura y de la pila de cron. No decide la aptitud de la vía. No exige teléfono de cancelación.",
+ "input": "url_negocio, informe_previo si existe, y el output: version, timestamp, observacion_apertura_md, pila_cron y el resultado de evaluarla (abierto_ahora, margen, próxima hora, comprobado_en).",
  "checks": [
   [
+   "Sin teléfono",
+   "No aparece teléfono de cancelación. Ese dato pertenece a Canal de cancelación."
+  ],
+  [
    "Markdown primero",
-   "Existe observacion_apertura_md. Relata lo visto en la web del negocio y en Google Maps u otra ficha pública, con URL o ficha y hora de consulta."
+   "observacion_apertura_md relata web y Google Maps (u otra ficha), con URL o ficha y hora de consulta."
   ],
   [
    "Versionado",
-   "version y timestamp identifican este informe. Si había informe_previo, version es la siguiente y el Markdown es nuevo, no una edición silenciosa del anterior."
+   "version y timestamp identifican este informe. Si había informe_previo, version es la siguiente y el Markdown es nuevo."
   ],
   [
-   "Fuentes",
-   "El horario y los festivos del resumen citan fuentes que aparecen en el Markdown. Si solo hay terceros, el informe lo dice."
+   "Pila de cron",
+   "El horario está en pila_cron, no en un string libre. Cada job tiene tipo, efecto, cron de 5 campos, zona y fuente citada en el Markdown."
   ],
   [
-   "Margen",
-   "abierto_ahora en true exige horario, sin festivo y al menos una hora hasta el cierre, sostenidos por el Markdown."
-  ],
-  [
-   "Aptitud aparte",
-   "Esta revisión no declara la vía apta ni no_apta. Un local cerrado es un hecho de apertura, con próxima hora válida si se conoce."
+   "Evaluación",
+   "abierto_ahora, margen y próxima hora salen de evaluar la pila en comprobado_en. Entre jobs que coinciden gana el último."
   ],
   [
    "Fecha",
-   "fecha_validacion solo se completa aquí si el Markdown y el resumen quedan comprobados."
+   "fecha_validacion solo se completa aquí si el Markdown y la pila quedan comprobados."
   ]
  ],
- "outcome": "Aprobado solo si el Markdown versionado sostiene el resumen. Cerrado o no comprobable deja abierto_ahora en false o indeterminado, sin cambiar la aptitud de Automática ni del enlace."
+ "outcome": "Aprobado si el Markdown sostiene la pila y la evaluación es coherente. Cerrado o no comprobable no cambia la aptitud de Automática ni del enlace."
 },
  {
   "label": "Investigar integración",
@@ -710,7 +713,7 @@ const validations=[
    ],
    [
     "Apertura citada",
-    "Cita el resultado de Apertura. No vuelve a decidir horario, festivo ni margen."
+    "Cita el resultado de Apertura (Markdown y pila de cron). No vuelve a decidir horario, festivo ni margen."
    ],
    [
     "Impedimento",
@@ -1005,56 +1008,83 @@ const outputExamples = {
  {
   "version": "v1",
   "timestamp": "2026-10-14T21:55:00+01:00",
-  "observacion_apertura_md": "# Apertura — Restaurante El Muelle\n**version:** v1  \n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web del negocio\n- Fuente: https://www.elmuelle.example/horario (consultada 2026-10-14T21:50:00+01:00)\n- Horario publicado hoy: comida 13:00-16:00, cena 20:00-23:30.\n- Aviso visible: sin cierre temporal ni vacaciones.\n\n## Google Maps\n- Ficha: Restaurante El Muelle (consultada 2026-10-14T21:52:00+01:00)\n- Estado mostrado: Abierto · cierra a las 23:30.\n- Horario de hoy coincide con la web.\n\n## Teléfono\n- En web de contacto: +34 922 000 222, publicado para cancelaciones.\n\n## Lectura\nDentro del turno de cena, sin festivo, margen mayor de 60 minutos.\n",
+  "observacion_apertura_md": "# Apertura — Restaurante El Muelle\n**version:** v1\n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web del negocio\n- Fuente: https://www.elmuelle.example/horario (consultada 2026-10-14T21:50:00+01:00)\n- Comida 13:00-16:00 y cena 20:00-23:30, lunes a sábado.\n- Domingo cerrado. Sin vacaciones anunciadas.\n\n## Google Maps\n- Ficha: Restaurante El Muelle (consultada 2026-10-14T21:52:00+01:00)\n- Estado: Abierto · cierra a las 23:30.\n- Coincide con la web.\n\n## Lectura para la pila\nDos crons de horario_ordinario (comida y cena), un cierre_semanal el domingo.\n",
+  "pila_cron": [
+   {
+    "tipo": "horario_ordinario",
+    "efecto": "abierto",
+    "cron": "0 13-15 * * 1-6",
+    "zona": "Atlantic/Canary",
+    "fuente": "https://www.elmuelle.example/horario",
+    "nota": "comida"
+   },
+   {
+    "tipo": "horario_ordinario",
+    "efecto": "abierto",
+    "cron": "0 20-22 * * 1-6",
+    "zona": "Atlantic/Canary",
+    "fuente": "https://www.elmuelle.example/horario",
+    "nota": "cena"
+   },
+   {
+    "tipo": "cierre_semanal",
+    "efecto": "cerrado",
+    "cron": "0 0 * * 0",
+    "zona": "Atlantic/Canary",
+    "fuente": "https://www.elmuelle.example/horario",
+    "nota": "domingo"
+   }
+  ],
   "abierto_ahora": true,
-  "horario_hoy": "13:00-16:00, 20:00-23:30",
-  "fuente_horario": "https://www.elmuelle.example/horario",
-  "festivo_o_cierre": "ninguno",
-  "fuente_festivos": "https://www.elmuelle.example/horario",
   "margen_hasta_cierre_min": 95,
-  "telefono_cancelacion": "+34 922 000 222",
-  "motivo_pendiente": null,
   "proxima_hora_valida": null,
   "comprobado_en": "2026-10-14T21:55:00+01:00",
   "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
   "fecha_validacion": "2026-10-14T22:10:00+01:00",
-  "explicacion": "Informe v1: web y Maps coinciden; abierto en cena con margen de más de una hora."
+  "explicacion": "Pila v1: a las 21:55 gana el cron de cena; margen mayor de una hora."
  },
  {
   "version": "v2",
   "timestamp": "2026-05-30T12:00:00+01:00",
-  "observacion_apertura_md": "# Apertura — Hotel Costa Mar\n**version:** v2  \n**timestamp:** 2026-05-30T12:00:00+01:00\n\n## Web del negocio\n- Fuente: https://www.hotelcostamar.example (consultada 2026-05-30T11:50:00+01:00)\n- Aviso de cierre por festivo insular (Día de Canarias).\n- Próxima apertura indicada: 1 de junio, 09:00.\n\n## Google Maps\n- Ficha: Hotel Costa Mar (consultada 2026-05-30T11:55:00+01:00)\n- Estado mostrado: Cerrado · abre el lunes a las 09:00.\n- Coincide con el aviso de la web.\n\n## Teléfono\n- No llegó telefono_cancelacion en esta ejecución.\n\n## Lectura\nCerrado ahora. La próxima hora válida es 2026-06-01T09:00:00+01:00.\n",
+  "observacion_apertura_md": "# Apertura — Hotel Costa Mar\n**version:** v2\n**timestamp:** 2026-05-30T12:00:00+01:00\n\n## Web del negocio\n- Fuente: https://www.hotelcostamar.example (consultada 2026-05-30T11:50:00+01:00)\n- Horario habitual 09:00-22:00 todos los días.\n- Aviso: cerrado el 30 de mayo por festivo insular (Día de Canarias). Reabre 1 de junio a las 09:00.\n\n## Google Maps\n- Ficha: Hotel Costa Mar (consultada 2026-05-30T11:55:00+01:00)\n- Estado: Cerrado · abre el lunes a las 09:00.\n\n## Lectura para la pila\nUn cron horario_ordinario diario y un cron festivo el 30 de mayo (efecto cerrado, gana al apilarse después).\n",
+  "pila_cron": [
+   {
+    "tipo": "horario_ordinario",
+    "efecto": "abierto",
+    "cron": "0 9-21 * * *",
+    "zona": "Atlantic/Canary",
+    "fuente": "https://www.hotelcostamar.example",
+    "nota": "horario habitual"
+   },
+   {
+    "tipo": "festivo",
+    "efecto": "cerrado",
+    "cron": "0 0 30 5 *",
+    "zona": "Atlantic/Canary",
+    "fuente": "https://www.hotelcostamar.example",
+    "nota": "Día de Canarias"
+   }
+  ],
   "abierto_ahora": false,
-  "horario_hoy": "cerrado por festivo insular",
-  "fuente_horario": "https://www.hotelcostamar.example",
-  "festivo_o_cierre": "festivo insular (Día de Canarias)",
-  "fuente_festivos": "https://www.hotelcostamar.example",
   "margen_hasta_cierre_min": 0,
-  "telefono_cancelacion": null,
-  "motivo_pendiente": null,
   "proxima_hora_valida": "2026-06-01T09:00:00+01:00",
   "comprobado_en": "2026-05-30T12:00:00+01:00",
   "fecha_evaluacion": "2026-05-30T12:00:00+01:00",
   "fecha_validacion": "2026-05-30T12:30:00+01:00",
-  "explicacion": "Informe v2 tras una nueva ejecución: cerrado por festivo; la aptitud de la vía no cambia."
+  "explicacion": "Pila v2: el festivo está después del horario ordinario y gana; cerrado."
  },
  {
   "version": "v1",
   "timestamp": "2026-10-14T21:55:00+01:00",
-  "observacion_apertura_md": "# Apertura — Pescadería Norte\n**version:** v1  \n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web del negocio\n- Fuente: https://www.pescaderianorte.example (consultada 2026-10-14T21:50:00+01:00)\n- No publica horario ni calendario de cierres.\n- Solo muestra mostrador y teléfono genérico sin franja.\n\n## Google Maps\n- Ficha: Pescadería Norte (consultada 2026-10-14T21:53:00+01:00)\n- Sin horario semanal legible; estado del día no aparece.\n\n## Teléfono\n- telefono_cancelacion no llegó.\n\n## Lectura\nNo hay fuente suficiente para decidir si está abierta ahora.\n",
+  "observacion_apertura_md": "# Apertura — Pescadería Norte\n**version:** v1\n**timestamp:** 2026-10-14T21:55:00+01:00\n\n## Web del negocio\n- Fuente: https://www.pescaderianorte.example (consultada 2026-10-14T21:50:00+01:00)\n- No publica horario ni calendario de cierres.\n\n## Google Maps\n- Ficha: Pescadería Norte (consultada 2026-10-14T21:53:00+01:00)\n- Sin horario semanal legible.\n\n## Lectura para la pila\nSin jobs fiables. abierto_ahora queda indeterminado.\n",
+  "pila_cron": [],
   "abierto_ahora": "indeterminado",
-  "horario_hoy": null,
-  "fuente_horario": null,
-  "festivo_o_cierre": null,
-  "fuente_festivos": null,
   "margen_hasta_cierre_min": null,
-  "telefono_cancelacion": null,
-  "motivo_pendiente": "Pescadería Norte no publica horario ni calendario de cierre.",
   "proxima_hora_valida": null,
   "comprobado_en": "2026-10-14T21:55:00+01:00",
   "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
   "fecha_validacion": null,
-  "explicacion": "Informe v1 sin fuente suficiente; abierto_ahora queda indeterminado."
+  "explicacion": "Sin fuentes de horario; la pila queda vacía y abierto_ahora indeterminado."
  }
 ],
  "Investigar integración": [
@@ -1669,21 +1699,28 @@ const inputExamples = {
  "Apertura": [
  {
   "url_negocio": "https://www.elmuelle.example",
-  "telefono_cancelacion": "+34 922 000 222",
   "informe_previo": null
  },
  {
   "url_negocio": "https://www.hotelcostamar.example",
-  "telefono_cancelacion": null,
   "informe_previo": {
    "version": "v1",
    "timestamp": "2026-05-29T18:00:00+01:00",
-   "observacion_apertura_md": "# Apertura — Hotel Costa Mar\n**version:** v1\n**timestamp:** 2026-05-29T18:00:00+01:00\n\nInforme anterior: horario habitual sin festivo."
+   "observacion_apertura_md": "# Apertura — Hotel Costa Mar\n**version:** v1\nInforme anterior sin festivo.",
+   "pila_cron": [
+    {
+     "tipo": "horario_ordinario",
+     "efecto": "abierto",
+     "cron": "0 9-21 * * *",
+     "zona": "Atlantic/Canary",
+     "fuente": "https://www.hotelcostamar.example",
+     "nota": null
+    }
+   ]
   }
  },
  {
   "url_negocio": "https://www.pescaderianorte.example",
-  "telefono_cancelacion": null,
   "informe_previo": null
  }
 ],
@@ -2173,7 +2210,7 @@ function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span clas
 function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${escapeHtml(item.label)}</button>`).join('')}</div>`}
 function bindTabs(name,callback){content.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>callback(Number(b.dataset.tab))))}
 function renderConfig(){content.innerHTML=heading('Datos de ejecución','Configuración','La identidad de prueba es una configuración fija que reciben Automática y Enlace asistido; no es un agente ni una investigación.','Identidad')+`<p class="intro">${escapeHtml(identidadGuidance)}</p><section class="card"><h3>Input de configuración</h3><pre>${escapeHtml(JSON.stringify(identidadConfig,null,2))}</pre></section>${exampleSection('Input de configuración',identidadConfig,inputExamples['Input de configuración'])}<section class="card"><h3>Condiciones de uso</h3><ul class="criteria"><li><strong>Completitud.</strong> Solo son obligatorios los datos de configuración que correspondan a parámetros requeridos por funcion.json; si falta uno de ellos, no se confirma la prueba y queda pendiente.</li><li><strong>Reserva de prueba.</strong> Se usa únicamente con autorización explícita y para completar los parámetros que pida funcion.json, respetando las restricciones observadas para este proceso.</li><li><strong>Cancelación.</strong> Tras crear una reserva de prueba, registra la solicitud y el resultado real de la cancelación; conserva evidencia de la confirmación.</li><li><strong>Privacidad.</strong> Los valores se suministran de forma protegida al ejecutar los agentes; aquí solo se publica el esquema.</li><li><strong>Enlace del cliente.</strong> La identidad de prueba nunca se reutiliza como identidad del cliente que vaya a reservar.</li></ul></section><div class="notice">Antes de confirmar una prueba real, también debe estar aprobado el Canal de cancelación y existir un plan viable para gestionar la reserva.</div>`}
-function renderFlow(){content.innerHTML=heading('Vista general','Flujo completo','La identidad de prueba se configura una vez. Punto A solo localiza cada enlace de inicio. Por enlace, en paralelo: software, formulario, cancelación y apertura. La integración se investiga una vez por software y no frena la observación. Después, en serie: justificante, función y script. Con ambos aprobados arrancan Automática y Enlace asistido, cada uno con su propia salida. La compuerta de envío no es un agente.','Mapa lógico')+`<details class="map-panel" open><summary>🗺️ <span>Mapa del sistema<span class="hint">Pulsa para contraer o expandir</span></span></summary><div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div></details><div class="notice">Una confirmación real exige función y script aprobados, cancelación en estado encontrado con canal preferido, autorización explícita, negocio abierto, margen de al menos una hora y teléfono que puedan atender. Si falta el canal, el motivo es sin_canal_de_cancelacion y la aptitud no cambia. Si el negocio está cerrado, el motivo es pendiente_apertura y la aptitud no cambia. La vigilancia no crea reservas. Si el formulario cambia, Verificación devuelve el proceso a Observar y bloquea la versión anterior.</div>`;const el=document.getElementById('flowMermaid'),status=document.getElementById('mapStatus');el.textContent=flow;if(!window.mermaid){el.className='map-fallback';status.textContent='Mapa en texto: requiere conexión para visualizar el diagrama.';return}try{mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'default',flowchart:{useMaxWidth:true,htmlLabels:true,nodeSpacing:28,rankSpacing:36}});mermaid.run({nodes:[el]}).then(()=>status.textContent='Mapa ajustado al ancho de la página').catch(()=>{el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'})}catch(e){el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'}}
+function renderFlow(){content.innerHTML=heading('Vista general','Flujo completo','La identidad de prueba se configura una vez. Punto A solo localiza cada enlace de inicio. Por enlace, en paralelo: software, formulario, cancelación y apertura. La integración se investiga una vez por software y no frena la observación. Después, en serie: justificante, función y script. Con ambos aprobados arrancan Automática y Enlace asistido, cada uno con su propia salida. La compuerta de envío no es un agente.','Mapa lógico')+`<details class="map-panel" open><summary>🗺️ <span>Mapa del sistema<span class="hint">Pulsa para contraer o expandir</span></span></summary><div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div></details><div class="notice">Una confirmación real exige función y script aprobados, cancelación en estado encontrado con canal preferido (incluido el teléfono, si ese es el canal), autorización explícita, y negocio abierto con margen de al menos una hora según la pila de cron de Apertura. Si falta el canal, el motivo es sin_canal_de_cancelacion y la aptitud no cambia. Si el negocio está cerrado, el motivo es pendiente_apertura y la aptitud no cambia. La vigilancia no crea reservas. Si el formulario cambia, Verificación devuelve el proceso a Observar y bloquea la versión anterior.</div>`;const el=document.getElementById('flowMermaid'),status=document.getElementById('mapStatus');el.textContent=flow;if(!window.mermaid){el.className='map-fallback';status.textContent='Mapa en texto: requiere conexión para visualizar el diagrama.';return}try{mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'default',flowchart:{useMaxWidth:true,htmlLabels:true,nodeSpacing:28,rankSpacing:36}});mermaid.run({nodes:[el]}).then(()=>status.textContent='Mapa ajustado al ancho de la página').catch(()=>{el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'})}catch(e){el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'}}
 function renderContracts(){
   const d=contracts[contractTab];
   const summary=`<p class="intro contract-summary">${escapeHtml(d.summary)}</p>`;
@@ -2227,7 +2264,7 @@ function renderResult(){
  const ofertaTexto={habilitada:'HABILITADA',bloqueada_revision:'BLOQUEADA POR REVISIÓN',pendiente:'PENDIENTE'};
  const result={nombre_negocio:'string | null',deteccion:'procesos_identificados | sin_reserva_online | pendiente',procesos:[{id_proceso:'Identificador del proceso',url_inicio:'URL de inicio',software:'Cita del output de Identificar software',integracion:'Cita del output de Investigar integración | null',funcion:'Cita del output de Función',script:'Cita del output de Script',cancelacion:'Cita del output de Canal de cancelación',apertura:'Cita del output de Apertura',automatica:'Cita del output de Automática | no_intentada',asistida:'Cita del output de Enlace asistido | no_intentada',clasificacion:'apto_automatico | apto_asistido | no_apto | pendiente',fiabilidad:'fiable | requiere_revision | pendiente',oferta:'habilitada | bloqueada_revision | pendiente'}]};
  const deteccionTexto=estado=>clasificarDeteccion(estado).replaceAll('_',' ').toUpperCase();
- content.innerHTML=heading('Estados por proceso','Resultado','El resultado cita cada bloque por su identificador. No copia los expedientes. La aptitud de la vía, la fiabilidad y la oferta se calculan por separado.')+`<section class="card"><h3>Resultado de la detección</h3><div class="result-row"><strong>Sin reserva online</strong><span>No encontrada tras una exploración suficiente → ${deteccionTexto('no_encontrada')}. No es no apto.</span></div><div class="result-row"><strong>Búsqueda inconclusa</strong><span>${deteccionTexto('pendiente')}. Un bloqueo o una web a medias no prueban ausencia.</span></div><div class="result-row"><strong>Enlaces encontrados</strong><span>${deteccionTexto('encontrada')}. Cada enlace sigue en paralelo a software, formulario, cancelación y apertura.</span></div></section><section class="card"><h3>Cómo se combina cada proceso</h3><p class="intro">Si la función o el script no están aprobados, las dos vías quedan en no intentada y la clasificación es PENDIENTE. no_apto solo cuando las dos vías son no aptas.</p><div class="tablewrap"><table><thead><tr><th>Automática</th><th>Enlace asistido</th><th>Aptitud</th></tr></thead><tbody>${cases.map(([a,b])=>`<tr><td>${estadoTexto[a]}</td><td>${estadoTexto[b]}</td><td><strong>${etiquetas[clasificarVias(a,b)]}</strong></td></tr>`).join('')}</tbody></table></div></section><section class="card"><h3>Compuerta de envío</h3><p class="intro">No es un agente. Decide si una reserva real puede salir. No cambia la aptitud de Automática ni la del Enlace asistido.</p><ul class="criteria"><li><strong>Función y script.</strong> Revisión aprobada de los dos.</li><li><strong>Cancelación.</strong> Estado encontrado y canal preferido verificado.</li><li><strong>Autorización.</strong> Permiso explícito y plan para gestionar la reserva de prueba.</li><li><strong>Apertura.</strong> abierto_ahora en true, margen de al menos una hora y teléfono que puedan atender.</li><li><strong>Sin canal.</strong> Búsqueda suficiente y canal no encontrado → motivo sin_canal_de_cancelacion. La aptitud se conserva.</li><li><strong>Cerrado.</strong> Negocio cerrado o sin margen → motivo pendiente_apertura, con proxima_hora_valida. La aptitud se conserva.</li></ul></section><section class="card"><h3>Oferta</h3><div class="tablewrap"><table><thead><tr><th>Aptitud</th><th>Fiabilidad</th><th>Compuerta</th><th>Oferta</th></tr></thead><tbody>${ofertaCasos.map(([c,f,g])=>`<tr><td>${etiquetas[c]||c}</td><td>${f.replaceAll('_',' ')}</td><td>${g}</td><td><strong>${ofertaTexto[clasificarOferta(c,f,g)]}</strong></td></tr>`).join('')}</tbody></table></div></section><section class="card"><h3>Output combinado</h3><pre>${escapeHtml(JSON.stringify(result,null,2))}</pre>${exampleSection('Output combinado', result)}<p class="intro" style="margin-top:12px">Cada bloque conserva fecha_evaluacion. fecha_validacion solo se completa en la revisión, cuando la comprobación es concluyente.</p></section><div class="notice">Una alerta abierta de formulario cambiado, script, control nuevo o fallo deja la oferta en bloqueada por revisión y devuelve el formulario cambiado a Observar. La aptitud técnica previa se conserva. ok en una ejecución solo significa que la respuesta se pudo interpretar. Ninguna reserva se comunica como confirmada sin confirmación real del sistema.</div>`;
+ content.innerHTML=heading('Estados por proceso','Resultado','El resultado cita cada bloque por su identificador. No copia los expedientes. La aptitud de la vía, la fiabilidad y la oferta se calculan por separado.')+`<section class="card"><h3>Resultado de la detección</h3><div class="result-row"><strong>Sin reserva online</strong><span>No encontrada tras una exploración suficiente → ${deteccionTexto('no_encontrada')}. No es no apto.</span></div><div class="result-row"><strong>Búsqueda inconclusa</strong><span>${deteccionTexto('pendiente')}. Un bloqueo o una web a medias no prueban ausencia.</span></div><div class="result-row"><strong>Enlaces encontrados</strong><span>${deteccionTexto('encontrada')}. Cada enlace sigue en paralelo a software, formulario, cancelación y apertura.</span></div></section><section class="card"><h3>Cómo se combina cada proceso</h3><p class="intro">Si la función o el script no están aprobados, las dos vías quedan en no intentada y la clasificación es PENDIENTE. no_apto solo cuando las dos vías son no aptas.</p><div class="tablewrap"><table><thead><tr><th>Automática</th><th>Enlace asistido</th><th>Aptitud</th></tr></thead><tbody>${cases.map(([a,b])=>`<tr><td>${estadoTexto[a]}</td><td>${estadoTexto[b]}</td><td><strong>${etiquetas[clasificarVias(a,b)]}</strong></td></tr>`).join('')}</tbody></table></div></section><section class="card"><h3>Compuerta de envío</h3><p class="intro">No es un agente. Decide si una reserva real puede salir. No cambia la aptitud de Automática ni la del Enlace asistido.</p><ul class="criteria"><li><strong>Función y script.</strong> Revisión aprobada de los dos.</li><li><strong>Cancelación.</strong> Estado encontrado y canal preferido verificado.</li><li><strong>Autorización.</strong> Permiso explícito y plan para gestionar la reserva de prueba.</li><li><strong>Apertura.</strong> abierto_ahora en true y margen de al menos una hora según la pila de cron.</li><li><strong>Teléfono.</strong> Sale del canal de cancelación preferido, no de Apertura; tiene que poder atender.</li><li><strong>Sin canal.</strong> Búsqueda suficiente y canal no encontrado → motivo sin_canal_de_cancelacion. La aptitud se conserva.</li><li><strong>Cerrado.</strong> Negocio cerrado o sin margen → motivo pendiente_apertura, con proxima_hora_valida. La aptitud se conserva.</li></ul></section><section class="card"><h3>Oferta</h3><div class="tablewrap"><table><thead><tr><th>Aptitud</th><th>Fiabilidad</th><th>Compuerta</th><th>Oferta</th></tr></thead><tbody>${ofertaCasos.map(([c,f,g])=>`<tr><td>${etiquetas[c]||c}</td><td>${f.replaceAll('_',' ')}</td><td>${g}</td><td><strong>${ofertaTexto[clasificarOferta(c,f,g)]}</strong></td></tr>`).join('')}</tbody></table></div></section><section class="card"><h3>Output combinado</h3><pre>${escapeHtml(JSON.stringify(result,null,2))}</pre>${exampleSection('Output combinado', result)}<p class="intro" style="margin-top:12px">Cada bloque conserva fecha_evaluacion. fecha_validacion solo se completa en la revisión, cuando la comprobación es concluyente.</p></section><div class="notice">Una alerta abierta de formulario cambiado, script, control nuevo o fallo deja la oferta en bloqueada por revisión y devuelve el formulario cambiado a Observar. La aptitud técnica previa se conserva. ok en una ejecución solo significa que la respuesta se pudo interpretar. Ninguna reserva se comunica como confirmada sin confirmación real del sistema.</div>`;
 }
 const sections=[['Flujo completo',renderFlow],['Configuración',renderConfig],['Instrucciones',renderContracts],['Validar',renderValidations],['Resultado',renderResult]];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num">${i+1}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
