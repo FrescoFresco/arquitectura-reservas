@@ -2280,7 +2280,31 @@ function renderMapa(){
     }).catch(()=>{el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'});
   }catch(e){el.className='map-fallback';el.textContent=flow;status.textContent='Mapa en texto.'}
 }
-function renderOperaciones(){
+function ensureActiveBlockTabVisible(){
+  const row=content.querySelector('.tabs');
+  const active=content.querySelector('.tabs button[aria-selected="true"]');
+  if(!row||!active) return;
+  const pad=12;
+  const left=active.offsetLeft;
+  const right=left+active.offsetWidth;
+  const viewLeft=row.scrollLeft;
+  const viewRight=viewLeft+row.clientWidth;
+  if(left<viewLeft+pad) row.scrollLeft=Math.max(0,left-pad);
+  else if(right>viewRight-pad) row.scrollLeft=right-row.clientWidth+pad;
+}
+function restoreOpsScroll(pageY){
+  const apply=()=>{
+    window.scrollTo(0, pageY);
+    ensureActiveBlockTabVisible();
+    const active=content.querySelector('.tabs button[aria-selected="true"]');
+    if(active) active.focus({preventScroll:true});
+  };
+  apply();
+  requestAnimationFrame(apply);
+}
+function renderOperaciones(opts){
+  const preserveScroll=!!(opts&&opts.preserveScroll);
+  const pageY=preserveScroll?(window.scrollY||window.pageYOffset||0):null;
   const d=contracts[contractTab];
   const summary=`<p class="intro contract-summary">${escapeHtml(d.summary)}</p>`;
   const viewswitch=`<div class="viewswitch three" role="tablist" aria-label="Vista del bloque"><button type="button" role="tab" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">${icon('definition')} Contrato</span><span class="switch-sub">Input, instrucciones, output</span></button><button type="button" role="tab" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">${icon('instructions')} Revisión</span><span class="switch-sub">Veredicto sobre este output</span></button><button type="button" role="tab" aria-selected="${contractView===2}" data-view="2"><span class="switch-title">${icon('examples')} Ejemplos</span><span class="switch-sub">Casos de entrada y salida</span></button></div>`;
@@ -2292,11 +2316,13 @@ function renderOperaciones(){
   const examples=`<div id="panel-vista" role="tabpanel"><div class="sidetabs" role="tablist" aria-label="Lado del ejemplo"><button type="button" role="tab" aria-selected="${contractExample===0}" data-side="0">${icon('input')} Input</button><button type="button" role="tab" aria-selected="${contractExample===1}" data-side="1">${icon('output')} Output</button></div><p class="intro">${exampleHint}</p><section class="card">${renderRecordTable(loadExampleRows(d.label, exampleSchema, exampleRows))}</section></div>`;
   const panel=contractView===0?contrato:(contractView===1?revision:examples);
   content.innerHTML=heading('Piezas del sistema','Operaciones','Cada bloque tiene contrato, revisión (aprobar o rechazar ese output) y ejemplos. Verificación y vigilancia compara una ejecución con una referencia.','14 bloques')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos">${summary}${viewswitch}${panel}</div>`;
-  bindTabs('contratos',i=>{contractTab=i;renderOperaciones()});
-  content.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{contractView=Number(b.dataset.view);renderOperaciones()}));
-  content.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{contractExample=Number(b.dataset.side);contractView=2;renderOperaciones()}));
+  bindTabs('contratos',i=>{contractTab=i;renderOperaciones({preserveScroll:true})});
+  content.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{contractView=Number(b.dataset.view);renderOperaciones({preserveScroll:true})}));
+  content.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{contractExample=Number(b.dataset.side);contractView=2;renderOperaciones({preserveScroll:true})}));
   const copy=document.getElementById('copyPrompt');
   if(copy) copy.onclick=async()=>{try{await navigator.clipboard.writeText(d.instructions);copy.textContent='Copiado'}catch(e){const t=document.createElement('textarea');t.value=d.instructions;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();copy.textContent='Copiado'}};
+  if(preserveScroll) restoreOpsScroll(pageY);
+  else requestAnimationFrame(ensureActiveBlockTabVisible);
 }
 function clasificarDeteccion(estado){
  if(estado==='encontrada')return 'procesos_identificados';
