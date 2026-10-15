@@ -161,106 +161,73 @@ h4.subhead{margin:1rem 0 .4rem;font-size:.85rem;font-weight:600;color:var(--mute
 .schema-table td.ejemplo{max-width:14rem;font-size:.82em;color:var(--muted,#5a6570)}
 .schema-table th{white-space:nowrap}
 
-/* Representación: croquis 1 — A — B */
-.repre-card{border:1px solid #e7ebf1;border-radius:14px;padding:22px 20px 18px;margin:15px 0;background:#fff}
-.repre-card h3{font-size:14px;margin:0 0 8px}
-.repre-note{margin:12px 0 0;font-size:13px;line-height:1.5;color:#5f6f84}
-.journey{display:flex;align-items:flex-start;justify-content:center;gap:0;margin:18px auto 4px;max-width:420px;position:relative}
-.journey::before{content:"";position:absolute;left:calc(16.66% + 18px);right:calc(16.66% + 18px);top:18px;height:2px;background:#b8c7db;z-index:0}
+/* Representación — visuales mínimos (presentación) */
+.repre-card{border:1px solid #e7ebf1;border-radius:14px;padding:18px 16px 14px;margin:12px 0;background:#fff}
+.repre-card h3{font-size:13px;margin:0 0 6px;font-weight:750;color:#243246}
+.repre-hint{margin:10px 0 0;font-size:12px;line-height:1.4;color:#8490a1}
+.repre-empty{margin:18px 0 8px;font-size:13px;color:#8490a1}
+.journey{display:flex;align-items:flex-start;justify-content:center;gap:0;margin:14px auto 2px;max-width:360px;position:relative}
+.journey::before{content:"";position:absolute;left:calc(16.66% + 16px);right:calc(16.66% + 16px);top:16px;height:2px;background:#b8c7db;z-index:0}
 .journey-node{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1;min-width:0}
-.journey-node .jn-dot{width:36px;height:36px;border-radius:50%;border:2px solid #7a90ad;background:#fff;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;font-weight:800;color:#2c3e55;line-height:1}
-.journey-node .jn-label{margin-top:10px;font-size:12px;font-weight:650;color:#52657e;line-height:1.3;max-width:7.5rem}
-.journey-node.is-focus .jn-dot{border-color:#185aba;color:#185aba;box-shadow:0 0 0 4px #185aba22}
+.journey-node .jn-dot{width:32px;height:32px;border-radius:50%;border:2px solid #7a90ad;background:#fff;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:800;color:#2c3e55;line-height:1}
+.journey-node .jn-label{margin-top:8px;font-size:11px;font-weight:650;color:#52657e;line-height:1.25;max-width:6.5rem}
+.journey-node.is-focus .jn-dot{border-color:#185aba;color:#185aba;box-shadow:0 0 0 3px #185aba22}
 .journey-node.is-focus .jn-label{color:#165bd4;font-weight:750}
 .journey-node.is-dim .jn-dot{border-color:#c5d3e6;color:#9aa8bc}
 .journey-node.is-dim .jn-label{color:#9aa8bc}
-.repre-empty{margin:18px 0 8px;font-size:13px;color:#8490a1}
-.apertura-now{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 0 14px;padding:12px 14px;border:1px solid #c5dcf5;border-radius:12px;background:#f3f8ff}
-.apertura-now .now-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.02em}
-.apertura-now .now-badge.open{background:#d8f3e4;color:#0d6b3c}
-.apertura-now .now-meta{font-size:13px;color:#3d4d63;line-height:1.45}
-.apertura-now .now-meta strong{color:#243246}
-.apertura-legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin:0 0 12px;font-size:12px;color:#52657e}
-.apertura-legend span{display:inline-flex;align-items:center;gap:6px}
-.apertura-swatch{width:14px;height:14px;border-radius:4px;border:1px solid #c5d3e6;background:#fff;flex:none}
-.apertura-swatch.open{background:#c8e6d4;border-color:#8fc9a8}
-.apertura-swatch.ex{background:repeating-linear-gradient(-45deg,#fde8e8,#fde8e8 3px,#fff 3px,#fff 6px);border-color:#e3a0a0}
-.apertura-swatch.now{box-shadow:inset 0 0 0 2px #185aba;border-color:#185aba}
-.apertura-wrap{overflow:auto;border:1px solid #e1e8f2;border-radius:12px;background:#fbfdff}
-.apertura-grid{width:100%;min-width:520px;border-collapse:collapse;table-layout:fixed;font-size:11px}
-.apertura-grid th,.apertura-grid td{border:1px solid #e7ebf2;padding:0;text-align:center;height:22px;line-height:1}
-.apertura-grid thead th{background:#f6f8fc;color:#64748b;font-weight:700;padding:8px 4px;position:sticky;top:0;z-index:1}
-.apertura-grid .hour{width:44px;background:#f6f8fc;color:#64748b;font-weight:700;font-variant-numeric:tabular-nums;padding:0 4px}
+.rf{display:flex;align-items:center;gap:8px;margin:12px 0 2px;flex-wrap:nowrap;overflow:auto;padding-bottom:2px}
+.rf-col{display:flex;flex-direction:column;justify-content:center;gap:8px;flex:none}
+.rf-box{border:1px solid #d5dde8;border-radius:10px;background:#fbfdff;padding:10px 12px;min-width:88px;text-align:center}
+.rf-box .t{font-size:12px;font-weight:750;color:#1c2b3e;margin:0;line-height:1.2}
+.rf-box.is-src{background:#f6f8fc}
+.rf-box.is-focus{border-color:#a9c5ef;background:#f3f8ff;box-shadow:0 0 0 3px #185aba14}
+.rf-box.is-dim{opacity:.55}
+.rf-box.is-dash{border-style:dashed;background:#f8fafc}
+.rf-arrow{flex:none;color:#7a90ad;font-size:16px;font-weight:700;align-self:center}
+.rf-arrow.dot{color:#9aa8bc;letter-spacing:.04em}
+.rf-stack{display:flex;flex-direction:column;gap:6px;flex:none}
+.rf-chip{border-radius:8px;padding:7px 10px;font-size:11px;font-weight:750;line-height:1.2;border:1px solid transparent;text-align:center;white-space:nowrap}
+.rf-chip.ok{background:#e7f6ee;border-color:#b7e0c8;color:#0f7a45}
+.rf-chip.bad{background:#fde8e8;border-color:#e3a0a0;color:#9b3b3b}
+.rf-chip.warn{background:#fff6e8;border-color:#e8d0a8;color:#8a5a12}
+.rf-chip.mute{background:#f4f6f9;border-color:#c5d0de;color:#4a5d73}
+.rf-chip.row{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px}
+.id-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0 2px}
+.id-cell{border:1px solid #e1e8f2;border-radius:10px;background:#f8fafc;padding:12px 10px;text-align:center}
+.id-cell .k{display:block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8490a1;margin-bottom:4px}
+.id-cell .v{display:block;font-size:13px;font-weight:750;color:#1c2b3e;line-height:1.25}
+.ambito-ladder{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:12px auto 2px;max-width:280px}
+.ambito-step{border:1px solid #d5dde8;border-radius:10px;background:#fbfdff;padding:9px 12px;text-align:center;font-size:12px;font-weight:750;color:#1c2b3e}
+.ambito-step+.ambito-step{margin-top:6px;position:relative}
+.ambito-step+.ambito-step::before{content:"▾";display:block;text-align:center;color:#9aa8bc;font-size:11px;margin:-4px 0 2px;line-height:1}
+.ambito-step.is-focus{border-color:#a9c5ef;background:#f3f8ff;color:#165bd4}
+.contact-row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 2px}
+.contact-pill{border:1px solid #d5dde8;border-radius:10px;background:#f6f8fc;padding:10px 14px;font-size:12px;font-weight:750;color:#2c3e55;min-width:72px;text-align:center}
+.apertura-now{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 10px}
+.apertura-now .now-badge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:800;background:#d8f3e4;color:#0d6b3c}
+.apertura-now .now-meta{font-size:12px;color:#8490a1}
+.apertura-wrap{overflow:auto;border:1px solid #e1e8f2;border-radius:10px;background:#fbfdff}
+.apertura-grid{width:100%;min-width:420px;border-collapse:collapse;table-layout:fixed;font-size:10px}
+.apertura-grid th,.apertura-grid td{border:1px solid #e7ebf2;padding:0;text-align:center;height:18px;line-height:1}
+.apertura-grid thead th{background:#f6f8fc;color:#64748b;font-weight:700;padding:6px 2px}
+.apertura-grid .hour{width:36px;background:#f6f8fc;color:#64748b;font-weight:700;font-variant-numeric:tabular-nums;padding:0 2px}
 .apertura-grid td.open{background:#c8e6d4}
-.apertura-grid td.ex{background:repeating-linear-gradient(-45deg,#fde8e8,#fde8e8 3px,#fff 3px,#fff 6px);color:#9b3b3b;font-size:9px;font-weight:800}
+.apertura-grid td.ex{background:repeating-linear-gradient(-45deg,#fde8e8,#fde8e8 3px,#fff 3px,#fff 6px);color:#9b3b3b;font-size:8px;font-weight:800}
 .apertura-grid td.is-now{outline:2px solid #185aba;outline-offset:-2px;position:relative;z-index:1}
-.apertura-exlist{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:6px}
-.apertura-exlist li{font-size:12px;line-height:1.45;color:#5f6f84;padding:8px 10px;border:1px dashed #d7e0ec;border-radius:10px;background:#fff}
-.apertura-exlist strong{color:#9b3b3b}
-.repre-ascii{margin:12px 0 0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:12px 14px;color:#334155}
-/* Representación: Canal de cancelación (flujo horizontal) */
-.canal-flow{display:flex;align-items:stretch;gap:10px;margin:18px 0 6px;flex-wrap:nowrap;overflow:auto;padding-bottom:4px}
-.canal-col{display:flex;flex-direction:column;justify-content:center;gap:10px;flex:none}
-.canal-box{border:1px solid #d5dde8;border-radius:12px;background:#fbfdff;padding:12px 14px;min-width:132px;max-width:180px}
-.canal-box .cb-title{font-size:13px;font-weight:750;color:#1c2b3e;margin:0 0 4px;line-height:1.25}
-.canal-box .cb-sub{font-size:11px;color:#5f6f84;line-height:1.4;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.canal-box.is-src{background:#f6f8fc}
-.canal-box.is-pref{border-color:#a9c5ef;background:#f3f8ff;box-shadow:0 0 0 3px #185aba14}
-.canal-box.is-gate{border-color:#c5d3e6;background:#fff}
-.canal-join{display:flex;align-items:center;justify-content:center;flex:none;color:#7a90ad;font-size:18px;font-weight:700;padding:0 2px;align-self:center}
-.canal-join .join-brace{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1;font-size:22px;color:#9aa8bc}
-.canal-semaforo{display:flex;flex-direction:column;justify-content:center;gap:8px;flex:none;min-width:168px}
-.canal-lamp{border-radius:10px;padding:10px 12px;font-size:12px;font-weight:700;line-height:1.35;border:1px solid transparent}
-.canal-lamp .lamp-k{display:block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;opacity:.85}
-.canal-lamp.ok{background:#e7f6ee;border-color:#b7e0c8;color:#0f7a45}
-.canal-lamp.block{background:#fde8e8;border-color:#e3a0a0;color:#9b3b3b}
-.canal-lamp.block code{font-size:10px;font-weight:650;color:#7a2e2e}
-.canal-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 0;font-size:12px;color:#52657e}
-.canal-legend span{display:inline-flex;align-items:center;gap:6px}
-.canal-legend i{width:10px;height:10px;border-radius:3px;border:1px solid #c5d3e6;flex:none}
-.canal-legend i.ok{background:#c8e6d4;border-color:#8fc9a8}
-.canal-legend i.block{background:#f5c2c2;border-color:#e3a0a0}
-/* Representación: Investigar integración (flujo horizontal) */
-.integ-flow{display:flex;align-items:stretch;gap:10px;margin:18px 0 6px;flex-wrap:nowrap;overflow:auto;padding-bottom:4px}
-.integ-col{display:flex;flex-direction:column;justify-content:center;gap:10px;flex:none}
-.integ-box{border:1px solid #d5dde8;border-radius:12px;background:#fbfdff;padding:12px 14px;min-width:132px;max-width:190px}
-.integ-box .ib-title{font-size:13px;font-weight:750;color:#1c2b3e;margin:0 0 4px;line-height:1.25}
-.integ-box .ib-sub{font-size:11px;color:#5f6f84;line-height:1.4;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.integ-box.is-src{background:#f6f8fc}
-.integ-box.is-core{border-color:#a9c5ef;background:#f3f8ff;box-shadow:0 0 0 3px #185aba14}
-.integ-box.is-md{border-color:#c5d3e6;background:#fff}
-.integ-box.is-pista{border-style:dashed;border-color:#b7c6da;background:#f8fafc;opacity:.95}
-.integ-join{display:flex;align-items:center;justify-content:center;flex:none;color:#7a90ad;font-size:18px;font-weight:700;padding:0 2px;align-self:center}
-.integ-join.is-dotted{color:#9aa8bc;letter-spacing:.06em}
-.integ-states{display:flex;flex-direction:column;justify-content:center;gap:8px;flex:none;min-width:168px}
-.integ-state{border-radius:10px;padding:10px 12px;font-size:12px;font-weight:700;line-height:1.35;border:1px solid transparent}
-.integ-state .st-k{display:block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;opacity:.85;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.integ-state.doc{background:#e7f6ee;border-color:#b7e0c8;color:#0f7a45}
-.integ-state.none{background:#f4f6f9;border-color:#c5d0de;color:#4a5d73}
-.integ-state.pend{background:#fff6e8;border-color:#e8d0a8;color:#8a5a12}
-.integ-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 0;font-size:12px;color:#52657e}
-.integ-legend span{display:inline-flex;align-items:center;gap:6px}
-.integ-legend i{width:10px;height:10px;border-radius:3px;border:1px solid #c5d3e6;flex:none}
-.integ-legend i.doc{background:#c8e6d4;border-color:#8fc9a8}
-.integ-legend i.none{background:#dce3ec;border-color:#b4c0d0}
-.integ-legend i.pend{background:#f0d9a8;border-color:#e0c080}
-.integ-aside{margin:10px 0 0;font-size:12px;line-height:1.45;color:#5f6f84;padding:10px 12px;border:1px dashed #d7e0ec;border-radius:10px;background:#f8fafc}
-.integ-aside code{font-size:11px}
+.form-steps{display:flex;align-items:center;gap:6px;margin:14px 0 2px;flex-wrap:wrap;justify-content:center}
+.form-step{border:1px solid #d5dde8;border-radius:8px;background:#f6f8fc;padding:8px 10px;font-size:11px;font-weight:750;color:#52657e}
+.form-step.is-focus{border-color:#a9c5ef;background:#f3f8ff;color:#165bd4;box-shadow:0 0 0 3px #185aba14}
+.form-step.is-stop{border-style:dashed;opacity:.7}
+.form-arr{color:#9aa8bc;font-size:14px;font-weight:700}
 @media(max-width:720px){
-  .canal-flow{flex-wrap:wrap;justify-content:flex-start}
-  .canal-join{transform:rotate(90deg);padding:4px 0}
-  .canal-box{max-width:none;min-width:140px;flex:1 1 140px}
-  .canal-semaforo{flex-direction:row;flex-wrap:wrap;min-width:0;width:100%}
-  .canal-lamp{flex:1 1 140px}
-  .integ-flow{flex-wrap:wrap;justify-content:flex-start}
-  .integ-join{transform:rotate(90deg);padding:4px 0}
-  .integ-box{max-width:none;min-width:140px;flex:1 1 140px}
-  .integ-states{flex-direction:row;flex-wrap:wrap;min-width:0;width:100%}
-  .integ-state{flex:1 1 140px}
+  .rf{flex-wrap:wrap}
+  .rf-arrow{transform:rotate(90deg)}
+  .rf-box{min-width:72px}
+  .rf-stack{flex-direction:row;flex-wrap:wrap;width:100%}
 }
 @media(max-width:520px){
   .journey{max-width:100%}
-  .journey-node .jn-label{font-size:11px;max-width:5.5rem}
+  .journey-node .jn-label{font-size:10px;max-width:5rem}
 }
 </style>
 </head>
@@ -4331,7 +4298,7 @@ function renderCatalogos(){
 function journeyNodesHtml(focus){
   const nodes=[
     {id:'1',label:'web'},
-    {id:'A',label:'inicio reserva'},
+    {id:'A',label:'inicio'},
     {id:'B',label:'formulario'}
   ];
   const parts=nodes.map(n=>{
@@ -4340,24 +4307,56 @@ function journeyNodesHtml(focus){
     else if(focus) cls.push('is-dim');
     return `<div class="${cls.join(' ')}" data-node="${n.id}"><span class="jn-dot" aria-hidden="true">${escapeHtml(n.id)}</span><span class="jn-label">${escapeHtml(n.label)}</span></div>`;
   });
-  return `<div class="journey" role="img" aria-label="Recorrido: 1 web, A inicio reserva, B formulario">${parts.join('')}</div>`;
+  return `<div class="journey" role="img" aria-label="Recorrido 1 web, A inicio, B formulario">${parts.join('')}</div>`;
 }
-/** Visual Apertura: rejilla semanal coherente con pila_cron de El Muelle + excepciones que pisan. */
+function rfBox(title, opts){
+  const o=opts||{};
+  const cls=['rf-box'];
+  if(o.focus) cls.push('is-focus');
+  if(o.src) cls.push('is-src');
+  if(o.dim) cls.push('is-dim');
+  if(o.dash) cls.push('is-dash');
+  return `<div class="${cls.join(' ')}"><p class="t">${escapeHtml(title)}</p></div>`;
+}
+function rfArrow(dotted){
+  return `<div class="rf-arrow${dotted?' dot':''}" aria-hidden="true">${dotted?'···►':'→'}</div>`;
+}
+function rfChip(text, kind){
+  return `<div class="rf-chip ${kind||'mute'}">${escapeHtml(text)}</div>`;
+}
+function repreCard(aria, titleIco, title, body, hint){
+  const h=hint?`<p class="repre-hint">${hint}</p>`:'';
+  return `<section class="repre-card" aria-label="${escapeHtml(aria)}"><h3 class="h-ico">${icon(titleIco)} ${escapeHtml(title)}</h3>${body}${h}</section>`;
+}
+function fichaHtml(){
+  const body=`<div class="id-grid" role="img" aria-label="Nombre y zona">
+  <div class="id-cell"><span class="k">nombre</span><span class="v">El Muelle</span></div>
+  <div class="id-cell"><span class="k">zona</span><span class="v">Atlantic/Canary</span></div>
+</div>`;
+  return repreCard('Ficha del negocio','negocio','Identidad',body);
+}
+function ambitoHtml(){
+  const body=`<div class="ambito-ladder" role="img" aria-label="Jurisdicción festiva">
+  <div class="ambito-step">ES</div>
+  <div class="ambito-step">Canarias</div>
+  <div class="ambito-step">Tenerife</div>
+  <div class="ambito-step is-focus">SCT</div>
+</div>`;
+  return repreCard('Ámbito festivo','ambito','Jurisdicción',body,'Fiestas · no calendario');
+}
+function puntoAHtml(){
+  const body=journeyNodesHtml('A');
+  return repreCard('Punto A','puntoa','1 — A — B',body);
+}
 function aperturaCalendarHtml(){
-  // Días: 0=lun … 6=dom (cron weekday 1–6 = lun–sáb, 0 = domingo)
   const days=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   const hours=[12,13,14,15,16,17,18,19,20,21,22,23];
-  // horario_ordinario El Muelle: comida 13-15 y cena 20-22, lun–sáb (cron 1-6)
   const ordinary=(d,h)=>(d>=0&&d<=5)&&((h>=13&&h<=15)||(h>=20&&h<=22));
-  // Excepciones de ejemplo (pisan → cerrado): festivo (Costa Mar / Día de Canarias) y vacaciones
-  // En la rejilla semanal se marcan Sáb (festivo ilustrativo) y Dom ya vacío por cierre_semanal;
-  // vacaciones pisa Vie cena como capa visible.
   const exception=(d,h)=>{
     if(d===5&&((h>=13&&h<=15)||(h>=20&&h<=22))) return 'festivo';
     if(d===4&&h>=20&&h<=22) return 'vacaciones';
     return null;
   };
-  // «Ahora» del ejemplo El Muelle: 2026-10-14T21:55 (mié) en cena
   const nowDay=2, nowHour=21;
   let rows='';
   for(const h of hours){
@@ -4367,125 +4366,144 @@ function aperturaCalendarHtml(){
       const open=ordinary(d,h)&&!ex;
       const isNow=d===nowDay&&h===nowHour;
       const cls=[open?'open':'',ex?'ex':'',isNow?'is-now':''].filter(Boolean).join(' ');
-      const title=ex?`${days[d]} ${h}:00 — cerrado (${ex} pisa)`:(open?`${days[d]} ${h}:00 — abierto`:`${days[d]} ${h}:00`);
-      rows+=`<td class="${cls}" title="${escapeHtml(title)}">${ex&&open===false&&ordinary(d,h)?'×':''}</td>`;
+      rows+=`<td class="${cls}">${ex&&ordinary(d,h)?'×':''}</td>`;
     }
     rows+='</tr>';
   }
   const head=days.map(d=>`<th scope="col">${d}</th>`).join('');
-  const ascii=[
-    '     Lun Mar Mié Jue Vie Sáb Dom',
-    '13-16  ██  ██  ██  ██  ██  ××  ··   comida / festivo pisa Sáb',
-    '20-23  ██  ██ *██* ██  ××  ××  ··   cena; *ahora*; vacaciones pisa Vie',
-    'Dom ·· cierre_semanal · festivo/vacaciones pisan (cerrado)'
-  ].join('\n');
-  return `<section class="repre-card" aria-label="Calendario de apertura">
-<h3 class="h-ico">${icon('apertura')} Cuándo SÍ está abierto</h3>
-<p class="repre-note">Rejilla semanal a partir de <code>pila_cron</code> (El Muelle: comida + cena L–S). Las capas de <strong>festivo</strong> / <strong>vacaciones</strong> pisan el horario ordinario y dejan la celda cerrada.</p>
-<div class="apertura-now">
-  <span class="now-badge open">abierto_ahora · true</span>
-  <span class="now-meta"><strong>Ahora</strong> mié 21:55 (Atlantic/Canary) · margen hasta cierre <strong>95 min</strong> · job ganador: cena</span>
-</div>
-<div class="apertura-legend" aria-hidden="true">
-  <span><i class="apertura-swatch open"></i> Abierto (ordinario)</span>
-  <span><i class="apertura-swatch ex"></i> Excepción que pisa (cerrado)</span>
-  <span><i class="apertura-swatch now"></i> Celda «ahora»</span>
-</div>
-<div class="apertura-wrap">
-<table class="apertura-grid" role="grid" aria-label="Semana lun–dom por franja horaria">
-<thead><tr><th scope="col" class="hour">h</th>${head}</tr></thead>
-<tbody>${rows}</tbody>
-</table>
-</div>
-<ul class="apertura-exlist">
-  <li><strong>festivo</strong> — pisa Sáb (ilustra Día de Canarias / Costa Mar: ordinario abierto → cerrado).</li>
-  <li><strong>vacaciones</strong> — pisa Vie cena (capa de cierre sobre el ordinario).</li>
-  <li><strong>cierre_semanal</strong> — Dom vacío (cron <code>0 0 * * 0</code>).</li>
-</ul>
-<pre class="repre-ascii">${escapeHtml(ascii)}</pre>
-</section>`;
+  const body=`<div class="apertura-now"><span class="now-badge">abierto_ahora</span><span class="now-meta">margen 95 min</span></div>
+<div class="apertura-wrap"><table class="apertura-grid" role="grid" aria-label="Cuándo abierto"><thead><tr><th scope="col" class="hour">h</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return repreCard('Apertura','apertura','Cuándo abierto',body);
 }
-/** Visual Canal de cancelación: dos entradas → preferido → compuerta → envío. */
+function contactosHtml(){
+  const body=`<div class="contact-row" role="img" aria-label="Canales publicados">
+  <div class="contact-pill">teléfono</div>
+  <div class="contact-pill">WhatsApp</div>
+  <div class="contact-pill">email</div>
+  <div class="contact-pill">formulario</div>
+</div>`;
+  return repreCard('Contactos del negocio','contactos','Agenda',body);
+}
+function softwareHtml(){
+  const body=`<div class="rf" role="img" aria-label="Atribución de software">
+  ${rfBox('url_inicio',{src:true})}
+  ${rfArrow()}
+  ${rfBox('Software',{focus:true})}
+  ${rfArrow()}
+  <div class="rf-stack">${rfChip('identificado','ok')}${rfChip('no_identificado','mute')}${rfChip('pendiente','warn')}</div>
+  ${rfArrow(true)}
+  ${rfBox('Integración',{dash:true,dim:true})}
+</div>`;
+  return repreCard('Identificar software','software','Atribución',body);
+}
+function observarHtml(){
+  const body=journeyNodesHtml('B')+`<div class="form-steps" role="img" aria-label="Hasta antes de confirmar">
+  <div class="form-step">pasos</div><span class="form-arr" aria-hidden="true">→</span>
+  <div class="form-step is-focus">relato</div><span class="form-arr" aria-hidden="true">→</span>
+  <div class="form-step is-stop">confirmar ✕</div>
+</div>`;
+  return repreCard('Observar formulario','observacion','Foco en B',body);
+}
 function canalCancelacionFlowHtml(){
-  return `<section class="repre-card" aria-label="Canal de cancelación">
-<h3 class="h-ico">${icon('canal')} Preferido → compuerta → envío</h3>
-<p class="repre-note">Inputs: catálogo <code>contactos_negocio</code> + cancelación del sistema (enlace/área del proveedor). Se elige <strong>un</strong> <code>canal_preferido_cancelacion</code> (<code>origen</code>: sistema | contacto_negocio). No reúne la agenda de nuevo ni prueba la reserva.</p>
-<div class="canal-flow" role="img" aria-label="Contactos y Sistema convergen en preferido, luego compuerta y semáforo de envío">
-  <div class="canal-col">
-    <div class="canal-box is-src"><p class="cb-title">Contactos</p><p class="cb-sub">contactos_negocio</p></div>
-    <div class="canal-box is-src"><p class="cb-title">Sistema</p><p class="cb-sub">cancelacion_sistema</p></div>
-  </div>
-  <div class="canal-join" aria-hidden="true"><span class="join-brace"><span>┐</span><span>├─►</span><span>┘</span></span></div>
-  <div class="canal-col">
-    <div class="canal-box is-pref"><p class="cb-title">preferido</p><p class="cb-sub">canal_preferido_cancelacion<br>origen: sistema | contacto_negocio</p></div>
-  </div>
-  <div class="canal-join" aria-hidden="true">─►</div>
-  <div class="canal-col">
-    <div class="canal-box is-gate"><p class="cb-title">compuerta</p><p class="cb-sub">estado → encontrado<br>alimenta envío</p></div>
-  </div>
-  <div class="canal-join" aria-hidden="true">─►</div>
-  <div class="canal-semaforo">
-    <div class="canal-lamp ok"><span class="lamp-k">encontrado</span>envío OK</div>
-    <div class="canal-lamp block"><span class="lamp-k">no_encontrado</span>bloqueado · <code>sin_canal_de_cancelacion</code></div>
-  </div>
-</div>
-<div class="canal-legend" aria-hidden="true">
-  <span><i class="ok"></i> encontrado → envío permitido</span>
-  <span><i class="block"></i> no_encontrado → bloquea envío (vía no se vuelve no_apta)</span>
-</div>
-</section>`;
+  const body=`<div class="rf" role="img" aria-label="Contactos y Sistema a preferido, compuerta y envío">
+  <div class="rf-col">${rfBox('Contactos',{src:true})}${rfBox('Sistema',{src:true})}</div>
+  ${rfArrow()}
+  ${rfBox('preferido',{focus:true})}
+  ${rfArrow()}
+  ${rfBox('compuerta')}
+  ${rfArrow()}
+  <div class="rf-stack">${rfChip('envío OK','ok')}${rfChip('sin canal','bad')}</div>
+</div>`;
+  return repreCard('Canal de cancelación','canal','Preferido → envío',body);
 }
-/** Visual Investigar integración: Software → estados → Markdown ···► pista Automática. */
 function investigarIntegracionFlowHtml(){
-  return `<section class="repre-card" aria-label="Investigar integración">
-<h3 class="h-ico">${icon('integracion')} Software → integración → pista</h3>
-<p class="repre-note">Una vez por <strong>proveedor</strong> (input <code>software</code> desde Identificar software + <code>investigacion_previa</code> opcional). Artefacto: <code>documentacion_md</code>. Es <strong>pista</strong> para Automática (<code>acceso_api</code>); no bloquea Observar formulario ni sustituye Función/Script. No confundir widget de un local con API oficial.</p>
-<div class="integ-flow" role="img" aria-label="Software a Integración, estados documentada no_localizada pendiente, Markdown y pista a Automática">
-  <div class="integ-col">
-    <div class="integ-box is-src"><p class="ib-title">Software</p><p class="ib-sub">software<br>investigacion_previa?</p></div>
-  </div>
-  <div class="integ-join" aria-hidden="true">──►</div>
-  <div class="integ-col">
-    <div class="integ-box is-core"><p class="ib-title">Integración</p><p class="ib-sub">1× proveedor<br>vía oficial</p></div>
-  </div>
-  <div class="integ-join" aria-hidden="true">──►</div>
-  <div class="integ-states">
-    <div class="integ-state doc"><span class="st-k">documentada</span>API / partner localizado</div>
-    <div class="integ-state none"><span class="st-k">no_localizada</span>búsqueda suficiente, sin vía</div>
-    <div class="integ-state pend"><span class="st-k">pendiente</span>investigación incompleta</div>
-  </div>
-  <div class="integ-join" aria-hidden="true">──►</div>
-  <div class="integ-col">
-    <div class="integ-box is-md"><p class="ib-title">Markdown</p><p class="ib-sub">documentacion_md</p></div>
-  </div>
-  <div class="integ-join is-dotted" aria-hidden="true">···►</div>
-  <div class="integ-col">
-    <div class="integ-box is-pista"><p class="ib-title">pista Automática</p><p class="ib-sub">acceso_api<br>opcional · no bloquea</p></div>
-  </div>
-</div>
-<div class="integ-legend" aria-hidden="true">
-  <span><i class="doc"></i> documentada</span>
-  <span><i class="none"></i> no_localizada</span>
-  <span><i class="pend"></i> pendiente</span>
-</div>
-<p class="integ-aside">En paralelo: Observar formulario → Justificante → Función → Script sigue su camino; la integración no lo detiene.</p>
-<pre class="repre-ascii" aria-hidden="true">Software ──► Integración ──► documentada|no_localizada|pendiente ──► Markdown ···► pista Automática</pre>
-</section>`;
+  const body=`<div class="rf" role="img" aria-label="Software a integración a pista Automática">
+  ${rfBox('Software',{src:true})}
+  ${rfArrow()}
+  ${rfBox('Integración',{focus:true})}
+  ${rfArrow()}
+  <div class="rf-stack">${rfChip('documentada','ok')}${rfChip('no_localizada','mute')}${rfChip('pendiente','warn')}</div>
+  ${rfArrow(true)}
+  ${rfBox('pista Automática',{dash:true})}
+</div>`;
+  return repreCard('Investigar integración','integracion','Software → pista',body);
+}
+function justificanteHtml(){
+  const body=`<div class="rf" role="img" aria-label="Relato a estados a Función">
+  ${rfBox('relato',{src:true})}
+  ${rfArrow()}
+  <div class="rf-stack">${rfChip('justificado','ok')}${rfChip('pendiente','warn')}</div>
+  ${rfArrow()}
+  ${rfBox('Función',{dash:true})}
+</div>`;
+  return repreCard('Justificante','justificante','Desde el relato',body);
+}
+function cadenaJfsHtml(focus){
+  const labels=['Justificante','Función','Script'];
+  const parts=[];
+  labels.forEach((lab,i)=>{
+    if(i) parts.push(rfArrow());
+    parts.push(rfBox(lab,{focus:lab===focus,dim:lab!==focus}));
+  });
+  const keys=`<div class="rf-stack" style="margin-top:10px;flex-direction:row;flex-wrap:wrap">${rfChip('estado','mute')}${rfChip('referencia','mute')}${rfChip('alternativas','mute')}${rfChip('motivo','mute')}</div>`;
+  const body=`<div class="rf" role="img" aria-label="Cadena Justificante Función Script">${parts.join('')}</div>${keys}`;
+  const ico=focus==='Función'?'funcion':'script';
+  return repreCard(focus,ico,focus,body);
+}
+function automaticaHtml(){
+  const body=`<div class="rf" role="img" aria-label="Vía Automática con compuerta y pista">
+  ${rfBox('Integración',{dash:true,dim:true})}
+  ${rfArrow(true)}
+  ${rfBox('Automática',{focus:true})}
+  ${rfArrow()}
+  ${rfBox('compuerta')}
+  ${rfArrow()}
+  <div class="rf-stack">${rfChip('apta','ok')}${rfChip('no_apta','bad')}${rfChip('pendiente','warn')}${rfChip('no_intentada','mute')}</div>
+</div>`;
+  return repreCard('Automática','automatica','Vía → resultado',body);
+}
+function enlaceHtml(){
+  const body=`<div class="rf" role="img" aria-label="Enlace asistido independiente">
+  ${rfBox('Función+Script',{src:true})}
+  ${rfArrow()}
+  ${rfBox('Enlace',{focus:true})}
+  ${rfArrow()}
+  ${rfBox('compuerta')}
+  ${rfArrow()}
+  ${rfBox('url preparada')}
+</div>`;
+  return repreCard('Enlace asistido','enlace','Vía → enlace',body,'preparada ≠ confirmada');
+}
+function verificacionHtml(){
+  const body=`<div class="rf" role="img" aria-label="Ejecución frente a referencia y alertas">
+  ${rfBox('ejecución',{src:true})}
+  ${rfArrow()}
+  ${rfBox('vs referencia',{focus:true})}
+  ${rfArrow()}
+  <div class="rf-stack">${rfChip('ok','ok')}${rfChip('formulario_cambiado','bad')}</div>
+</div>`;
+  return repreCard('Verificación y vigilancia','verificacion','Ejecución vs referencia',body);
 }
 function repreVisualFor(label){
-  if(label==='Punto A'){
-    return `<section class="repre-card"><h3 class="h-ico">${icon('puntoa')} Recorrido de reserva</h3>${journeyNodesHtml('A')}<p class="repre-note">Punto A es el inicio de la reserva (A) en la línea web → inicio → formulario.</p></section>`;
-  }
-  if(label==='Apertura'){
-    return aperturaCalendarHtml();
-  }
-  if(label==='Canal de cancelación'){
-    return canalCancelacionFlowHtml();
-  }
-  if(label==='Investigar integración'){
-    return investigarIntegracionFlowHtml();
-  }
-  return `<p class="repre-empty">Sin representación aún.</p>`;
+  const map={
+    'Ficha del negocio':fichaHtml,
+    'Ámbito festivo':ambitoHtml,
+    'Punto A':puntoAHtml,
+    'Apertura':aperturaCalendarHtml,
+    'Contactos del negocio':contactosHtml,
+    'Identificar software':softwareHtml,
+    'Observar formulario':observarHtml,
+    'Canal de cancelación':canalCancelacionFlowHtml,
+    'Investigar integración':investigarIntegracionFlowHtml,
+    'Justificante':justificanteHtml,
+    'Función':()=>cadenaJfsHtml('Función'),
+    'Script':()=>cadenaJfsHtml('Script'),
+    'Automática':automaticaHtml,
+    'Enlace asistido':enlaceHtml,
+    'Verificación y vigilancia':verificacionHtml
+  };
+  const fn=map[label];
+  return fn?fn():`<p class="repre-empty">Sin representación aún.</p>`;
 }
 function renderRepresentacion(opts){
   const preserveScroll=!!(opts&&opts.preserveScroll);
@@ -4495,11 +4513,12 @@ function renderRepresentacion(opts){
   const d=contracts[repreTab];
   const visual=repreVisualFor(d.label);
   const panel=`<div id="panel-representacion"><div class="catalog-panel"><h3 class="catalog-title">${icon(d.icon||'representacion')}${escapeHtml(d.label)}</h3>${visual}</div></div>`;
-  content.innerHTML=heading('Piezas del sistema','Representación','Misma lista de operaciones; croquis en Punto A, calendario en Apertura, flujos de Canal e Integración.','15 bloques')+tabs(contracts,repreTab,'representacion')+panel;
+  content.innerHTML=heading('Piezas del sistema','Representación','Croquis mínimo por operación.','15 bloques')+tabs(contracts,repreTab,'representacion')+panel;
   bindTabs('representacion',i=>{repreTab=i;renderRepresentacion({preserveScroll:true})});
   if(preserveScroll) restoreOpsScroll(pageY, tabScrolls);
   else afterTabRender({tabScrolls, focusActive:true});
 }
+
 const sections=[['Mapa',renderMapa,'mapa'],['Operaciones',renderOperaciones,'operaciones'],['Modelo de datos',renderCatalogos,'tablas'],['Representación',renderRepresentacion,'representacion']];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label,,ico],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num" aria-hidden="true">${icon(ico)}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
 render();
