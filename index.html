@@ -161,69 +161,71 @@ h4.subhead{margin:1rem 0 .4rem;font-size:.85rem;font-weight:600;color:var(--mute
 .schema-table td.ejemplo{max-width:14rem;font-size:.82em;color:var(--muted,#5a6570)}
 .schema-table th{white-space:nowrap}
 
-/* Representación — visuales mínimos (presentación) */
-.repre-card{border:1px solid #e7ebf1;border-radius:14px;padding:18px 16px 14px;margin:12px 0;background:#fff}
-.repre-card h3{font-size:13px;margin:0 0 6px;font-weight:750;color:#243246}
-.repre-hint{margin:10px 0 0;font-size:12px;line-height:1.4;color:#8490a1}
+/* Representación — sistema visual unificado (presentación) */
+.repre-card{border:1px solid #e7ebf1;border-radius:14px;padding:14px 14px 12px;margin:10px 0 0;background:#fff}
+.repre-card>h3,.repre-card h3.h-ico{font-size:11px;margin:0 0 12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#5a6f8a;display:flex;align-items:center;gap:7px}
+.repre-card h3.h-ico .ico{width:14px;height:14px}
+.repre-hint{margin:10px 0 0;font-size:11px;line-height:1.35;color:#8490a1;font-weight:650;text-align:center}
 .repre-empty{margin:18px 0 8px;font-size:13px;color:#8490a1}
-.journey{display:flex;align-items:flex-start;justify-content:center;gap:0;margin:14px auto 2px;max-width:360px;position:relative}
-.journey::before{content:"";position:absolute;left:calc(16.66% + 16px);right:calc(16.66% + 16px);top:16px;height:2px;background:#b8c7db;z-index:0}
+.journey{display:flex;align-items:flex-start;justify-content:center;gap:0;margin:10px auto 4px;max-width:340px;position:relative}
+.journey::before{content:"";position:absolute;left:calc(16.66% + 16px);right:calc(16.66% + 16px);top:17px;height:3px;background:#c5d3e6;border-radius:2px;z-index:0}
 .journey-node{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1;min-width:0}
-.journey-node .jn-dot{width:32px;height:32px;border-radius:50%;border:2px solid #7a90ad;background:#fff;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:800;color:#2c3e55;line-height:1}
-.journey-node .jn-label{margin-top:8px;font-size:11px;font-weight:650;color:#52657e;line-height:1.25;max-width:6.5rem}
-.journey-node.is-focus .jn-dot{border-color:#185aba;color:#185aba;box-shadow:0 0 0 3px #185aba22}
-.journey-node.is-focus .jn-label{color:#165bd4;font-weight:750}
-.journey-node.is-dim .jn-dot{border-color:#c5d3e6;color:#9aa8bc}
-.journey-node.is-dim .jn-label{color:#9aa8bc}
-.rf{display:flex;align-items:center;gap:8px;margin:12px 0 2px;flex-wrap:nowrap;overflow:auto;padding-bottom:2px}
+.journey-node .jn-dot{width:34px;height:34px;border-radius:50%;border:2px solid #8aa0bc;background:#fff;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:800;color:#2c3e55;line-height:1}
+.journey-node .jn-label{margin-top:8px;font-size:11px;font-weight:700;color:#52657e;line-height:1.25;max-width:6.5rem}
+.journey-node.is-focus .jn-dot{border-color:#185aba;background:#eaf1ff;color:#185aba;box-shadow:0 0 0 4px #185aba22}
+.journey-node.is-focus .jn-label{color:#165bd4;font-weight:800}
+.journey-node.is-dim{opacity:.42}
+.journey-node.is-dim .jn-dot{border-color:#c5d3e6;color:#9aa8bc;background:#f8fafc}
+.journey-node.is-dim .jn-label{color:#9aa8bc;font-weight:650}
+.rf{display:flex;align-items:center;justify-content:center;gap:10px;margin:8px 0 2px;flex-wrap:nowrap;overflow:auto;padding:2px 2px 6px}
 .rf-col{display:flex;flex-direction:column;justify-content:center;gap:8px;flex:none}
-.rf-box{border:1px solid #d5dde8;border-radius:10px;background:#fbfdff;padding:10px 12px;min-width:88px;text-align:center}
+.rf-box{border:1px solid #cfd9e8;border-radius:10px;background:#fff;padding:11px 13px;min-width:92px;text-align:center}
 .rf-box .t{font-size:12px;font-weight:750;color:#1c2b3e;margin:0;line-height:1.2}
-.rf-box.is-src{background:#f6f8fc}
-.rf-box.is-focus{border-color:#a9c5ef;background:#f3f8ff;box-shadow:0 0 0 3px #185aba14}
-.rf-box.is-dim{opacity:.55}
+.rf-box .k{display:block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8490a1;margin:0 0 3px}
+.rf-box .v{display:block;font-size:13px;font-weight:750;color:#1c2b3e;line-height:1.25;margin:0}
+.rf-box.is-src{background:#f4f7fb;border-color:#d5dde8}
+.rf-box.is-src .t{color:#3d4d63;font-weight:700}
+.rf-box.is-focus{border-color:#185aba;background:#eaf1ff;box-shadow:0 0 0 3px #185aba22}
+.rf-box.is-focus .t,.rf-box.is-focus .v{color:#165bd4}
+.rf-box.is-dim{opacity:.4}
 .rf-box.is-dash{border-style:dashed;background:#f8fafc}
-.rf-arrow{flex:none;color:#7a90ad;font-size:16px;font-weight:700;align-self:center}
-.rf-arrow.dot{color:#9aa8bc;letter-spacing:.04em}
-.rf-stack{display:flex;flex-direction:column;gap:6px;flex:none}
-.rf-chip{border-radius:8px;padding:7px 10px;font-size:11px;font-weight:750;line-height:1.2;border:1px solid transparent;text-align:center;white-space:nowrap}
+.rf-box.is-dash .t{color:#5a6f8a;font-weight:700}
+.rf-arrow{flex:none;color:#7a90ad;font-size:18px;font-weight:800;align-self:center;line-height:1;min-width:1.25em;text-align:center}
+.rf-arrow.dot{color:#9aa8bc;letter-spacing:.02em;font-size:15px;font-weight:700}
+.rf-stack{display:flex;flex-direction:column;gap:5px;flex:none}
+.rf-stack.grid2{display:grid;grid-template-columns:auto auto;gap:5px}
+.rf-keys{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.rf-chip{border-radius:8px;padding:6px 10px;font-size:11px;font-weight:750;line-height:1.2;border:1px solid transparent;text-align:center;white-space:nowrap}
 .rf-chip.ok{background:#e7f6ee;border-color:#b7e0c8;color:#0f7a45}
 .rf-chip.bad{background:#fde8e8;border-color:#e3a0a0;color:#9b3b3b}
 .rf-chip.warn{background:#fff6e8;border-color:#e8d0a8;color:#8a5a12}
 .rf-chip.mute{background:#f4f6f9;border-color:#c5d0de;color:#4a5d73}
-.rf-chip.row{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px}
-.id-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0 2px}
-.id-cell{border:1px solid #e1e8f2;border-radius:10px;background:#f8fafc;padding:12px 10px;text-align:center}
-.id-cell .k{display:block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8490a1;margin-bottom:4px}
-.id-cell .v{display:block;font-size:13px;font-weight:750;color:#1c2b3e;line-height:1.25}
-.ambito-ladder{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:12px auto 2px;max-width:280px}
-.ambito-step{border:1px solid #d5dde8;border-radius:10px;background:#fbfdff;padding:9px 12px;text-align:center;font-size:12px;font-weight:750;color:#1c2b3e}
-.ambito-step+.ambito-step{margin-top:6px;position:relative}
-.ambito-step+.ambito-step::before{content:"▾";display:block;text-align:center;color:#9aa8bc;font-size:11px;margin:-4px 0 2px;line-height:1}
-.ambito-step.is-focus{border-color:#a9c5ef;background:#f3f8ff;color:#165bd4}
-.contact-row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 2px}
-.contact-pill{border:1px solid #d5dde8;border-radius:10px;background:#f6f8fc;padding:10px 14px;font-size:12px;font-weight:750;color:#2c3e55;min-width:72px;text-align:center}
-.apertura-now{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 10px}
-.apertura-now .now-badge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:800;background:#d8f3e4;color:#0d6b3c}
-.apertura-now .now-meta{font-size:12px;color:#8490a1}
-.apertura-wrap{overflow:auto;border:1px solid #e1e8f2;border-radius:10px;background:#fbfdff}
+.ambito-ladder{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:8px auto 2px;max-width:260px}
+.ambito-step{border:1px solid #cfd9e8;border-radius:10px;background:#fff;padding:10px 12px;text-align:center;font-size:12px;font-weight:750;color:#1c2b3e}
+.ambito-step:not(.is-focus){opacity:.45}
+.ambito-step:nth-child(1){margin-inline:0}
+.ambito-step:nth-child(2){margin-inline:14px}
+.ambito-step:nth-child(3){margin-inline:28px}
+.ambito-step:nth-child(4){margin-inline:42px}
+.ambito-step+.ambito-step{margin-top:4px;position:relative}
+.ambito-step+.ambito-step::before{content:"▾";display:block;text-align:center;color:#9aa8bc;font-size:11px;margin:-2px 0 2px;line-height:1;opacity:1}
+.ambito-step.is-focus{border-color:#185aba;background:#eaf1ff;color:#165bd4;box-shadow:0 0 0 3px #185aba22;opacity:1;font-weight:800}
+.apertura-now{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 12px;margin:0 0 12px}
+.apertura-now .now-meta{font-size:12px;font-weight:700;color:#5a6f8a;font-variant-numeric:tabular-nums}
+.apertura-wrap{overflow:auto;border:1px solid #e1e8f2;border-radius:10px;background:#fff}
 .apertura-grid{width:100%;min-width:420px;border-collapse:collapse;table-layout:fixed;font-size:10px}
-.apertura-grid th,.apertura-grid td{border:1px solid #e7ebf2;padding:0;text-align:center;height:18px;line-height:1}
-.apertura-grid thead th{background:#f6f8fc;color:#64748b;font-weight:700;padding:6px 2px}
-.apertura-grid .hour{width:36px;background:#f6f8fc;color:#64748b;font-weight:700;font-variant-numeric:tabular-nums;padding:0 2px}
+.apertura-grid th,.apertura-grid td{border:1px solid #eef2f7;padding:0;text-align:center;height:17px;line-height:1}
+.apertura-grid thead th{background:#f4f7fb;color:#64748b;font-weight:700;padding:7px 2px}
+.apertura-grid .hour{width:36px;background:#f4f7fb;color:#64748b;font-weight:700;font-variant-numeric:tabular-nums;padding:0 2px}
 .apertura-grid td.open{background:#c8e6d4}
 .apertura-grid td.ex{background:repeating-linear-gradient(-45deg,#fde8e8,#fde8e8 3px,#fff 3px,#fff 6px);color:#9b3b3b;font-size:8px;font-weight:800}
-.apertura-grid td.is-now{outline:2px solid #185aba;outline-offset:-2px;position:relative;z-index:1}
-.form-steps{display:flex;align-items:center;gap:6px;margin:14px 0 2px;flex-wrap:wrap;justify-content:center}
-.form-step{border:1px solid #d5dde8;border-radius:8px;background:#f6f8fc;padding:8px 10px;font-size:11px;font-weight:750;color:#52657e}
-.form-step.is-focus{border-color:#a9c5ef;background:#f3f8ff;color:#165bd4;box-shadow:0 0 0 3px #185aba14}
-.form-step.is-stop{border-style:dashed;opacity:.7}
-.form-arr{color:#9aa8bc;font-size:14px;font-weight:700}
+.apertura-grid td.is-now{outline:2px solid #185aba;outline-offset:-2px;position:relative;z-index:1;box-shadow:inset 0 0 0 1px #185aba55}
 @media(max-width:720px){
-  .rf{flex-wrap:wrap}
+  .rf{flex-wrap:wrap;justify-content:center}
   .rf-arrow{transform:rotate(90deg)}
   .rf-box{min-width:72px}
-  .rf-stack{flex-direction:row;flex-wrap:wrap;width:100%}
+  .rf-stack:not(.grid2){flex-direction:row;flex-wrap:wrap;width:100%;justify-content:center}
+  .ambito-step:nth-child(n){margin-inline:0}
 }
 @media(max-width:520px){
   .journey{max-width:100%}
@@ -4316,6 +4318,9 @@ function rfBox(title, opts){
   if(o.src) cls.push('is-src');
   if(o.dim) cls.push('is-dim');
   if(o.dash) cls.push('is-dash');
+  if(o.k!=null&&o.v!=null){
+    return `<div class="${cls.join(' ')}"><span class="k">${escapeHtml(o.k)}</span><span class="v">${escapeHtml(o.v)}</span></div>`;
+  }
   return `<div class="${cls.join(' ')}"><p class="t">${escapeHtml(title)}</p></div>`;
 }
 function rfArrow(dotted){
@@ -4329,9 +4334,13 @@ function repreCard(aria, titleIco, title, body, hint){
   return `<section class="repre-card" aria-label="${escapeHtml(aria)}"><h3 class="h-ico">${icon(titleIco)} ${escapeHtml(title)}</h3>${body}${h}</section>`;
 }
 function fichaHtml(){
-  const body=`<div class="id-grid" role="img" aria-label="Nombre y zona">
-  <div class="id-cell"><span class="k">nombre</span><span class="v">El Muelle</span></div>
-  <div class="id-cell"><span class="k">zona</span><span class="v">Atlantic/Canary</span></div>
+  const body=`<div class="rf" role="img" aria-label="url_negocio a nombre y zona">
+  ${rfBox('url_negocio',{src:true,dim:true})}
+  ${rfArrow()}
+  <div class="rf-col">
+    ${rfBox('',{k:'nombre',v:'El Muelle',focus:true})}
+    ${rfBox('',{k:'zona',v:'Atlantic/Canary',focus:true})}
+  </div>
 </div>`;
   return repreCard('Ficha del negocio','negocio','Identidad',body);
 }
@@ -4346,7 +4355,7 @@ function ambitoHtml(){
 }
 function puntoAHtml(){
   const body=journeyNodesHtml('A');
-  return repreCard('Punto A','puntoa','1 — A — B',body);
+  return repreCard('Punto A','puntoa','Inicio',body);
 }
 function aperturaCalendarHtml(){
   const days=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
@@ -4371,16 +4380,16 @@ function aperturaCalendarHtml(){
     rows+='</tr>';
   }
   const head=days.map(d=>`<th scope="col">${d}</th>`).join('');
-  const body=`<div class="apertura-now"><span class="now-badge">abierto_ahora</span><span class="now-meta">margen 95 min</span></div>
+  const body=`<div class="apertura-now">${rfChip('abierto_ahora','ok')}<span class="now-meta">margen 95 min</span></div>
 <div class="apertura-wrap"><table class="apertura-grid" role="grid" aria-label="Cuándo abierto"><thead><tr><th scope="col" class="hour">h</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
   return repreCard('Apertura','apertura','Cuándo abierto',body);
 }
 function contactosHtml(){
-  const body=`<div class="contact-row" role="img" aria-label="Canales publicados">
-  <div class="contact-pill">teléfono</div>
-  <div class="contact-pill">WhatsApp</div>
-  <div class="contact-pill">email</div>
-  <div class="contact-pill">formulario</div>
+  const body=`<div class="rf" role="img" aria-label="Canales publicados">
+  ${rfBox('teléfono',{src:true})}
+  ${rfBox('WhatsApp',{src:true})}
+  ${rfBox('email',{src:true})}
+  ${rfBox('formulario',{src:true})}
 </div>`;
   return repreCard('Contactos del negocio','contactos','Agenda',body);
 }
@@ -4397,10 +4406,12 @@ function softwareHtml(){
   return repreCard('Identificar software','software','Atribución',body);
 }
 function observarHtml(){
-  const body=journeyNodesHtml('B')+`<div class="form-steps" role="img" aria-label="Hasta antes de confirmar">
-  <div class="form-step">pasos</div><span class="form-arr" aria-hidden="true">→</span>
-  <div class="form-step is-focus">relato</div><span class="form-arr" aria-hidden="true">→</span>
-  <div class="form-step is-stop">confirmar ✕</div>
+  const body=journeyNodesHtml('B')+`<div class="rf" role="img" aria-label="Hasta antes de confirmar">
+  ${rfBox('pasos',{src:true})}
+  ${rfArrow()}
+  ${rfBox('relato',{focus:true})}
+  ${rfArrow()}
+  ${rfBox('confirmar ✕',{dash:true,dim:true})}
 </div>`;
   return repreCard('Observar formulario','observacion','Foco en B',body);
 }
@@ -4412,19 +4423,19 @@ function canalCancelacionFlowHtml(){
   ${rfArrow()}
   ${rfBox('compuerta')}
   ${rfArrow()}
-  <div class="rf-stack">${rfChip('envío OK','ok')}${rfChip('sin canal','bad')}</div>
+  <div class="rf-stack">${rfChip('enviado','ok')}${rfChip('sin_canal','bad')}</div>
 </div>`;
   return repreCard('Canal de cancelación','canal','Preferido → envío',body);
 }
 function investigarIntegracionFlowHtml(){
-  const body=`<div class="rf" role="img" aria-label="Software a integración a pista Automática">
+  const body=`<div class="rf" role="img" aria-label="Software a integración a Automática">
   ${rfBox('Software',{src:true})}
   ${rfArrow()}
   ${rfBox('Integración',{focus:true})}
   ${rfArrow()}
   <div class="rf-stack">${rfChip('documentada','ok')}${rfChip('no_localizada','mute')}${rfChip('pendiente','warn')}</div>
   ${rfArrow(true)}
-  ${rfBox('pista Automática',{dash:true})}
+  ${rfBox('Automática',{dash:true,dim:true})}
 </div>`;
   return repreCard('Investigar integración','integracion','Software → pista',body);
 }
@@ -4434,7 +4445,7 @@ function justificanteHtml(){
   ${rfArrow()}
   <div class="rf-stack">${rfChip('justificado','ok')}${rfChip('pendiente','warn')}</div>
   ${rfArrow()}
-  ${rfBox('Función',{dash:true})}
+  ${rfBox('Función',{dash:true,dim:true})}
 </div>`;
   return repreCard('Justificante','justificante','Desde el relato',body);
 }
@@ -4445,32 +4456,32 @@ function cadenaJfsHtml(focus){
     if(i) parts.push(rfArrow());
     parts.push(rfBox(lab,{focus:lab===focus,dim:lab!==focus}));
   });
-  const keys=`<div class="rf-stack" style="margin-top:10px;flex-direction:row;flex-wrap:wrap">${rfChip('estado','mute')}${rfChip('referencia','mute')}${rfChip('alternativas','mute')}${rfChip('motivo','mute')}</div>`;
+  const keys=`<div class="rf-keys">${rfChip('estado','mute')}${rfChip('referencia','mute')}${rfChip('alternativas','mute')}${rfChip('motivo','mute')}</div>`;
   const body=`<div class="rf" role="img" aria-label="Cadena Justificante Función Script">${parts.join('')}</div>${keys}`;
   const ico=focus==='Función'?'funcion':'script';
-  return repreCard(focus,ico,focus,body);
+  return repreCard(focus,ico,'Cadena',body);
 }
 function automaticaHtml(){
-  const body=`<div class="rf" role="img" aria-label="Vía Automática con compuerta y pista">
+  const body=`<div class="rf" role="img" aria-label="Vía Automática con compuerta y estados">
   ${rfBox('Integración',{dash:true,dim:true})}
   ${rfArrow(true)}
   ${rfBox('Automática',{focus:true})}
   ${rfArrow()}
   ${rfBox('compuerta')}
   ${rfArrow()}
-  <div class="rf-stack">${rfChip('apta','ok')}${rfChip('no_apta','bad')}${rfChip('pendiente','warn')}${rfChip('no_intentada','mute')}</div>
+  <div class="rf-stack grid2">${rfChip('apta','ok')}${rfChip('no_apta','bad')}${rfChip('pendiente','warn')}${rfChip('no_intentada','mute')}</div>
 </div>`;
   return repreCard('Automática','automatica','Vía → resultado',body);
 }
 function enlaceHtml(){
   const body=`<div class="rf" role="img" aria-label="Enlace asistido independiente">
-  ${rfBox('Función+Script',{src:true})}
+  <div class="rf-col">${rfBox('Función',{src:true})}${rfBox('Script',{src:true})}</div>
   ${rfArrow()}
   ${rfBox('Enlace',{focus:true})}
   ${rfArrow()}
   ${rfBox('compuerta')}
   ${rfArrow()}
-  ${rfBox('url preparada')}
+  ${rfBox('url preparada',{focus:false})}
 </div>`;
   return repreCard('Enlace asistido','enlace','Vía → enlace',body,'preparada ≠ confirmada');
 }
@@ -4478,7 +4489,7 @@ function verificacionHtml(){
   const body=`<div class="rf" role="img" aria-label="Ejecución frente a referencia y alertas">
   ${rfBox('ejecución',{src:true})}
   ${rfArrow()}
-  ${rfBox('vs referencia',{focus:true})}
+  ${rfBox('referencia',{focus:true})}
   ${rfArrow()}
   <div class="rf-stack">${rfChip('ok','ok')}${rfChip('formulario_cambiado','bad')}</div>
 </div>`;
