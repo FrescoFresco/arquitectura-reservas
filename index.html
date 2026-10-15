@@ -37,6 +37,14 @@
 .combina .estab-chip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:#eef3fa;color:#2c3e55}
 .combina .estab-chip.no{background:#f1f4f8;color:#5c6b80}
 .combina .estab-empty{font-size:12px;color:#8b98a9;font-style:italic}
+.combina .enlace{display:grid;gap:6px;margin:0}
+.combina .enlace-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 8px;font-size:13px;line-height:1.45;color:#3d4d63}
+.combina .enlace-k{font-size:12px;font-weight:800;color:#243246;min-width:52px}
+.combina .enlace-vals{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 2px}
+.combina .enlace-tab{border:0;background:transparent;color:#185aba;font:inherit;font-size:13px;font-weight:700;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.combina .enlace-tab:hover{color:#0f3f8a}
+.combina .enlace-this{font-weight:800;color:#1c2b3e}
+.combina .enlace-sep{color:#8b98a9;margin:0 2px}
 .combina strong{color:#243246}
 .combina p{margin:0 0 4px;font-size:13px;line-height:1.5;color:#3d4d63}
 .catalog-map{margin:0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:16px;color:#334155}
@@ -2205,6 +2213,7 @@ puntas:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=
 esquema:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M3 12h18M3 19h18"/><path d="M8 5v14"/></svg>',
 markdown:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h6"/></svg>',
 estabilidad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>',
+enlace:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.2 10.6 15M16 7.2 13.4 15"/></svg>',
 
 };
 function icon(name){return '<span class="ico" aria-hidden="true">'+(iconSvg[name]||'')+'</span>'}
@@ -2816,6 +2825,7 @@ function schemaTable(rows){
 }
 const catalogCombina={
  Negocio:{
+  enlace:{"padre":[],"esta":"Negocio","hijas":["Proceso"]},
   puntas:[{campo:"url",estable:true},{campo:"identidad del local",estable:true}],
   porQue:"El local es uno y estable.",
   unaFila:"un negocio",
@@ -2823,6 +2833,7 @@ const catalogCombina={
   noEstable:[]
  },
  Software:{
+  enlace:{"padre":[],"esta":"Software","hijas":["Integración"]},
   puntas:[{campo:"nombre",estable:true}],
   porQue:"El mismo proveedor sirve a muchos negocios.",
   unaFila:"un software",
@@ -2830,6 +2841,7 @@ const catalogCombina={
   noEstable:[]
  },
  Integración:{
+  enlace:{"padre":["Software"],"esta":"Integración","hijas":[]},
   puntas:[{campo:"id_software",estable:true},{campo:"version",estable:false},{campo:"documentacion_md",estable:false}],
   porQue:"El software es uno; la documentación se actualiza.",
   unaFila:"una versión documentada",
@@ -2837,6 +2849,7 @@ const catalogCombina={
   noEstable:["version","documentacion_md"]
  },
  Proceso:{
+  enlace:{"padre":["Negocio"],"esta":"Proceso","hijas":["Observación","Justificante","Función","Script","Canal","Ejecución"]},
   puntas:[{campo:"id_negocio",estable:true},{campo:"url_inicio",estable:true},{campo:"id_software",estable:null,nota:"software visto"}],
   porQue:"Un negocio puede tener varios inicios de reserva.",
   unaFila:"un proceso",
@@ -2845,6 +2858,7 @@ const catalogCombina={
   notaEstable:"id_software es el software visto en ese inicio, si existe."
  },
  Observación:{
+  enlace:{"padre":["Proceso"],"esta":"Observación","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
   porQue:"El proceso no se pisa; cada regeneración es otra fila.",
   unaFila:"una versión del artefacto",
@@ -2852,6 +2866,7 @@ const catalogCombina={
   noEstable:["version","documento"]
  },
  Justificante:{
+  enlace:{"padre":["Proceso"],"esta":"Justificante","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
   porQue:"El proceso no se pisa; cada regeneración es otra fila.",
   unaFila:"una versión del artefacto",
@@ -2859,6 +2874,7 @@ const catalogCombina={
   noEstable:["version","documento"]
  },
  Función:{
+  enlace:{"padre":["Proceso"],"esta":"Función","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
   porQue:"El proceso no se pisa; cada regeneración es otra fila.",
   unaFila:"una versión del artefacto",
@@ -2866,6 +2882,7 @@ const catalogCombina={
   noEstable:["version","documento"]
  },
  Script:{
+  enlace:{"padre":["Proceso"],"esta":"Script","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
   porQue:"El proceso no se pisa; cada regeneración es otra fila.",
   unaFila:"una versión del artefacto",
@@ -2873,6 +2890,7 @@ const catalogCombina={
   noEstable:["version","documento"]
  },
  Canal:{
+  enlace:{"padre":["Proceso"],"esta":"Canal","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
   porQue:"El proceso no se pisa; cada regeneración es otra fila.",
   unaFila:"una versión del artefacto",
@@ -2880,6 +2898,7 @@ const catalogCombina={
   noEstable:["version","documento"]
  },
  Ejecución:{
+  enlace:{"padre":["Proceso"],"esta":"Ejecución","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"via",estable:false},{campo:"timestamp",estable:false}],
   porQue:"Hace falta el historial de intentos.",
   unaFila:"un intento",
@@ -2898,6 +2917,30 @@ function estabChips(list, kind){
   if(!list||!list.length) return '<span class="estab-empty">—</span>';
   return '<span class="estab-chips">'+list.map(x=>`<span class="estab-chip${kind==='no'?' no':''}">${escapeHtml(x)}</span>`).join('')+'</span>';
 }
+function catalogTabIndex(label){
+  return catalogTabs.findIndex(t=>t.label===label);
+}
+function enlaceTableLink(name){
+  const i=catalogTabIndex(name);
+  if(i<0) return escapeHtml(name);
+  return `<button type="button" class="enlace-tab" data-cat-goto="${i}">${escapeHtml(name)}</button>`;
+}
+function enlaceNames(list){
+  if(!list||!list.length) return '<span class="estab-empty">—</span>';
+  return '<span class="enlace-vals">'+list.map(enlaceTableLink).join('<span class="enlace-sep">,</span> ')+'</span>';
+}
+function combinaEnlace(c){
+  const e=c.enlace||{padre:[],esta:c.esta||'',hijas:[]};
+  const esta=e.esta?`<span class="enlace-this">${escapeHtml(e.esta)}</span>`:'<span class="estab-empty">—</span>';
+  return `<div class="combina-sec">
+  <div class="combina-lab">${icon('enlace')} Enlace</div>
+  <div class="enlace">
+    <div class="enlace-line"><span class="enlace-k">Padre</span>${enlaceNames(e.padre)}</div>
+    <div class="enlace-line"><span class="enlace-k">Esta</span>${esta}</div>
+    <div class="enlace-line"><span class="enlace-k">Hijas</span>${enlaceNames(e.hijas)}</div>
+  </div>
+</div>`;
+}
 function combinaBlock(label){
   const c=catalogCombina[label];
   if(!c) return '';
@@ -2910,6 +2953,7 @@ function combinaBlock(label){
   <div class="combina-lab">${icon('puntas')} Puntas</div>
   <ul class="puntas-row">${puntas}</ul>
 </div>
+${combinaEnlace(c)}
 <div class="combina-sec">
   <p class="combina-row">${icon('porque')}<span><strong>Por qué:</strong> ${escapeHtml(c.porQue)}</span></p>
 </div>
@@ -2958,6 +3002,7 @@ function renderCatalogos(){
   content.innerHTML=heading('Capas de datos','Modelo de datos','Tablas del modelo: esquema y ejemplos. Filas planas; el Markdown se abre en cápsula.','Modelo')+tabs(catalogTabs,catalogTab,'modelo')+`<div id="panel-modelo">${panel}</div>`;
   bindTabs('modelo',i=>{catalogTab=i;catalogInnerView=0;renderCatalogos()});
   content.querySelectorAll('[data-cat-inner]').forEach(b=>b.addEventListener('click',()=>{catalogInnerView=Number(b.dataset.catInner);renderCatalogos()}));
+  content.querySelectorAll('[data-cat-goto]').forEach(b=>b.addEventListener('click',()=>{catalogTab=Number(b.dataset.catGoto);catalogInnerView=0;renderCatalogos()}));
   bindMdCapsules(content);
 }
 const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones],['Modelo de datos',renderCatalogos]];
