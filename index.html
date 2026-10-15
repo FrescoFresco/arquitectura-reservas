@@ -178,7 +178,6 @@ const contracts=[
   "instructions": "Tu propósito es crear la ficha del negocio: los datos de identidad que valen para todas las ramas y no deben repetirse después.\n\nCon url_negocio, identifica nombre_negocio y zona_horaria (IANA, por ejemplo Atlantic/Canary) con fuentes atribuibles: web del negocio, ficha pública tipo Google Maps u otra fuente oficial. Cita cada fuente. No inventes nombre ni zona.\n\nestado es completa si nombre y zona quedan sostenidos; pendiente si falta alguno esencial. No fixes el ámbito festivo (eso es Ámbito festivo). No busques enlaces de reserva (eso es Punto A). No armes la pila de cron (eso es Apertura). No listes teléfonos ni canales (eso es Contactos del negocio). No confirmes una reserva.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
   "output": {
    "estado": "completa | pendiente",
-   "url_negocio": "URL del negocio",
    "nombre_negocio": "string | null",
    "zona_horaria": "IANA | null",
    "evidencias": [
@@ -210,7 +209,6 @@ const contracts=[
   "instructions": "Tu propósito es declarar el ámbito festivo del negocio: la jurisdicción del calendario de fiestas, no la lista de festivos.\n\nCon url_negocio, identifica ambito_festivo (pais, comunidad_o_region, isla_o_provincia, municipio) con fuentes atribuibles: web del negocio, ficha pública tipo Google Maps u otra fuente oficial. Cita cada fuente. No inventes subdivisiones.\n\nestado es completa si el ámbito queda sostenido al menos a nivel de país (y las subdivisiones que la evidencia sostenga); pendiente si falta la jurisdicción esencial. No reescribas nombre ni zona (eso es Ficha del negocio). No armes la pila de cron ni listes festivos concretos (eso es Apertura). No busques enlaces de reserva. No listes contactos. No confirmes una reserva.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
   "output": {
    "estado": "completa | pendiente",
-   "url_negocio": "URL del negocio",
    "ambito_festivo": {
       "pais": "string | null",
       "comunidad_o_region": "string | null",
@@ -463,25 +461,11 @@ const contracts=[
    "software": "nombre del proveedor",
    "investigacion_previa": "hallazgos | null"
   },
-  "instructions": "Tu propósito es investigar, una vez por proveedor de software de reservas, qué integración oficial existe para consultar disponibilidad o gestionar reservas y bajo qué condiciones. Si no hay nombre de software, no se ejecuta.\n\nRevisa investigacion_previa: comprueba si sigue vigente y si aplica a este software y a las operaciones necesarias. Observa documentación, API, SDK, programa de partners u otra vía oficial con fuentes atribuibles.\n\nEl artefacto principal es documentacion_md: un Markdown completo con cómo integrar, documentación y endpoints, condiciones del proveedor, requisitos por negocio, fuentes citadas e incertidumbres. Las listas estructuradas (integraciones_encontradas, operaciones_documentadas, condiciones_proveedor, requisitos_por_negocio, fuentes) son opcionales y solo resumen lo que el Markdown ya sostiene.\n\nNo confundas un endpoint interno observado en una web de un negocio con una API pública u oficialmente autorizada. robots.txt no demuestra un bloqueo técnico ni decide si hay API oficial. No propongas evadir controles. Separa hallazgos reutilizables del proveedor de lo que hay que confirmar en cada negocio cliente. No asumas un sector ni un modelo de partner concreto. No inventes integraciones ni contactos. No confirmes una reserva sin evidencia.\n\nSi no localizas integración tras una búsqueda documentada, usa no_localizada sin afirmar que es imposible y documenta la búsqueda en documentacion_md. Usa pendiente si la búsqueda quedó incompleta. Esta instrucción no bloquea Observar formulario.\n\nRegistra fecha_evaluacion en ISO 8601. Deja fecha_validacion en null hasta la revisión independiente.",
+  "instructions": "Tu propósito es investigar, una vez por proveedor de software de reservas, qué integración oficial existe para consultar disponibilidad o gestionar reservas y bajo qué condiciones. Si no hay nombre de software, no se ejecuta.\n\nRevisa investigacion_previa: comprueba si sigue vigente y si aplica a este software y a las operaciones necesarias. Observa documentación, API, SDK, programa de partners u otra vía oficial con fuentes atribuibles.\n\nEl artefacto principal es documentacion_md: un Markdown completo con cómo integrar, documentación y endpoints, condiciones del proveedor, requisitos por negocio, fuentes citadas e incertidumbres. No dupliques ese contenido en listas estructuradas aparte del Markdown.\n\nNo confundas un endpoint interno observado en una web de un negocio con una API pública u oficialmente autorizada. robots.txt no demuestra un bloqueo técnico ni decide si hay API oficial. No propongas evadir controles. Separa hallazgos reutilizables del proveedor de lo que hay que confirmar en cada negocio cliente. No asumas un sector ni un modelo de partner concreto. No inventes integraciones ni contactos. No confirmes una reserva sin evidencia.\n\nSi no localizas integración tras una búsqueda documentada, usa no_localizada sin afirmar que es imposible y documenta la búsqueda en documentacion_md. Usa pendiente si la búsqueda quedó incompleta. Esta instrucción no bloquea Observar formulario.\n\nRegistra fecha_evaluacion en ISO 8601. Deja fecha_validacion en null hasta la revisión independiente.",
   "output": {
    "software": "string",
    "estado": "documentada | no_localizada | pendiente",
    "documentacion_md": "Markdown completo de la investigación de integración",
-   "integraciones_encontradas": [],
-   "operaciones_documentadas": [],
-   "condiciones_proveedor": [
-      {
-         "tipo": "API | términos | robots.txt | otra",
-         "fuente": "URL",
-         "fecha_consulta": "ISO 8601",
-         "alcance": "string",
-         "hallazgo": "string",
-         "implicacion": "string"
-      }
-   ],
-   "requisitos_por_negocio": [],
-   "fuentes": [],
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
@@ -768,7 +752,6 @@ const outputExamples = {
  "Ficha del negocio": [
   {
    "estado": "completa",
-   "url_negocio": "https://www.elmuelle.example",
    "nombre_negocio": "Restaurante El Muelle",
    "zona_horaria": "Atlantic/Canary",
    "evidencias": [
@@ -785,7 +768,6 @@ const outputExamples = {
   },
   {
    "estado": "completa",
-   "url_negocio": "https://www.hotelcostamar.example",
    "nombre_negocio": "Hotel Costa Mar",
    "zona_horaria": "Atlantic/Canary",
    "evidencias": [
@@ -802,7 +784,6 @@ const outputExamples = {
   },
   {
    "estado": "pendiente",
-   "url_negocio": "https://www.pescaderianorte.example",
    "nombre_negocio": "Pescadería Norte",
    "zona_horaria": null,
    "evidencias": [],
@@ -817,7 +798,6 @@ const outputExamples = {
  "Ámbito festivo": [
   {
    "estado": "completa",
-   "url_negocio": "https://www.elmuelle.example",
    "ambito_festivo": {
     "pais": "España",
     "comunidad_o_region": "Canarias",
@@ -838,7 +818,6 @@ const outputExamples = {
   },
   {
    "estado": "completa",
-   "url_negocio": "https://www.hotelcostamar.example",
    "ambito_festivo": {
     "pais": "España",
     "comunidad_o_region": "Canarias",
@@ -859,7 +838,6 @@ const outputExamples = {
   },
   {
    "estado": "pendiente",
-   "url_negocio": "https://www.pescaderianorte.example",
    "ambito_festivo": {
     "pais": "España",
     "comunidad_o_region": null,
@@ -1254,29 +1232,6 @@ const outputExamples = {
   {
    "software": "CoverManager",
    "estado": "documentada",
-   "integraciones_encontradas": [
-    {
-     "nombre": "CoverManager Reservations API",
-     "tipo": "api_oficial",
-     "alcance": "disponibilidad, alta y cancelación"
-    }
-   ],
-   "operaciones_documentadas": [
-    "consultar_disponibilidad",
-    "crear_reserva",
-    "cancelar_reserva"
-   ],
-   "condiciones_proveedor": "Cada restaurante necesita su propio acceso de partner. Este ejemplo no incluye ninguna credencial.",
-   "requisitos_por_negocio": [
-    "identificador del restaurante",
-    "acceso de partner concedido al local"
-   ],
-   "fuentes": [
-    {
-     "titulo": "Guía de partners, ejemplo de ficción",
-     "url": "https://docs.covermanager.example/partners"
-    }
-   ],
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
@@ -1286,16 +1241,6 @@ const outputExamples = {
   {
    "software": "formulario propio",
    "estado": "no_localizada",
-   "integraciones_encontradas": [],
-   "operaciones_documentadas": [],
-   "condiciones_proveedor": null,
-   "requisitos_por_negocio": [],
-   "fuentes": [
-    {
-     "titulo": "Búsqueda de proveedor para el formulario de terraza",
-     "url": "https://www.elmuelle.example/reservas/terraza"
-    }
-   ],
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
@@ -1305,11 +1250,6 @@ const outputExamples = {
   {
    "software": "CoverManager",
    "estado": "pendiente",
-   "integraciones_encontradas": [],
-   "operaciones_documentadas": [],
-   "condiciones_proveedor": null,
-   "requisitos_por_negocio": [],
-   "fuentes": [],
    "incertidumbres": [
     "Falta el anexo que dice qué restaurante puede usar la API."
    ],
@@ -2539,7 +2479,7 @@ const EXAMPLE_GRAIN={
     input:{hint:"Cada fila es 1 proceso; contactos embebidos aplanados sin unnest."}
   },
   "Investigar integración":{
-    output:{hint:"Cada fila es 1 investigación / caso; listas de objetos en resumen; el Markdown se abre con Ver Markdown."},
+    output:{hint:"Cada fila es 1 investigación / caso; el Markdown se abre con Ver Markdown."},
     input:{hint:"Cada fila es 1 software (+ investigación previa aplanada)."}
   },
   "Justificante":{
@@ -2652,11 +2592,6 @@ function flattenCaseBase(label, side, caso, casoIdx, grain){
   if(label==='Investigar integración'&&side==='output'){
     out.software=caso.software??'';
     out.estado=caso.estado??'';
-    out.integraciones_resumen=joinTyped(caso.integraciones_encontradas||[], ['nombre','tipo','alcance']);
-    out.operaciones_documentadas=joinScalars(caso.operaciones_documentadas||[]);
-    out.condiciones_proveedor=caso.condiciones_proveedor??'';
-    out.requisitos_por_negocio=joinScalars(caso.requisitos_por_negocio||[]);
-    out.fuentes_resumen=joinTyped(caso.fuentes||[], ['titulo','url']);
     out.incertidumbres=joinScalars(caso.incertidumbres||[]);
     out.fecha_evaluacion=caso.fecha_evaluacion??'';
     out.fecha_validacion=caso.fecha_validacion??'';
@@ -3429,7 +3364,6 @@ const operationSchemas={
   ],
   output:[
     {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"completa | pendiente",formato:"",caracteristicas:"completa | pendiente.",lo_usa:"Revisión",rol:"usable",ejemplo:"completa"},
-    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"Eco de la URL evaluada.",lo_usa:"Modelo Negocio.url (ya es input)",rol:"redundante",ejemplo:"https://www.elmuelle.example"},
     {campo:"nombre_negocio",tipo:"string | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"string | null. Nombre público.",lo_usa:"Modelo Negocio.nombre; Cierre",rol:"usable",ejemplo:"Restaurante El Muelle"},
     {campo:"zona_horaria",tipo:"string | null",obligatorio:"sí",valores:"",formato:"IANA",caracteristicas:"IANA | null.",lo_usa:"Apertura; Modelo Negocio.zona; Cierre / compuerta",rol:"usable",ejemplo:"Atlantic/Canary"},
     {campo:"evidencias",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {origen, fragmento, explicacion_md}.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[1 ítems]"},
@@ -3445,7 +3379,6 @@ const operationSchemas={
   ],
   output:[
     {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"completa | pendiente",formato:"",caracteristicas:"completa | pendiente.",lo_usa:"Revisión",rol:"usable",ejemplo:"completa"},
-    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"Eco de la URL.",lo_usa:"Join con ficha (ya es input)",rol:"redundante",ejemplo:"https://www.elmuelle.example"},
     {campo:"ambito_festivo",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{pais, comunidad_o_region, isla_o_provincia, municipio}. No es lista de fiestas.",lo_usa:"Apertura; Modelo Negocio.ambito_festivo",rol:"usable",ejemplo:"{pais, comunidad_o_region, isla_o_provincia…}"},
     {campo:"evidencias",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {origen, fragmento, explicacion_md}.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[1 ítems]"},
     {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
@@ -3560,11 +3493,6 @@ const operationSchemas={
     {campo:"software",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proveedor investigado.",lo_usa:"Modelo Integración / Software",rol:"usable",ejemplo:"CoverManager"},
     {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"documentada | no_localizada | pendiente",formato:"",caracteristicas:"documentada | no_localizada | pendiente.",lo_usa:"Modelo; Cierre; Automática acceso_api",rol:"usable",ejemplo:"documentada"},
     {campo:"documentacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Artefacto principal.",lo_usa:"Modelo Integración.documentacion_md",rol:"usable",ejemplo:"Ver Markdown · Integración CoverManager"},
-    {campo:"integraciones_encontradas",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Lista opcional; resumen de documentacion_md.",lo_usa:"Modelo no la guarda",rol:"redundante",ejemplo:"[1 ítems]"},
-    {campo:"operaciones_documentadas",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Lista opcional; resumen del md.",lo_usa:"Modelo no la guarda",rol:"redundante",ejemplo:"[3 ítems]"},
-    {campo:"condiciones_proveedor",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Array tipado opcional; resumen del md.",lo_usa:"Modelo no la guarda; revisión puede mirarlas",rol:"redundante",ejemplo:"Cada restaurante necesita su propio acceso de…"},
-    {campo:"requisitos_por_negocio",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Lista opcional; resumen del md.",lo_usa:"Modelo no la guarda",rol:"redundante",ejemplo:"[2 ítems]"},
-    {campo:"fuentes",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Lista opcional; también en el Markdown.",lo_usa:"Modelo no la guarda",rol:"redundante",ejemplo:"[1 ítems]"},
     {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
     {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
     {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"null"},
