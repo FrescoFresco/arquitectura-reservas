@@ -2526,6 +2526,11 @@ function restoreTabScrolls(map, root){
     if(Object.prototype.hasOwnProperty.call(map,key)) row.scrollLeft=map[key];
   });
 }
+function tabOffsetInStrip(tab, row){
+  const rowRect=row.getBoundingClientRect();
+  const tabRect=tab.getBoundingClientRect();
+  return tabRect.left-rowRect.left+row.scrollLeft;
+}
 function ensureActiveTabVisible(row){
   if(!row) return;
   const active=row.querySelector('button[aria-selected="true"]');
@@ -2533,7 +2538,7 @@ function ensureActiveTabVisible(row){
   const pad=16;
   const maxScroll=Math.max(0, row.scrollWidth-row.clientWidth);
   if(maxScroll===0) return;
-  const left=active.offsetLeft;
+  const left=tabOffsetInStrip(active, row);
   const right=left+active.offsetWidth;
   const viewLeft=row.scrollLeft;
   const viewRight=viewLeft+row.clientWidth;
