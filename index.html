@@ -2245,7 +2245,7 @@ function exampleSection(label, schema, rows){
   return '<section class="card"><h3 class="h-ico">'+icon('examples')+'Ejemplo guardado</h3><p class="intro">Cada tarjeta es un caso. Arriba están sus datos. Lo que pertenece a ese caso, como una lista de procesos, va dentro de la tarjeta.</p>'+renderRecordTable(loadExampleRows(label, schema, rows))+'</section>';
 }
 
-let section=0,contractTab=0,contractView=0,contractExample=0,catalogTab=0,catalogProcessSub=0;
+let section=0,contractTab=0,contractView=0,contractExample=0,catalogTab=0,catalogInnerView=0;
 const SEC_MAPA=0,SEC_OPS=1,SEC_CAT=2;
 function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span class="eyebrow">${eyebrow}</span>${pill?`<span class="pill">${pill}</span>`:''}</div><h2>${title}</h2><p class="desc">${desc}</p>`}
 function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${escapeHtml(item.label)}</button>`).join('')}</div>`}
@@ -2348,6 +2348,11 @@ const catalogTabs=[
  {label:"Software"},
  {label:"Integración"},
  {label:"Proceso"},
+ {label:"Observación"},
+ {label:"Justificante"},
+ {label:"Función"},
+ {label:"Script"},
+ {label:"Canal"},
  {label:"Ejecución"}
 ];
 const catalogAscii=`URL del negocio
@@ -2356,22 +2361,113 @@ const catalogAscii=`URL del negocio
         |                  |                  |
         v                  v                  v
    [Negocio]          [Proceso]          [Software]
-   ficha              id_proceso         nombres
-   contactos          url_inicio         reutilizables
-   apertura           observación              |
-                      justificante             v
-                      función → script   [Integración]
-                      canal              versiones v1, v2…
+   ficha / contactos  identidad          nombres
+   apertura           (url_inicio)       reutilizables
         |                  |                  |
-        +--------+---------+--------+---------+
+        |                  |                  v
+        |                  |            [Integración]
+        |                  |            versiones
+        |                  |
+        |     +------------+------------+------------+------------+
+        |     |            |            |            |            |
+        |     v            v            v            v            v
+        | [Observación] [Justificante] [Función] [Script] [Canal]
+        |     (versionado) (versionado) (versionado) ...
+        |                  |
+        +--------+---------+--------+
                  |
                  v
             Compuerta
                  |
                  v
             [Ejecución]
-            Automática || Enlace
-            Verificación y vigilancia`;
+            Automática || Enlace || vigilancia`;
+const catalogSchemas={
+ Negocio:[
+  {campo:"id_negocio",caracteristicas:"Identificador estable del negocio en el modelo."},
+  {campo:"url",caracteristicas:"URL canónica del sitio del negocio."},
+  {campo:"nombre",caracteristicas:"Nombre público del negocio."},
+  {campo:"zona",caracteristicas:"Zona horaria IANA usada para apertura y márgenes."},
+  {campo:"ambito_festivo",caracteristicas:"Jurisdicción para festivos (país y subdivisiones aplicables)."},
+  {campo:"actualizado_en",caracteristicas:"Instante de la última actualización de la ficha de negocio."}
+ ],
+ Software:[
+  {campo:"id_software",caracteristicas:"Identificador estable del proveedor o motor de reservas."},
+  {campo:"nombre",caracteristicas:"Nombre del software o etiqueta si aún es pendiente."},
+  {campo:"primera_vez",caracteristicas:"Fecha en que se identificó por primera vez."},
+  {campo:"actualizado_en",caracteristicas:"Fecha de la última confirmación o cambio del registro."}
+ ],
+ Integración:[
+  {campo:"id_integracion",caracteristicas:"Identificador de esta versión de investigación."},
+  {campo:"id_software",caracteristicas:"Software al que pertenece esta versión."},
+  {campo:"version",caracteristicas:"Versión del artefacto (v1, v2…); no sobrescribe la anterior."},
+  {campo:"timestamp",caracteristicas:"Instante en que se generó esta versión."},
+  {campo:"estado",caracteristicas:"documentada | no_localizada | pendiente."},
+  {campo:"resumen",caracteristicas:"Título corto de la fila."},
+  {campo:"documentacion_md",caracteristicas:"Markdown completo de la investigación; se abre con Ver Markdown."}
+ ],
+ Proceso:[
+  {campo:"id_proceso",caracteristicas:"Identificador estable del inicio de reserva."},
+  {campo:"id_negocio",caracteristicas:"Negocio al que pertenece este proceso."},
+  {campo:"url_inicio",caracteristicas:"URL donde empieza el recorrido de reserva."},
+  {campo:"alcance",caracteristicas:"Qué cubre este inicio (texto libre del sitio)."},
+  {campo:"id_software",caracteristicas:"Software atribuido a este proceso, si ya se identificó."},
+  {campo:"actualizado_en",caracteristicas:"Última actualización de la identidad (no de los artefactos)."}
+ ],
+ Observación:[
+  {campo:"id",caracteristicas:"Identificador de esta versión de observación."},
+  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
+  {campo:"version",caracteristicas:"Versión del artefacto; regenerar añade fila, no pisa la identidad."},
+  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
+  {campo:"estado",caracteristicas:"Estado corto de la observación (p. ej. completa, pendiente)."},
+  {campo:"resumen",caracteristicas:"Título corto de la fila."},
+  {campo:"documento_md",caracteristicas:"Markdown completo del relato; se abre con Ver Markdown."}
+ ],
+ Justificante:[
+  {campo:"id",caracteristicas:"Identificador de esta versión de justificante."},
+  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
+  {campo:"version",caracteristicas:"Versión del artefacto."},
+  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
+  {campo:"estado",caracteristicas:"justificado | pendiente."},
+  {campo:"resumen",caracteristicas:"Título corto de la fila."},
+  {campo:"documento_md",caracteristicas:"Markdown completo del justificante; se abre con Ver Markdown."}
+ ],
+ Función:[
+  {campo:"id",caracteristicas:"Identificador de esta versión de función."},
+  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
+  {campo:"version",caracteristicas:"Versión del artefacto."},
+  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
+  {campo:"estado",caracteristicas:"generada | pendiente | error."},
+  {campo:"resumen",caracteristicas:"Título corto de la fila."},
+  {campo:"documento_md",caracteristicas:"Markdown o cuerpo asociado; se abre con Ver Markdown."}
+ ],
+ Script:[
+  {campo:"id",caracteristicas:"Identificador de esta versión de script."},
+  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
+  {campo:"version",caracteristicas:"Versión del artefacto."},
+  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
+  {campo:"estado",caracteristicas:"generada | pendiente | error."},
+  {campo:"resumen",caracteristicas:"Título corto de la fila."},
+  {campo:"documento_md",caracteristicas:"Markdown o cuerpo asociado; se abre con Ver Markdown."}
+ ],
+ Canal:[
+  {campo:"id",caracteristicas:"Identificador de esta versión de canal de cancelación."},
+  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
+  {campo:"version",caracteristicas:"Versión del artefacto."},
+  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
+  {campo:"estado",caracteristicas:"encontrado | no_encontrado | pendiente."},
+  {campo:"resumen",caracteristicas:"Título corto de la fila."},
+  {campo:"documento_md",caracteristicas:"Markdown completo; se abre con Ver Markdown."}
+ ],
+ Ejecución:[
+  {campo:"id_ejecucion",caracteristicas:"Identificador del intento."},
+  {campo:"id_proceso",caracteristicas:"Proceso sobre el que se ejecutó."},
+  {campo:"via",caracteristicas:"automatica | enlace | vigilancia."},
+  {campo:"timestamp",caracteristicas:"Instante del intento."},
+  {campo:"resultado",caracteristicas:"Resultado observable del intento."},
+  {campo:"id_referencia",caracteristicas:"Referencia guardada, si existe."}
+ ]
+};
 const catalogNegocio=[
  {id_negocio:"neg-el-muelle",url:"https://www.elmuelle.example",nombre:"Restaurante El Muelle",zona:"Atlantic/Canary",ambito_festivo:"España / Canarias / Tenerife",actualizado_en:"2026-10-13T10:00:00+01:00"},
  {id_negocio:"neg-costa-mar",url:"https://www.hotelcostamar.example",nombre:"Hotel Costa Mar",zona:"Atlantic/Canary",ambito_festivo:"España / Canarias / Gran Canaria",actualizado_en:"2026-05-29T10:00:00+01:00"},
@@ -2572,7 +2668,6 @@ const catalogProcesoArtefactos={
   }
  ]
 };
-const catalogProcesoSubTabs=["Observación","Justificante","Función","Script","Canal"];
 const catalogEjecucion=[
  {id_ejecucion:"ej-sala-auto-1",id_proceso:"proc-muelle-sala",via:"automatica",timestamp:"2026-10-13T12:00:00+01:00",resultado:"apta — reserva prueba confirmada",id_referencia:"ref-sala-001"},
  {id_ejecucion:"ej-sala-enlace-1",id_proceso:"proc-muelle-sala",via:"enlace",timestamp:"2026-10-13T12:20:00+01:00",resultado:"apta — progreso conservado",id_referencia:"—"},
@@ -2664,32 +2759,41 @@ function flatTable(headers, rows, mdField){
 function bindMdCapsules(root){
   (root||document).querySelectorAll('[data-md-id]').forEach(b=>b.addEventListener('click',()=>openMdModal(b.dataset.mdId)));
 }
+function schemaTable(rows){
+  return flatTable(['campo','caracteristicas'], rows);
+}
 function renderCatalogos(){
   const label=catalogTabs[catalogTab].label;
   let panel='';
   if(label==='Mapa'){
-    panel=`<section class="card"><h3>Conexión de catálogos</h3><p class="intro">Negocio, Proceso y Software salen de la URL. Integración cuelga de Software. La compuerta combina capas; Ejecución registra intentos.</p><pre class="catalog-map">${escapeHtml(catalogAscii)}</pre></section>`;
-  }else if(label==='Negocio'){
-    panel=`<section class="card"><h3>Negocio</h3><p class="intro">Una fila por negocio. Lo escriben Ficha, Contactos y Apertura.</p>${flatTable(['id_negocio','url','nombre','zona','ambito_festivo','actualizado_en'],catalogNegocio)}</section>`;
-  }else if(label==='Software'){
-    panel=`<section class="card"><h3>Software</h3><p class="intro">Una fila por proveedor. Lo escribe Identificar software; se reutiliza entre negocios.</p>${flatTable(['id_software','nombre','primera_vez','actualizado_en'],catalogSoftware)}</section>`;
-  }else if(label==='Integración'){
-    panel=`<section class="card"><h3>Integración</h3><p class="intro">Una fila por versión. El Markdown completo se abre con la cápsula; el resumen queda en la fila.</p>${flatTable(['id_integracion','id_software','version','timestamp','estado','resumen','documentacion_md'],catalogIntegracion,'documentacion_md')}</section>`;
-  }else if(label==='Proceso'){
-    const sub=catalogProcesoSubTabs[catalogProcessSub];
-    const art=catalogProcesoArtefactos[sub];
-    const subTabs=`<div class="sidetabs" role="tablist" aria-label="Artefactos del proceso">${catalogProcesoSubTabs.map((name,i)=>`<button type="button" role="tab" aria-selected="${i===catalogProcessSub}" data-proc-sub="${i}">${escapeHtml(name)}</button>`).join('')}</div>`;
-    panel=`<section class="card"><h3>Identidades de proceso</h3><p class="intro">Una fila por URL de inicio. Regenerar un artefacto añade versión; no sobrescribe la identidad.</p>${flatTable(['id_proceso','id_negocio','url_inicio','alcance','id_software','actualizado_en'],catalogProcesoIdentidad)}</section>
-      <section class="card"><h3>Artefactos versionados</h3>${subTabs}<p class="intro">${escapeHtml(sub)}: cada fila es una versión. El cuerpo Markdown se abre con la cápsula.</p>${flatTable(['id','id_proceso','version','timestamp','estado','resumen','documento_md'],art,'documento_md')}</section>`;
-  }else if(label==='Ejecución'){
-    panel=`<section class="card"><h3>Ejecución</h3><p class="intro">Una fila por intento (Automática, Enlace o vigilancia).</p>${flatTable(['id_ejecucion','id_proceso','via','timestamp','resultado','id_referencia'],catalogEjecucion)}</section>`;
+    panel=`<section class="card"><h3>Conexión del modelo</h3><p class="intro">Negocio, Proceso y Software salen de la URL. Integración cuelga de Software. Observación, Justificante, Función, Script y Canal son tablas versionadas ligadas al proceso. La compuerta combina capas; Ejecución registra intentos.</p><pre class="catalog-map">${escapeHtml(catalogAscii)}</pre></section>`;
+  }else{
+    const inner=`<div class="sidetabs" role="tablist" aria-label="Vista de la tabla"><button type="button" role="tab" aria-selected="${catalogInnerView===0}" data-cat-inner="0">Esquema</button><button type="button" role="tab" aria-selected="${catalogInnerView===1}" data-cat-inner="1">Ejemplos</button></div>`;
+    let body='';
+    if(catalogInnerView===0){
+      body=`<p class="intro">Campos de la tabla <strong>${escapeHtml(label)}</strong>.</p>${schemaTable(catalogSchemas[label])}`;
+    }else if(label==='Negocio'){
+      body=`<p class="intro">Una fila por negocio.</p>${flatTable(['id_negocio','url','nombre','zona','ambito_festivo','actualizado_en'],catalogNegocio)}`;
+    }else if(label==='Software'){
+      body=`<p class="intro">Una fila por proveedor.</p>${flatTable(['id_software','nombre','primera_vez','actualizado_en'],catalogSoftware)}`;
+    }else if(label==='Integración'){
+      body=`<p class="intro">Una fila por versión. El Markdown se abre con la cápsula.</p>${flatTable(['id_integracion','id_software','version','timestamp','estado','resumen','documentacion_md'],catalogIntegracion,'documentacion_md')}`;
+    }else if(label==='Proceso'){
+      body=`<p class="intro">Solo identidad del proceso. Los artefactos viven en sus propias tablas.</p>${flatTable(['id_proceso','id_negocio','url_inicio','alcance','id_software','actualizado_en'],catalogProcesoIdentidad)}`;
+    }else if(label==='Observación'||label==='Justificante'||label==='Función'||label==='Script'||label==='Canal'){
+      const art=catalogProcesoArtefactos[label];
+      body=`<p class="intro">Una fila por versión. Regenerar añade versión; no sobrescribe la identidad del proceso.</p>${flatTable(['id','id_proceso','version','timestamp','estado','resumen','documento_md'],art,'documento_md')}`;
+    }else if(label==='Ejecución'){
+      body=`<p class="intro">Una fila por intento.</p>${flatTable(['id_ejecucion','id_proceso','via','timestamp','resultado','id_referencia'],catalogEjecucion)}`;
+    }
+    panel=`<section class="card"><h3>${escapeHtml(label)}</h3>${inner}${body}</section>`;
   }
-  content.innerHTML=heading('Capas de datos','Catálogos','Mapa de conexión y tablas de ejemplo por catálogo. Filas planas; el Markdown se abre en cápsula.','Ejemplos')+tabs(catalogTabs,catalogTab,'catalogos')+`<div id="panel-catalogos">${panel}</div>`;
-  bindTabs('catalogos',i=>{catalogTab=i;if(catalogTabs[i].label!=='Proceso')catalogProcessSub=0;renderCatalogos()});
-  content.querySelectorAll('[data-proc-sub]').forEach(b=>b.addEventListener('click',()=>{catalogProcessSub=Number(b.dataset.procSub);renderCatalogos()}));
+  content.innerHTML=heading('Capas de datos','Modelo de datos','Tablas del modelo: esquema y ejemplos. Filas planas; el Markdown se abre en cápsula.','Modelo')+tabs(catalogTabs,catalogTab,'modelo')+`<div id="panel-modelo">${panel}</div>`;
+  bindTabs('modelo',i=>{catalogTab=i;catalogInnerView=0;renderCatalogos()});
+  content.querySelectorAll('[data-cat-inner]').forEach(b=>b.addEventListener('click',()=>{catalogInnerView=Number(b.dataset.catInner);renderCatalogos()}));
   bindMdCapsules(content);
 }
-const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones],['Catálogos',renderCatalogos]];
+const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones],['Modelo de datos',renderCatalogos]];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num">${i+1}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
 render();
 </script>
