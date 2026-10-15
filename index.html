@@ -73,23 +73,23 @@ const contracts=[
    "nombre_negocio": "string | null",
    "zona_horaria": "IANA | null",
    "ambito_festivo": {
-    "pais": "string | null",
-    "comunidad_o_region": "string | null",
-    "isla_o_provincia": "string | null",
-    "municipio": "string | null"
+      "pais": "string | null",
+      "comunidad_o_region": "string | null",
+      "isla_o_provincia": "string | null",
+      "municipio": "string | null"
    },
    "evidencias": [
-    {
-     "origen": "URL o ficha",
-     "fragmento": "string",
-     "explicacion": "string"
-    }
+      {
+         "origen": "URL o ficha",
+         "fragmento": "string",
+         "explicacion": "string"
+      }
    ],
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  },
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -107,17 +107,17 @@ const contracts=[
   "output": {
    "estado": "encontrada | no_encontrada | pendiente",
    "procesos": [
-    {
-     "id_proceso": "Identificador del proceso",
-     "url_inicio": "URL de inicio de la reserva",
-     "alcance": "Reservas que cubre"
-    }
+      {
+         "id_proceso": "Identificador del proceso",
+         "url_inicio": "URL de inicio de la reserva",
+         "alcance": "Reservas que cubre"
+      }
    ],
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  },
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -140,21 +140,21 @@ const contracts=[
    "timestamp": "ISO 8601; instante de este informe",
    "observacion_apertura_md": "Informe Markdown web + Maps",
    "pila_cron": [
-    {
-     "tipo": "horario_ordinario | cierre_semanal | festivo | vacaciones | evento_privado | horario_especial",
-     "efecto": "abierto | cerrado",
-     "cron": "minuto hora día-mes mes día-semana",
-     "fuente": "URL o ficha",
-     "nota": "string | null"
-    }
+      {
+         "tipo": "horario_ordinario | cierre_semanal | festivo | vacaciones | evento_privado | horario_especial",
+         "efecto": "abierto | cerrado",
+         "cron": "minuto hora día-mes mes día-semana",
+         "fuente": "URL o ficha",
+         "nota": "string | null"
+      }
    ],
    "abierto_ahora": "true | false | indeterminado",
    "margen_hasta_cierre_min": "number | null",
    "proxima_hora_valida": "ISO 8601 | null",
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  },
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -172,22 +172,22 @@ const contracts=[
   "output": {
    "estado": "encontrado | no_encontrado | pendiente",
    "canales_contacto": [
-    {
-     "tipo": "whatsapp | telefono | email | formulario",
-     "valor": "string",
-     "tipo_linea": "movil | fijo | no_aplica | desconocido",
-     "uso_publicado": "contacto | reservas | desconocido",
-     "verificado_como_contacto": "boolean",
-     "fuente": "URL",
-     "fecha_consulta": "ISO 8601",
-     "evidencia": "string"
-    }
+      {
+         "tipo": "whatsapp | telefono | email | formulario",
+         "valor": "string",
+         "tipo_linea": "movil | fijo | no_aplica | desconocido",
+         "uso_publicado": "contacto | reservas | desconocido",
+         "verificado_como_contacto": "boolean",
+         "fuente": "URL",
+         "fecha_consulta": "ISO 8601",
+         "evidencia": "string"
+      }
    ],
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  },
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -207,18 +207,18 @@ const contracts=[
    "id_proceso": "Identificador del proceso",
    "estado": "identificado | no_identificado | pendiente",
    "software_identificado": [
-    {
-     "nombre": "string",
-     "funcion_observada": "string"
-    }
+      {
+         "nombre": "string",
+         "funcion_observada": "string"
+      }
    ],
    "observaciones_md": "Markdown completo: observaciones y por qué se identifica (o no) ese software",
    "evidencias_md": "Markdown de evidencia: origen, fragmento, fecha y qué sostiene",
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  },
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. Comprueba que observaciones_md y evidencias_md sostienen el estado y software_identificado. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -238,16 +238,16 @@ const contracts=[
    "id_proceso": "Identificador del proceso",
    "observacion_formulario_md": "Informe Markdown narrativo de hechos observados; sin decisiones ni plantilla de atributos",
    "evidencias": [
-    {
-     "origen": "URL o recurso",
-     "fragmento": "Señal observada",
-     "explicacion": "Qué hecho del relato sostiene"
-    }
+      {
+         "origen": "URL o recurso",
+         "fragmento": "Señal observada",
+         "explicacion": "Qué hecho del relato sostiene"
+      }
    ],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  },
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -269,40 +269,40 @@ const contracts=[
    "id_proceso": "Identificador del proceso",
    "estado": "encontrado | no_encontrado | pendiente",
    "busqueda_realizada": {
-    "fuentes_consultadas": [],
-    "opciones_revisadas": [],
-    "limitaciones": []
+      "fuentes_consultadas": [],
+      "opciones_revisadas": [],
+      "limitaciones": []
    },
    "cancelacion_sistema": {
-    "disponible": "si | no | desconocido",
-    "metodo": "string | null",
-    "url_o_instrucciones": "string | null",
-    "evidencias": [
-     {
-      "fuente": "URL o recurso",
-      "fecha_consulta": "ISO 8601",
-      "fragmento": "string"
-     }
-    ]
+      "disponible": "si | no | desconocido",
+      "metodo": "string | null",
+      "url_o_instrucciones": "string | null",
+      "evidencias": [
+         {
+            "fuente": "URL o recurso",
+            "fecha_consulta": "ISO 8601",
+            "fragmento": "string"
+         }
+      ]
    },
    "canal_preferido_cancelacion": {
-    "origen": "sistema | contacto_negocio | null",
-    "tipo": "string | null",
-    "valor": "string | null",
-    "metodo": "string | null",
-    "motivo": "string | null"
+      "origen": "sistema | contacto_negocio | null",
+      "tipo": "string | null",
+      "valor": "string | null",
+      "metodo": "string | null",
+      "motivo": "string | null"
    },
    "politica_cancelacion": {
-    "resumen": "string | null",
-    "plazo": "string | null",
-    "coste_o_penalizacion": "string | null",
-    "garantia_tarjeta": "string | null"
+      "resumen": "string | null",
+      "plazo": "string | null",
+      "coste_o_penalizacion": "string | null",
+      "garantia_tarjeta": "string | null"
    },
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  },
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -324,22 +324,22 @@ const contracts=[
    "integraciones_encontradas": [],
    "operaciones_documentadas": [],
    "condiciones_proveedor": [
-    {
-     "tipo": "API | términos | robots.txt | otra",
-     "fuente": "URL",
-     "fecha_consulta": "ISO 8601",
-     "alcance": "string",
-     "hallazgo": "string",
-     "implicacion": "string"
-    }
+      {
+         "tipo": "API | términos | robots.txt | otra",
+         "fuente": "URL",
+         "fecha_consulta": "ISO 8601",
+         "alcance": "string",
+         "hallazgo": "string",
+         "implicacion": "string"
+      }
    ],
    "requisitos_por_negocio": [],
    "fuentes": [],
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "ISO 8601 | null",
-   "explicacion": "string"
-  },
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -361,8 +361,8 @@ const contracts=[
    "justificante_campos_md": "Markdown donde cada dato, regla, selector, acción y señal de resultado cita un pasaje del relato",
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "null hasta revisión independiente",
-   "explicacion": "Qué sostiene el relato y, si el estado es pendiente, qué señal falta"
-  },
+   "explicacion_md": "Markdown completo: Qué sostiene el relato y, si el estado es pendiente, qué señal falta"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -382,30 +382,30 @@ const contracts=[
    "id_proceso": "Identificador del proceso",
    "estado_generacion": "generada | pendiente | error",
    "funcion_json": {
-    "name": "reservar",
-    "description": "string justificado por el justificante, o null si no se genera",
-    "parameters": "JSON Schema solo con datos, tipos, condiciones y obligatoriedad del justificante",
-    "response_schema": {
-     "type": "object",
-     "additionalProperties": false,
-     "required": [
-      "estado",
-      "referencia",
-      "alternativas",
-      "motivo"
-     ],
-     "properties": {
-      "estado": "confirmada | sin_hueco | error",
-      "referencia": "string | null",
-      "alternativas": "string[]",
-      "motivo": "string | null; si estado es error: fallo_recorrido | resultado_no_verificable | pendiente_negocio"
-     }
-    }
+      "name": "reservar",
+      "description": "string justificado por el justificante, o null si no se genera",
+      "parameters": "JSON Schema solo con datos, tipos, condiciones y obligatoriedad del justificante",
+      "response_schema": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+            "estado",
+            "referencia",
+            "alternativas",
+            "motivo"
+         ],
+         "properties": {
+            "estado": "confirmada | sin_hueco | error",
+            "referencia": "string | null",
+            "alternativas": "string[]",
+            "motivo": "string | null; si estado es error: fallo_recorrido | resultado_no_verificable | pendiente_negocio"
+         }
+      }
    },
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "null hasta revisión independiente",
-   "explicacion": "Cómo el justificante cierra el contrato, o qué impide generarlo"
-  },
+   "explicacion_md": "Markdown completo: Cómo el justificante cierra el contrato, o qué impide generarlo"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -426,15 +426,15 @@ const contracts=[
    "id_proceso": "Identificador del proceso",
    "estado_generacion": "generada | pendiente | error",
    "script_js": {
-    "contenido": "JavaScript Playwright generado solo desde el justificante, con datos dinámicos y la respuesta de cuatro claves de funcion_json",
-    "version": "string | null",
-    "huella": "string | null",
-    "referencia_codigo": "string | null"
+      "contenido": "JavaScript Playwright generado solo desde el justificante, con datos dinámicos y la respuesta de cuatro claves de funcion_json",
+      "version": "string | null",
+      "huella": "string | null",
+      "referencia_codigo": "string | null"
    },
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "null hasta revisión independiente",
-   "explicacion": "Qué pasos del justificante quedaron en el script, o por qué la generación quedó pendiente o en error"
-  },
+   "explicacion_md": "Markdown completo: Qué pasos del justificante quedaron en el script, o por qué la generación quedó pendiente o en error"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -466,15 +466,15 @@ const contracts=[
    "metodo_utilizado": "string | null; función y script con version y huella, o integración si acceso_api la cubre",
    "pruebas_realizadas": "Lista de pruebas, con la evidencia y la version y huella ejecutadas",
    "reserva_prueba": {
-    "estado": "no_realizada | confirmada | cancelada | incierta | pendiente_apertura",
-    "referencia": "string | null",
-    "motivo_compuerta": "string | null; cita el dictamen, sin recalcular Apertura"
+      "estado": "no_realizada | confirmada | cancelada | incierta | pendiente_apertura",
+      "referencia": "string | null",
+      "motivo_compuerta": "string | null; cita el dictamen, sin recalcular Apertura"
    },
    "impedimento": "string | null; solo un límite técnico demostrado cuando estado es no_apta",
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "null hasta revisión independiente",
-   "explicacion": "Qué probaron las pruebas, qué decidió la compuerta y por qué el estado de la vía es el que es"
-  },
+   "explicacion_md": "Markdown completo: Qué probaron las pruebas, qué decidió la compuerta y por qué el estado de la vía es el que es"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -504,16 +504,16 @@ const contracts=[
    "estado": "apta | no_apta | pendiente | no_intentada",
    "url_reserva_preparada": "string | null; sin datos personales sensibles",
    "prueba_en_sesion_independiente": {
-    "resultado": "string",
-    "datos_conservados": "Lista de datos que la sesión nueva conservó",
-    "evidencias": "Evidencias de la sesión independiente, sin secretos ni datos sensibles"
+      "resultado": "string",
+      "datos_conservados": "Lista de datos que la sesión nueva conservó",
+      "evidencias": "Evidencias de la sesión independiente, sin secretos ni datos sensibles"
    },
    "accion_pendiente_del_cliente": "string | null; la acción final que queda",
    "impedimento": "string | null",
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "null hasta revisión independiente",
-   "explicacion": "Qué conserva el enlace, qué acción queda y por qué el estado es el que es"
-  },
+   "explicacion_md": "Markdown completo: Qué conserva el enlace, qué acción queda y por qué el estado es el que es"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -539,47 +539,47 @@ const contracts=[
    "id_proceso": "Identificador del proceso",
    "estado": "referencia_completa | referencia_parcial | pendiente",
    "referencia": {
-    "origen": "reserva de prueba confirmada | recorrido hasta el último paso seguro | null",
-    "version": "string | null",
-    "huella": "string | null",
-    "referencia_codigo": "string | null",
-    "pasos_alcanzados": [],
-    "senales_que_faltan": [],
-    "campos_variables": [],
-    "fecha_captura": "ISO 8601 | null"
+      "origen": "reserva de prueba confirmada | recorrido hasta el último paso seguro | null",
+      "version": "string | null",
+      "huella": "string | null",
+      "referencia_codigo": "string | null",
+      "pasos_alcanzados": [],
+      "senales_que_faltan": [],
+      "campos_variables": [],
+      "fecha_captura": "ISO 8601 | null"
    },
    "contrato_resultado_ejecucion": {
-    "ok": "boolean; respuesta interpretable, no reserva confirmada",
-    "estado_sistema": "disponibilidad_devuelta | confirmada | pendiente_negocio | rechazada | error | no_enviada | indeterminado",
-    "respuesta_funcion": "{estado, referencia, alternativas, motivo} | null",
-    "version": "string | null",
-    "huella": "string | null",
-    "operacion": "operación de la función generada",
-    "fecha_ejecucion": "ISO 8601",
-    "comparacion_referencia": "coincide | diferencia_menor | diferencia_relevante | sin_referencia | no_comparable"
+      "ok": "boolean; respuesta interpretable, no reserva confirmada",
+      "estado_sistema": "disponibilidad_devuelta | confirmada | pendiente_negocio | rechazada | error | no_enviada | indeterminado",
+      "respuesta_funcion": "{estado, referencia, alternativas, motivo} | null",
+      "version": "string | null",
+      "huella": "string | null",
+      "operacion": "operación de la función generada",
+      "fecha_ejecucion": "ISO 8601",
+      "comparacion_referencia": "coincide | diferencia_menor | diferencia_relevante | sin_referencia | no_comparable"
    },
    "vigilancia": {
-    "estado": "no_configurada | configurada_pendiente_activacion | activa | pausada",
-    "operacion": "consulta o recorrido que no crea reservas | null",
-    "frecuencia": "string | null",
-    "mecanismo_ejecucion": "string | null"
+      "estado": "no_configurada | configurada_pendiente_activacion | activa | pausada",
+      "operacion": "consulta o recorrido que no crea reservas | null",
+      "frecuencia": "string | null",
+      "mecanismo_ejecucion": "string | null"
    },
    "alertas": [
-    {
-     "fecha": "ISO 8601",
-     "tipo": "formulario_cambiado | cambio_menor | revisar_script | control_nuevo | fallo_proceso",
-     "detalle": "string",
-     "evidencia": "string",
-     "estado": "abierta | resuelta"
-    }
+      {
+         "fecha": "ISO 8601",
+         "tipo": "formulario_cambiado | cambio_menor | revisar_script | control_nuevo | fallo_proceso",
+         "detalle": "string",
+         "evidencia": "string",
+         "estado": "abierta | resuelta"
+      }
    ],
    "fiabilidad": "fiable | requiere_revision | pendiente",
    "accion_requerida": "ninguna | regenerar_funcion_reserva | revisar_script | resolver_alerta",
    "incertidumbres": [],
    "fecha_evaluacion": "ISO 8601",
    "fecha_validacion": "null hasta revisión independiente",
-   "explicacion": "Qué mostró la ejecución, cómo se compara con la referencia y qué alerta sigue abierta"
-  },
+   "explicacion_md": "Markdown completo: Qué mostró la ejecución, cómo se compara con la referencia y qué alerta sigue abierta"
+},
   "review": {
    "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
    "input": "Output del bloque",
@@ -591,7 +591,7 @@ const contracts=[
 const validationOutput={
  "estado_revision": "aprobada | cambios_solicitados | inconclusa",
  "fecha_validacion": "ISO 8601 | null",
- "explicacion": "string"
+ "explicacion_md": "Markdown completo del veredicto: por qué se aprueba, se piden cambios o queda inconclusa"
 };
 const flow="flowchart TD\n  U[\"URL del negocio\"] --\u003e FIC[\"Ficha del negocio\"]\n  FIC --\u003e PA[\"Punto A\"]\n  FIC --\u003e AP[\"Apertura\"]\n  FIC --\u003e CT[\"Contactos\"]\n  PA --\u003e R{\"¿Hay enlace?\"}\n  R --\u003e|No| NA[\"SIN RESERVA ONLINE\"]\n  R --\u003e|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R --\u003e|Por proceso| S[\"Identificar software\"]\n  R --\u003e|Por proceso| O[\"Observar formulario\"]\n  R --\u003e|Por proceso| C[\"Canal de cancelación\"]\n  S --\u003e I[\"Integración\"]\n  CT --\u003e C\n  O --\u003e J[\"Justificante\"]\n  J --\u003e FN[\"Función\"]\n  FN --\u003e SC[\"Script\"]\n  SC --\u003e REV{\"¿Función y script OK?\"}\n  REV --\u003e|Sí| AU[\"Automática\"]\n  REV --\u003e|Sí| EN[\"Enlace asistido\"]\n  REV --\u003e|No| NI[\"Vías no intentadas\"]\n  I -.-\u003e|pista| AU\n  AU --\u003e V[\"Verificación y vigilancia\"]\n  EN --\u003e V\n  V --\u003e|formulario_cambiado| O\n  AP --\u003e G[\"Compuerta\"]\n  C --\u003e G\n  CT --\u003e G\n  AU --\u003e G\n  EN --\u003e G\n  G --\u003e|Abierta| OK[\"Envío real permitido\"]\n  G --\u003e|Cerrado| PEND[\"pendiente_apertura\"]\n  G --\u003e|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --\u003e Z[\"Resultado\"]\n  OK --\u003e Z\n  NI --\u003e Z\n  PEND --\u003e Z\n  SC2 --\u003e Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PEND pending\n  class Z summary";
 const nodoABloque={
@@ -633,7 +633,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-14T10:00:00+01:00",
    "fecha_validacion": "2026-10-14T11:00:00+01:00",
-   "explicacion": "Ficha completa con zona Atlantic/Canary."
+   "explicacion_md": "# Explicación\n\nFicha completa con zona Atlantic/Canary.\n"
   },
   {
    "estado": "completa",
@@ -656,7 +656,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-05-29T09:00:00+01:00",
    "fecha_validacion": "2026-05-29T10:00:00+01:00",
-   "explicacion": "Hotel con ámbito insular claro."
+   "explicacion_md": "# Explicación\n\nHotel con ámbito insular claro.\n"
   },
   {
    "estado": "pendiente",
@@ -675,7 +675,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-14T10:05:00+01:00",
    "fecha_validacion": null,
-   "explicacion": "Falta zona y ámbito fino."
+   "explicacion_md": "# Explicación\n\nFalta zona y ámbito fino.\n"
   }
  ],
  "Punto A": [
@@ -696,7 +696,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "La web de Restaurante El Muelle publica dos inicios de reserva: cena-sala y terraza."
+   "explicacion_md": "# Explicación\n\nLa web de Restaurante El Muelle publica dos inicios de reserva: cena-sala y terraza.\n"
   },
   {
    "estado": "no_encontrada",
@@ -704,7 +704,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "Pescadería Norte no ofrece reserva online. La exploración de la web fue suficiente, así que el resultado de negocio es sin reserva online."
+   "explicacion_md": "# Explicación\n\nPescadería Norte no ofrece reserva online. La exploración de la web fue suficiente, así que el resultado de negocio es sin reserva online.\n"
   },
   {
    "estado": "pendiente",
@@ -714,7 +714,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "Hotel Costa Mar podría tener reserva, pero la exploración quedó a medias. No se concluye que no haya enlace."
+   "explicacion_md": "# Explicación\n\nHotel Costa Mar podría tener reserva, pero la exploración quedó a medias. No se concluye que no haya enlace.\n"
   }
  ],
  "Apertura": [
@@ -750,7 +750,7 @@ const outputExamples = {
    "proxima_hora_valida": null,
    "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
    "fecha_validacion": "2026-10-14T22:10:00+01:00",
-   "explicacion": "Evaluado con zona de la ficha; gana cron de cena."
+   "explicacion_md": "# Explicación\n\nEvaluado con zona de la ficha; gana cron de cena.\n"
   },
   {
    "version": "v2",
@@ -777,7 +777,7 @@ const outputExamples = {
    "proxima_hora_valida": "2026-06-01T09:00:00+01:00",
    "fecha_evaluacion": "2026-05-30T12:00:00+01:00",
    "fecha_validacion": "2026-05-30T12:30:00+01:00",
-   "explicacion": "Festivo gana al horario ordinario."
+   "explicacion_md": "# Explicación\n\nFestivo gana al horario ordinario.\n"
   },
   {
    "version": "v1",
@@ -789,7 +789,7 @@ const outputExamples = {
    "proxima_hora_valida": null,
    "fecha_evaluacion": "2026-10-14T21:55:00+01:00",
    "fecha_validacion": null,
-   "explicacion": "Sin zona en ficha y sin pila: indeterminado."
+   "explicacion_md": "# Explicación\n\nSin zona en ficha y sin pila: indeterminado.\n"
   }
  ],
  "Contactos del negocio": [
@@ -810,7 +810,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-14T12:05:00+01:00",
    "fecha_validacion": "2026-10-14T13:00:00+01:00",
-   "explicacion": "Teléfono verificado una vez para el negocio."
+   "explicacion_md": "# Explicación\n\nTeléfono verificado una vez para el negocio.\n"
   },
   {
    "estado": "encontrado",
@@ -829,7 +829,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-05-29T11:05:00+01:00",
    "fecha_validacion": "2026-05-29T12:00:00+01:00",
-   "explicacion": "Email de reservas del hotel."
+   "explicacion_md": "# Explicación\n\nEmail de reservas del hotel.\n"
   },
   {
    "estado": "no_encontrado",
@@ -837,7 +837,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-14T12:10:00+01:00",
    "fecha_validacion": "2026-10-14T13:10:00+01:00",
-   "explicacion": "Búsqueda suficiente sin canal verificable."
+   "explicacion_md": "# Explicación\n\nBúsqueda suficiente sin canal verificable.\n"
   }
  ],
  "Identificar software": [
@@ -855,7 +855,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "Conclusión: CoverManager en cena-sala, sostenido por observaciones_md y evidencias_md."
+   "explicacion_md": "# Explicación\n\nConclusión: CoverManager en cena-sala, sostenido por observaciones_md y evidencias_md.\n"
   },
   {
    "id_proceso": "proc-muelle-terraza",
@@ -866,7 +866,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "Conclusión: sin proveedor atribuible en terraza; razonamiento en los dos Markdown."
+   "explicacion_md": "# Explicación\n\nConclusión: sin proveedor atribuible en terraza; razonamiento en los dos Markdown.\n"
   },
   {
    "id_proceso": "proc-costa-mar",
@@ -879,7 +879,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "Conclusión pendiente: falta render del formulario; documentado en los Markdown."
+   "explicacion_md": "# Explicación\n\nConclusión pendiente: falta render del formulario; documentado en los Markdown.\n"
   }
  ],
  "Observar formulario": [
@@ -895,7 +895,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "Se recorrió el inicio de cena-sala hasta el paso anterior a confirmar."
+   "explicacion_md": "# Explicación\n\nSe recorrió el inicio de cena-sala hasta el paso anterior a confirmar.\n"
   },
   {
    "id_proceso": "proc-muelle-terraza",
@@ -909,7 +909,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "Se recorrió la terraza hasta el paso anterior a confirmar."
+   "explicacion_md": "# Explicación\n\nSe recorrió la terraza hasta el paso anterior a confirmar.\n"
   },
   {
    "id_proceso": "proc-costa-mar",
@@ -923,7 +923,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "La observación de Hotel Costa Mar no llega al formulario."
+   "explicacion_md": "# Explicación\n\nLa observación de Hotel Costa Mar no llega al formulario.\n"
   }
  ],
  "Canal de cancelación": [
@@ -969,7 +969,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-14T13:45:00+01:00",
    "fecha_validacion": "2026-10-14T17:10:00+01:00",
-   "explicacion": "Prefiere el teléfono ya verificado en Contactos."
+   "explicacion_md": "# Explicación\n\nPrefiere el teléfono ya verificado en Contactos.\n"
   },
   {
    "id_proceso": "habitacion",
@@ -1006,7 +1006,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-05-30T10:00:00+01:00",
    "fecha_validacion": "2026-05-30T11:00:00+01:00",
-   "explicacion": "Sin vía de cancelación de este proceso; el email de Contactos no basta como cancelación verificada."
+   "explicacion_md": "# Explicación\n\nSin vía de cancelación de este proceso; el email de Contactos no basta como cancelación verificada.\n"
   },
   {
    "id_proceso": "terraza",
@@ -1044,7 +1044,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-14T13:50:00+01:00",
    "fecha_validacion": null,
-   "explicacion": "Sin catálogo de contactos la preferencia queda pendiente."
+   "explicacion_md": "# Explicación\n\nSin catálogo de contactos la preferencia queda pendiente.\n"
   }
  ],
  "Investigar integración": [
@@ -1077,7 +1077,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "CoverManager documenta una API de reservas. La fecha de validación queda vacía: la revisión independiente todavía no la escribe en este bloque."
+   "explicacion_md": "# Explicación\n\nCoverManager documenta una API de reservas. La fecha de validación queda vacía: la revisión independiente todavía no la escribe en este bloque.\n"
   },
   {
    "software": "formulario propio",
@@ -1095,7 +1095,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "El formulario propio de la terraza no tiene integración oficial localizable. La función puede seguir sin ella."
+   "explicacion_md": "# Explicación\n\nEl formulario propio de la terraza no tiene integración oficial localizable. La función puede seguir sin ella.\n"
   },
   {
    "software": "CoverManager",
@@ -1110,7 +1110,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "La investigación de CoverManager para un segundo local sigue abierta."
+   "explicacion_md": "# Explicación\n\nLa investigación de CoverManager para un segundo local sigue abierta.\n"
   }
  ],
  "Justificante": [
@@ -1120,7 +1120,7 @@ const outputExamples = {
    "justificante_campos_md": "# Campos justificados — proc-muelle-sala\n\nSostenidos por la observación:\n\n- fecha, hora, comensales, nombre, telefono, email, zona=cena-sala.\n- Señales de resultado: confirmada (mesa aceptada), sin_hueco (lista de alternativas), error con motivo pendiente_negocio (el local aún no acepta).\n",
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "El relato de cena-sala sostiene los campos y las tres señales de resultado."
+   "explicacion_md": "# Explicación\n\nEl relato de cena-sala sostiene los campos y las tres señales de resultado.\n"
   },
   {
    "id_proceso": "proc-muelle-terraza",
@@ -1128,7 +1128,7 @@ const outputExamples = {
    "justificante_campos_md": "# Campos justificados — proc-muelle-terraza\n\nSostenidos por la observación:\n\n- fecha, hora, comensales, nombre, zona=terraza.\n- telefono solo si hay hueco; no se pide email.\n- Señales: confirmada o sin_hueco. No aparece un código en la pantalla observada.\n",
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "El relato de terraza sostiene un formulario más corto, sin email."
+   "explicacion_md": "# Explicación\n\nEl relato de terraza sostiene un formulario más corto, sin email.\n"
   },
   {
    "id_proceso": "proc-costa-mar",
@@ -1136,7 +1136,7 @@ const outputExamples = {
    "justificante_campos_md": "# Campos — proc-costa-mar\n\nLa observación no muestra campos ni señal de resultado. No hay justificante utilizable.\n",
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "Sin formulario observado no se justifica ningún campo. La generación queda pendiente."
+   "explicacion_md": "# Explicación\n\nSin formulario observado no se justifica ningún campo. La generación queda pendiente.\n"
   }
  ],
  "Función": [
@@ -1194,7 +1194,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "La función de cena-sala sale del justificante. La respuesta de ejemplo es una reserva confirmada, sin ejecutarla."
+   "explicacion_md": "# Explicación\n\nLa función de cena-sala sale del justificante. La respuesta de ejemplo es una reserva confirmada, sin ejecutarla.\n"
   },
   {
    "id_proceso": "proc-muelle-terraza",
@@ -1240,7 +1240,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "La función de terraza contempla el error pendiente_negocio cuando el local todavía no acepta la petición."
+   "explicacion_md": "# Explicación\n\nLa función de terraza contempla el error pendiente_negocio cuando el local todavía no acepta la petición.\n"
   },
   {
    "id_proceso": "proc-costa-mar",
@@ -1271,7 +1271,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "Hay un borrador de función, pero la generación sigue pendiente: el justificante del hotel no sostiene los campos."
+   "explicacion_md": "# Explicación\n\nHay un borrador de función, pero la generación sigue pendiente: el justificante del hotel no sostiene los campos.\n"
   }
  ],
  "Script": [
@@ -1286,7 +1286,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "El script de cena-sala rellena el formulario y se detiene antes de confirmar. No lleva credenciales."
+   "explicacion_md": "# Explicación\n\nEl script de cena-sala rellena el formulario y se detiene antes de confirmar. No lleva credenciales.\n"
   },
   {
    "id_proceso": "proc-muelle-terraza",
@@ -1299,7 +1299,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "El script de terraza sigue el justificante y la función, y tampoco confirma durante la generación."
+   "explicacion_md": "# Explicación\n\nEl script de terraza sigue el justificante y la función, y tampoco confirma durante la generación.\n"
   },
   {
    "id_proceso": "proc-costa-mar",
@@ -1312,7 +1312,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "No se publica un script ejecutable mientras el justificante del hotel siga pendiente."
+   "explicacion_md": "# Explicación\n\nNo se publica un script ejecutable mientras el justificante del hotel siga pendiente.\n"
   }
  ],
  "Automática": [
@@ -1344,7 +1344,7 @@ const outputExamples = {
    "impedimento": null,
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "La compuerta estaba abierta. La reserva de prueba de Ana Rojas quedó confirmada con la referencia RES-1042."
+   "explicacion_md": "# Explicación\n\nLa compuerta estaba abierta. La reserva de prueba de Ana Rojas quedó confirmada con la referencia RES-1042.\n"
   },
   {
    "id_proceso": "proc-muelle-terraza",
@@ -1362,7 +1362,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-05-30",
    "fecha_validacion": null,
-   "explicacion": "La función de terraza está aprobada, pero el local está cerrado por festivo insular. La reserva de prueba no se envía y su estado es pendiente_apertura."
+   "explicacion_md": "# Explicación\n\nLa función de terraza está aprobada, pero el local está cerrado por festivo insular. La reserva de prueba no se envía y su estado es pendiente_apertura.\n"
   },
   {
    "id_proceso": "proc-costa-mar",
@@ -1375,7 +1375,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "Hotel Costa Mar no tiene función aprobada, así que la vía automática no se intenta."
+   "explicacion_md": "# Explicación\n\nHotel Costa Mar no tiene función aprobada, así que la vía automática no se intenta.\n"
   }
  ],
  "Enlace asistido": [
@@ -1388,7 +1388,7 @@ const outputExamples = {
    "impedimento": null,
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "El enlace de cena-sala conserva fecha, hora y comensales en una sesión nueva. Ana Rojas solo tendría que confirmar. La identidad de prueba no se presenta como la del cliente."
+   "explicacion_md": "# Explicación\n\nEl enlace de cena-sala conserva fecha, hora y comensales en una sesión nueva. Ana Rojas solo tendría que confirmar. La identidad de prueba no se presenta como la del cliente.\n"
   },
   {
    "id_proceso": "proc-muelle-terraza",
@@ -1402,7 +1402,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "La prueba del enlace de terraza no conserva el progreso. Sigue pendiente y no usa el resultado de la vía automática."
+   "explicacion_md": "# Explicación\n\nLa prueba del enlace de terraza no conserva el progreso. Sigue pendiente y no usa el resultado de la vía automática.\n"
   },
   {
    "id_proceso": "proc-costa-mar",
@@ -1415,7 +1415,7 @@ const outputExamples = {
    },
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "Sin función ni script aprobados no se prepara el enlace de Hotel Costa Mar."
+   "explicacion_md": "# Explicación\n\nSin función ni script aprobados no se prepara el enlace de Hotel Costa Mar.\n"
   }
  ],
  "Verificación y vigilancia": [
@@ -1446,7 +1446,7 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": "2026-10-13",
-   "explicacion": "La ejecución confirmó RES-1042 y el sistema coincidió. La referencia queda completa y la fiabilidad es fiable."
+   "explicacion_md": "# Explicación\n\nLa ejecución confirmó RES-1042 y el sistema coincidió. La referencia queda completa y la fiabilidad es fiable.\n"
   },
   {
    "id_proceso": "proc-muelle-terraza",
@@ -1477,7 +1477,7 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion": "La terraza solo tiene una lectura de disponibilidad. La referencia es parcial."
+   "explicacion_md": "# Explicación\n\nLa terraza solo tiene una lectura de disponibilidad. La referencia es parcial.\n"
   },
   {
    "id_proceso": "proc-muelle-sala",
@@ -1512,26 +1512,26 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-14",
    "fecha_validacion": null,
-   "explicacion": "La vigilancia detectó formulario_cambiado. Hay que volver a observar y regenerar la función de reserva. La versión vieja no se ejecuta."
+   "explicacion_md": "# Explicación\n\nLa vigilancia detectó formulario_cambiado. Hay que volver a observar y regenerar la función de reserva. La versión vieja no se ejecuta.\n"
   }
  ],
  "Output de la revisión": [
-  {
-   "estado_revision": "aprobada",
-   "fecha_validacion": "2026-10-14T19:30:00+01:00",
-   "explicacion": "El output del bloque se aprueba."
-  },
-  {
-   "estado_revision": "cambios_solicitados",
-   "fecha_validacion": "2026-10-14T19:40:00+01:00",
-   "explicacion": "Hay que corregir el output y volver a presentar."
-  },
-  {
-   "estado_revision": "inconclusa",
-   "fecha_validacion": null,
-   "explicacion": "No hay evidencia suficiente para cerrar el veredicto."
-  }
- ],
+ {
+  "estado_revision": "aprobada",
+  "fecha_validacion": "2026-10-14T19:30:00+01:00",
+  "explicacion_md": "# Veredicto de revisión\n\nEl output del bloque se aprueba.\n"
+ },
+ {
+  "estado_revision": "cambios_solicitados",
+  "fecha_validacion": "2026-10-14T19:40:00+01:00",
+  "explicacion_md": "# Veredicto de revisión\n\nHay que corregir el output y volver a presentar.\n"
+ },
+ {
+  "estado_revision": "inconclusa",
+  "fecha_validacion": null,
+  "explicacion_md": "# Veredicto de revisión\n\nNo hay evidencia suficiente para cerrar el veredicto.\n"
+ }
+],
  "Output combinado": [
   {
    "nombre_negocio": "Restaurante El Muelle",
@@ -1716,7 +1716,7 @@ const inputExamples = {
     "incertidumbres": [],
     "fecha_evaluacion": "2026-10-14T12:05:00+01:00",
     "fecha_validacion": "2026-10-14T13:00:00+01:00",
-    "explicacion": "Teléfono verificado una vez para el negocio."
+    "explicacion_md": "# Explicación\n\nTeléfono verificado una vez para el negocio.\n"
    }
   },
   {
@@ -1740,7 +1740,7 @@ const inputExamples = {
     "incertidumbres": [],
     "fecha_evaluacion": "2026-05-29T11:05:00+01:00",
     "fecha_validacion": "2026-05-29T12:00:00+01:00",
-    "explicacion": "Email de reservas del hotel."
+    "explicacion_md": "# Explicación\n\nEmail de reservas del hotel.\n"
    }
   },
   {
