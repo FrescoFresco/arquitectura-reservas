@@ -57,51 +57,14 @@
 .catalog-map{margin:0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:16px;color:#334155}
 .dbdiag{margin:0}
 .dbdiag-head{margin:0 0 6px}
-.dbdiag-sub{margin:0 0 16px;font-size:13px;color:#66758a}
-.dbdiag-board{position:relative;overflow:auto;padding:8px 4px 4px}
-.dbdiag-tier{display:flex;flex-wrap:wrap;justify-content:center;gap:18px 28px;position:relative;z-index:1}
-.dbdiag-tier.kids{gap:12px}
-.dbdiag-spine{display:flex;justify-content:center;align-items:stretch;gap:0;min-height:28px;position:relative;z-index:0;pointer-events:none}
-.dbdiag-spine .v{width:2px;background:#b7c7dc;border-radius:2px}
-.dbdiag-midwrap{display:grid;grid-template-columns:1fr 1fr;gap:28px;max-width:640px;margin:0 auto;position:relative;z-index:1}
-.dbdiag-midwrap .db-table{width:100%}
-.dbdiag-col{display:flex;flex-direction:column;align-items:stretch;gap:0;min-width:0}
-.dbdiag-col .db-table{width:100%;max-width:none}
-.db-edge{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:0;pointer-events:none;color:#6a7f9a;min-height:36px}
-.db-edge .db-edge-line{width:2px;flex:1 1 auto;min-height:10px;background:#b7c7dc;border-radius:2px}
-.dbdiag .db-card-1,.dbdiag .db-card-n{display:inline-grid;place-items:center;min-width:16px;height:16px;border-radius:4px;font-size:10px;font-weight:800;line-height:1;letter-spacing:.02em}
-.dbdiag .db-card-1{color:#1d4f9c;background:#eaf1ff;border:1px solid #b9cef0;margin-bottom:2px}
-.dbdiag .db-card-n{color:#0f7a45;background:#e7f6ee;border:1px solid #b7e0c8;margin-top:1px}
-.dbdiag .db-cf{display:block;width:18px;height:14px;margin-top:0;color:#6a7f9a}
-.dbdiag .db-cf svg{display:block;width:18px;height:14px}
-.dbdiag-downpair{display:grid;grid-template-columns:1fr 1fr;gap:28px;max-width:640px;margin:0 auto;padding:2px 0 4px;pointer-events:none}
-.dbdiag-fan{position:relative;margin:0 auto;max-width:920px;padding-top:0}
-.dbdiag-bridge{position:relative;min-height:44px;pointer-events:none;color:#6a7f9a}
-.dbdiag-bridge .stem-wrap{position:absolute;left:25%;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;width:24px;height:18px}
-.dbdiag-bridge .stem-wrap .db-edge-line{width:2px;flex:1;min-height:6px;background:#b7c7dc}
-.dbdiag-bridge .rail{position:absolute;left:8%;right:8%;top:18px;height:2px;background:#b7c7dc;border-radius:2px}
-.dbdiag-bridge .rail-ends{position:absolute;left:8%;right:8%;top:18px;height:0;pointer-events:none}
-.dbdiag-fan .dbdiag-tier.kids{padding-top:22px;gap:12px}
-.dbdiag-fan .dbdiag-tier .db-kid{display:flex;flex-direction:column;align-items:center;gap:0;min-width:148px;max-width:190px;position:relative}
-.dbdiag-fan .dbdiag-tier .db-kid .db-edge{min-height:28px;margin-bottom:0}
-.dbdiag-fan .dbdiag-tier .db-kid .db-table{width:100%;max-width:none;min-width:0}
-.db-table{display:flex;flex-direction:column;min-width:148px;max-width:190px;border:1px solid #c5d3e6;border-radius:12px;background:#fff;box-shadow:0 2px 0 #24334a0a,0 8px 20px #24334a0a;padding:0;overflow:hidden;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:border-color .15s,box-shadow .15s,transform .12s}
-.db-table:hover{border-color:#8eb0e4;box-shadow:0 2px 0 #24334a0a,0 10px 24px #185aba22;transform:translateY(-1px)}
-.db-table:focus-visible{outline:2px solid #266bd1;outline-offset:2px}
-.db-table-h{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(180deg,#f3f7fd,#eaf1ff);border-bottom:1px solid #d7e3f2;color:#1d4f9c;font-size:13px;font-weight:800}
-.db-table-h .ico{color:#315784}
-.db-table-fields{margin:0;padding:8px 12px 10px;list-style:none;display:grid;gap:3px}
-.db-table-fields li{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.35;color:#52657e}
-.db-table-fields .pk{color:#0f7a45;font-weight:700}
-.db-table-fields .fk{color:#315784}
-.dbdiag-roots{display:grid;grid-template-columns:1fr 1fr;gap:28px;max-width:640px;margin:0 auto}
-.dbdiag-roots .db-table{width:100%;max-width:none}
+.dbdiag-sub{margin:0 0 14px;font-size:13px;color:#66758a}
+.db-mermaid-wrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid #e6edf5;border-radius:12px;background:#fbfdff;padding:10px;max-width:100%}
+.db-mermaid{overflow:visible;text-align:center;min-height:180px;margin:0}
+.db-mermaid svg{display:block;height:auto!important;min-width:640px;width:auto!important;max-width:none!important;margin:0 auto}
+.db-mermaid .er.entityBox,.db-mermaid [id*="entity"]{cursor:pointer}
+.db-mermaid g[id^="entity-"]{cursor:pointer}
 @media(max-width:760px){
-  .dbdiag-roots,.dbdiag-midwrap,.dbdiag-downpair{grid-template-columns:1fr;max-width:280px}
-  .dbdiag-bridge .stem-wrap{left:50%}
-  .dbdiag-bridge .rail{left:12%;right:12%}
-  .dbdiag-fan .dbdiag-tier .db-kid{max-width:none;width:100%;min-width:0}
-  .db-table{max-width:none;width:100%;min-width:0}
+  .db-mermaid svg{min-width:560px}
 }
 .catalog-ops{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .catalog-ops li{background:#eef3fa;border-radius:8px;padding:5px 9px;font-size:12px;color:#2c3e55;cursor:pointer}
@@ -2454,64 +2417,167 @@ function mountFlowMermaid(){
 function htmlMapaFlujo(){
   return `<details class="map-panel" open><summary>${icon('flujo')} <span>Mapa del sistema</span></summary><div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div></details>`;
 }
-function dbEdge1toN(){
-  return '<div class="db-edge" aria-hidden="true" style="min-height:40px"><span class="db-card-1">1</span><span class="db-edge-line"></span><span class="db-cf" title="N"><svg viewBox="0 0 20 14" aria-hidden="true"><path d="M10 0 V6 M10 6 L3 13 M10 6 L10 13 M10 6 L17 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="db-card-n">N</span></div>';
+const dbErDiagram = `erDiagram
+  Negocio ||--o{ Proceso : "1→N"
+  Software ||--o{ Integracion : "1→N"
+  Proceso ||--o{ Observacion : "1→N"
+  Proceso ||--o{ Justificante : "1→N"
+  Proceso ||--o{ Funcion : "1→N"
+  Proceso ||--o{ Script : "1→N"
+  Proceso ||--o{ Canal : "1→N"
+  Proceso ||--o{ Ejecucion : "1→N"
+  Negocio {
+    string id_negocio PK
+    string url
+    string nombre
+  }
+  Software {
+    string id_software PK
+    string nombre
+  }
+  Integracion {
+    string id_integracion PK
+    string id_software FK
+    string version
+  }
+  Proceso {
+    string id_proceso PK
+    string id_negocio FK
+    string url_inicio
+  }
+  Observacion {
+    string id PK
+    string id_proceso FK
+    string version
+  }
+  Justificante {
+    string id PK
+    string id_proceso FK
+    string version
+  }
+  Funcion {
+    string id PK
+    string id_proceso FK
+    string version
+  }
+  Script {
+    string id PK
+    string id_proceso FK
+    string version
+  }
+  Canal {
+    string id PK
+    string id_proceso FK
+    string version
+  }
+  Ejecucion {
+    string id_ejecucion PK
+    string id_proceso FK
+    string timestamp
+  }`;
+const dbEntityToTab={
+  Negocio:'Negocio',
+  Software:'Software',
+  Integracion:'Integración',
+  Integración:'Integración',
+  Proceso:'Proceso',
+  Observacion:'Observación',
+  Observación:'Observación',
+  Justificante:'Justificante',
+  Funcion:'Función',
+  Función:'Función',
+  Script:'Script',
+  Canal:'Canal',
+  Ejecucion:'Ejecución',
+  Ejecución:'Ejecución'
+};
+function resolveDbEntityLabel(raw){
+  const t=(raw||'').replace(/\s+/g,' ').trim();
+  if(!t) return null;
+  for (const [key,lab] of Object.entries(dbEntityToTab)){
+    if(t===key || t.startsWith(key+' ') || t.includes(key)){
+      // Prefer exact entity title match at start of block text
+      if(t===key || t.startsWith(key)) return lab;
+    }
+  }
+  // First token often is entity name
+  const first=t.split(/\s+/)[0];
+  return dbEntityToTab[first]||null;
 }
-function dbEdgeManyOnly(){
-  return '<div class="db-edge" aria-hidden="true" style="min-height:28px"><span class="db-edge-line"></span><span class="db-cf" title="N"><svg viewBox="0 0 20 14" aria-hidden="true"><path d="M10 0 V6 M10 6 L3 13 M10 6 L10 13 M10 6 L17 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="db-card-n">N</span></div>';
-}
-function dbTableCard(label, fields){
-  const meta=catalogTabMeta(label);
-  if(!meta) return '';
-  const lis=(fields||[]).map(f=>{
-    const cls=f.endsWith(' PK')?'pk':(f.endsWith(' FK')?'fk':'');
-    const text=f.replace(/ (PK|FK)$/,'');
-    const tag=f.endsWith(' PK')?' <span class="pk">PK</span>':(f.endsWith(' FK')?' <span class="fk">FK</span>':'');
-    return `<li class="${cls}">${escapeHtml(text)}${tag}</li>`;
-  }).join('');
-  return `<button type="button" class="db-table" data-modelo-goto="${meta.index}" aria-label="Abrir tabla ${escapeHtml(label)}">
-<span class="db-table-h">${meta.icon?icon(meta.icon):''}<span>${escapeHtml(label)}</span></span>
-<ul class="db-table-fields">${lis}</ul>
-</button>`;
+function mountDbMermaid(){
+  const el=document.getElementById('dbMermaid'),status=document.getElementById('dbMapStatus');
+  if(!el) return;
+  el.textContent=dbErDiagram;
+  if(!window.mermaid){
+    el.className='map-fallback';
+    if(status) status.textContent='Diagrama en texto: requiere conexión para Mermaid.';
+    return;
+  }
+  try{
+    mermaid.initialize({
+      startOnLoad:false,
+      securityLevel:'strict',
+      theme:'default',
+      er:{useMaxWidth:false,layoutDirection:'TB',entityPadding:12,fontSize:13}
+    });
+    mermaid.run({nodes:[el]}).then(()=>{
+      if(status) status.textContent='Pulsa una tabla para abrirla en Modelo de datos.';
+      // Relabel accented display names in SVG titles when possible
+      const rename={Integracion:'Integración',Observacion:'Observación',Funcion:'Función',Ejecucion:'Ejecución'};
+      el.querySelectorAll('text').forEach(tx=>{
+        const v=(tx.textContent||'').trim();
+        if(rename[v]) tx.textContent=rename[v];
+      });
+      const hit=(node)=>{
+        const raw=(node.textContent||'').replace(/\s+/g,' ').trim();
+        return resolveDbEntityLabel(raw);
+      };
+      const bind=(node)=>{
+        const label=hit(node);
+        if(!label) return;
+        node.style.cursor='pointer';
+        node.addEventListener('click',ev=>{
+          ev.preventDefault();ev.stopPropagation();
+          irAModelo(label);
+        });
+      };
+      el.querySelectorAll('g[id*="entity"], g.entityBox, .er.entityBox, g[id^="entity-"]').forEach(bind);
+      // Fallback: any group that starts with a known entity name
+      el.querySelectorAll('svg g').forEach(g=>{
+        if(g.querySelector('g[id*="entity"]')) return;
+        const label=hit(g);
+        if(!label) return;
+        // Only bind top-level-ish boxes with a rect
+        if(!g.querySelector('rect')) return;
+        if(g.getAttribute('data-db-bound')) return;
+        const text=(g.textContent||'').trim();
+        // Avoid binding huge groups
+        if(text.length>180) return;
+        const first=text.split(/\s+/)[0];
+        if(!dbEntityToTab[first] && !Object.keys(dbEntityToTab).some(k=>text.startsWith(k))) return;
+        g.setAttribute('data-db-bound','1');
+        bind(g);
+      });
+    }).catch(err=>{
+      el.className='map-fallback';
+      el.textContent=dbErDiagram;
+      if(status) status.textContent='No se pudo renderizar el erDiagram; mostrando fuente.';
+      console.warn(err);
+    });
+  }catch(e){
+    el.className='map-fallback';
+    el.textContent=dbErDiagram;
+    if(status) status.textContent='No se pudo renderizar el erDiagram.';
+  }
 }
 function htmlMapaTablas(){
-  const kids=[
-    ['Observación',['id PK','id_proceso FK','version']],
-    ['Justificante',['id PK','id_proceso FK','version']],
-    ['Función',['id PK','id_proceso FK','version']],
-    ['Script',['id PK','id_proceso FK','version']],
-    ['Canal',['id PK','id_proceso FK','version']],
-    ['Ejecución',['id_ejecucion PK','id_proceso FK','timestamp']]
-  ];
-  const kidHtml=kids.map(([lab,fields])=>`<div class="db-kid">${dbEdgeManyOnly()}${dbTableCard(lab,fields)}</div>`).join('');
   return `<section class="card dbdiag">
 <div class="dbdiag-head"><h3 class="h-ico">${icon('tablas')} Diagrama de base de datos</h3></div>
-<p class="dbdiag-sub">Tablas y conexiones (1 → N) · pulsa una caja para abrirla en Modelo de datos</p>
-<div class="dbdiag-board" aria-label="Diagrama de base de datos">
-  <div class="dbdiag-roots">
-    ${dbTableCard('Negocio',['id_negocio PK','url','nombre'])}
-    ${dbTableCard('Software',['id_software PK','nombre'])}
-  </div>
-  <div class="dbdiag-downpair" aria-label="Cardinalidad hacia Proceso e Integración">
-    ${dbEdge1toN()}
-    ${dbEdge1toN()}
-  </div>
-  <div class="dbdiag-midwrap">
-    <div class="dbdiag-col">
-      ${dbTableCard('Proceso',['id_proceso PK','id_negocio FK','url_inicio'])}
-    </div>
-    <div class="dbdiag-col">
-      ${dbTableCard('Integración',['id_integracion PK','id_software FK','version'])}
-    </div>
-  </div>
-  <div class="dbdiag-fan" aria-label="Proceso uno a muchos artefactos y ejecuciones">
-    <div class="dbdiag-bridge" aria-hidden="true">
-      <div class="stem-wrap"><span class="db-card-1">1</span><span class="db-edge-line"></span></div>
-      <span class="rail"></span>
-    </div>
-    <div class="dbdiag-tier kids">${kidHtml}</div>
-  </div>
+<p class="dbdiag-sub">Tablas y conexiones (1 → N). En móvil, desplaza el diagrama en horizontal si hace falta.</p>
+<div class="db-mermaid-wrap">
+  <div class="mermaid db-mermaid" id="dbMermaid"></div>
 </div>
+<p class="mapstatus" id="dbMapStatus">Cargando diagrama…</p>
 </section>`;
 }
 function renderMapa(){
@@ -2527,6 +2593,7 @@ function renderMapa(){
   content.querySelectorAll('[data-modelo-goto]').forEach(b=>b.addEventListener('click',()=>{catalogTab=Number(b.dataset.modeloGoto);catalogInnerView=0;combinaView=0;section=SEC_CAT;render();window.scrollTo({top:0,behavior:'smooth'})}));
   afterTabRender({tabScrolls});
   if(mapaTab===0) mountFlowMermaid();
+  if(mapaTab===1) mountDbMermaid();
 }
 function tabStripKey(row){
   return row.getAttribute('aria-label')||row.id||row.className||'tabstrip';
