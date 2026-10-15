@@ -67,15 +67,24 @@
 .dbdiag-midwrap .db-table{width:100%}
 .dbdiag-col{display:flex;flex-direction:column;align-items:stretch;gap:0;min-width:0}
 .dbdiag-col .db-table{width:100%;max-width:none}
-.dbdiag-drop{display:block;width:2px;height:22px;margin:0 auto;background:#b7c7dc;border-radius:2px;pointer-events:none}
+.db-edge{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:0;pointer-events:none;color:#6a7f9a;min-height:36px}
+.db-edge .db-edge-line{width:2px;flex:1 1 auto;min-height:10px;background:#b7c7dc;border-radius:2px}
+.dbdiag .db-card-1,.dbdiag .db-card-n{display:inline-grid;place-items:center;min-width:16px;height:16px;border-radius:4px;font-size:10px;font-weight:800;line-height:1;letter-spacing:.02em}
+.dbdiag .db-card-1{color:#1d4f9c;background:#eaf1ff;border:1px solid #b9cef0;margin-bottom:2px}
+.dbdiag .db-card-n{color:#0f7a45;background:#e7f6ee;border:1px solid #b7e0c8;margin-top:1px}
+.dbdiag .db-cf{display:block;width:18px;height:14px;margin-top:0;color:#6a7f9a}
+.dbdiag .db-cf svg{display:block;width:18px;height:14px}
+.dbdiag-downpair{display:grid;grid-template-columns:1fr 1fr;gap:28px;max-width:640px;margin:0 auto;padding:2px 0 4px;pointer-events:none}
 .dbdiag-fan{position:relative;margin:0 auto;max-width:920px;padding-top:0}
-.dbdiag-bridge{position:relative;height:28px;pointer-events:none}
-.dbdiag-bridge .rail{position:absolute;left:8%;right:8%;top:12px;height:2px;background:#b7c7dc;border-radius:2px}
-.dbdiag-bridge .stem{position:absolute;left:calc(25% - 1px);top:0;width:2px;height:12px;background:#b7c7dc;border-radius:2px}
-.dbdiag-fan .dbdiag-tier{padding-top:0}
-.dbdiag-fan .dbdiag-tier .db-table{position:relative}
-.dbdiag-fan .dbdiag-tier .db-table:before{content:"";position:absolute;left:50%;top:-14px;width:2px;height:14px;background:#b7c7dc;transform:translateX(-50%)}
-.dbdiag-fan .dbdiag-tier{padding-top:14px}
+.dbdiag-bridge{position:relative;min-height:44px;pointer-events:none;color:#6a7f9a}
+.dbdiag-bridge .stem-wrap{position:absolute;left:25%;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;width:24px;height:18px}
+.dbdiag-bridge .stem-wrap .db-edge-line{width:2px;flex:1;min-height:6px;background:#b7c7dc}
+.dbdiag-bridge .rail{position:absolute;left:8%;right:8%;top:18px;height:2px;background:#b7c7dc;border-radius:2px}
+.dbdiag-bridge .rail-ends{position:absolute;left:8%;right:8%;top:18px;height:0;pointer-events:none}
+.dbdiag-fan .dbdiag-tier.kids{padding-top:22px;gap:12px}
+.dbdiag-fan .dbdiag-tier .db-kid{display:flex;flex-direction:column;align-items:center;gap:0;min-width:148px;max-width:190px;position:relative}
+.dbdiag-fan .dbdiag-tier .db-kid .db-edge{min-height:28px;margin-bottom:0}
+.dbdiag-fan .dbdiag-tier .db-kid .db-table{width:100%;max-width:none;min-width:0}
 .db-table{display:flex;flex-direction:column;min-width:148px;max-width:190px;border:1px solid #c5d3e6;border-radius:12px;background:#fff;box-shadow:0 2px 0 #24334a0a,0 8px 20px #24334a0a;padding:0;overflow:hidden;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:border-color .15s,box-shadow .15s,transform .12s}
 .db-table:hover{border-color:#8eb0e4;box-shadow:0 2px 0 #24334a0a,0 10px 24px #185aba22;transform:translateY(-1px)}
 .db-table:focus-visible{outline:2px solid #266bd1;outline-offset:2px}
@@ -87,13 +96,11 @@
 .db-table-fields .fk{color:#315784}
 .dbdiag-roots{display:grid;grid-template-columns:1fr 1fr;gap:28px;max-width:640px;margin:0 auto}
 .dbdiag-roots .db-table{width:100%;max-width:none}
-.dbdiag-downpair{display:grid;grid-template-columns:1fr 1fr;gap:28px;max-width:640px;margin:0 auto;min-height:26px;pointer-events:none}
-.dbdiag-downpair span{display:block;width:2px;height:26px;margin:0 auto;background:#b7c7dc;border-radius:2px}
 @media(max-width:760px){
   .dbdiag-roots,.dbdiag-midwrap,.dbdiag-downpair{grid-template-columns:1fr;max-width:280px}
-  .dbdiag-downpair{min-height:18px}
-  .dbdiag-bridge .stem{left:50%;transform:translateX(-50%)}
+  .dbdiag-bridge .stem-wrap{left:50%}
   .dbdiag-bridge .rail{left:12%;right:12%}
+  .dbdiag-fan .dbdiag-tier .db-kid{max-width:none;width:100%;min-width:0}
   .db-table{max-width:none;width:100%;min-width:0}
 }
 .catalog-ops{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
@@ -2447,6 +2454,12 @@ function mountFlowMermaid(){
 function htmlMapaFlujo(){
   return `<details class="map-panel" open><summary>${icon('flujo')} <span>Mapa del sistema</span></summary><div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div></details>`;
 }
+function dbEdge1toN(){
+  return '<div class="db-edge" aria-hidden="true" style="min-height:40px"><span class="db-card-1">1</span><span class="db-edge-line"></span><span class="db-cf" title="N"><svg viewBox="0 0 20 14" aria-hidden="true"><path d="M10 0 V6 M10 6 L3 13 M10 6 L10 13 M10 6 L17 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="db-card-n">N</span></div>';
+}
+function dbEdgeManyOnly(){
+  return '<div class="db-edge" aria-hidden="true" style="min-height:28px"><span class="db-edge-line"></span><span class="db-cf" title="N"><svg viewBox="0 0 20 14" aria-hidden="true"><path d="M10 0 V6 M10 6 L3 13 M10 6 L10 13 M10 6 L17 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="db-card-n">N</span></div>';
+}
 function dbTableCard(label, fields){
   const meta=catalogTabMeta(label);
   if(!meta) return '';
@@ -2462,35 +2475,41 @@ function dbTableCard(label, fields){
 </button>`;
 }
 function htmlMapaTablas(){
-  const kids=['Observación','Justificante','Función','Script','Canal','Ejecución'];
+  const kids=[
+    ['Observación',['id PK','id_proceso FK','version']],
+    ['Justificante',['id PK','id_proceso FK','version']],
+    ['Función',['id PK','id_proceso FK','version']],
+    ['Script',['id PK','id_proceso FK','version']],
+    ['Canal',['id PK','id_proceso FK','version']],
+    ['Ejecución',['id_ejecucion PK','id_proceso FK','timestamp']]
+  ];
+  const kidHtml=kids.map(([lab,fields])=>`<div class="db-kid">${dbEdgeManyOnly()}${dbTableCard(lab,fields)}</div>`).join('');
   return `<section class="card dbdiag">
 <div class="dbdiag-head"><h3 class="h-ico">${icon('tablas')} Diagrama de base de datos</h3></div>
-<p class="dbdiag-sub">Tablas y conexiones · pulsa una caja para abrirla en Modelo de datos</p>
+<p class="dbdiag-sub">Tablas y conexiones (1 → N) · pulsa una caja para abrirla en Modelo de datos</p>
 <div class="dbdiag-board" aria-label="Diagrama de base de datos">
   <div class="dbdiag-roots">
     ${dbTableCard('Negocio',['id_negocio PK','url','nombre'])}
     ${dbTableCard('Software',['id_software PK','nombre'])}
   </div>
-  <div class="dbdiag-downpair" aria-hidden="true"><span></span><span></span></div>
+  <div class="dbdiag-downpair" aria-label="Cardinalidad hacia Proceso e Integración">
+    ${dbEdge1toN()}
+    ${dbEdge1toN()}
+  </div>
   <div class="dbdiag-midwrap">
     <div class="dbdiag-col">
       ${dbTableCard('Proceso',['id_proceso PK','id_negocio FK','url_inicio'])}
-      <span class="dbdiag-drop" aria-hidden="true"></span>
     </div>
     <div class="dbdiag-col">
       ${dbTableCard('Integración',['id_integracion PK','id_software FK','version'])}
     </div>
   </div>
-  <div class="dbdiag-fan">
-    <div class="dbdiag-bridge" aria-hidden="true"><span class="stem"></span><span class="rail"></span></div>
-    <div class="dbdiag-tier kids">
-      ${dbTableCard('Observación',['id PK','id_proceso FK','version'])}
-      ${dbTableCard('Justificante',['id PK','id_proceso FK','version'])}
-      ${dbTableCard('Función',['id PK','id_proceso FK','version'])}
-      ${dbTableCard('Script',['id PK','id_proceso FK','version'])}
-      ${dbTableCard('Canal',['id PK','id_proceso FK','version'])}
-      ${dbTableCard('Ejecución',['id_ejecucion PK','id_proceso FK','timestamp'])}
+  <div class="dbdiag-fan" aria-label="Proceso uno a muchos artefactos y ejecuciones">
+    <div class="dbdiag-bridge" aria-hidden="true">
+      <div class="stem-wrap"><span class="db-card-1">1</span><span class="db-edge-line"></span></div>
+      <span class="rail"></span>
     </div>
+    <div class="dbdiag-tier kids">${kidHtml}</div>
   </div>
 </div>
 </section>`;
