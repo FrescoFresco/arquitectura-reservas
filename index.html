@@ -140,6 +140,7 @@
 .md-capsule .cap-ico{display:inline-flex;width:14px;height:14px;color:currentColor}
 .md-capsule .cap-ico svg{width:14px;height:14px;display:block}
 @media(max-width:760px){.meta{grid-template-columns:1fr}.state{margin-left:0}}
+h4.subhead{margin:1rem 0 .4rem;font-size:.85rem;font-weight:600;color:var(--muted,#667);letter-spacing:.02em;text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -3380,6 +3381,265 @@ const catalogAscii=`URL del negocio
                  v
             [Ejecución]
             Automática || Enlace || vigilancia`;
+const operationSchemas={
+"Ficha del negocio":{
+  input:[
+    {campo:"url_negocio",caracteristicas:"URL de partida. Única entrada; la ficha no reescribe ámbito ni contactos."}
+  ],
+  output:[
+    {campo:"estado",caracteristicas:"completa | pendiente. Revisión y cierre de identidad."},
+    {campo:"url_negocio",caracteristicas:"Eco de la URL evaluada (redundante con el input; join con Modelo Negocio.url)."},
+    {campo:"nombre_negocio",caracteristicas:"Nombre público. Modelo Negocio.nombre y Cierre lo citan."},
+    {campo:"zona_horaria",caracteristicas:"IANA. Input de Apertura; Modelo Negocio.zona; margen de compuerta."},
+    {campo:"evidencias",caracteristicas:"Array {origen, fragmento, explicacion_md}. Solo revisión / auditoría."},
+    {campo:"incertidumbres",caracteristicas:"Lista de huecos. Solo revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador. Contexto de revisión."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión concluyente; la escribe la revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato del bloque. Revisión / UI (Ver Markdown)."}
+  ]
+},
+"Ámbito festivo":{
+  input:[
+    {campo:"url_negocio",caracteristicas:"Misma URL que la ficha. No pide nombre ni zona."}
+  ],
+  output:[
+    {campo:"estado",caracteristicas:"completa | pendiente. Revisión."},
+    {campo:"url_negocio",caracteristicas:"Eco de la URL (join; redundante con input)."},
+    {campo:"ambito_festivo",caracteristicas:"Objeto {pais, comunidad_o_region, isla_o_provincia, municipio}. Input de Apertura; Modelo Negocio.ambito_festivo. No es lista de fiestas."},
+    {campo:"evidencias",caracteristicas:"Array {origen, fragmento, explicacion_md}. Solo revisión."},
+    {campo:"incertidumbres",caracteristicas:"Huecos. Solo revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato. Revisión / UI."}
+  ]
+},
+"Punto A":{
+  input:[
+    {campo:"url_negocio",caracteristicas:"URL del negocio. No redefine ficha ni ámbito."}
+  ],
+  output:[
+    {campo:"estado",caracteristicas:"encontrada | no_encontrada | pendiente. Cierre Detección (clasificarDeteccion)."},
+    {campo:"procesos",caracteristicas:"Array {id_proceso, url_inicio, alcance}. Abre ramas; Modelo Proceso."},
+    {campo:"incertidumbres",caracteristicas:"Huecos. Solo revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato. Revisión / UI."}
+  ]
+},
+"Apertura":{
+  input:[
+    {campo:"url_negocio",caracteristicas:"URL del negocio (una vez, no por proceso)."},
+    {campo:"zona_horaria",caracteristicas:"Sale de Ficha. Se usa al evaluar la pila; no va en cada job."},
+    {campo:"ambito_festivo",caracteristicas:"Sale de Ámbito festivo (no de la ficha). Jurisdicción para festivos en pila_cron."},
+    {campo:"informe_previo",caracteristicas:"Informe anterior | null. Versionado; no se reescribe el Markdown previo."}
+  ],
+  output:[
+    {campo:"version",caracteristicas:"v1 | v2 | …. Identidad del informe; alimenta informe_previo."},
+    {campo:"timestamp",caracteristicas:"ISO del informe en zona de ficha."},
+    {campo:"observacion_apertura_md",caracteristicas:"Informe web + Maps. Solo revisión / evidencia."},
+    {campo:"pila_cron",caracteristicas:"Array {tipo, efecto, cron, fuente, nota}. Base de abierto_ahora y margen."},
+    {campo:"abierto_ahora",caracteristicas:"true | false | indeterminado. Compuerta / vías vía dictamen de envío."},
+    {campo:"margen_hasta_cierre_min",caracteristicas:"Minutos hasta cierre. Criterio ≥ 60 en instrucciones; compuerta."},
+    {campo:"proxima_hora_valida",caracteristicas:"ISO | null. Sin consumidor tipado en Cierre ni inputs (dudoso)."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato. Revisión / UI."}
+  ]
+},
+"Contactos del negocio":{
+  input:[
+    {campo:"url_negocio",caracteristicas:"URL del negocio. Una vez por local."}
+  ],
+  output:[
+    {campo:"estado",caracteristicas:"encontrado | no_encontrado | pendiente. Revisión; Canal necesita canales verificables si el preferido es contacto."},
+    {campo:"canales_contacto",caracteristicas:"Array {tipo, valor, tipo_linea, uso_publicado, verificado_como_contacto, fuente, fecha_consulta, evidencia}. Input tipado de Canal (contactos_negocio)."},
+    {campo:"incertidumbres",caracteristicas:"Huecos. Solo revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato. Revisión / UI."}
+  ]
+},
+"Identificar software":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso de Punto A. No usa el expediente completo de detección."},
+    {campo:"url_inicio",caracteristicas:"URL de inicio de ese proceso."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join al proceso. Modelo / ramas."},
+    {campo:"estado",caracteristicas:"identificado | no_identificado | pendiente. Sin nombre, Investigar integración no se ejecuta."},
+    {campo:"software_identificado",caracteristicas:"Array {nombre, funcion_observada}. Alimenta Canal.software e Investigar integración; Modelo Software."},
+    {campo:"observaciones_md",caracteristicas:"Razonamiento completo. Solo revisión."},
+    {campo:"evidencias_md",caracteristicas:"Markdown solo de evidencia. Solo revisión."},
+    {campo:"incertidumbres",caracteristicas:"Huecos. Solo revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato. Revisión / UI."}
+  ]
+},
+"Observar formulario":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso a recorrer."},
+    {campo:"url_inicio",caracteristicas:"URL de inicio. Hasta justo antes de confirmar."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join. Modelo Observación."},
+    {campo:"observacion_formulario_md",caracteristicas:"Relato factual. Input de Justificante; Modelo Observación.documento_md."},
+    {campo:"evidencias",caracteristicas:"Array {origen, fragmento, explicacion_md}. Anclas para Justificante / revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato del bloque. Revisión / UI."}
+  ]
+},
+"Canal de cancelación":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso."},
+    {campo:"url_inicio",caracteristicas:"URL de inicio del recorrido."},
+    {campo:"software",caracteristicas:"Cita de Identificar software | null."},
+    {campo:"contactos_negocio",caracteristicas:"Catálogo de Contactos (no se reúne de nuevo)."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join. Modelo Canal."},
+    {campo:"estado",caracteristicas:"encontrado | no_encontrado | pendiente. Compuerta: sin canal → sin_canal_de_cancelacion."},
+    {campo:"busqueda_realizada",caracteristicas:"Objeto {fuentes_consultadas, opciones_revisadas, limitaciones}. Solo auditoría."},
+    {campo:"cancelacion_sistema",caracteristicas:"Objeto {disponible, metodo, url_o_instrucciones, evidencias[]}. Dictamen del sistema."},
+    {campo:"canal_preferido_cancelacion",caracteristicas:"Objeto {origen, tipo, valor, metodo, motivo}. Compuerta / Automática."},
+    {campo:"politica_cancelacion",caracteristicas:"Objeto {resumen, plazo, coste_o_penalizacion, garantia_tarjeta}. Registrada; sin consumidor tipado en Cierre (dudoso)."},
+    {campo:"incertidumbres",caracteristicas:"Huecos. Solo revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato. Revisión / UI."}
+  ]
+},
+"Investigar integración":{
+  input:[
+    {campo:"software",caracteristicas:"Nombre del proveedor. Sin nombre no se ejecuta."},
+    {campo:"investigacion_previa",caracteristicas:"Versión anterior | null. Vigencia y alcance."}
+  ],
+  output:[
+    {campo:"software",caracteristicas:"Proveedor. Modelo Integración / Software."},
+    {campo:"estado",caracteristicas:"documentada | no_localizada | pendiente. Modelo; acceso_api de Automática."},
+    {campo:"documentacion_md",caracteristicas:"Artefacto principal. Modelo Integración.documentacion_md."},
+    {campo:"integraciones_encontradas",caracteristicas:"Lista opcional: resumen de lo que ya sostiene documentacion_md (redundante)."},
+    {campo:"operaciones_documentadas",caracteristicas:"Lista opcional; mismo criterio (redundante)."},
+    {campo:"condiciones_proveedor",caracteristicas:"Array tipado opcional {tipo, fuente, fecha_consulta, alcance, hallazgo, implicacion}; resumen del md."},
+    {campo:"requisitos_por_negocio",caracteristicas:"Lista opcional; resumen del md."},
+    {campo:"fuentes",caracteristicas:"Lista opcional; también en el Markdown."},
+    {campo:"incertidumbres",caracteristicas:"Huecos. Solo revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Relato. Revisión / UI."}
+  ]
+},
+"Justificante":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso."},
+    {campo:"observacion_formulario_md",caracteristicas:"Relato de Observar formulario. Única fuente de hechos."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join. Modelo Justificante."},
+    {campo:"estado",caracteristicas:"justificado | pendiente. Bloquea Función/Script si pendiente."},
+    {campo:"justificante_campos_md",caracteristicas:"Datos y señales justificados. Input de Función y Script; Modelo Justificante.documento_md."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Qué sostiene el relato o qué falta. Revisión / UI."}
+  ]
+},
+"Función":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso."},
+    {campo:"justificante_campos_md",caracteristicas:"Única fuente para parámetros y señales."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join. Modelo Función."},
+    {campo:"estado_generacion",caracteristicas:"generada | pendiente | error. Compuerta y vías (sin función aprobada → no_intentada)."},
+    {campo:"funcion_json",caracteristicas:"Objeto {name, description, parameters, response_schema}. Input de Script; Automática/Enlace funcion_reserva."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Cómo cierra el contrato o qué lo impide. Revisión / UI."}
+  ]
+},
+"Script":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso."},
+    {campo:"justificante_campos_md",caracteristicas:"Pasos, selectores y señales."},
+    {campo:"funcion_json",caracteristicas:"Contrato de Función; el script valida y responde igual."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join. Modelo Script."},
+    {campo:"estado_generacion",caracteristicas:"generada | pendiente | error. Compuerta y vías."},
+    {campo:"script_js",caracteristicas:"Objeto {contenido, version, huella, referencia_codigo}. Automática/Enlace script_reserva; Verificación compara version/huella."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Qué del justificante quedó en el script. Revisión / UI."}
+  ]
+},
+"Automática":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso."},
+    {campo:"funcion_reserva",caracteristicas:"Función aprobada (con version/huella)."},
+    {campo:"script_reserva",caracteristicas:"Script aprobado alineado con la función."},
+    {campo:"datos_reserva_prueba",caracteristicas:"Datos conforme al esquema justificado."},
+    {campo:"identidad_prueba",caracteristicas:"Identidad de prueba mapeada solo a parámetros pedidos."},
+    {campo:"autorizacion_para_confirmar_prueba",caracteristicas:"Autorización explícita de envío."},
+    {campo:"acceso_api",caracteristicas:"Acceso de integración si Investigar integración lo tiene; si no, vacío."},
+    {campo:"compuerta_envio",caracteristicas:"Dictamen de la compuerta de envío real."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join. Modelo Ejecución (via automatica)."},
+    {campo:"estado",caracteristicas:"apta | no_apta | pendiente | no_intentada. Cierre Aptitud (clasificarVias)."},
+    {campo:"metodo_utilizado",caracteristicas:"Función/script/integración con version y huella. Solo revisión."},
+    {campo:"pruebas_realizadas",caracteristicas:"Lista de pruebas y evidencia. Solo revisión."},
+    {campo:"reserva_prueba",caracteristicas:"Objeto {estado, referencia, motivo_compuerta}. Puede anclar Verificación si confirmada."},
+    {campo:"impedimento",caracteristicas:"Límite técnico demostrado si no_apta. Aptitud / revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Pruebas, compuerta y estado de la vía. Revisión / UI."}
+  ]
+},
+"Enlace asistido":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso."},
+    {campo:"funcion_reserva",caracteristicas:"Función aprobada."},
+    {campo:"script_reserva",caracteristicas:"Script aprobado."},
+    {campo:"datos_reserva_prueba",caracteristicas:"Datos del esquema justificado."},
+    {campo:"identidad_prueba",caracteristicas:"Identidad de prueba."},
+    {campo:"autorizacion_para_confirmar_prueba",caracteristicas:"Autorización explícita."},
+    {campo:"compuerta_envio",caracteristicas:"Dictamen de la compuerta (no lee el output de Automática)."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join. Modelo Ejecución (via enlace)."},
+    {campo:"estado",caracteristicas:"apta | no_apta | pendiente | no_intentada. Cierre Aptitud (asistida)."},
+    {campo:"url_reserva_preparada",caracteristicas:"Enlace sin datos sensibles. Entregable de la vía."},
+    {campo:"prueba_en_sesion_independiente",caracteristicas:"Objeto {resultado, datos_conservados, evidencias}. Sustenta apta; solo revisión."},
+    {campo:"accion_pendiente_del_cliente",caracteristicas:"Acción final que queda al cliente. Propósito de la vía."},
+    {campo:"impedimento",caracteristicas:"Si no_apta. Aptitud / revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Qué conserva el enlace y por qué el estado. Revisión / UI."}
+  ]
+},
+"Verificación y vigilancia":{
+  input:[
+    {campo:"id_proceso",caracteristicas:"Proceso."},
+    {campo:"ejecucion",caracteristicas:"Ejecución a comparar (Automática, Enlace u otra)."},
+    {campo:"referencia_previa",caracteristicas:"Referencia ya capturada | null."}
+  ],
+  output:[
+    {campo:"id_proceso",caracteristicas:"Join. Modelo Ejecución (via vigilancia)."},
+    {campo:"estado",caracteristicas:"referencia_completa | referencia_parcial | pendiente."},
+    {campo:"referencia",caracteristicas:"Objeto ancla {origen, version, huella, …}. Input referencia_previa en corridas siguientes."},
+    {campo:"contrato_resultado_ejecucion",caracteristicas:"Objeto {ok, estado_sistema, respuesta_funcion, version, huella, operacion, fecha_ejecucion, comparacion_referencia}. Núcleo del bloque."},
+    {campo:"vigilancia",caracteristicas:"Objeto {estado, operacion, frecuencia, mecanismo_ejecucion}. Propósito del bloque; sin input tipado externo."},
+    {campo:"alertas",caracteristicas:"Array {fecha, tipo, detalle, evidencia, estado}. Automática/Enlace (formulario_cambiado); Oferta vía fiabilidad."},
+    {campo:"fiabilidad",caracteristicas:"fiable | requiere_revision | pendiente. Cierre Oferta (clasificarOferta)."},
+    {campo:"accion_requerida",caracteristicas:"Enum de guía humana; Oferta ya usa fiabilidad (dudoso como input tipado)."},
+    {campo:"incertidumbres",caracteristicas:"Huecos. Solo revisión."},
+    {campo:"fecha_evaluacion",caracteristicas:"ISO del investigador."},
+    {campo:"fecha_validacion",caracteristicas:"null hasta revisión."},
+    {campo:"explicacion_md",caracteristicas:"Comparación y alertas abiertas. Revisión / UI."}
+  ]
+}
+};
 const catalogSchemas={
  Negocio:[
   {campo:"id_negocio",caracteristicas:"Identificador estable del negocio en el modelo."},
@@ -3680,8 +3940,9 @@ function renderOperaciones(opts){
   const d=contracts[contractTab];
   const p=purposes[d.label]||{es:d.summary,noEs:''};
   const proposito=`<section class="proposito" aria-label="Propósito"><h3 class="h-ico">${icon('proposito')} Propósito</h3><dl><div><dt>Qué es</dt><dd>${escapeHtml(p.es)}</dd></div><div><dt>Qué no es</dt><dd>${escapeHtml(p.noEs)}</dd></div></dl></section>`;
-  const viewswitch=`<div class="viewswitch three" role="tablist" aria-label="Vista del bloque"><button type="button" role="tab" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">${icon('definition')} Contrato</span><span class="switch-sub">Input, instrucciones, output</span></button><button type="button" role="tab" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">${icon('instructions')} Revisión</span><span class="switch-sub">Veredicto sobre este output</span></button><button type="button" role="tab" aria-selected="${contractView===2}" data-view="2"><span class="switch-title">${icon('examples')} Ejemplos</span><span class="switch-sub">Casos de entrada y salida</span></button></div>`;
-  const contrato=`<div id="panel-vista" role="tabpanel"><section class="card"><h3 class="h-ico">${icon('input')} Input</h3><pre>${escapeHtml(JSON.stringify(d.input,null,2))}</pre></section><section class="card prompt"><div class="prompthead"><h3 class="h-ico">${icon('instructions')} Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section><section class="card"><h3 class="h-ico">${icon('output')} Output</h3><pre>${escapeHtml(JSON.stringify(d.output,null,2))}</pre></section></div>`;
+  const viewswitch=`<div class="viewswitch three" role="tablist" aria-label="Vista del bloque"><button type="button" role="tab" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">${icon('definition')} Contrato</span><span class="switch-sub">Esquema, instrucciones, JSON</span></button><button type="button" role="tab" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">${icon('instructions')} Revisión</span><span class="switch-sub">Veredicto sobre este output</span></button><button type="button" role="tab" aria-selected="${contractView===2}" data-view="2"><span class="switch-title">${icon('examples')} Ejemplos</span><span class="switch-sub">Casos de entrada y salida</span></button></div>`;
+  const opSch=operationSchemas[d.label]||{input:[],output:[]};
+  const contrato=`<div id="panel-vista" role="tabpanel"><section class="card"><h3 class="h-ico">${icon('input')} Input</h3><p class="intro">Esquema (campo y características).</p>${schemaTable(opSch.input)}<h4 class="subhead">Forma JSON</h4><pre>${escapeHtml(JSON.stringify(d.input,null,2))}</pre></section><section class="card prompt"><div class="prompthead"><h3 class="h-ico">${icon('instructions')} Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section><section class="card"><h3 class="h-ico">${icon('output')} Output</h3><p class="intro">Esquema (campo y características).</p>${schemaTable(opSch.output)}<h4 class="subhead">Forma JSON</h4><pre>${escapeHtml(JSON.stringify(d.output,null,2))}</pre></section></div>`;
   const revision=`<div id="panel-vista" role="tabpanel"><p class="intro">${escapeHtml(d.review.intro)}</p><section class="card"><h3>Veredicto</h3><pre>${escapeHtml(JSON.stringify(validationOutput,null,2))}</pre></section>${exampleSection('Output de la revisión', validationOutput)}</div>`;
   const exampleRows=contractExample===0?inputExamples[d.label]:outputExamples[d.label];
   const exampleSchema=contractExample===0?d.input:d.output;
