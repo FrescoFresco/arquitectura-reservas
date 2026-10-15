@@ -47,6 +47,9 @@
 .combina .enlace-sep{color:#8b98a9;margin:0 2px}
 .combina strong{color:#243246}
 .combina p{margin:0 0 4px;font-size:13px;line-height:1.5;color:#3d4d63}
+.combina .sidetabs{margin:0 0 14px}
+.combina .combina-panel{margin:0}
+.combina .porque-text{margin:0;font-size:14px;line-height:1.55;color:#2c3c50}
 .catalog-map{margin:0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:16px;color:#334155}
 .catalog-ops{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .catalog-ops li{background:#eef3fa;border-radius:8px;padding:5px 9px;font-size:12px;color:#2c3e55;cursor:pointer}
@@ -2306,7 +2309,7 @@ function exampleSection(label, schema, rows){
   return '<section class="card"><h3 class="h-ico">'+icon('examples')+'Ejemplo guardado</h3><p class="intro">Cada tarjeta es un caso. Arriba están sus datos. Lo que pertenece a ese caso, como una lista de procesos, va dentro de la tarjeta.</p>'+renderRecordTable(loadExampleRows(label, schema, rows))+'</section>';
 }
 
-let section=0,contractTab=0,contractView=0,contractExample=0,catalogTab=0,catalogInnerView=0;
+let section=0,contractTab=0,contractView=0,contractExample=0,catalogTab=0,catalogInnerView=0,combinaView=0;
 const SEC_MAPA=0,SEC_OPS=1,SEC_CAT=2;
 function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span class="eyebrow">${eyebrow}</span>${pill?`<span class="pill">${pill}</span>`:''}</div><h2>${title}</h2><p class="desc">${desc}</p>`}
 function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${item.icon?icon(item.icon):''}${escapeHtml(item.label)}</button>`).join('')}</div>`}
@@ -2932,42 +2935,35 @@ function enlaceNames(list){
 function combinaEnlace(c){
   const e=c.enlace||{padre:[],esta:c.esta||'',hijas:[]};
   const esta=e.esta?`<span class="enlace-this">${escapeHtml(e.esta)}</span>`:'<span class="estab-empty">—</span>';
-  return `<div class="combina-sec">
-  <div class="combina-lab">${icon('enlace')} Enlace</div>
-  <div class="enlace">
+  return `<div class="enlace">
     <div class="enlace-line"><span class="enlace-k">Padre</span>${enlaceNames(e.padre)}</div>
     <div class="enlace-line"><span class="enlace-k">Esta</span>${esta}</div>
     <div class="enlace-line"><span class="enlace-k">Hijas</span>${enlaceNames(e.hijas)}</div>
-  </div>
-</div>`;
+  </div>`;
 }
 function combinaBlock(label){
   const c=catalogCombina[label];
   if(!c) return '';
+  const v=combinaView;
   const puntas=(c.puntas||[]).map(p=>`<li class="punta"><span class="punta-name">${escapeHtml(p.campo)}</span>${puntaTag(p)}</li>`).join('');
   const nota=c.notaEstable?`<p class="intro" style="margin:4px 0 0">${escapeHtml(c.notaEstable)}</p>`:'';
+  const panels=[
+    `<ul class="puntas-row">${puntas}</ul>`,
+    combinaEnlace(c),
+    `<p class="porque-text">${escapeHtml(c.porQue)}</p>`,
+    `<div class="estab"><div class="estab-line"><span class="estab-k">Estable:</span>${estabChips(c.estable,'ok')}</div><div class="estab-line"><span class="estab-k">No estable:</span>${estabChips(c.noEstable,'no')}</div>${nota}</div>`
+  ];
+  const tabsHtml=`<div class="sidetabs" role="tablist" aria-label="Vista de Combina">
+<button type="button" role="tab" aria-selected="${v===0}" data-combina-view="0">${icon('puntas')} Puntas</button>
+<button type="button" role="tab" aria-selected="${v===1}" data-combina-view="1">${icon('enlace')} Enlace</button>
+<button type="button" role="tab" aria-selected="${v===2}" data-combina-view="2">${icon('porque')} Por qué</button>
+<button type="button" role="tab" aria-selected="${v===3}" data-combina-view="3">${icon('estabilidad')} Estabilidad</button>
+</div>`;
   return `<section class="combina" aria-label="Combina">
 <h4>${icon('combina')} Combina</h4>
 <hr class="combina-rule">
-<div class="combina-sec">
-  <div class="combina-lab">${icon('puntas')} Puntas</div>
-  <ul class="puntas-row">${puntas}</ul>
-</div>
-${combinaEnlace(c)}
-<div class="combina-sec">
-  <p class="combina-row">${icon('porque')}<span><strong>Por qué:</strong> ${escapeHtml(c.porQue)}</span></p>
-</div>
-<div class="combina-sec">
-  <div class="combina-lab">${icon('estabilidad')} Estabilidad</div>
-  <div class="estab">
-    <div class="estab-line"><span class="estab-k">Estable:</span>${estabChips(c.estable,'ok')}</div>
-    <div class="estab-line"><span class="estab-k">No estable:</span>${estabChips(c.noEstable,'no')}</div>
-    ${nota}
-  </div>
-</div>
-<div class="combina-sec">
-  <p class="combina-row">${icon('unafila')}<span><strong>Una fila =</strong> ${escapeHtml(c.unaFila)}</span></p>
-</div>
+${tabsHtml}
+<div class="combina-panel" role="tabpanel">${panels[v]||panels[0]}</div>
 </section>`;
 }
 function renderCatalogos(){
@@ -3000,9 +2996,10 @@ function renderCatalogos(){
     panel=`<div class="catalog-panel"><h3 class="catalog-title">${tabIcon}${escapeHtml(label)}</h3>${combina}<section class="card">${inner}${body}</section></div>`;
   }
   content.innerHTML=heading('Capas de datos','Modelo de datos','Tablas del modelo: esquema y ejemplos. Filas planas; el Markdown se abre en cápsula.','Modelo')+tabs(catalogTabs,catalogTab,'modelo')+`<div id="panel-modelo">${panel}</div>`;
-  bindTabs('modelo',i=>{catalogTab=i;catalogInnerView=0;renderCatalogos()});
+  bindTabs('modelo',i=>{catalogTab=i;catalogInnerView=0;combinaView=0;renderCatalogos()});
   content.querySelectorAll('[data-cat-inner]').forEach(b=>b.addEventListener('click',()=>{catalogInnerView=Number(b.dataset.catInner);renderCatalogos()}));
-  content.querySelectorAll('[data-cat-goto]').forEach(b=>b.addEventListener('click',()=>{catalogTab=Number(b.dataset.catGoto);catalogInnerView=0;renderCatalogos()}));
+  content.querySelectorAll('[data-combina-view]').forEach(b=>b.addEventListener('click',()=>{combinaView=Number(b.dataset.combinaView);renderCatalogos()}));
+  content.querySelectorAll('[data-cat-goto]').forEach(b=>b.addEventListener('click',()=>{catalogTab=Number(b.dataset.catGoto);catalogInnerView=0;combinaView=0;renderCatalogos()}));
   bindMdCapsules(content);
 }
 const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones],['Modelo de datos',renderCatalogos]];
