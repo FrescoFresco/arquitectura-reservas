@@ -117,8 +117,8 @@
 .switch-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;letter-spacing:-.01em}
 .switch-sub{display:block;margin-top:3px;font-size:12px;font-weight:550;color:#7b8ba0;line-height:1.35}
 .viewswitch button[aria-selected="true"] .switch-sub{color:#4f74aa}
-.sidetabs{display:flex;gap:2px;border-bottom:1px solid #e7ebf2;margin:0 0 12px}
-.sidetabs button{display:inline-flex;align-items:center;gap:7px;border:0;border-bottom:2px solid transparent;background:transparent;color:#52657e;padding:10px 16px;margin-bottom:-1px;font-size:13px;font-weight:800;cursor:pointer}
+.sidetabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid #e7ebf2;margin:0 0 12px;scrollbar-width:thin;scrollbar-color:#d5deea transparent}
+.sidetabs button{flex:none;display:inline-flex;align-items:center;gap:7px;border:0;border-bottom:2px solid transparent;background:transparent;color:#52657e;padding:10px 16px;margin-bottom:-1px;font-size:13px;font-weight:800;cursor:pointer}
 .sidetabs button[aria-selected="true"]{color:#185aba;border-bottom-color:#185aba}
 .tabs{scrollbar-width:thin;scrollbar-color:#d5deea transparent}
 .tabs::-webkit-scrollbar{height:8px}
@@ -2501,32 +2501,70 @@ function renderMapa(){
   if(mapaTab===0) panel=htmlMapaFlujo();
   else if(mapaTab===1) panel=htmlMapaTablas();
   else panel=htmlReglasCierre();
+  const tabScrolls=snapshotTabScrolls();
   content.innerHTML=heading('Vista general','Mapa',desc,'Diagrama')+tabs(mapaTabs,mapaTab,'mapa')+`<div id="panel-mapa">${panel}</div>`;
   bindTabs('mapa',i=>{mapaTab=i;if(i!==2)cierreView=0;renderMapa()});
   content.querySelectorAll('[data-cierre-view]').forEach(b=>b.addEventListener('click',()=>{cierreView=Number(b.dataset.cierreView);renderMapa()}));
   content.querySelectorAll('[data-modelo-goto]').forEach(b=>b.addEventListener('click',()=>{catalogTab=Number(b.dataset.modeloGoto);catalogInnerView=0;combinaView=0;section=SEC_CAT;render();window.scrollTo({top:0,behavior:'smooth'})}));
+  afterTabRender({tabScrolls});
   if(mapaTab===0) mountFlowMermaid();
 }
-function ensureActiveBlockTabVisible(){
-  const row=content.querySelector('.tabs');
-  const active=content.querySelector('.tabs button[aria-selected="true"]');
-  if(!row||!active) return;
-  const pad=12;
-  const rowRect=row.getBoundingClientRect();
-  const tabRect=active.getBoundingClientRect();
-  const left=tabRect.left-rowRect.left+row.scrollLeft;
-  const right=left+tabRect.width;
+function tabStripKey(row){
+  return row.getAttribute('aria-label')||row.id||row.className||'tabstrip';
+}
+function snapshotTabScrolls(root){
+  const map={};
+  (root||content).querySelectorAll('.tabs, .sidetabs').forEach(row=>{
+    map[tabStripKey(row)]=row.scrollLeft;
+  });
+  return map;
+}
+function restoreTabScrolls(map, root){
+  if(!map) return;
+  (root||content).querySelectorAll('.tabs, .sidetabs').forEach(row=>{
+    const key=tabStripKey(row);
+    if(Object.prototype.hasOwnProperty.call(map,key)) row.scrollLeft=map[key];
+  });
+}
+function ensureActiveTabVisible(row){
+  if(!row) return;
+  const active=row.querySelector('button[aria-selected="true"]');
+  if(!active) return;
+  const pad=16;
+  const maxScroll=Math.max(0, row.scrollWidth-row.clientWidth);
+  if(maxScroll===0) return;
+  const left=active.offsetLeft;
+  const right=left+active.offsetWidth;
   const viewLeft=row.scrollLeft;
   const viewRight=viewLeft+row.clientWidth;
-  if(left<viewLeft+pad) row.scrollLeft=Math.max(0,left-pad);
-  else if(right>viewRight-pad) row.scrollLeft=Math.min(row.scrollWidth-row.clientWidth,right-row.clientWidth+pad);
+  if(left>=viewLeft+pad && right<=viewRight-pad) return;
+  const centered=left-(row.clientWidth-active.offsetWidth)/2;
+  row.scrollLeft=Math.min(maxScroll, Math.max(0, centered));
 }
-function restoreOpsScroll(pageY){
+function ensureAllActiveTabsVisible(root){
+  (root||content).querySelectorAll('.tabs, .sidetabs').forEach(ensureActiveTabVisible);
+}
+function restoreOpsScroll(pageY, tabScrolls){
   const apply=()=>{
-    window.scrollTo(0, pageY);
-    ensureActiveBlockTabVisible();
+    if(tabScrolls) restoreTabScrolls(tabScrolls);
+    if(pageY!=null) window.scrollTo(0, pageY);
+    ensureAllActiveTabsVisible();
     const active=content.querySelector('.tabs button[aria-selected="true"]');
     if(active) active.focus({preventScroll:true});
+  };
+  apply();
+  requestAnimationFrame(()=>requestAnimationFrame(apply));
+}
+function afterTabRender(opts){
+  const o=opts||{};
+  const apply=()=>{
+    if(o.tabScrolls) restoreTabScrolls(o.tabScrolls);
+    if(o.pageY!=null) window.scrollTo(0, o.pageY);
+    ensureAllActiveTabsVisible();
+    if(o.focusActive){
+      const active=content.querySelector('.tabs button[aria-selected="true"]');
+      if(active) active.focus({preventScroll:true});
+    }
   };
   apply();
   requestAnimationFrame(()=>requestAnimationFrame(apply));
@@ -2882,6 +2920,7 @@ const catalogEjecucion=[
 function renderOperaciones(opts){
   const preserveScroll=!!(opts&&opts.preserveScroll);
   const pageY=preserveScroll?(window.scrollY||window.pageYOffset||0):null;
+  const tabScrolls=snapshotTabScrolls();
   const d=contracts[contractTab];
   const p=purposes[d.label]||{es:d.summary,noEs:''};
   const proposito=`<section class="proposito" aria-label="Propósito"><h3>Propósito</h3><dl><div><dt>Qué es</dt><dd>${escapeHtml(p.es)}</dd></div><div><dt>Qué no es</dt><dd>${escapeHtml(p.noEs)}</dd></div></dl></section>`;
@@ -2899,8 +2938,8 @@ function renderOperaciones(opts){
   content.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{contractExample=Number(b.dataset.side);contractView=2;renderOperaciones({preserveScroll:true})}));
   const copy=document.getElementById('copyPrompt');
   if(copy) copy.onclick=async()=>{try{await navigator.clipboard.writeText(d.instructions);copy.textContent='Copiado'}catch(e){const t=document.createElement('textarea');t.value=d.instructions;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();copy.textContent='Copiado'}};
-  if(preserveScroll) restoreOpsScroll(pageY);
-  else requestAnimationFrame(ensureActiveBlockTabVisible);
+  if(preserveScroll) restoreOpsScroll(pageY, tabScrolls);
+  else afterTabRender({tabScrolls, focusActive:true});
 }
 function clasificarDeteccion(estado){
  if(estado==='encontrada')return 'procesos_identificados';
@@ -3145,12 +3184,15 @@ function renderCatalogos(){
     body=`<p class="intro">Una fila por intento.</p>${flatTable(['id_ejecucion','id_proceso','via','timestamp','resultado','id_referencia'],catalogEjecucion)}`;
   }
   const panel=`<div class="catalog-panel"><h3 class="catalog-title">${tabIcon}${escapeHtml(label)}</h3>${combina}<section class="card">${inner}${body}</section></div>`;
+  const tabScrolls=snapshotTabScrolls();
+  const pageY=window.scrollY||window.pageYOffset||0;
   content.innerHTML=heading('Capas de datos','Modelo de datos','Tablas del modelo: esquema y ejemplos. Filas planas; el Markdown se abre en cápsula.','Modelo')+tabs(catalogTabs,catalogTab,'modelo')+`<div id="panel-modelo">${panel}</div>`;
   bindTabs('modelo',i=>{catalogTab=i;catalogInnerView=0;combinaView=0;renderCatalogos()});
   content.querySelectorAll('[data-cat-inner]').forEach(b=>b.addEventListener('click',()=>{catalogInnerView=Number(b.dataset.catInner);renderCatalogos()}));
   content.querySelectorAll('[data-combina-view]').forEach(b=>b.addEventListener('click',()=>{combinaView=Number(b.dataset.combinaView);renderCatalogos()}));
   content.querySelectorAll('[data-cat-goto]').forEach(b=>b.addEventListener('click',()=>{catalogTab=Number(b.dataset.catGoto);catalogInnerView=0;combinaView=0;renderCatalogos()}));
   bindMdCapsules(content);
+  afterTabRender({tabScrolls, pageY, focusActive:true});
 }
 const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones],['Modelo de datos',renderCatalogos]];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num">${i+1}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
