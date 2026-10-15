@@ -20,6 +20,17 @@
 .catalog-ops li{background:#eef3fa;border-radius:8px;padding:5px 9px;font-size:12px;color:#2c3e55;cursor:pointer}
 .catalog-ops li:hover{background:#e0eaf8;color:#185aba}
 .catalog-ops li button{all:unset;cursor:pointer}
+.md-capsule{display:inline-flex;align-items:center;gap:6px;border:1px solid #b9cef0;border-radius:999px;background:#f7faff;color:#2459a9;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer}
+.md-capsule:hover{background:#eaf1ff}
+.md-capsule .cap-ico{display:inline-grid;place-items:center;width:16px;height:16px;font-size:11px}
+.md-modal{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:20px;background:#17212f66}
+.md-modal.open{display:flex}
+.md-modal-card{width:min(720px,100%);max-height:min(80vh,900px);overflow:auto;background:#fff;border-radius:16px;border:1px solid #e1e8f2;box-shadow:0 20px 60px #17212f33;padding:22px}
+.md-modal-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.md-modal-card header h3{margin:0;font-size:16px;color:#1c2b3e}
+.md-modal-card header p{margin:4px 0 0;font-size:12px;color:#7b8ba0}
+.md-modal-close{border:1px solid #dce5f2;border-radius:9px;background:#fff;color:#52657e;padding:7px 10px;cursor:pointer;font-weight:700;font-size:12px}
+.md-body{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:15px;color:#34445b;font-size:13px;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .viewswitch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f3f6fb;border:1px solid #e1e7f0;border-radius:14px;padding:4px;margin:0 0 18px}.viewswitch.three{grid-template-columns:1fr 1fr 1fr}
 .viewswitch button{border:0;background:transparent;border-radius:11px;padding:11px 14px;cursor:pointer;text-align:left;color:#52657e}
 .viewswitch button[aria-selected="true"]{background:#fff;color:#185aba;box-shadow:0 1px 3px #24334a1a}
@@ -327,10 +338,11 @@ const contracts=[
    "software": "nombre del proveedor",
    "investigacion_previa": "hallazgos | null"
   },
-  "instructions": "Tu propósito es investigar, una vez por proveedor de software de reservas, qué integración oficial existe para consultar disponibilidad o gestionar reservas y bajo qué condiciones. Si no hay nombre de software, no se ejecuta.\n\nRevisa investigacion_previa: comprueba si sigue vigente y si aplica a este software y a las operaciones necesarias. Observa documentación, API, SDK, programa de partners u otra vía oficial con fuentes atribuibles. Registra enlace, fecha y qué afirma cada fuente.\n\nNo confundas un endpoint interno observado en una web de un negocio con una API pública u oficialmente autorizada. Anota condiciones de uso y señales de robots.txt que afecten a recursos del proveedor, con origen, alcance y fecha. Explica qué indican y qué no permiten concluir. robots.txt no demuestra un bloqueo técnico ni decide si hay API oficial. No propongas evadir controles.\n\nSepara hallazgos reutilizables del proveedor de lo que hay que confirmar en cada negocio cliente: acceso concedido, credenciales, alcance, disponibilidad y permiso operativo. No asumas un sector ni un modelo de partner concreto. No supongas que usar el proveedor da acceso a las reservas de sus clientes. Si falta autorización o una condición no está clara, déjala pendiente.\n\nSi no localizas integración tras una búsqueda documentada, usa no_localizada sin afirmar que es imposible. Usa pendiente si la búsqueda quedó incompleta. Esta instrucción no bloquea Observar formulario. No inventes integraciones ni contactos. No confirmes una reserva sin evidencia.\n\nRegistra fecha_evaluacion en ISO 8601. Deja fecha_validacion en null hasta la revisión independiente.",
+  "instructions": "Tu propósito es investigar, una vez por proveedor de software de reservas, qué integración oficial existe para consultar disponibilidad o gestionar reservas y bajo qué condiciones. Si no hay nombre de software, no se ejecuta.\n\nRevisa investigacion_previa: comprueba si sigue vigente y si aplica a este software y a las operaciones necesarias. Observa documentación, API, SDK, programa de partners u otra vía oficial con fuentes atribuibles.\n\nEl artefacto principal es documentacion_md: un Markdown completo con cómo integrar, documentación y endpoints, condiciones del proveedor, requisitos por negocio, fuentes citadas e incertidumbres. Las listas estructuradas (integraciones_encontradas, operaciones_documentadas, condiciones_proveedor, requisitos_por_negocio, fuentes) son opcionales y solo resumen lo que el Markdown ya sostiene.\n\nNo confundas un endpoint interno observado en una web de un negocio con una API pública u oficialmente autorizada. robots.txt no demuestra un bloqueo técnico ni decide si hay API oficial. No propongas evadir controles. Separa hallazgos reutilizables del proveedor de lo que hay que confirmar en cada negocio cliente. No asumas un sector ni un modelo de partner concreto. No inventes integraciones ni contactos. No confirmes una reserva sin evidencia.\n\nSi no localizas integración tras una búsqueda documentada, usa no_localizada sin afirmar que es imposible y documenta la búsqueda en documentacion_md. Usa pendiente si la búsqueda quedó incompleta. Esta instrucción no bloquea Observar formulario.\n\nRegistra fecha_evaluacion en ISO 8601. Deja fecha_validacion en null hasta la revisión independiente.",
   "output": {
    "software": "string",
    "estado": "documentada | no_localizada | pendiente",
+   "documentacion_md": "Markdown completo de la investigación de integración",
    "integraciones_encontradas": [],
    "operaciones_documentadas": [],
    "condiciones_proveedor": [
@@ -1087,7 +1099,8 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion_md": "# Explicación\n\nCoverManager documenta una API de reservas. La fecha de validación queda vacía: la revisión independiente todavía no la escribe en este bloque.\n"
+   "explicacion_md": "# Explicación\n\nCoverManager documenta una API de reservas. La fecha de validación queda vacía: la revisión independiente todavía no la escribe en este bloque.\n",
+   "documentacion_md": "# Integración CoverManager\n\n## Cómo integrar\nAPI oficial de partners para disponibilidad, alta y cancelación. El acceso se concede por negocio.\n\n## Documentación y endpoints\n- Guía de partners: `https://docs.covermanager.example/partners`\n- Operaciones: consultar_disponibilidad, crear_reserva, cancelar_reserva\n\n## Condiciones del proveedor\nCada negocio necesita su propio acceso de partner. No usar endpoints internos del widget como API pública.\n\n## Requisitos por negocio\nIdentificador del local y partner concedido. Credenciales fuera de este documento.\n\n## Fuentes\n| Fuente | Fecha | Afirma |\n|---|---|---|\n| Guía de partners | 2026-10-12 | API oficial de reservas |\n\n## Incertidumbres\nEl acceso concreto de cada local sigue pendiente de concesión.\n"
   },
   {
    "software": "formulario propio",
@@ -1105,7 +1118,8 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion_md": "# Explicación\n\nEl formulario propio de la terraza no tiene integración oficial localizable. La función puede seguir sin ella.\n"
+   "explicacion_md": "# Explicación\n\nEl formulario propio de la terraza no tiene integración oficial localizable. La función puede seguir sin ella.\n",
+   "documentacion_md": "# Integración — formulario propio\n\n## Cómo integrar\nSin proveedor SaaS atribuible. El recorrido es el formulario del propio sitio.\n\n## Documentación y endpoints\nBúsqueda en la URL de inicio: sin API oficial localizada.\n\n## Condiciones\nN/A.\n\n## Requisitos por negocio\nNinguno de partner externo.\n\n## Fuentes\nPágina de reservas del proceso, 2026-10-12.\n\n## Incertidumbres\nNinguna tras búsqueda suficiente → no_localizada.\n"
   },
   {
    "software": "CoverManager",
@@ -1120,7 +1134,8 @@ const outputExamples = {
    ],
    "fecha_evaluacion": "2026-10-12",
    "fecha_validacion": null,
-   "explicacion_md": "# Explicación\n\nLa investigación de CoverManager para un segundo local sigue abierta.\n"
+   "explicacion_md": "# Explicación\n\nLa investigación de CoverManager para un segundo local sigue abierta.\n",
+   "documentacion_md": "# Integración CoverManager\n\n## Cómo integrar\nAPI oficial de partners para disponibilidad, alta y cancelación. El acceso se concede por negocio.\n\n## Documentación y endpoints\n- Guía de partners: `https://docs.covermanager.example/partners`\n- Operaciones: consultar_disponibilidad, crear_reserva, cancelar_reserva\n\n## Condiciones del proveedor\nCada negocio necesita su propio acceso de partner. No usar endpoints internos del widget como API pública.\n\n## Requisitos por negocio\nIdentificador del local y partner concedido. Credenciales fuera de este documento.\n\n## Fuentes\n| Fuente | Fecha | Afirma |\n|---|---|---|\n| Guía de partners | 2026-10-12 | API oficial de reservas |\n\n## Incertidumbres\nEl acceso concreto de cada local sigue pendiente de concesión.\n"
   }
  ],
  "Justificante": [
@@ -1526,22 +1541,22 @@ const outputExamples = {
   }
  ],
  "Output de la revisión": [
- {
-  "estado_revision": "aprobada",
-  "fecha_validacion": "2026-10-14T19:30:00+01:00",
-  "explicacion_md": "# Veredicto de revisión\n\nEl output del bloque se aprueba.\n"
- },
- {
-  "estado_revision": "cambios_solicitados",
-  "fecha_validacion": "2026-10-14T19:40:00+01:00",
-  "explicacion_md": "# Veredicto de revisión\n\nHay que corregir el output y volver a presentar.\n"
- },
- {
-  "estado_revision": "inconclusa",
-  "fecha_validacion": null,
-  "explicacion_md": "# Veredicto de revisión\n\nNo hay evidencia suficiente para cerrar el veredicto.\n"
- }
-],
+  {
+   "estado_revision": "aprobada",
+   "fecha_validacion": "2026-10-14T19:30:00+01:00",
+   "explicacion_md": "# Veredicto de revisión\n\nEl output del bloque se aprueba.\n"
+  },
+  {
+   "estado_revision": "cambios_solicitados",
+   "fecha_validacion": "2026-10-14T19:40:00+01:00",
+   "explicacion_md": "# Veredicto de revisión\n\nHay que corregir el output y volver a presentar.\n"
+  },
+  {
+   "estado_revision": "inconclusa",
+   "fecha_validacion": null,
+   "explicacion_md": "# Veredicto de revisión\n\nNo hay evidencia suficiente para cerrar el veredicto.\n"
+  }
+ ],
  "Output combinado": [
   {
    "nombre_negocio": "Restaurante El Muelle",
@@ -2368,9 +2383,33 @@ const catalogSoftware=[
  {id_software:"sw-pendiente-costa",nombre:"(pendiente — Costa Mar)",primera_vez:"2026-10-12",actualizado_en:"2026-10-12"}
 ];
 const catalogIntegracion=[
- {id_integracion:"int-cm-v1",id_software:"sw-covermanager",version:"v1",timestamp:"2026-10-12T16:00:00+01:00",estado:"documentada",resumen:"API partner CoverManager; acceso por negocio pendiente"},
- {id_integracion:"int-cm-v2",id_software:"sw-covermanager",version:"v2",timestamp:"2026-10-13T11:30:00+01:00",estado:"documentada",resumen:"Misma API; anexo de partner actualizado"},
- {id_integracion:"int-propio-v1",id_software:"sw-propio-muelle",version:"v1",timestamp:"2026-10-12T17:00:00+01:00",estado:"no_localizada",resumen:"Formulario propio sin API oficial"}
+ {
+  "id_integracion": "int-cm-v1",
+  "id_software": "sw-covermanager",
+  "version": "v1",
+  "timestamp": "2026-10-12T16:00:00+01:00",
+  "estado": "documentada",
+  "resumen": "API partner CoverManager; acceso por negocio pendiente",
+  "documentacion_md": "# CoverManager — documentación de integración v1\n\n## Cómo integrar\n1. Solicitar acceso de partner CoverManager para el negocio.\n2. Obtener identificador del local y credenciales de API.\n3. Usar disponibilidad, alta y cancelación según la guía.\n\n## Documentación y endpoints\n- `https://docs.covermanager.example/partners`\n- Operaciones documentadas: disponibilidad, crear reserva, cancelar reserva.\n\n## Condiciones del proveedor\nAcceso por negocio. No confundir con endpoints del widget en la web del local.\n\n## Requisitos por negocio\nIdentificador del local; partner concedido; credenciales fuera de catálogo.\n\n## Fuentes\n| Origen | Fecha | Nota |\n|---|---|---|\n| docs.covermanager.example/partners | 2026-10-12 | API oficial |\n\n## Incertidumbres\nAnexo de partner del local aún pendiente de confirmación.\n"
+ },
+ {
+  "id_integracion": "int-cm-v2",
+  "id_software": "sw-covermanager",
+  "version": "v2",
+  "timestamp": "2026-10-13T11:30:00+01:00",
+  "estado": "documentada",
+  "resumen": "Misma API; anexo de partner actualizado",
+  "documentacion_md": "# CoverManager — documentación de integración v2\n\n## Cómo integrar\nIgual que v1, con el anexo de partner actualizado (2026-10-13).\n\n## Documentación y endpoints\nMisma guía; operaciones sin cambio de contrato.\n\n## Condiciones del proveedor\nPartner por negocio; términos revisados en v2 sin cambio bloqueante.\n\n## Requisitos por negocio\nIdentificador del local y acceso concedido.\n\n## Fuentes\nGuía partners + anexo v2, 2026-10-13.\n\n## Incertidumbres\nNinguna nueva sobre la API; el acceso de cada negocio sigue siendo por conceder.\n"
+ },
+ {
+  "id_integracion": "int-propio-v1",
+  "id_software": "sw-propio-muelle",
+  "version": "v1",
+  "timestamp": "2026-10-12T17:00:00+01:00",
+  "estado": "no_localizada",
+  "resumen": "Formulario propio sin API oficial",
+  "documentacion_md": "# Motor propio (terraza) — investigación v1\n\n## Cómo integrar\nSin API oficial. La vía operativa es el formulario web del negocio.\n\n## Documentación y endpoints\nNingún endpoint público de proveedor localizado tras búsqueda suficiente.\n\n## Condiciones\nN/A.\n\n## Requisitos por negocio\nNinguno de partner externo.\n\n## Fuentes\nURL de terraza El Muelle, 2026-10-12.\n\n## Incertidumbres\nNinguna → no_localizada.\n"
+ }
 ];
 const catalogProcesoIdentidad=[
  {id_proceso:"proc-muelle-sala",id_negocio:"neg-el-muelle",url_inicio:"https://www.elmuelle.example/reservas/cena-sala",alcance:"cena-sala",id_software:"sw-covermanager",actualizado_en:"2026-10-13"},
@@ -2378,31 +2417,159 @@ const catalogProcesoIdentidad=[
  {id_proceso:"proc-costa-mar",id_negocio:"neg-costa-mar",url_inicio:"https://www.hotelcostamar.example/reservar",alcance:"habitacion",id_software:"sw-pendiente-costa",actualizado_en:"2026-10-12"}
 ];
 const catalogProcesoArtefactos={
- Observación:[
-  {id:"obs-sala-v1",id_proceso:"proc-muelle-sala",version:"v1",timestamp:"2026-10-12T14:00:00+01:00",estado:"completa",resumen:"Formulario CoverManager hasta antes de confirmar"},
-  {id:"obs-sala-v2",id_proceso:"proc-muelle-sala",version:"v2",timestamp:"2026-10-13T09:00:00+01:00",estado:"completa",resumen:"Misma ruta; campo email confirmado"},
-  {id:"obs-terraza-v1",id_proceso:"proc-muelle-terraza",version:"v1",timestamp:"2026-10-12T14:20:00+01:00",estado:"completa",resumen:"Formulario propio terraza"},
-  {id:"obs-costa-v1",id_proceso:"proc-costa-mar",version:"v1",timestamp:"2026-10-12T15:00:00+01:00",estado:"pendiente",resumen:"Carga incompleta del formulario"}
+ "Observación": [
+  {
+   "id": "obs-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": "2026-10-12T14:00:00+01:00",
+   "estado": "completa",
+   "resumen": "Formulario CoverManager hasta antes de confirmar",
+   "documento_md": "# Observación — obs-sala-v1\n\n## Proceso\n`proc-muelle-sala` · versión `v1` · 2026-10-12T14:00:00+01:00\n\n## Estado\ncompleta\n\n## Resumen\nFormulario CoverManager hasta antes de confirmar\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "obs-sala-v2",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v2",
+   "timestamp": "2026-10-13T09:00:00+01:00",
+   "estado": "completa",
+   "resumen": "Misma ruta; campo email confirmado",
+   "documento_md": "# Observación — obs-sala-v2\n\n## Proceso\n`proc-muelle-sala` · versión `v2` · 2026-10-13T09:00:00+01:00\n\n## Estado\ncompleta\n\n## Resumen\nMisma ruta; campo email confirmado\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "obs-terraza-v1",
+   "id_proceso": "proc-muelle-terraza",
+   "version": "v1",
+   "timestamp": "2026-10-12T14:20:00+01:00",
+   "estado": "completa",
+   "resumen": "Formulario propio terraza",
+   "documento_md": "# Observación — obs-terraza-v1\n\n## Proceso\n`proc-muelle-terraza` · versión `v1` · 2026-10-12T14:20:00+01:00\n\n## Estado\ncompleta\n\n## Resumen\nFormulario propio terraza\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "obs-costa-v1",
+   "id_proceso": "proc-costa-mar",
+   "version": "v1",
+   "timestamp": "2026-10-12T15:00:00+01:00",
+   "estado": "pendiente",
+   "resumen": "Carga incompleta del formulario",
+   "documento_md": "# Observación — obs-costa-v1\n\n## Proceso\n`proc-costa-mar` · versión `v1` · 2026-10-12T15:00:00+01:00\n\n## Estado\npendiente\n\n## Resumen\nCarga incompleta del formulario\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  }
  ],
- Justificante:[
-  {id:"jus-sala-v1",id_proceso:"proc-muelle-sala",version:"v1",timestamp:"2026-10-12T15:00:00+01:00",estado:"justificado",resumen:"Campos y señales desde observación v1"},
-  {id:"jus-sala-v2",id_proceso:"proc-muelle-sala",version:"v2",timestamp:"2026-10-13T09:30:00+01:00",estado:"justificado",resumen:"Regenerado desde observación v2"},
-  {id:"jus-terraza-v1",id_proceso:"proc-muelle-terraza",version:"v1",timestamp:"2026-10-12T15:20:00+01:00",estado:"justificado",resumen:"Sin email; teléfono condicional"}
+ "Justificante": [
+  {
+   "id": "jus-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": "2026-10-12T15:00:00+01:00",
+   "estado": "justificado",
+   "resumen": "Campos y señales desde observación v1",
+   "documento_md": "# Justificante — jus-sala-v1\n\n## Proceso\n`proc-muelle-sala` · versión `v1` · 2026-10-12T15:00:00+01:00\n\n## Estado\njustificado\n\n## Resumen\nCampos y señales desde observación v1\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "jus-sala-v2",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v2",
+   "timestamp": "2026-10-13T09:30:00+01:00",
+   "estado": "justificado",
+   "resumen": "Regenerado desde observación v2",
+   "documento_md": "# Justificante — jus-sala-v2\n\n## Proceso\n`proc-muelle-sala` · versión `v2` · 2026-10-13T09:30:00+01:00\n\n## Estado\njustificado\n\n## Resumen\nRegenerado desde observación v2\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "jus-terraza-v1",
+   "id_proceso": "proc-muelle-terraza",
+   "version": "v1",
+   "timestamp": "2026-10-12T15:20:00+01:00",
+   "estado": "justificado",
+   "resumen": "Sin email; teléfono condicional",
+   "documento_md": "# Justificante — jus-terraza-v1\n\n## Proceso\n`proc-muelle-terraza` · versión `v1` · 2026-10-12T15:20:00+01:00\n\n## Estado\njustificado\n\n## Resumen\nSin email; teléfono condicional\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  }
  ],
- Función:[
-  {id:"fun-sala-v1",id_proceso:"proc-muelle-sala",version:"v1",timestamp:"2026-10-12T16:00:00+01:00",estado:"generada",resumen:"reservar — cuatro claves"},
-  {id:"fun-sala-v2",id_proceso:"proc-muelle-sala",version:"v2",timestamp:"2026-10-13T10:00:00+01:00",estado:"generada",resumen:"Misma firma; email obligatorio"},
-  {id:"fun-terraza-v1",id_proceso:"proc-muelle-terraza",version:"v1",timestamp:"2026-10-12T16:20:00+01:00",estado:"generada",resumen:"reservar terraza"}
+ "Función": [
+  {
+   "id": "fun-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": "2026-10-12T16:00:00+01:00",
+   "estado": "generada",
+   "resumen": "reservar — cuatro claves",
+   "documento_md": "# Función — fun-sala-v1\n\n## Proceso\n`proc-muelle-sala` · versión `v1` · 2026-10-12T16:00:00+01:00\n\n## Estado\ngenerada\n\n## Resumen\nreservar — cuatro claves\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "fun-sala-v2",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v2",
+   "timestamp": "2026-10-13T10:00:00+01:00",
+   "estado": "generada",
+   "resumen": "Misma firma; email obligatorio",
+   "documento_md": "# Función — fun-sala-v2\n\n## Proceso\n`proc-muelle-sala` · versión `v2` · 2026-10-13T10:00:00+01:00\n\n## Estado\ngenerada\n\n## Resumen\nMisma firma; email obligatorio\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "fun-terraza-v1",
+   "id_proceso": "proc-muelle-terraza",
+   "version": "v1",
+   "timestamp": "2026-10-12T16:20:00+01:00",
+   "estado": "generada",
+   "resumen": "reservar terraza",
+   "documento_md": "# Función — fun-terraza-v1\n\n## Proceso\n`proc-muelle-terraza` · versión `v1` · 2026-10-12T16:20:00+01:00\n\n## Estado\ngenerada\n\n## Resumen\nreservar terraza\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  }
  ],
- Script:[
-  {id:"scr-sala-v1",id_proceso:"proc-muelle-sala",version:"v1",timestamp:"2026-10-12T16:30:00+01:00",estado:"generada",resumen:"Playwright cena-sala"},
-  {id:"scr-sala-v2",id_proceso:"proc-muelle-sala",version:"v2",timestamp:"2026-10-13T10:15:00+01:00",estado:"generada",resumen:"Playwright regenerado con email"},
-  {id:"scr-terraza-v1",id_proceso:"proc-muelle-terraza",version:"v1",timestamp:"2026-10-12T16:40:00+01:00",estado:"generada",resumen:"Playwright terraza"}
+ "Script": [
+  {
+   "id": "scr-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": "2026-10-12T16:30:00+01:00",
+   "estado": "generada",
+   "resumen": "Playwright cena-sala",
+   "documento_md": "# Script — scr-sala-v1\n\n## Proceso\n`proc-muelle-sala` · versión `v1` · 2026-10-12T16:30:00+01:00\n\n## Estado\ngenerada\n\n## Resumen\nPlaywright cena-sala\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "scr-sala-v2",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v2",
+   "timestamp": "2026-10-13T10:15:00+01:00",
+   "estado": "generada",
+   "resumen": "Playwright regenerado con email",
+   "documento_md": "# Script — scr-sala-v2\n\n## Proceso\n`proc-muelle-sala` · versión `v2` · 2026-10-13T10:15:00+01:00\n\n## Estado\ngenerada\n\n## Resumen\nPlaywright regenerado con email\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "scr-terraza-v1",
+   "id_proceso": "proc-muelle-terraza",
+   "version": "v1",
+   "timestamp": "2026-10-12T16:40:00+01:00",
+   "estado": "generada",
+   "resumen": "Playwright terraza",
+   "documento_md": "# Script — scr-terraza-v1\n\n## Proceso\n`proc-muelle-terraza` · versión `v1` · 2026-10-12T16:40:00+01:00\n\n## Estado\ngenerada\n\n## Resumen\nPlaywright terraza\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  }
  ],
- Canal:[
-  {id:"can-sala-v1",id_proceso:"proc-muelle-sala",version:"v1",timestamp:"2026-10-14T13:40:00+01:00",estado:"encontrado",resumen:"Enlace cancelación + teléfono Contactos"},
-  {id:"can-terraza-v1",id_proceso:"proc-muelle-terraza",version:"v1",timestamp:"2026-10-14T13:45:00+01:00",estado:"encontrado",resumen:"Mismo teléfono del negocio"},
-  {id:"can-costa-v1",id_proceso:"proc-costa-mar",version:"v1",timestamp:"2026-05-29T12:00:00+01:00",estado:"no_encontrado",resumen:"Sin canal verificable"}
+ "Canal": [
+  {
+   "id": "can-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": "2026-10-14T13:40:00+01:00",
+   "estado": "encontrado",
+   "resumen": "Enlace cancelación + teléfono Contactos",
+   "documento_md": "# Canal — can-sala-v1\n\n## Proceso\n`proc-muelle-sala` · versión `v1` · 2026-10-14T13:40:00+01:00\n\n## Estado\nencontrado\n\n## Resumen\nEnlace cancelación + teléfono Contactos\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "can-terraza-v1",
+   "id_proceso": "proc-muelle-terraza",
+   "version": "v1",
+   "timestamp": "2026-10-14T13:45:00+01:00",
+   "estado": "encontrado",
+   "resumen": "Mismo teléfono del negocio",
+   "documento_md": "# Canal — can-terraza-v1\n\n## Proceso\n`proc-muelle-terraza` · versión `v1` · 2026-10-14T13:45:00+01:00\n\n## Estado\nencontrado\n\n## Resumen\nMismo teléfono del negocio\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  },
+  {
+   "id": "can-costa-v1",
+   "id_proceso": "proc-costa-mar",
+   "version": "v1",
+   "timestamp": "2026-05-29T12:00:00+01:00",
+   "estado": "no_encontrado",
+   "resumen": "Sin canal verificable",
+   "documento_md": "# Canal — can-costa-v1\n\n## Proceso\n`proc-costa-mar` · versión `v1` · 2026-05-29T12:00:00+01:00\n\n## Estado\nno_encontrado\n\n## Resumen\nSin canal verificable\n\n## Cuerpo\nDocumento de ejemplo (El Muelle). En producción aquí va el Markdown completo generado por la operación correspondiente.\n"
+  }
  ]
 };
 const catalogProcesoSubTabs=["Observación","Justificante","Función","Script","Canal"];
@@ -2455,10 +2622,47 @@ function clasificarOferta(clasificacion, fiabilidad, compuerta){
  if((clasificacion==='apto_automatico'||clasificacion==='apto_asistido')&&fiabilidad==='fiable'&&compuerta==='abierta')return 'habilitada';
  return 'pendiente';
 }
-function flatTable(headers, rows){
-  const th=headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('');
-  const body=rows.map(r=>`<tr>${headers.map(h=>`<td>${escapeHtml(String(r[h]??'—'))}</td>`).join('')}</tr>`).join('');
+function mdCapsule(title, md, meta){
+  const id='md-'+Math.random().toString(36).slice(2,10);
+  window.__mdDocs=window.__mdDocs||{};
+  window.__mdDocs[id]={title:title||'Documento', md:md||'', meta:meta||''};
+  return `<button type="button" class="md-capsule" data-md-id="${id}"><span class="cap-ico" aria-hidden="true">▣</span>Ver Markdown</button>`;
+}
+function openMdModal(id){
+  const doc=(window.__mdDocs||{})[id];
+  if(!doc) return;
+  let modal=document.getElementById('mdModal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='mdModal';
+    modal.className='md-modal';
+    modal.innerHTML='<div class="md-modal-card" role="dialog" aria-modal="true" aria-labelledby="mdModalTitle"><header><div><h3 id="mdModalTitle"></h3><p id="mdModalMeta"></p></div><button type="button" class="md-modal-close" id="mdModalClose">Cerrar</button></header><pre class="md-body" id="mdModalBody"></pre></div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click',ev=>{if(ev.target===modal) modal.classList.remove('open');});
+    document.getElementById('mdModalClose').onclick=()=>modal.classList.remove('open');
+  }
+  modal.querySelector('#mdModalTitle').textContent=doc.title;
+  modal.querySelector('#mdModalMeta').textContent=doc.meta||'';
+  modal.querySelector('#mdModalBody').textContent=doc.md||'';
+  modal.classList.add('open');
+}
+function flatTable(headers, rows, mdField){
+  const show=headers.filter(h=>h!==mdField);
+  if(mdField) show.push('documento');
+  const th=show.map(h=>`<th>${escapeHtml(h)}</th>`).join('');
+  const body=rows.map(r=>{
+    const cells=headers.filter(h=>h!==mdField).map(h=>`<td>${escapeHtml(String(r[h]??'—'))}</td>`);
+    if(mdField){
+      const title=r.resumen||r.estado||r.id||r.id_integracion||'Documento';
+      const meta=[r.id_integracion||r.id,r.version,r.timestamp].filter(Boolean).join(' · ');
+      cells.push(`<td>${mdCapsule(String(title), String(r[mdField]||''), meta)}</td>`);
+    }
+    return `<tr>${cells.join('')}</tr>`;
+  }).join('');
   return `<div class="tablewrap"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function bindMdCapsules(root){
+  (root||document).querySelectorAll('[data-md-id]').forEach(b=>b.addEventListener('click',()=>openMdModal(b.dataset.mdId)));
 }
 function renderCatalogos(){
   const label=catalogTabs[catalogTab].label;
@@ -2470,19 +2674,20 @@ function renderCatalogos(){
   }else if(label==='Software'){
     panel=`<section class="card"><h3>Software</h3><p class="intro">Una fila por proveedor. Lo escribe Identificar software; se reutiliza entre negocios.</p>${flatTable(['id_software','nombre','primera_vez','actualizado_en'],catalogSoftware)}</section>`;
   }else if(label==='Integración'){
-    panel=`<section class="card"><h3>Integración</h3><p class="intro">Una fila por versión. El mismo software puede tener v1 y v2.</p>${flatTable(['id_integracion','id_software','version','timestamp','estado','resumen'],catalogIntegracion)}</section>`;
+    panel=`<section class="card"><h3>Integración</h3><p class="intro">Una fila por versión. El Markdown completo se abre con la cápsula; el resumen queda en la fila.</p>${flatTable(['id_integracion','id_software','version','timestamp','estado','resumen','documentacion_md'],catalogIntegracion,'documentacion_md')}</section>`;
   }else if(label==='Proceso'){
     const sub=catalogProcesoSubTabs[catalogProcessSub];
     const art=catalogProcesoArtefactos[sub];
     const subTabs=`<div class="sidetabs" role="tablist" aria-label="Artefactos del proceso">${catalogProcesoSubTabs.map((name,i)=>`<button type="button" role="tab" aria-selected="${i===catalogProcessSub}" data-proc-sub="${i}">${escapeHtml(name)}</button>`).join('')}</div>`;
     panel=`<section class="card"><h3>Identidades de proceso</h3><p class="intro">Una fila por URL de inicio. Regenerar un artefacto añade versión; no sobrescribe la identidad.</p>${flatTable(['id_proceso','id_negocio','url_inicio','alcance','id_software','actualizado_en'],catalogProcesoIdentidad)}</section>
-      <section class="card"><h3>Artefactos versionados</h3>${subTabs}<p class="intro">${escapeHtml(sub)}: cada fila es una versión.</p>${flatTable(['id','id_proceso','version','timestamp','estado','resumen'],art)}</section>`;
+      <section class="card"><h3>Artefactos versionados</h3>${subTabs}<p class="intro">${escapeHtml(sub)}: cada fila es una versión. El cuerpo Markdown se abre con la cápsula.</p>${flatTable(['id','id_proceso','version','timestamp','estado','resumen','documento_md'],art,'documento_md')}</section>`;
   }else if(label==='Ejecución'){
     panel=`<section class="card"><h3>Ejecución</h3><p class="intro">Una fila por intento (Automática, Enlace o vigilancia).</p>${flatTable(['id_ejecucion','id_proceso','via','timestamp','resultado','id_referencia'],catalogEjecucion)}</section>`;
   }
-  content.innerHTML=heading('Capas de datos','Catálogos','Mapa de conexión y tablas de ejemplo por catálogo. Filas planas, sin celdas anidadas.','Ejemplos')+tabs(catalogTabs,catalogTab,'catalogos')+`<div id="panel-catalogos">${panel}</div>`;
+  content.innerHTML=heading('Capas de datos','Catálogos','Mapa de conexión y tablas de ejemplo por catálogo. Filas planas; el Markdown se abre en cápsula.','Ejemplos')+tabs(catalogTabs,catalogTab,'catalogos')+`<div id="panel-catalogos">${panel}</div>`;
   bindTabs('catalogos',i=>{catalogTab=i;if(catalogTabs[i].label!=='Proceso')catalogProcessSub=0;renderCatalogos()});
   content.querySelectorAll('[data-proc-sub]').forEach(b=>b.addEventListener('click',()=>{catalogProcessSub=Number(b.dataset.procSub);renderCatalogos()}));
+  bindMdCapsules(content);
 }
 const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones],['Catálogos',renderCatalogos]];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num">${i+1}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
