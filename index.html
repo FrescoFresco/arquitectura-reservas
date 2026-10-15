@@ -2522,41 +2522,22 @@ function mountDbMermaid(){
     });
     mermaid.run({nodes:[el]}).then(()=>{
       if(status) status.textContent='Pulsa una tabla para abrirla en Modelo de datos.';
-      // Relabel accented display names in SVG titles when possible
-      const rename={Integracion:'Integración',Observacion:'Observación',Funcion:'Función',Ejecucion:'Ejecución'};
-      el.querySelectorAll('text').forEach(tx=>{
-        const v=(tx.textContent||'').trim();
-        if(rename[v]) tx.textContent=rename[v];
-      });
-      const hit=(node)=>{
-        const raw=(node.textContent||'').replace(/\s+/g,' ').trim();
-        return resolveDbEntityLabel(raw);
-      };
-      const bind=(node)=>{
-        const label=hit(node);
+      const entityRe=/entity-([A-Za-zÁÉÍÓÚáéíóúñÑ]+)-\d+$/;
+      el.querySelectorAll('g[id*="-entity-"]').forEach(node=>{
+        const id=node.id||'';
+        // Skip relationship edge groups (contain two entity refs)
+        if((id.match(/entity-/g)||[]).length!==1) return;
+        const m=id.match(entityRe);
+        if(!m) return;
+        const label=dbEntityToTab[m[1]];
         if(!label) return;
         node.style.cursor='pointer';
+        node.setAttribute('role','link');
+        node.setAttribute('aria-label','Abrir tabla '+label);
         node.addEventListener('click',ev=>{
           ev.preventDefault();ev.stopPropagation();
           irAModelo(label);
         });
-      };
-      el.querySelectorAll('g[id*="entity"], g.entityBox, .er.entityBox, g[id^="entity-"]').forEach(bind);
-      // Fallback: any group that starts with a known entity name
-      el.querySelectorAll('svg g').forEach(g=>{
-        if(g.querySelector('g[id*="entity"]')) return;
-        const label=hit(g);
-        if(!label) return;
-        // Only bind top-level-ish boxes with a rect
-        if(!g.querySelector('rect')) return;
-        if(g.getAttribute('data-db-bound')) return;
-        const text=(g.textContent||'').trim();
-        // Avoid binding huge groups
-        if(text.length>180) return;
-        const first=text.split(/\s+/)[0];
-        if(!dbEntityToTab[first] && !Object.keys(dbEntityToTab).some(k=>text.startsWith(k))) return;
-        g.setAttribute('data-db-bound','1');
-        bind(g);
       });
     }).catch(err=>{
       el.className='map-fallback';
