@@ -10,6 +10,9 @@
 .doclink{margin-left:auto;flex:none;display:inline-block;padding:10px 14px;border:1px solid #b9cef0;border-radius:10px;text-decoration:none;color:#2459a9;background:#f7faff;font-size:12px;font-weight:700}.doclink:hover{background:#eaf1ff}.doclink:focus-visible{outline:2px solid #266bd1;outline-offset:2px}@media(max-width:760px){.brand{flex-wrap:wrap}.doclink{margin-left:55px}}
 .example-table{min-width:640px}.example-table th{white-space:nowrap;position:sticky;top:0}.example-table td{vertical-align:top}.example-subrow td{background:#fbfdff;padding-top:6px}.nullcell{color:#8b98a9}.example-nest{margin-top:4px}.example-tabs{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid #e7ebf2;margin:0 0 10px;padding-bottom:8px}.example-tabs button{flex:none;border:1px solid #dce5f2;border-radius:10px;background:#fff;color:#52657e;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer}.example-tabs button[aria-selected="true"]{background:#eaf1ff;border-color:#a9c5ef;color:#185aba}.example-panel[hidden]{display:none}
 .contract-summary{margin:2px 0 14px;font-size:14px;color:#3d4d63;line-height:1.55}
+.proposito{margin:0 0 16px;padding:16px 18px;border:1px solid #e1e8f2;border-radius:14px;background:#f8fafc}
+.proposito h3{margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784}
+.proposito p{margin:0;font-size:14px;line-height:1.55;color:#2c3c50}
 .viewswitch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f3f6fb;border:1px solid #e1e7f0;border-radius:14px;padding:4px;margin:0 0 18px}.viewswitch.three{grid-template-columns:1fr 1fr 1fr}
 .viewswitch button{border:0;background:transparent;border-radius:11px;padding:11px 14px;cursor:pointer;text-align:left;color:#52657e}
 .viewswitch button[aria-selected="true"]{background:#fff;color:#185aba;box-shadow:0 1px 3px #24334a1a}
@@ -2301,11 +2304,27 @@ function restoreOpsScroll(pageY){
   apply();
   requestAnimationFrame(()=>requestAnimationFrame(apply));
 }
+const purposes={
+ "Ficha del negocio":"Declara una vez el nombre, la zona horaria y el ámbito festivo del negocio. No busca enlaces de reserva, contactos ni horarios.",
+ "Punto A":"Localiza cada URL donde el sitio empieza una reserva online. No reescribe la ficha ni identifica el software.",
+ "Apertura":"Una vez por negocio, documenta si está abierto ahora y construye la pila de cron. No lista contactos ni decide la aptitud de las vías.",
+ "Contactos del negocio":"Reúne una vez los canales de contacto que el negocio publica. No elige el canal de cancelación de un proceso concreto.",
+ "Identificar software":"Atribuye el software del enlace de inicio con razonamiento y evidencia en Markdown. No investiga la integración ni genera función o script.",
+ "Observar formulario":"Recorre el inicio de reserva hasta justo antes de confirmar y relata lo visto. No decide campos ni escribe justificante, función o script.",
+ "Canal de cancelación":"Determina cómo se cancelaría una reserva de este proceso. No vuelve a inventariar la agenda de contactos del negocio.",
+ "Investigar integración":"Una vez por proveedor, documenta la integración oficial y sus condiciones. No bloquea observar el formulario ni confirma reservas.",
+ "Justificante":"Decide solo desde el relato qué datos y señales de resultado están justificados. No vuelve a recorrer la web ni define la función o el script.",
+ "Función":"Define la función de reserva solo a partir del justificante. No observa el formulario ni envía una reserva.",
+ "Script":"Genera el script Playwright desde el justificante y la función, sin ejecutar el envío. No reobserva el formulario.",
+ "Automática":"Prueba disponibilidad y, si la compuerta lo permite, una reserva de prueba con función y script aprobados. No recalcula apertura, contactos ni cancelación.",
+ "Enlace asistido":"Comprueba si un enlace conserva el progreso y deja solo la acción final en una sesión independiente. No espera a Automática ni envía la reserva real desde aquí.",
+ "Verificación y vigilancia":"Registra el resultado de una ejecución, lo compara con la referencia y vigila sin crear reservas. No es el paso siguiente obligatorio de una compuerta abierta."
+};
 function renderOperaciones(opts){
   const preserveScroll=!!(opts&&opts.preserveScroll);
   const pageY=preserveScroll?(window.scrollY||window.pageYOffset||0):null;
   const d=contracts[contractTab];
-  const summary=`<p class="intro contract-summary">${escapeHtml(d.summary)}</p>`;
+  const proposito=`<section class="proposito" aria-label="Propósito"><h3>Propósito</h3><p>${escapeHtml(purposes[d.label]||d.summary)}</p></section>`;
   const viewswitch=`<div class="viewswitch three" role="tablist" aria-label="Vista del bloque"><button type="button" role="tab" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">${icon('definition')} Contrato</span><span class="switch-sub">Input, instrucciones, output</span></button><button type="button" role="tab" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">${icon('instructions')} Revisión</span><span class="switch-sub">Veredicto sobre este output</span></button><button type="button" role="tab" aria-selected="${contractView===2}" data-view="2"><span class="switch-title">${icon('examples')} Ejemplos</span><span class="switch-sub">Casos de entrada y salida</span></button></div>`;
   const contrato=`<div id="panel-vista" role="tabpanel"><section class="card"><h3 class="h-ico">${icon('input')} Input</h3><pre>${escapeHtml(JSON.stringify(d.input,null,2))}</pre></section><section class="card prompt"><div class="prompthead"><h3 class="h-ico">${icon('instructions')} Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section><section class="card"><h3 class="h-ico">${icon('output')} Output</h3><pre>${escapeHtml(JSON.stringify(d.output,null,2))}</pre></section></div>`;
   const revision=`<div id="panel-vista" role="tabpanel"><p class="intro">${escapeHtml(d.review.intro)}</p><section class="card"><h3>Veredicto</h3><pre>${escapeHtml(JSON.stringify(validationOutput,null,2))}</pre></section>${exampleSection('Output de la revisión', validationOutput)}</div>`;
@@ -2314,7 +2333,7 @@ function renderOperaciones(opts){
   const exampleHint=contractExample===0?'Cada tarjeta es un caso de entrada.':'Cada tarjeta es un caso de salida.';
   const examples=`<div id="panel-vista" role="tabpanel"><div class="sidetabs" role="tablist" aria-label="Lado del ejemplo"><button type="button" role="tab" aria-selected="${contractExample===0}" data-side="0">${icon('input')} Input</button><button type="button" role="tab" aria-selected="${contractExample===1}" data-side="1">${icon('output')} Output</button></div><p class="intro">${exampleHint}</p><section class="card">${renderRecordTable(loadExampleRows(d.label, exampleSchema, exampleRows))}</section></div>`;
   const panel=contractView===0?contrato:(contractView===1?revision:examples);
-  content.innerHTML=heading('Piezas del sistema','Operaciones','Cada bloque tiene contrato, revisión (aprobar o rechazar ese output) y ejemplos. Verificación y vigilancia compara una ejecución con una referencia.','14 bloques')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos">${summary}${viewswitch}${panel}</div>`;
+  content.innerHTML=heading('Piezas del sistema','Operaciones','Cada bloque tiene contrato, revisión (aprobar o rechazar ese output) y ejemplos. Verificación y vigilancia compara una ejecución con una referencia.','14 bloques')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos">${proposito}${viewswitch}${panel}</div>`;
   bindTabs('contratos',i=>{contractTab=i;renderOperaciones({preserveScroll:true})});
   content.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{contractView=Number(b.dataset.view);renderOperaciones({preserveScroll:true})}));
   content.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{contractExample=Number(b.dataset.side);contractView=2;renderOperaciones({preserveScroll:true})}));
