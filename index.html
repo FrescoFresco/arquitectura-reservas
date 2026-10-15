@@ -151,7 +151,7 @@ h4.subhead{margin:1rem 0 .4rem;font-size:.85rem;font-weight:600;color:var(--mute
 .rol-tag.rol-redundante{background:#f1f4f8;color:#5c6b80}
 .rol-tag.rol-dudoso{background:#fff4d6;color:#8a5a00}
 .rol-tag.rol-eco{background:#f1f4f8;color:#5c6b80}
-.schema-table td:nth-child(6){max-width:240px}
+.schema-table td.carac{max-width:240px}.schema-table code.clave{font-size:.78em;white-space:nowrap}.schema-table td.card{white-space:nowrap;font-variant-numeric:tabular-nums}
 .schema-table code.tipo{font-size:.78em;white-space:nowrap}
 .schema-table td.ejemplo{max-width:14rem;font-size:.82em;color:var(--muted,#5a6570)}
 .schema-table th{white-space:nowrap}
@@ -3656,88 +3656,88 @@ const operationSchemas={
 };
 const catalogSchemas={
  Negocio:[
-  {campo:"id_negocio",caracteristicas:"Identificador estable del negocio en el modelo."},
-  {campo:"url",caracteristicas:"URL canónica del sitio del negocio."},
-  {campo:"nombre",caracteristicas:"Nombre público del negocio."},
-  {campo:"zona",caracteristicas:"Zona horaria IANA usada para apertura y márgenes."},
-  {campo:"ambito_festivo",caracteristicas:"Salida de Ámbito festivo: jurisdicción del calendario de fiestas (país y subdivisiones). No es lista de festivos."},
-  {campo:"actualizado_en",caracteristicas:"Instante de la última actualización de la ficha de negocio."}
+  {campo:"id_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador estable del negocio en el modelo.",lo_usa:"Ficha del negocio (escribe); joins de Proceso",rol:"usable",ejemplo:"neg-el-muelle"},
+  {campo:"url",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",clave:"",cardinalidad:"1",caracteristicas:"URL canónica del sitio del negocio.",lo_usa:"Ficha del negocio",rol:"usable",ejemplo:"https://www.elmuelle.example"},
+  {campo:"nombre",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Nombre público del negocio.",lo_usa:"Ficha del negocio; Cierre",rol:"usable",ejemplo:"Restaurante El Muelle"},
+  {campo:"zona",tipo:"string | null",obligatorio:"sí",valores:"",formato:"IANA",clave:"",cardinalidad:"0..1",caracteristicas:"Zona horaria IANA usada para apertura y márgenes; null/— si pendiente.",lo_usa:"Ficha del negocio; Apertura; Cierre / compuerta",rol:"usable",ejemplo:"Atlantic/Canary"},
+  {campo:"ambito_festivo",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Salida de Ámbito festivo: jurisdicción del calendario (país y subdivisiones). No es lista de festivos. No hay tabla Ámbito aparte.",lo_usa:"Ámbito festivo (escribe); Apertura",rol:"usable",ejemplo:"España / Canarias / Tenerife"},
+  {campo:"actualizado_en",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",clave:"",cardinalidad:"1",caracteristicas:"Instante de la última actualización de la ficha.",lo_usa:"Ficha / Ámbito (al cerrar ficha)",rol:"usable",ejemplo:"2026-10-13T10:00:00+01:00"}
  ],
  Software:[
-  {campo:"id_software",caracteristicas:"Identificador estable del proveedor o motor de reservas."},
-  {campo:"nombre",caracteristicas:"Nombre del software o etiqueta si aún es pendiente."},
-  {campo:"primera_vez",caracteristicas:"Fecha en que se identificó por primera vez."},
-  {campo:"actualizado_en",caracteristicas:"Fecha de la última confirmación o cambio del registro."}
+  {campo:"id_software",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador estable del proveedor o motor de reservas.",lo_usa:"Identificar software (escribe); Integración / Proceso",rol:"usable",ejemplo:"sw-covermanager"},
+  {campo:"nombre",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Nombre del software o etiqueta si aún es pendiente.",lo_usa:"Identificar software; Canal; Investigar integración; Cierre",rol:"usable",ejemplo:"CoverManager"},
+  {campo:"primera_vez",tipo:"string",obligatorio:"sí",valores:"",formato:"fecha",clave:"",cardinalidad:"1",caracteristicas:"Fecha en que se identificó por primera vez.",lo_usa:"Identificar software",rol:"auditoría",ejemplo:"2026-10-12"},
+  {campo:"actualizado_en",tipo:"string",obligatorio:"sí",valores:"",formato:"fecha",clave:"",cardinalidad:"1",caracteristicas:"Fecha de la última confirmación o cambio del registro.",lo_usa:"Identificar software",rol:"auditoría",ejemplo:"2026-10-13"}
  ],
  Integración:[
-  {campo:"id_integracion",caracteristicas:"Identificador de esta versión de investigación."},
-  {campo:"id_software",caracteristicas:"Software al que pertenece esta versión."},
-  {campo:"version",caracteristicas:"Versión del artefacto (v1, v2…); no sobrescribe la anterior."},
-  {campo:"timestamp",caracteristicas:"Instante en que se generó esta versión."},
-  {campo:"estado",caracteristicas:"documentada | no_localizada | pendiente."},
-  {campo:"resumen",caracteristicas:"Título corto de la fila."},
-  {campo:"documentacion_md",caracteristicas:"Markdown completo de la investigación; se abre con Ver Markdown."}
+  {campo:"id_integracion",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador de esta versión de investigación.",lo_usa:"Investigar integración",rol:"usable",ejemplo:"int-cm-v1"},
+  {campo:"id_software",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"FK",cardinalidad:"0..N",caracteristicas:"Software al que pertenece esta versión (N versiones por software).",lo_usa:"Investigar integración; join a Software",rol:"usable",ejemplo:"sw-covermanager"},
+  {campo:"version",tipo:"string",obligatorio:"sí",valores:"",formato:"vN",clave:"",cardinalidad:"1",caracteristicas:"Versión del artefacto (v1, v2…); no sobrescribe la anterior.",lo_usa:"Investigar integración (versionado)",rol:"usable",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",clave:"",cardinalidad:"1",caracteristicas:"Instante en que se generó esta versión.",lo_usa:"Investigar integración",rol:"usable",ejemplo:"2026-10-12T16:00:00+01:00"},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"documentada | no_localizada | pendiente",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Estado de la investigación de integración.",lo_usa:"Investigar integración; Cierre; Automática (acceso_api)",rol:"usable",ejemplo:"documentada"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Título corto de la fila en el catálogo.",lo_usa:"UI / listado del modelo",rol:"usable",ejemplo:"API partner CoverManager; acceso por negocio pendiente"},
+  {campo:"documentacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",clave:"",cardinalidad:"1",caracteristicas:"Markdown completo de la investigación; se abre con Ver Markdown.",lo_usa:"Investigar integración; base humana de acceso_api",rol:"usable",ejemplo:"Ver Markdown · CoverManager — documentación…"}
  ],
  Proceso:[
-  {campo:"id_proceso",caracteristicas:"Identificador estable del inicio de reserva."},
-  {campo:"id_negocio",caracteristicas:"Negocio al que pertenece este proceso."},
-  {campo:"url_inicio",caracteristicas:"URL donde empieza el recorrido de reserva."},
-  {campo:"alcance",caracteristicas:"Qué cubre este inicio (texto libre del sitio)."},
-  {campo:"id_software",caracteristicas:"Software atribuido a este proceso, si ya se identificó."},
-  {campo:"actualizado_en",caracteristicas:"Última actualización de la identidad (no de los artefactos)."}
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador estable del inicio de reserva.",lo_usa:"Punto A (escribe); inputs de ops por proceso",rol:"usable",ejemplo:"proc-muelle-sala"},
+  {campo:"id_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"FK",cardinalidad:"0..N",caracteristicas:"Negocio al que pertenece (N procesos por negocio).",lo_usa:"Punto A; join a Negocio",rol:"usable",ejemplo:"neg-el-muelle"},
+  {campo:"url_inicio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",clave:"",cardinalidad:"1",caracteristicas:"URL donde empieza el recorrido de reserva.",lo_usa:"Punto A; Identificar software; Observar; Canal",rol:"usable",ejemplo:"https://www.elmuelle.example/reservas/cena-sala"},
+  {campo:"alcance",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Qué cubre este inicio (texto libre del sitio).",lo_usa:"Punto A; revisión",rol:"usable",ejemplo:"cena-sala"},
+  {campo:"id_software",tipo:"string | null",obligatorio:"no",valores:"",formato:"",clave:"",cardinalidad:"0..1",caracteristicas:"Software visto en este inicio, si ya se identificó. No es FK del erDiagram (referencia blanda).",lo_usa:"Identificar software (atribuye); listados",rol:"usable",ejemplo:"sw-covermanager"},
+  {campo:"actualizado_en",tipo:"string",obligatorio:"sí",valores:"",formato:"fecha",clave:"",cardinalidad:"1",caracteristicas:"Última actualización de la identidad (no de los artefactos).",lo_usa:"Punto A / Identificar software",rol:"auditoría",ejemplo:"2026-10-13"}
  ],
  Observación:[
-  {campo:"id",caracteristicas:"Identificador de esta versión de observación."},
-  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
-  {campo:"version",caracteristicas:"Versión del artefacto; regenerar añade fila, no pisa la identidad."},
-  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
-  {campo:"estado",caracteristicas:"Estado corto de la observación (p. ej. completa, pendiente)."},
-  {campo:"resumen",caracteristicas:"Título corto de la fila."},
-  {campo:"documento_md",caracteristicas:"Markdown completo del relato; se abre con Ver Markdown."}
+  {campo:"id",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador de esta versión de observación.",lo_usa:"Observar formulario",rol:"usable",ejemplo:"obs-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"FK",cardinalidad:"0..N",caracteristicas:"Proceso al que pertenece (0..N versiones por proceso).",lo_usa:"Observar formulario; Justificante",rol:"usable",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",valores:"",formato:"vN",clave:"",cardinalidad:"1",caracteristicas:"Versión del artefacto; regenerar añade fila.",lo_usa:"Observar formulario (versionado)",rol:"usable",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",clave:"",cardinalidad:"1",caracteristicas:"Instante de esta versión.",lo_usa:"Observar formulario",rol:"usable",ejemplo:"2026-10-12T14:00:00+01:00"},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"completa | pendiente",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Estado corto de la observación.",lo_usa:"Observar formulario; revisión",rol:"usable",ejemplo:"completa"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Título corto de la fila.",lo_usa:"UI / listado",rol:"usable",ejemplo:"Formulario CoverManager hasta antes de confirmar"},
+  {campo:"documento_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",clave:"",cardinalidad:"1",caracteristicas:"Markdown completo del relato (observacion_formulario_md).",lo_usa:"Observar formulario; Justificante",rol:"usable",ejemplo:"Ver Markdown · Observación — obs-sala-v1"}
  ],
  Justificante:[
-  {campo:"id",caracteristicas:"Identificador de esta versión de justificante."},
-  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
-  {campo:"version",caracteristicas:"Versión del artefacto."},
-  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
-  {campo:"estado",caracteristicas:"justificado | pendiente."},
-  {campo:"resumen",caracteristicas:"Título corto de la fila."},
-  {campo:"documento_md",caracteristicas:"Markdown completo del justificante; se abre con Ver Markdown."}
+  {campo:"id",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador de esta versión de justificante.",lo_usa:"Justificante",rol:"usable",ejemplo:"jus-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"FK",cardinalidad:"0..N",caracteristicas:"Proceso al que pertenece (0..N versiones por proceso).",lo_usa:"Justificante; Función; Script",rol:"usable",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",valores:"",formato:"vN",clave:"",cardinalidad:"1",caracteristicas:"Versión del artefacto.",lo_usa:"Justificante (versionado)",rol:"usable",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",clave:"",cardinalidad:"1",caracteristicas:"Instante de esta versión.",lo_usa:"Justificante",rol:"usable",ejemplo:"2026-10-12T15:00:00+01:00"},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"justificado | pendiente",formato:"",clave:"",cardinalidad:"1",caracteristicas:"justificado | pendiente.",lo_usa:"Justificante; bloquea Función/Script si pendiente",rol:"usable",ejemplo:"justificado"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Título corto de la fila.",lo_usa:"UI / listado",rol:"usable",ejemplo:"Campos y señales desde observación v1"},
+  {campo:"documento_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",clave:"",cardinalidad:"1",caracteristicas:"Markdown completo (justificante_campos_md).",lo_usa:"Justificante; Función; Script",rol:"usable",ejemplo:"Ver Markdown · Justificante — jus-sala-v1"}
  ],
  Función:[
-  {campo:"id",caracteristicas:"Identificador de esta versión de función."},
-  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
-  {campo:"version",caracteristicas:"Versión del artefacto."},
-  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
-  {campo:"estado",caracteristicas:"generada | pendiente | error."},
-  {campo:"resumen",caracteristicas:"Título corto de la fila."},
-  {campo:"documento_md",caracteristicas:"Markdown o cuerpo asociado; se abre con Ver Markdown."}
+  {campo:"id",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador de esta versión de función.",lo_usa:"Función",rol:"usable",ejemplo:"fun-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"FK",cardinalidad:"0..N",caracteristicas:"Proceso al que pertenece (0..N versiones por proceso).",lo_usa:"Función; Script; vías",rol:"usable",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",valores:"",formato:"vN",clave:"",cardinalidad:"1",caracteristicas:"Versión del artefacto.",lo_usa:"Función (versionado)",rol:"usable",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",clave:"",cardinalidad:"1",caracteristicas:"Instante de esta versión.",lo_usa:"Función",rol:"usable",ejemplo:"2026-10-12T16:00:00+01:00"},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"generada | pendiente | error",formato:"",clave:"",cardinalidad:"1",caracteristicas:"estado_generacion del contrato.",lo_usa:"Función; Compuerta; Automática/Enlace",rol:"usable",ejemplo:"generada"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Título corto de la fila.",lo_usa:"UI / listado",rol:"usable",ejemplo:"reservar — cuatro claves"},
+  {campo:"documento_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",clave:"",cardinalidad:"1",caracteristicas:"Cuerpo asociado / contrato invocable serializado; se abre con Ver Markdown.",lo_usa:"Función; Script; Automática/Enlace (funcion_reserva)",rol:"usable",ejemplo:"Ver Markdown · Función — fun-sala-v1"}
  ],
  Script:[
-  {campo:"id",caracteristicas:"Identificador de esta versión de script."},
-  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
-  {campo:"version",caracteristicas:"Versión del artefacto."},
-  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
-  {campo:"estado",caracteristicas:"generada | pendiente | error."},
-  {campo:"resumen",caracteristicas:"Título corto de la fila."},
-  {campo:"documento_md",caracteristicas:"Markdown o cuerpo asociado; se abre con Ver Markdown."}
+  {campo:"id",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador de esta versión de script.",lo_usa:"Script",rol:"usable",ejemplo:"scr-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"FK",cardinalidad:"0..N",caracteristicas:"Proceso al que pertenece (0..N versiones por proceso).",lo_usa:"Script; vías",rol:"usable",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",valores:"",formato:"vN",clave:"",cardinalidad:"1",caracteristicas:"Versión del artefacto.",lo_usa:"Script (versionado); Verificación",rol:"usable",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",clave:"",cardinalidad:"1",caracteristicas:"Instante de esta versión.",lo_usa:"Script",rol:"usable",ejemplo:"2026-10-12T16:30:00+01:00"},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"generada | pendiente | error",formato:"",clave:"",cardinalidad:"1",caracteristicas:"estado_generacion del contrato.",lo_usa:"Script; Compuerta; vías",rol:"usable",ejemplo:"generada"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Título corto de la fila.",lo_usa:"UI / listado",rol:"usable",ejemplo:"Playwright cena-sala"},
+  {campo:"documento_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",clave:"",cardinalidad:"1",caracteristicas:"Cuerpo asociado (script_js); se abre con Ver Markdown.",lo_usa:"Script; Automática/Enlace (script_reserva)",rol:"usable",ejemplo:"Ver Markdown · Script — scr-sala-v1"}
  ],
  Canal:[
-  {campo:"id",caracteristicas:"Identificador de esta versión de canal de cancelación."},
-  {campo:"id_proceso",caracteristicas:"Proceso al que pertenece."},
-  {campo:"version",caracteristicas:"Versión del artefacto."},
-  {campo:"timestamp",caracteristicas:"Instante de esta versión."},
-  {campo:"estado",caracteristicas:"encontrado | no_encontrado | pendiente."},
-  {campo:"resumen",caracteristicas:"Título corto de la fila."},
-  {campo:"documento_md",caracteristicas:"Markdown completo; se abre con Ver Markdown."}
+  {campo:"id",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador de esta versión de canal de cancelación.",lo_usa:"Canal de cancelación",rol:"usable",ejemplo:"can-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"FK",cardinalidad:"0..N",caracteristicas:"Proceso al que pertenece (0..N versiones por proceso).",lo_usa:"Canal de cancelación; Compuerta",rol:"usable",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",valores:"",formato:"vN",clave:"",cardinalidad:"1",caracteristicas:"Versión del artefacto.",lo_usa:"Canal de cancelación (versionado)",rol:"usable",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",clave:"",cardinalidad:"1",caracteristicas:"Instante de esta versión.",lo_usa:"Canal de cancelación",rol:"usable",ejemplo:"2026-10-14T13:40:00+01:00"},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"encontrado | no_encontrado | pendiente",formato:"",clave:"",cardinalidad:"1",caracteristicas:"encontrado | no_encontrado | pendiente.",lo_usa:"Canal; Compuerta; Automática/Enlace",rol:"usable",ejemplo:"encontrado"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Título corto de la fila.",lo_usa:"UI / listado",rol:"usable",ejemplo:"Enlace cancelación + teléfono Contactos"},
+  {campo:"documento_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",clave:"",cardinalidad:"1",caracteristicas:"Markdown completo del dictamen de cancelación.",lo_usa:"Canal de cancelación; revisión",rol:"usable",ejemplo:"Ver Markdown · Canal — can-sala-v1"}
  ],
  Ejecución:[
-  {campo:"id_ejecucion",caracteristicas:"Identificador del intento."},
-  {campo:"id_proceso",caracteristicas:"Proceso sobre el que se ejecutó."},
-  {campo:"via",caracteristicas:"automatica | enlace | vigilancia."},
-  {campo:"timestamp",caracteristicas:"Instante del intento."},
-  {campo:"resultado",caracteristicas:"Resultado observable del intento."},
-  {campo:"id_referencia",caracteristicas:"Referencia guardada, si existe."}
+  {campo:"id_ejecucion",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"PK",cardinalidad:"1",caracteristicas:"Identificador del intento.",lo_usa:"Automática / Enlace / Verificación",rol:"usable",ejemplo:"ej-sala-auto-1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"FK",cardinalidad:"0..N",caracteristicas:"Proceso sobre el que se ejecutó (0..N intentos por proceso).",lo_usa:"Automática; Enlace; Verificación",rol:"usable",ejemplo:"proc-muelle-sala"},
+  {campo:"via",tipo:"enum",obligatorio:"sí",valores:"automatica | enlace | vigilancia",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Vía del intento.",lo_usa:"Automática / Enlace / Verificación (discrimina fila)",rol:"usable",ejemplo:"automatica"},
+  {campo:"timestamp",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",clave:"",cardinalidad:"1",caracteristicas:"Instante del intento.",lo_usa:"Vías; Verificación",rol:"usable",ejemplo:"2026-10-13T12:00:00+01:00"},
+  {campo:"resultado",tipo:"string",obligatorio:"sí",valores:"",formato:"",clave:"",cardinalidad:"1",caracteristicas:"Resultado observable del intento (texto de expediente).",lo_usa:"Cierre Aptitud / Oferta; revisión",rol:"usable",ejemplo:"apta — reserva prueba confirmada"},
+  {campo:"id_referencia",tipo:"string | null",obligatorio:"no",valores:"",formato:"",clave:"",cardinalidad:"0..1",caracteristicas:"Referencia guardada, si existe (p. ej. código de reserva).",lo_usa:"Verificación (referencia); Automática",rol:"usable",ejemplo:"ref-sala-001"}
  ]
 };
 const catalogNegocio=[
@@ -4043,24 +4043,35 @@ function bindMdCapsules(root){
 }
 function schemaTable(rows){
   if(!rows||!rows.length) return '<p class="empty">Sin campos tipados.</p>';
-  const hasTyped=rows.some(r=>['tipo','obligatorio','valores','formato','ejemplo'].some(k=>Object.prototype.hasOwnProperty.call(r,k)));
-  const hasExtra=rows.some(r=>Object.prototype.hasOwnProperty.call(r,'lo_usa')||Object.prototype.hasOwnProperty.call(r,'rol'));
-  let th='<th>campo</th>';
-  if(hasTyped) th+='<th>tipo</th><th>obligatorio</th><th>valores</th><th>formato</th>';
-  th+='<th>características</th>';
-  if(hasExtra) th+='<th>lo usa</th><th>rol</th>';
-  if(hasTyped) th+='<th>ejemplo</th>';
+  const colDefs=[
+    {key:'campo',label:'campo',always:true},
+    {key:'tipo',label:'tipo'},
+    {key:'obligatorio',label:'obligatorio'},
+    {key:'valores',label:'valores'},
+    {key:'formato',label:'formato'},
+    {key:'clave',label:'clave'},
+    {key:'cardinalidad',label:'cardinalidad'},
+    {key:'caracteristicas',label:'características',always:true},
+    {key:'lo_usa',label:'lo usa'},
+    {key:'rol',label:'rol'},
+    {key:'ejemplo',label:'ejemplo'}
+  ];
+  const cols=colDefs.filter(c=>c.always||rows.some(r=>Object.prototype.hasOwnProperty.call(r,c.key)));
+  const th=cols.map(c=>'<th>'+c.label+'</th>').join('');
   const body=rows.map(r=>{
-    let cells='<td>'+escapeHtml(String(r.campo??'—'))+'</td>';
-    if(hasTyped){
-      cells+='<td><code class="tipo">'+escapeHtml(String(r.tipo??''))+'</code></td>';
-      cells+='<td>'+escapeHtml(String(r.obligatorio??''))+'</td>';
-      cells+='<td>'+escapeHtml(String(r.valores??''))+'</td>';
-      cells+='<td>'+escapeHtml(String(r.formato??''))+'</td>';
-    }
-    cells+='<td>'+escapeHtml(String(r.caracteristicas??'—'))+'</td>';
-    if(hasExtra) cells+='<td>'+escapeHtml(String(r.lo_usa??'—'))+'</td><td><span class="rol-tag rol-'+escapeHtml(String(r.rol||'usable'))+'">'+escapeHtml(String(r.rol??'—'))+'</span></td>';
-    if(hasTyped) cells+='<td class="ejemplo">'+escapeHtml(String(r.ejemplo??''))+'</td>';
+    const cells=cols.map(c=>{
+      const v=r[c.key];
+      const s=v==null||v===''?'':String(v);
+      if(c.key==='campo') return '<td>'+escapeHtml(s||'—')+'</td>';
+      if(c.key==='tipo') return '<td><code class="tipo">'+escapeHtml(s)+'</code></td>';
+      if(c.key==='clave') return '<td><code class="clave">'+escapeHtml(s)+'</code></td>';
+      if(c.key==='cardinalidad') return '<td class="card">'+escapeHtml(s)+'</td>';
+      if(c.key==='caracteristicas') return '<td class="carac">'+escapeHtml(s||'—')+'</td>';
+      if(c.key==='lo_usa') return '<td>'+escapeHtml(s||'—')+'</td>';
+      if(c.key==='rol') return '<td><span class="rol-tag rol-'+escapeHtml(String(r.rol||'usable'))+'">'+escapeHtml(s||'—')+'</span></td>';
+      if(c.key==='ejemplo') return '<td class="ejemplo">'+escapeHtml(s)+'</td>';
+      return '<td>'+escapeHtml(s)+'</td>';
+    }).join('');
     return '<tr>'+cells+'</tr>';
   }).join('');
   return '<div class="tablewrap"><table class="schema-table"><thead><tr>'+th+'</tr></thead><tbody>'+body+'</tbody></table></div>';
