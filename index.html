@@ -160,6 +160,35 @@ h4.subhead{margin:1rem 0 .4rem;font-size:.85rem;font-weight:600;color:var(--mute
 .schema-table code.tipo{font-size:.78em;white-space:nowrap}
 .schema-table td.ejemplo{max-width:14rem;font-size:.82em;color:var(--muted,#5a6570)}
 .schema-table th{white-space:nowrap}
+
+/* Representación: recorrido de reserva */
+.repre-card{border:1px solid #e7ebf1;border-radius:14px;padding:19px;margin:15px 0;background:#fff}
+.repre-card h3{font-size:14px;margin:0 0 10px}
+.repre-note{margin:0 0 14px;font-size:13px;line-height:1.55;color:#5f6f84}
+.repre-ascii{margin:0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:14px 16px;color:#334155}
+.journey{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:4px 0 6px}
+.journey-node{flex:1 1 140px;min-width:120px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 10px;border:1px solid #dce5f2;border-radius:12px;background:#f8fafc;color:#52657e;position:relative}
+.journey-node .jn-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:800;letter-spacing:.04em;color:#7b8ba0;margin-bottom:6px}
+.journey-node .jn-label{font-size:13px;font-weight:750;color:#243246;line-height:1.35}
+.journey-node .jn-sub{margin-top:4px;font-size:11px;color:#8490a1;line-height:1.35}
+.journey-node.is-focus{background:#eaf1ff;border-color:#a9c5ef;color:#185aba;box-shadow:0 0 0 1px #a9c5ef55}
+.journey-node.is-focus .jn-id{color:#315784}
+.journey-node.is-focus .jn-label{color:#165bd4}
+.journey-node.is-dim{opacity:.55}
+.journey-edge{flex:0 0 auto;align-self:center;width:28px;height:2px;background:#c5d3e6;margin:0 2px}
+.journey-edge::after{content:"";display:block;width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;border-left:6px solid #c5d3e6;margin:-3px 0 0 22px}
+.repre-parallel{margin-top:14px;padding:12px 14px;border:1px dashed #c9d5e6;border-radius:12px;background:#fbfdff}
+.repre-parallel strong{display:block;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784;margin-bottom:6px}
+.repre-parallel p{margin:0;font-size:13px;line-height:1.5;color:#5f6f84}
+.repre-aside{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.repre-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border:1px solid #d7e0ec;border-radius:10px;background:#fff;font-size:12px;font-weight:700;color:#2c3e55}
+.repre-chip.is-focus{background:#eaf1ff;border-color:#a9c5ef;color:#185aba}
+.repre-chip-edge{width:20px;height:2px;background:#c5d3e6;flex:none}
+@media(max-width:760px){
+  .journey{flex-direction:column;align-items:stretch}
+  .journey-edge{width:2px;height:22px;margin:2px auto;background:#c5d3e6}
+  .journey-edge::after{border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #c5d3e6;border-bottom:0;margin:16px 0 0 -3px}
+}
 </style>
 </head>
 <body>
@@ -2321,6 +2350,7 @@ contactos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wid
 automatica:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg>',
 verificacion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M16.5 8.5 19 6"/></svg>',
 operaciones:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17h7M17.5 14v7"/></svg>',
+representacion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 14h4M7 10h10M15 14h2"/><circle cx="18" cy="19" r="1"/><path d="M3 19h12"/></svg>',
 
 };
 function icon(name){return '<span class="ico" aria-hidden="true">'+(iconSvg[name]||'')+'</span>'}
@@ -2869,8 +2899,8 @@ function exampleSection(label, schema, rows){
   return '<section class="card"><h3 class="h-ico">'+icon('examples')+'Ejemplo guardado</h3><p class="intro">'+escapeHtml(painted.hint)+'</p>'+painted.html+'</section>';
 }
 
-let section=0,contractTab=0,opsMainTab=0,opsIoPart=0,catalogTab=0,catalogInnerView=0,combinaView=0,mapaTab=0,cierreView=0;
-const SEC_MAPA=0,SEC_OPS=1,SEC_CAT=2;
+let section=0,contractTab=0,opsMainTab=0,opsIoPart=0,catalogTab=0,catalogInnerView=0,combinaView=0,mapaTab=0,cierreView=0,repreTab=0;
+const SEC_MAPA=0,SEC_OPS=1,SEC_CAT=2,SEC_REPRE=3;
 function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span class="eyebrow">${eyebrow}</span>${pill?`<span class="pill">${pill}</span>`:''}</div><h2>${title}</h2><p class="desc">${desc}</p>`}
 function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${item.icon?icon(item.icon):''}${escapeHtml(item.label)}</button>`).join('')}</div>`}
 function bindTabs(name,callback){content.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>callback(Number(b.dataset.tab))))}
@@ -4224,7 +4254,73 @@ function renderCatalogos(){
   bindMdCapsules(content);
   afterTabRender({tabScrolls, pageY, focusActive:true});
 }
-const sections=[['Mapa',renderMapa,'mapa'],['Operaciones',renderOperaciones,'operaciones'],['Modelo de datos',renderCatalogos,'tablas']];
+
+function journeyNodesHtml(focus){
+  const nodes=[
+    {id:'1',label:'Web del cliente',sub:'Sitio del negocio'},
+    {id:'2',label:'Punto A',sub:'Inicio de reserva'},
+    {id:'B',label:'Formulario',sub:'Recorrido del booking'}
+  ];
+  const parts=[];
+  nodes.forEach((n,i)=>{
+    const cls=['journey-node'];
+    if(focus===n.id) cls.push('is-focus');
+    else if(focus) cls.push('is-dim');
+    parts.push(`<div class="${cls.join(' ')}" data-node="${n.id}"><span class="jn-id">(${escapeHtml(n.id)})</span><span class="jn-label">${escapeHtml(n.label)}</span><span class="jn-sub">${escapeHtml(n.sub)}</span></div>`);
+    if(i<nodes.length-1) parts.push('<div class="journey-edge" aria-hidden="true"></div>');
+  });
+  return `<div class="journey" role="img" aria-label="Recorrido de reserva: Web del cliente, Punto A, Formulario">${parts.join('')}</div>`;
+}
+function asciiJourney(focus){
+  const mark=id=>focus===id?`*${id}*`:id;
+  return `(${mark('1')}) Web del cliente ──── (${mark('2')}) Punto A ──── (${mark('B')}) Formulario`;
+}
+function repreVisualFor(label){
+  const paralelo=new Set(['Ficha del negocio','Ámbito festivo','Apertura','Contactos del negocio']);
+  const formB=new Set(['Observar formulario','Justificante','Función','Script']);
+  if(label==='Punto A'){
+    return `<section class="repre-card"><h3 class="h-ico">${icon('puntoa')} Recorrido de reserva</h3><p class="repre-note">Esta operación localiza el <strong>Punto A</strong>: el enlace donde empieza la reserva. La web del cliente (1) y el formulario (B) quedan en contexto.</p>${journeyNodesHtml('2')}<pre class="repre-ascii">${escapeHtml(asciiJourney('2'))}</pre></section>`;
+  }
+  if(formB.has(label)){
+    const tip={
+      'Observar formulario':'Observar formulario documenta lo que ocurre en (B): campos, pasos y reglas del booking.',
+      'Justificante':'Justificante ancla evidencias sobre lo visto en el formulario (B).',
+      'Función':'Función describe la capacidad ejecutable sobre el recorrido del formulario (B).',
+      'Script':'Script concreta la automatización del recorrido del formulario (B).'
+    }[label]||'Trabajo centrado en el formulario (B).';
+    return `<section class="repre-card"><h3 class="h-ico">${icon('observacion')} Recorrido de reserva</h3><p class="repre-note">${escapeHtml(tip)}</p>${journeyNodesHtml('B')}<pre class="repre-ascii">${escapeHtml(asciiJourney('B'))}</pre></section>`;
+  }
+  if(paralelo.has(label)){
+    const tip={
+      'Ficha del negocio':'Identidad del negocio (nombre, zona). Apoya el negocio; no es un paso del camino 1→A→B.',
+      'Ámbito festivo':'Jurisdicción del calendario festivo. Paralelo al recorrido de reserva.',
+      'Apertura':'Horario y pila de cron del local. Paralelo: abre o cierra la oferta, no el formulario.',
+      'Contactos del negocio':'Teléfonos y canales. Paralelo al camino de reserva online.'
+    }[label]||'Apoya el negocio; no es el camino 1→A→B.';
+    return `<section class="repre-card"><h3 class="h-ico">${icon('flujo')} Recorrido de reserva (contexto)</h3><p class="repre-note">Línea principal del booking; esta operación corre en paralelo.</p>${journeyNodesHtml(null)}<pre class="repre-ascii">${escapeHtml(asciiJourney(null))}</pre><div class="repre-parallel"><strong>Paralelo al camino</strong><p>${escapeHtml(tip)}</p><pre class="repre-ascii" style="margin-top:10px">        ┌─ ${escapeHtml(label)}  (paralelo)
+(1) ── (2) ── (B)
+        └─ apoya el negocio, no es 1→A→B</pre></div></section>`;
+  }
+  if(label==='Identificar software'||label==='Investigar integración'){
+    const focusSoft=label==='Identificar software';
+    return `<section class="repre-card"><h3 class="h-ico">${icon(focusSoft?'software':'integracion')} Software e integración</h3><p class="repre-note">Rama aparte del camino 1→A→B: primero se identifica el software del widget o motor; luego se investiga si hay integración usable.</p>${journeyNodesHtml(null)}<div class="repre-aside"><span class="repre-chip${focusSoft?' is-focus':''}">${icon('software')} Software</span><span class="repre-chip-edge" aria-hidden="true"></span><span class="repre-chip${!focusSoft?' is-focus':''}">${icon('integracion')} Integración</span></div><pre class="repre-ascii" style="margin-top:12px">${escapeHtml('(1) Web ── (2) Punto A ── (B) Formulario')}\n              \\                      \n               \\→ Software ── Integración  (aparte)</pre></section>`;
+  }
+  return `<section class="repre-card"><h3 class="h-ico">${icon('representacion')} Representación pendiente</h3><p class="repre-note">Aún no hay un diagrama dedicado para <strong>${escapeHtml(label)}</strong>. El recorrido base del booking sirve de ancla hasta que se dibuje esta operativa.</p>${journeyNodesHtml(null)}<pre class="repre-ascii">${escapeHtml(asciiJourney(null))}\n\n… + representación de «${escapeHtml(label)}» pendiente</pre></section>`;
+}
+function renderRepresentacion(opts){
+  const preserveScroll=!!(opts&&opts.preserveScroll);
+  const pageY=preserveScroll?(window.scrollY||window.pageYOffset||0):null;
+  const tabScrolls=snapshotTabScrolls();
+  if(repreTab<0||repreTab>=contracts.length) repreTab=0;
+  const d=contracts[repreTab];
+  const visual=repreVisualFor(d.label);
+  const panel=`<div id="panel-representacion"><div class="catalog-panel"><h3 class="catalog-title">${icon(d.icon||'representacion')}${escapeHtml(d.label)}</h3><p class="intro">Vista orientada a entender la operativa: dónde encaja en el recorrido de reserva y qué destaca de este bloque.</p>${visual}</div></div>`;
+  content.innerHTML=heading('Piezas del sistema','Representación','La misma lista de operaciones que en Operaciones, con una visual por bloque para situar el recorrido de reserva (web → Punto A → formulario) y lo que corre en paralelo.','15 bloques')+tabs(contracts,repreTab,'representacion')+panel;
+  bindTabs('representacion',i=>{repreTab=i;renderRepresentacion({preserveScroll:true})});
+  if(preserveScroll) restoreOpsScroll(pageY, tabScrolls);
+  else afterTabRender({tabScrolls, focusActive:true});
+}
+const sections=[['Mapa',renderMapa,'mapa'],['Operaciones',renderOperaciones,'operaciones'],['Modelo de datos',renderCatalogos,'tablas'],['Representación',renderRepresentacion,'representacion']];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label,,ico],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num" aria-hidden="true">${icon(ico)}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
 render();
 </script>
