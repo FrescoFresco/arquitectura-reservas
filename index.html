@@ -15,6 +15,12 @@
 .proposito dl{margin:0;display:grid;gap:8px}
 .proposito dt{margin:0;font-size:12px;font-weight:800;color:#5a6f8a}
 .proposito dd{margin:2px 0 0;font-size:14px;line-height:1.55;color:#2c3c50}
+.combina{margin:0 0 16px;padding:14px 16px;border:1px solid #e1e8f2;border-radius:12px;background:#f8fafc}
+.combina h4{margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784}
+.combina .combina-keys{margin:0 0 8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:#1c2b3e}
+.combina p{margin:0 0 4px;font-size:13px;line-height:1.5;color:#3d4d63}
+.combina p:last-child{margin-bottom:0}
+.combina strong{color:#243246}
 .catalog-map{margin:0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:16px;color:#334155}
 .catalog-ops{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .catalog-ops li{background:#eef3fa;border-radius:8px;padding:5px 9px;font-size:12px;color:#2c3e55;cursor:pointer}
@@ -2762,12 +2768,30 @@ function bindMdCapsules(root){
 function schemaTable(rows){
   return flatTable(['campo','caracteristicas'], rows);
 }
+const catalogCombina={
+ Negocio:{keys:"url · identidad del local",porQue:"El local es uno y estable.",unaFila:"un negocio"},
+ Software:{keys:"nombre del motor",porQue:"El mismo proveedor sirve a muchos negocios.",unaFila:"un software"},
+ Integración:{keys:"id_software · version · documentacion_md",porQue:"El software es uno; la documentación se actualiza.",unaFila:"una versión documentada"},
+ Proceso:{keys:"id_negocio · url_inicio",porQue:"Un negocio puede tener varios inicios de reserva.",unaFila:"un proceso"},
+ Observación:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
+ Justificante:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
+ Función:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
+ Script:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
+ Canal:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
+ Ejecución:{keys:"id_proceso · via · timestamp",porQue:"Hace falta el historial de intentos.",unaFila:"un intento"}
+};
+function combinaBlock(label){
+  const c=catalogCombina[label];
+  if(!c) return '';
+  return `<section class="combina" aria-label="Combina"><h4>Combina</h4><p class="combina-keys">${escapeHtml(c.keys)}</p><p><strong>Por qué:</strong> ${escapeHtml(c.porQue)}</p><p><strong>Una fila =</strong> ${escapeHtml(c.unaFila)}</p></section>`;
+}
 function renderCatalogos(){
   const label=catalogTabs[catalogTab].label;
   let panel='';
   if(label==='Mapa'){
     panel=`<section class="card"><h3>Conexión del modelo</h3><p class="intro">Negocio, Proceso y Software salen de la URL. Integración cuelga de Software. Observación, Justificante, Función, Script y Canal son tablas versionadas ligadas al proceso. La compuerta combina capas; Ejecución registra intentos.</p><pre class="catalog-map">${escapeHtml(catalogAscii)}</pre></section>`;
   }else{
+    const combina=combinaBlock(label);
     const inner=`<div class="sidetabs" role="tablist" aria-label="Vista de la tabla"><button type="button" role="tab" aria-selected="${catalogInnerView===0}" data-cat-inner="0">Esquema</button><button type="button" role="tab" aria-selected="${catalogInnerView===1}" data-cat-inner="1">Ejemplos</button></div>`;
     let body='';
     if(catalogInnerView===0){
@@ -2786,7 +2810,7 @@ function renderCatalogos(){
     }else if(label==='Ejecución'){
       body=`<p class="intro">Una fila por intento.</p>${flatTable(['id_ejecucion','id_proceso','via','timestamp','resultado','id_referencia'],catalogEjecucion)}`;
     }
-    panel=`<section class="card"><h3>${escapeHtml(label)}</h3>${inner}${body}</section>`;
+    panel=`<section class="card"><h3>${escapeHtml(label)}</h3>${combina}${inner}${body}</section>`;
   }
   content.innerHTML=heading('Capas de datos','Modelo de datos','Tablas del modelo: esquema y ejemplos. Filas planas; el Markdown se abre en cápsula.','Modelo')+tabs(catalogTabs,catalogTab,'modelo')+`<div id="panel-modelo">${panel}</div>`;
   bindTabs('modelo',i=>{catalogTab=i;catalogInnerView=0;renderCatalogos()});
