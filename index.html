@@ -151,7 +151,10 @@ h4.subhead{margin:1rem 0 .4rem;font-size:.85rem;font-weight:600;color:var(--mute
 .rol-tag.rol-redundante{background:#f1f4f8;color:#5c6b80}
 .rol-tag.rol-dudoso{background:#fff4d6;color:#8a5a00}
 .rol-tag.rol-eco{background:#f1f4f8;color:#5c6b80}
-.schema-table td:nth-child(3){max-width:220px}
+.schema-table td:nth-child(6){max-width:240px}
+.schema-table code.tipo{font-size:.78em;white-space:nowrap}
+.schema-table td.ejemplo{max-width:14rem;font-size:.82em;color:var(--muted,#5a6570)}
+.schema-table th{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -3395,261 +3398,261 @@ const catalogAscii=`URL del negocio
 const operationSchemas={
 "Ficha del negocio":{
   input:[
-    {campo:"url_negocio",caracteristicas:"URL de partida. Única entrada; la ficha no reescribe ámbito ni contactos.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"URL de partida. Única entrada; la ficha no reescribe ámbito ni contactos.",lo_usa:"Esta operación",rol:"usable",ejemplo:"https://www.elmuelle.example"},
   ],
   output:[
-    {campo:"estado",caracteristicas:"completa | pendiente.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"url_negocio",caracteristicas:"Eco de la URL evaluada.",lo_usa:"Modelo Negocio.url (ya es input)",rol:"redundante"},
-    {campo:"nombre_negocio",caracteristicas:"string | null. Nombre público.",lo_usa:"Modelo Negocio.nombre; Cierre",rol:"usable"},
-    {campo:"zona_horaria",caracteristicas:"IANA | null.",lo_usa:"Apertura; Modelo Negocio.zona; Cierre / compuerta",rol:"usable"},
-    {campo:"evidencias",caracteristicas:"Array {origen, fragmento, explicacion_md}.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"incertidumbres",caracteristicas:"Lista de huecos.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null; la escribe la revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del resultado del bloque.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"completa | pendiente",formato:"",caracteristicas:"completa | pendiente.",lo_usa:"Revisión",rol:"usable",ejemplo:"completa"},
+    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"Eco de la URL evaluada.",lo_usa:"Modelo Negocio.url (ya es input)",rol:"redundante",ejemplo:"https://www.elmuelle.example"},
+    {campo:"nombre_negocio",tipo:"string | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"string | null. Nombre público.",lo_usa:"Modelo Negocio.nombre; Cierre",rol:"usable",ejemplo:"Restaurante El Muelle"},
+    {campo:"zona_horaria",tipo:"string | null",obligatorio:"sí",valores:"",formato:"IANA",caracteristicas:"IANA | null.",lo_usa:"Apertura; Modelo Negocio.zona; Cierre / compuerta",rol:"usable",ejemplo:"Atlantic/Canary"},
+    {campo:"evidencias",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {origen, fragmento, explicacion_md}.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[1 ítems]"},
+    {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Lista de huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T10:00:00+01:00"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null; la escribe la revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T11:00:00+01:00"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del resultado del bloque.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Ámbito festivo":{
   input:[
-    {campo:"url_negocio",caracteristicas:"Misma URL que la ficha. No pide nombre ni zona.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"Misma URL que la ficha. No pide nombre ni zona.",lo_usa:"Esta operación",rol:"usable",ejemplo:"https://www.elmuelle.example"},
   ],
   output:[
-    {campo:"estado",caracteristicas:"completa | pendiente.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"url_negocio",caracteristicas:"Eco de la URL.",lo_usa:"Join con ficha (ya es input)",rol:"redundante"},
-    {campo:"ambito_festivo",caracteristicas:"{pais, comunidad_o_region, isla_o_provincia, municipio}. No es lista de fiestas.",lo_usa:"Apertura; Modelo Negocio.ambito_festivo",rol:"usable"},
-    {campo:"evidencias",caracteristicas:"Array {origen, fragmento, explicacion_md}.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"incertidumbres",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"completa | pendiente",formato:"",caracteristicas:"completa | pendiente.",lo_usa:"Revisión",rol:"usable",ejemplo:"completa"},
+    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"Eco de la URL.",lo_usa:"Join con ficha (ya es input)",rol:"redundante",ejemplo:"https://www.elmuelle.example"},
+    {campo:"ambito_festivo",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{pais, comunidad_o_region, isla_o_provincia, municipio}. No es lista de fiestas.",lo_usa:"Apertura; Modelo Negocio.ambito_festivo",rol:"usable",ejemplo:"{pais, comunidad_o_region, isla_o_provincia…}"},
+    {campo:"evidencias",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {origen, fragmento, explicacion_md}.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[1 ítems]"},
+    {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T10:02:00+01:00"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T11:05:00+01:00"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Punto A":{
   input:[
-    {campo:"url_negocio",caracteristicas:"URL del negocio. No redefine ficha ni ámbito.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"URL del negocio. No redefine ficha ni ámbito.",lo_usa:"Esta operación",rol:"usable",ejemplo:"https://www.elmuelle.example"},
   ],
   output:[
-    {campo:"estado",caracteristicas:"encontrada | no_encontrada | pendiente.",lo_usa:"Cierre Detección (clasificarDeteccion)",rol:"usable"},
-    {campo:"procesos",caracteristicas:"Array {id_proceso, url_inicio, alcance}.",lo_usa:"Ramas; Modelo Proceso; inputs de ops por proceso",rol:"usable"},
-    {campo:"incertidumbres",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"encontrada | no_encontrada | pendiente",formato:"",caracteristicas:"encontrada | no_encontrada | pendiente.",lo_usa:"Cierre Detección (clasificarDeteccion)",rol:"usable",ejemplo:"encontrada"},
+    {campo:"procesos",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {id_proceso, url_inicio, alcance}.",lo_usa:"Ramas; Modelo Proceso; inputs de ops por proceso",rol:"usable",ejemplo:"[2 ítems]"},
+    {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Apertura":{
   input:[
-    {campo:"url_negocio",caracteristicas:"URL del negocio (una vez, no por proceso).",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"zona_horaria",caracteristicas:"Sale de Ficha. Evalúa la pila; no va en cada job.",lo_usa:"Esta operación (pila / margen)",rol:"usable"},
-    {campo:"ambito_festivo",caracteristicas:"Sale de Ámbito festivo. Jurisdicción para festivos en pila_cron.",lo_usa:"Esta operación (pila_cron)",rol:"usable"},
-    {campo:"informe_previo",caracteristicas:"Informe anterior | null. Versionado.",lo_usa:"Esta operación (versionado)",rol:"usable"}
+    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"URL del negocio (una vez, no por proceso).",lo_usa:"Esta operación",rol:"usable",ejemplo:"https://www.elmuelle.example"},
+    {campo:"zona_horaria",tipo:"string | null",obligatorio:"sí",valores:"",formato:"IANA",caracteristicas:"Sale de Ficha. Evalúa la pila; no va en cada job.",lo_usa:"Esta operación (pila / margen)",rol:"usable",ejemplo:"Atlantic/Canary"},
+    {campo:"ambito_festivo",tipo:"object | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Sale de Ámbito festivo. Jurisdicción para festivos en pila_cron.",lo_usa:"Esta operación (pila_cron)",rol:"usable",ejemplo:"{pais, comunidad_o_region, isla_o_provincia…}"},
+    {campo:"informe_previo",tipo:"object | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Informe anterior | null. Versionado.",lo_usa:"Esta operación (versionado)",rol:"usable",ejemplo:"{version, timestamp, observacion_apertura_md…}"},
   ],
   output:[
-    {campo:"version",caracteristicas:"v1 | v2 | ….",lo_usa:"informe_previo (misma op)",rol:"usable"},
-    {campo:"timestamp",caracteristicas:"ISO del informe en zona de ficha.",lo_usa:"Evaluación de pila; revisión",rol:"usable"},
-    {campo:"observacion_apertura_md",caracteristicas:"Informe Markdown web + Maps.",lo_usa:"Revisión / evidencia de pila",rol:"auditoría"},
-    {campo:"pila_cron",caracteristicas:"Array {tipo, efecto, cron, fuente, nota}.",lo_usa:"Base de abierto_ahora / margen; revisión",rol:"usable"},
-    {campo:"abierto_ahora",caracteristicas:"true | false | indeterminado.",lo_usa:"Compuerta; Automática/Enlace vía compuerta_envio",rol:"usable"},
-    {campo:"margen_hasta_cierre_min",caracteristicas:"number | null. Criterio ≥ 60.",lo_usa:"Compuerta",rol:"usable"},
-    {campo:"proxima_hora_valida",caracteristicas:"ISO 8601 | null.",lo_usa:"Ningún input tipado ni regla de Cierre",rol:"dudoso"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"version",tipo:"string",obligatorio:"sí",valores:"",formato:"vN",caracteristicas:"v1 | v2 | ….",lo_usa:"informe_previo (misma op)",rol:"usable",ejemplo:"v1"},
+    {campo:"timestamp",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO del informe en zona de ficha.",lo_usa:"Evaluación de pila; revisión",rol:"usable",ejemplo:"2026-10-14T21:55:00+01:00"},
+    {campo:"observacion_apertura_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Informe Markdown web + Maps.",lo_usa:"Revisión / evidencia de pila",rol:"auditoría",ejemplo:"Ver Markdown · Apertura — Restaurante El Muelle"},
+    {campo:"pila_cron",tipo:"array",obligatorio:"sí",valores:"",formato:"cron",caracteristicas:"Array {tipo, efecto, cron, fuente, nota}.",lo_usa:"Base de abierto_ahora / margen; revisión",rol:"usable",ejemplo:"[3 ítems]"},
+    {campo:"abierto_ahora",tipo:"enum",obligatorio:"sí",valores:"true | false | indeterminado",formato:"",caracteristicas:"true | false | indeterminado.",lo_usa:"Compuerta; Automática/Enlace vía compuerta_envio",rol:"usable",ejemplo:"true"},
+    {campo:"margen_hasta_cierre_min",tipo:"number | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"number | null. Criterio ≥ 60.",lo_usa:"Compuerta",rol:"usable",ejemplo:"95"},
+    {campo:"proxima_hora_valida",tipo:"string | null",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null.",lo_usa:"Ningún input tipado ni regla de Cierre",rol:"dudoso",ejemplo:"2026-06-01T09:00:00+01:00"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T21:55:00+01:00"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T22:10:00+01:00"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Contactos del negocio":{
   input:[
-    {campo:"url_negocio",caracteristicas:"URL del negocio. Una vez por local.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"url_negocio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"URL del negocio. Una vez por local.",lo_usa:"Esta operación",rol:"usable",ejemplo:"https://www.elmuelle.example"},
   ],
   output:[
-    {campo:"estado",caracteristicas:"encontrado | no_encontrado | pendiente.",lo_usa:"Revisión; Canal si preferido es contacto",rol:"usable"},
-    {campo:"canales_contacto",caracteristicas:"Array {tipo, valor, tipo_linea, uso_publicado, verificado_como_contacto, fuente, fecha_consulta, evidencia}.",lo_usa:"Canal (contactos_negocio); Automática (teléfono)",rol:"usable"},
-    {campo:"incertidumbres",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"encontrado | no_encontrado | pendiente",formato:"",caracteristicas:"encontrado | no_encontrado | pendiente.",lo_usa:"Revisión; Canal si preferido es contacto",rol:"usable",ejemplo:"encontrado"},
+    {campo:"canales_contacto",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {tipo, valor, tipo_linea, uso_publicado, verificado_como_contacto, fuente, fecha_consulta, evidencia}.",lo_usa:"Canal (contactos_negocio); Automática (teléfono)",rol:"usable",ejemplo:"[1 ítems]"},
+    {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T12:05:00+01:00"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T13:00:00+01:00"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Identificar software":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso de Punto A.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"url_inicio",caracteristicas:"URL de inicio de ese proceso.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso de Punto A.",lo_usa:"Esta operación",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"url_inicio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"URL de inicio de ese proceso.",lo_usa:"Esta operación",rol:"usable",ejemplo:"https://www.elmuelle.example/reservas/cena-sala"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join al proceso.",lo_usa:"Modelo; ramas",rol:"usable"},
-    {campo:"estado",caracteristicas:"identificado | no_identificado | pendiente.",lo_usa:"Revisión; dispara Investigar integración",rol:"usable"},
-    {campo:"software_identificado",caracteristicas:"Array {nombre, funcion_observada}.",lo_usa:"Canal; Investigar integración; Modelo; Cierre",rol:"usable"},
-    {campo:"observaciones_md",caracteristicas:"Razonamiento completo.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"evidencias_md",caracteristicas:"Markdown solo de evidencia.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"incertidumbres",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join al proceso.",lo_usa:"Modelo; ramas",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"identificado | no_identificado | pendiente",formato:"",caracteristicas:"identificado | no_identificado | pendiente.",lo_usa:"Revisión; dispara Investigar integración",rol:"usable",ejemplo:"identificado"},
+    {campo:"software_identificado",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {nombre, funcion_observada}.",lo_usa:"Canal; Investigar integración; Modelo; Cierre",rol:"usable",ejemplo:"[1 ítems]"},
+    {campo:"observaciones_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Razonamiento completo.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"Ver Markdown · Observaciones — proc-muelle-sala"},
+    {campo:"evidencias_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown solo de evidencia.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"Ver Markdown · Evidencias — proc-muelle-sala"},
+    {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Observar formulario":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso a recorrer.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"url_inicio",caracteristicas:"URL de inicio. Hasta justo antes de confirmar.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso a recorrer.",lo_usa:"Esta operación",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"url_inicio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"URL de inicio. Hasta justo antes de confirmar.",lo_usa:"Esta operación",rol:"usable",ejemplo:"https://www.elmuelle.example/reservas/cena-sala"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join.",lo_usa:"Modelo Observación; Justificante",rol:"usable"},
-    {campo:"observacion_formulario_md",caracteristicas:"Relato factual.",lo_usa:"Justificante; Modelo Observación.documento_md",rol:"usable"},
-    {campo:"evidencias",caracteristicas:"Array {origen, fragmento, explicacion_md}.",lo_usa:"Justificante (citas); revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del bloque.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join.",lo_usa:"Modelo Observación; Justificante",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"observacion_formulario_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Relato factual.",lo_usa:"Justificante; Modelo Observación.documento_md",rol:"usable",ejemplo:"Ver Markdown · Formulario cena-sala — Restaurante E…"},
+    {campo:"evidencias",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {origen, fragmento, explicacion_md}.",lo_usa:"Justificante (citas); revisión",rol:"auditoría",ejemplo:"[1 ítems]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del bloque.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Canal de cancelación":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"url_inicio",caracteristicas:"URL de inicio del recorrido.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"software",caracteristicas:"Cita de Identificar software | null.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"contactos_negocio",caracteristicas:"Catálogo de Contactos (no se reúne de nuevo).",lo_usa:"Esta operación (preferido)",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable",ejemplo:"cena-sala"},
+    {campo:"url_inicio",tipo:"string",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"URL de inicio del recorrido.",lo_usa:"Esta operación",rol:"usable",ejemplo:"https://www.elmuelle.example/reservar"},
+    {campo:"software",tipo:"string | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Cita de Identificar software | null.",lo_usa:"Esta operación",rol:"usable",ejemplo:"CoverManager"},
+    {campo:"contactos_negocio",tipo:"object | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Catálogo de Contactos (no se reúne de nuevo).",lo_usa:"Esta operación (preferido)",rol:"usable",ejemplo:"{estado, canales_contacto, incertidumbres…}"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join.",lo_usa:"Modelo Canal",rol:"usable"},
-    {campo:"estado",caracteristicas:"encontrado | no_encontrado | pendiente.",lo_usa:"Compuerta; Automática/Enlace vía compuerta_envio",rol:"usable"},
-    {campo:"busqueda_realizada",caracteristicas:"{fuentes_consultadas, opciones_revisadas, limitaciones}.",lo_usa:"Ningún input tipado",rol:"auditoría"},
-    {campo:"cancelacion_sistema",caracteristicas:"{disponible, metodo, url_o_instrucciones, evidencias[]}.",lo_usa:"Alimenta canal_preferido; revisión",rol:"usable"},
-    {campo:"canal_preferido_cancelacion",caracteristicas:"{origen, tipo, valor, metodo, motivo}.",lo_usa:"Compuerta; Automática",rol:"usable"},
-    {campo:"politica_cancelacion",caracteristicas:"{resumen, plazo, coste_o_penalizacion, garantia_tarjeta}.",lo_usa:"Ninguna op ni regla de Cierre tipada",rol:"dudoso"},
-    {campo:"incertidumbres",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join.",lo_usa:"Modelo Canal",rol:"usable",ejemplo:"cena-sala"},
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"encontrado | no_encontrado | pendiente",formato:"",caracteristicas:"encontrado | no_encontrado | pendiente.",lo_usa:"Compuerta; Automática/Enlace vía compuerta_envio",rol:"usable",ejemplo:"encontrado"},
+    {campo:"busqueda_realizada",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{fuentes_consultadas, opciones_revisadas, limitaciones}.",lo_usa:"Ningún input tipado",rol:"auditoría",ejemplo:"{fuentes_consultadas, opciones_revisadas, limitaciones}"},
+    {campo:"cancelacion_sistema",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{disponible, metodo, url_o_instrucciones, evidencias[]}.",lo_usa:"Alimenta canal_preferido; revisión",rol:"usable",ejemplo:"{disponible, metodo, url_o_instrucciones…}"},
+    {campo:"canal_preferido_cancelacion",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{origen, tipo, valor, metodo, motivo}.",lo_usa:"Compuerta; Automática",rol:"usable",ejemplo:"{origen, tipo, valor…}"},
+    {campo:"politica_cancelacion",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{resumen, plazo, coste_o_penalizacion, garantia_tarjeta}.",lo_usa:"Ninguna op ni regla de Cierre tipada",rol:"dudoso",ejemplo:"{resumen, plazo, coste_o_penalizacion…}"},
+    {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T13:45:00+01:00"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-14T17:10:00+01:00"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Investigar integración":{
   input:[
-    {campo:"software",caracteristicas:"Nombre del proveedor. Sin nombre no se ejecuta.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"investigacion_previa",caracteristicas:"Versión anterior | null.",lo_usa:"Esta operación (vigencia)",rol:"usable"}
+    {campo:"software",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Nombre del proveedor. Sin nombre no se ejecuta.",lo_usa:"Esta operación",rol:"usable",ejemplo:"CoverManager"},
+    {campo:"investigacion_previa",tipo:"object | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Versión anterior | null.",lo_usa:"Esta operación (vigencia)",rol:"usable",ejemplo:"{nota, fecha}"},
   ],
   output:[
-    {campo:"software",caracteristicas:"Proveedor investigado.",lo_usa:"Modelo Integración / Software",rol:"usable"},
-    {campo:"estado",caracteristicas:"documentada | no_localizada | pendiente.",lo_usa:"Modelo; Cierre; Automática acceso_api",rol:"usable"},
-    {campo:"documentacion_md",caracteristicas:"Artefacto principal.",lo_usa:"Modelo Integración.documentacion_md",rol:"usable"},
-    {campo:"integraciones_encontradas",caracteristicas:"Lista opcional; resumen de documentacion_md.",lo_usa:"Modelo no la guarda",rol:"redundante"},
-    {campo:"operaciones_documentadas",caracteristicas:"Lista opcional; resumen del md.",lo_usa:"Modelo no la guarda",rol:"redundante"},
-    {campo:"condiciones_proveedor",caracteristicas:"Array tipado opcional; resumen del md.",lo_usa:"Modelo no la guarda; revisión puede mirarlas",rol:"redundante"},
-    {campo:"requisitos_por_negocio",caracteristicas:"Lista opcional; resumen del md.",lo_usa:"Modelo no la guarda",rol:"redundante"},
-    {campo:"fuentes",caracteristicas:"Lista opcional; también en el Markdown.",lo_usa:"Modelo no la guarda",rol:"redundante"},
-    {campo:"incertidumbres",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"software",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proveedor investigado.",lo_usa:"Modelo Integración / Software",rol:"usable",ejemplo:"CoverManager"},
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"documentada | no_localizada | pendiente",formato:"",caracteristicas:"documentada | no_localizada | pendiente.",lo_usa:"Modelo; Cierre; Automática acceso_api",rol:"usable",ejemplo:"documentada"},
+    {campo:"documentacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Artefacto principal.",lo_usa:"Modelo Integración.documentacion_md",rol:"usable",ejemplo:"Ver Markdown · Integración CoverManager"},
+    {campo:"integraciones_encontradas",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Lista opcional; resumen de documentacion_md.",lo_usa:"Modelo no la guarda",rol:"redundante",ejemplo:"[1 ítems]"},
+    {campo:"operaciones_documentadas",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Lista opcional; resumen del md.",lo_usa:"Modelo no la guarda",rol:"redundante",ejemplo:"[3 ítems]"},
+    {campo:"condiciones_proveedor",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Array tipado opcional; resumen del md.",lo_usa:"Modelo no la guarda; revisión puede mirarlas",rol:"redundante",ejemplo:"Cada restaurante necesita su propio acceso de…"},
+    {campo:"requisitos_por_negocio",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Lista opcional; resumen del md.",lo_usa:"Modelo no la guarda",rol:"redundante",ejemplo:"[2 ítems]"},
+    {campo:"fuentes",tipo:"array",obligatorio:"no",valores:"",formato:"",caracteristicas:"Lista opcional; también en el Markdown.",lo_usa:"Modelo no la guarda",rol:"redundante",ejemplo:"[1 ítems]"},
+    {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"null"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Markdown del resultado.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Justificante":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"observacion_formulario_md",caracteristicas:"Relato de Observar formulario. Única fuente de hechos.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"observacion_formulario_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Relato de Observar formulario. Única fuente de hechos.",lo_usa:"Esta operación",rol:"usable",ejemplo:"Ver Markdown · Formulario cena-sala — Restaurante E…"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join.",lo_usa:"Modelo Justificante",rol:"usable"},
-    {campo:"estado",caracteristicas:"justificado | pendiente.",lo_usa:"Revisión; bloquea Función/Script si pendiente",rol:"usable"},
-    {campo:"justificante_campos_md",caracteristicas:"Datos y señales justificados.",lo_usa:"Función; Script; Modelo Justificante.documento_md",rol:"usable"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Qué sostiene el relato o qué falta.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join.",lo_usa:"Modelo Justificante",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"justificado | pendiente",formato:"",caracteristicas:"justificado | pendiente.",lo_usa:"Revisión; bloquea Función/Script si pendiente",rol:"usable",ejemplo:"justificado"},
+    {campo:"justificante_campos_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Datos y señales justificados.",lo_usa:"Función; Script; Modelo Justificante.documento_md",rol:"usable",ejemplo:"Ver Markdown · Campos justificados — proc-muelle-sa…"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Qué sostiene el relato o qué falta.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Función":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"justificante_campos_md",caracteristicas:"Única fuente para parámetros y señales.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"justificante_campos_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Única fuente para parámetros y señales.",lo_usa:"Esta operación",rol:"usable",ejemplo:"Ver Markdown · Campos justificados — proc-muelle-sa…"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join.",lo_usa:"Modelo Función",rol:"usable"},
-    {campo:"estado_generacion",caracteristicas:"generada | pendiente | error.",lo_usa:"Compuerta; Automática/Enlace (no_intentada sin ella)",rol:"usable"},
-    {campo:"funcion_json",caracteristicas:"{name, description, parameters, response_schema}.",lo_usa:"Script; Automática/Enlace funcion_reserva; Modelo",rol:"usable"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Cómo cierra el contrato o qué lo impide.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join.",lo_usa:"Modelo Función",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"estado_generacion",tipo:"enum",obligatorio:"sí",valores:"generada | pendiente | error",formato:"",caracteristicas:"generada | pendiente | error.",lo_usa:"Compuerta; Automática/Enlace (no_intentada sin ella)",rol:"usable",ejemplo:"generada"},
+    {campo:"funcion_json",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{name, description, parameters, response_schema}.",lo_usa:"Script; Automática/Enlace funcion_reserva; Modelo",rol:"usable",ejemplo:"{name, parameters, response}"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Cómo cierra el contrato o qué lo impide.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Script":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"justificante_campos_md",caracteristicas:"Pasos, selectores y señales.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"funcion_json",caracteristicas:"Contrato de Función; el script valida y responde igual.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"justificante_campos_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Pasos, selectores y señales.",lo_usa:"Esta operación",rol:"usable",ejemplo:"Ver Markdown · Campos justificados — proc-muelle-sa…"},
+    {campo:"funcion_json",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Contrato de Función; el script valida y responde igual.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{name, parameters, response}"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join.",lo_usa:"Modelo Script",rol:"usable"},
-    {campo:"estado_generacion",caracteristicas:"generada | pendiente | error.",lo_usa:"Compuerta; vías",rol:"usable"},
-    {campo:"script_js",caracteristicas:"{contenido, version, huella, referencia_codigo}.",lo_usa:"Automática/Enlace script_reserva; Verificación",rol:"usable"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Qué del justificante quedó en el script.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join.",lo_usa:"Modelo Script",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"estado_generacion",tipo:"enum",obligatorio:"sí",valores:"generada | pendiente | error",formato:"",caracteristicas:"generada | pendiente | error.",lo_usa:"Compuerta; vías",rol:"usable",ejemplo:"generada"},
+    {campo:"script_js",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{contenido, version, huella, referencia_codigo}.",lo_usa:"Automática/Enlace script_reserva; Verificación",rol:"usable",ejemplo:"{contenido, version, huella…}"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Qué del justificante quedó en el script.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Automática":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"funcion_reserva",caracteristicas:"Función aprobada (con version/huella).",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"script_reserva",caracteristicas:"Script aprobado alineado con la función.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"datos_reserva_prueba",caracteristicas:"Datos conforme al esquema justificado.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"identidad_prueba",caracteristicas:"Identidad de prueba mapeada solo a parámetros pedidos.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"autorizacion_para_confirmar_prueba",caracteristicas:"Autorización explícita de envío.",lo_usa:"Esta operación / compuerta",rol:"usable"},
-    {campo:"acceso_api",caracteristicas:"Acceso de integración si existe; si no, vacío.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"compuerta_envio",caracteristicas:"Dictamen de la compuerta de envío real.",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"funcion_reserva",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Función aprobada (con version/huella).",lo_usa:"Esta operación",rol:"usable",ejemplo:"{name, version, huella…}"},
+    {campo:"script_reserva",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Script aprobado alineado con la función.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{version, huella, aprobado}"},
+    {campo:"datos_reserva_prueba",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Datos conforme al esquema justificado.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{fecha, hora, comensales…}"},
+    {campo:"identidad_prueba",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Identidad de prueba mapeada solo a parámetros pedidos.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{nombre, email, telefono}"},
+    {campo:"autorizacion_para_confirmar_prueba",tipo:"boolean",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Autorización explícita de envío.",lo_usa:"Esta operación / compuerta",rol:"usable",ejemplo:"true"},
+    {campo:"acceso_api",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Acceso de integración si existe; si no, vacío.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{proveedor, disponible, credencial_incluida}"},
+    {campo:"compuerta_envio",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Dictamen de la compuerta de envío real.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{\"abierta\":true,\"motivo\":null}"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join.",lo_usa:"Modelo Ejecución (via automatica)",rol:"usable"},
-    {campo:"estado",caracteristicas:"apta | no_apta | pendiente | no_intentada.",lo_usa:"Cierre Aptitud (clasificarVias)",rol:"usable"},
-    {campo:"metodo_utilizado",caracteristicas:"Función/script/integración con version y huella.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"pruebas_realizadas",caracteristicas:"Lista de pruebas y evidencia.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"reserva_prueba",caracteristicas:"{estado, referencia, motivo_compuerta}.",lo_usa:"Verificación (referencia); Aptitud / revisión",rol:"usable"},
-    {campo:"impedimento",caracteristicas:"Límite técnico si no_apta.",lo_usa:"Aptitud; revisión",rol:"usable"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Pruebas, compuerta y estado de la vía.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join.",lo_usa:"Modelo Ejecución (via automatica)",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"apta | no_apta | pendiente | no_intentada",formato:"",caracteristicas:"apta | no_apta | pendiente | no_intentada.",lo_usa:"Cierre Aptitud (clasificarVias)",rol:"usable",ejemplo:"apta"},
+    {campo:"metodo_utilizado",tipo:"string | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Función/script/integración con version y huella.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"script"},
+    {campo:"pruebas_realizadas",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Lista de pruebas y evidencia.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[2 ítems]"},
+    {campo:"reserva_prueba",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{estado, referencia, motivo_compuerta}.",lo_usa:"Verificación (referencia); Aptitud / revisión",rol:"usable",ejemplo:"{estado, referencia, fecha…}"},
+    {campo:"impedimento",tipo:"string | null",obligatorio:"sí si estado=no_apta",valores:"",formato:"",caracteristicas:"Límite técnico si no_apta.",lo_usa:"Aptitud; revisión",rol:"usable",ejemplo:"{motivo, proxima_hora_valida}"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Pruebas, compuerta y estado de la vía.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Enlace asistido":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"funcion_reserva",caracteristicas:"Función aprobada.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"script_reserva",caracteristicas:"Script aprobado.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"datos_reserva_prueba",caracteristicas:"Datos del esquema justificado.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"identidad_prueba",caracteristicas:"Identidad de prueba.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"autorizacion_para_confirmar_prueba",caracteristicas:"Autorización explícita.",lo_usa:"Esta operación / compuerta",rol:"usable"},
-    {campo:"compuerta_envio",caracteristicas:"Dictamen de la compuerta (no lee el output de Automática).",lo_usa:"Esta operación",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable",ejemplo:"cena-sala"},
+    {campo:"funcion_reserva",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Función aprobada.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{\"version\":\"3\",\"huella\":\"sha256:ab12\"}"},
+    {campo:"script_reserva",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Script aprobado.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{version, huella, referencia_codigo}"},
+    {campo:"datos_reserva_prueba",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Datos del esquema justificado.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{\"fecha\":\"2026-10-16\",\"hora\":\"20:30\",\"comensales\":2}"},
+    {campo:"identidad_prueba",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Identidad de prueba.",lo_usa:"Esta operación",rol:"usable",ejemplo:"{\"nombre\":null,\"email\":null,\"telefono\":null}"},
+    {campo:"autorizacion_para_confirmar_prueba",tipo:"boolean",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Autorización explícita.",lo_usa:"Esta operación / compuerta",rol:"usable",ejemplo:"false"},
+    {campo:"compuerta_envio",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Dictamen de la compuerta (no lee el output de Automática).",lo_usa:"Esta operación",rol:"usable",ejemplo:"{\"estado\":\"abierta\",\"motivo\":null}"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join.",lo_usa:"Modelo Ejecución (via enlace)",rol:"usable"},
-    {campo:"estado",caracteristicas:"apta | no_apta | pendiente | no_intentada.",lo_usa:"Cierre Aptitud (asistida)",rol:"usable"},
-    {campo:"url_reserva_preparada",caracteristicas:"Enlace sin datos sensibles.",lo_usa:"Entregable de la vía / revisión / oferta",rol:"usable"},
-    {campo:"prueba_en_sesion_independiente",caracteristicas:"{resultado, datos_conservados, evidencias}.",lo_usa:"Sustenta apta; revisión",rol:"auditoría"},
-    {campo:"accion_pendiente_del_cliente",caracteristicas:"Acción final que queda al cliente.",lo_usa:"UI / revisión del propósito",rol:"usable"},
-    {campo:"impedimento",caracteristicas:"Si no_apta.",lo_usa:"Aptitud",rol:"usable"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Qué conserva el enlace y por qué el estado.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join.",lo_usa:"Modelo Ejecución (via enlace)",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"apta | no_apta | pendiente | no_intentada",formato:"",caracteristicas:"apta | no_apta | pendiente | no_intentada.",lo_usa:"Cierre Aptitud (asistida)",rol:"usable",ejemplo:"apta"},
+    {campo:"url_reserva_preparada",tipo:"string | null",obligatorio:"sí",valores:"",formato:"URL",caracteristicas:"Enlace sin datos sensibles.",lo_usa:"Entregable de la vía / revisión / oferta",rol:"usable",ejemplo:"https://www.elmuelle.example/reservas/cena-sa…"},
+    {campo:"prueba_en_sesion_independiente",tipo:"boolean | object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{resultado, datos_conservados, evidencias}.",lo_usa:"Sustenta apta; revisión",rol:"auditoría",ejemplo:"true"},
+    {campo:"accion_pendiente_del_cliente",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Acción final que queda al cliente.",lo_usa:"UI / revisión del propósito",rol:"usable",ejemplo:"revisar los datos y pulsar confirmar"},
+    {campo:"impedimento",tipo:"string | null",obligatorio:"sí si estado=no_apta",valores:"",formato:"",caracteristicas:"Si no_apta.",lo_usa:"Aptitud",rol:"usable",ejemplo:"{motivo, detalle}"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Qué conserva el enlace y por qué el estado.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
 },
 "Verificación y vigilancia":{
   input:[
-    {campo:"id_proceso",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"ejecucion",caracteristicas:"Ejecución a comparar (Automática, Enlace u otra).",lo_usa:"Esta operación",rol:"usable"},
-    {campo:"referencia_previa",caracteristicas:"Referencia ya capturada | null.",lo_usa:"Esta operación (corridas siguientes)",rol:"usable"}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Proceso.",lo_usa:"Esta operación",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"ejecucion",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Ejecución a comparar (Automática, Enlace u otra).",lo_usa:"Esta operación",rol:"usable",ejemplo:"{respuesta_funcion, estado_sistema, version…}"},
+    {campo:"referencia_previa",tipo:"object | null",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Referencia ya capturada | null.",lo_usa:"Esta operación (corridas siguientes)",rol:"usable",ejemplo:"{\"tipo\":\"disponibilidad\",\"revisada\":false}"},
   ],
   output:[
-    {campo:"id_proceso",caracteristicas:"Join.",lo_usa:"Modelo Ejecución (via vigilancia)",rol:"usable"},
-    {campo:"estado",caracteristicas:"referencia_completa | referencia_parcial | pendiente.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"referencia",caracteristicas:"Objeto ancla {origen, version, huella, …}.",lo_usa:"referencia_previa (misma op)",rol:"usable"},
-    {campo:"contrato_resultado_ejecucion",caracteristicas:"{ok, estado_sistema, respuesta_funcion, version, huella, …}.",lo_usa:"Núcleo del bloque; revisión",rol:"usable"},
-    {campo:"vigilancia",caracteristicas:"{estado, operacion, frecuencia, mecanismo_ejecucion}.",lo_usa:"Propósito del bloque (sin input tipado externo)",rol:"usable"},
-    {campo:"alertas",caracteristicas:"Array {fecha, tipo, detalle, evidencia, estado}.",lo_usa:"Automática/Enlace; Oferta vía fiabilidad",rol:"usable"},
-    {campo:"fiabilidad",caracteristicas:"fiable | requiere_revision | pendiente.",lo_usa:"Cierre Oferta (clasificarOferta)",rol:"usable"},
-    {campo:"accion_requerida",caracteristicas:"ninguna | regenerar_… | revisar_script | resolver_alerta.",lo_usa:"Guía humana; ningún input tipado la exige",rol:"dudoso"},
-    {campo:"incertidumbres",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría"},
-    {campo:"fecha_evaluacion",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"fecha_validacion",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable"},
-    {campo:"explicacion_md",caracteristicas:"Comparación y alertas abiertas.",lo_usa:"Revisión / UI",rol:"auditoría"}
-  ]
-}
+    {campo:"id_proceso",tipo:"string",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Join.",lo_usa:"Modelo Ejecución (via vigilancia)",rol:"usable",ejemplo:"proc-muelle-sala"},
+    {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"referencia_completa | referencia_parcial | pendiente",formato:"",caracteristicas:"referencia_completa | referencia_parcial | pendiente.",lo_usa:"Revisión",rol:"usable",ejemplo:"referencia_completa"},
+    {campo:"referencia",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Objeto ancla {origen, version, huella, …}.",lo_usa:"referencia_previa (misma op)",rol:"usable",ejemplo:"{codigo, tipo, revisada}"},
+    {campo:"contrato_resultado_ejecucion",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{ok, estado_sistema, respuesta_funcion, version, huella, …}.",lo_usa:"Núcleo del bloque; revisión",rol:"usable",ejemplo:"{respuesta_interpretable, estado_respuesta, referencia…}"},
+    {campo:"vigilancia",tipo:"object",obligatorio:"sí",valores:"",formato:"",caracteristicas:"{estado, operacion, frecuencia, mecanismo_ejecucion}.",lo_usa:"Propósito del bloque (sin input tipado externo)",rol:"usable",ejemplo:"{activa, ultima_lectura, crea_reservas}"},
+    {campo:"alertas",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Array {fecha, tipo, detalle, evidencia, estado}.",lo_usa:"Automática/Enlace; Oferta vía fiabilidad",rol:"usable",ejemplo:"[]"},
+    {campo:"fiabilidad",tipo:"enum",obligatorio:"sí",valores:"fiable | requiere_revision | pendiente",formato:"",caracteristicas:"fiable | requiere_revision | pendiente.",lo_usa:"Cierre Oferta (clasificarOferta)",rol:"usable",ejemplo:"fiable"},
+    {campo:"accion_requerida",tipo:"enum | null",obligatorio:"sí",valores:"ninguna | regenerar_funcion_reserva | revisar_script | resolver_alerta",formato:"",caracteristicas:"ninguna | regenerar_… | revisar_script | resolver_alerta.",lo_usa:"Guía humana; ningún input tipado la exige",rol:"dudoso",ejemplo:"regenerar_funcion_reserva"},
+    {campo:"incertidumbres",tipo:"array",obligatorio:"sí",valores:"",formato:"",caracteristicas:"Huecos.",lo_usa:"Revisión",rol:"auditoría",ejemplo:"[]"},
+    {campo:"fecha_evaluacion",tipo:"string",obligatorio:"sí",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 del investigador.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-12"},
+    {campo:"fecha_validacion",tipo:"string | null",obligatorio:"no (null hasta revisión)",valores:"",formato:"ISO 8601",caracteristicas:"ISO 8601 | null hasta revisión.",lo_usa:"Revisión",rol:"usable",ejemplo:"2026-10-13"},
+    {campo:"explicacion_md",tipo:"string",obligatorio:"sí",valores:"",formato:"Markdown",caracteristicas:"Comparación y alertas abiertas.",lo_usa:"Revisión / UI",rol:"auditoría",ejemplo:"Ver Markdown · Explicación"},
+  ],
+},
 };
 const catalogSchemas={
  Negocio:[
@@ -4040,14 +4043,27 @@ function bindMdCapsules(root){
 }
 function schemaTable(rows){
   if(!rows||!rows.length) return '<p class="empty">Sin campos tipados.</p>';
+  const hasTyped=rows.some(r=>['tipo','obligatorio','valores','formato','ejemplo'].some(k=>Object.prototype.hasOwnProperty.call(r,k)));
   const hasExtra=rows.some(r=>Object.prototype.hasOwnProperty.call(r,'lo_usa')||Object.prototype.hasOwnProperty.call(r,'rol'));
-  const th=hasExtra?'<th>campo</th><th>características</th><th>lo usa</th><th>rol</th>':'<th>campo</th><th>características</th>';
+  let th='<th>campo</th>';
+  if(hasTyped) th+='<th>tipo</th><th>obligatorio</th><th>valores</th><th>formato</th>';
+  th+='<th>características</th>';
+  if(hasExtra) th+='<th>lo usa</th><th>rol</th>';
+  if(hasTyped) th+='<th>ejemplo</th>';
   const body=rows.map(r=>{
-    let cells=`<td>${escapeHtml(String(r.campo??'—'))}</td><td>${escapeHtml(String(r.caracteristicas??'—'))}</td>`;
-    if(hasExtra) cells+=`<td>${escapeHtml(String(r.lo_usa??'—'))}</td><td><span class="rol-tag rol-${escapeHtml(String(r.rol||'usable'))}">${escapeHtml(String(r.rol??'—'))}</span></td>`;
-    return `<tr>${cells}</tr>`;
+    let cells='<td>'+escapeHtml(String(r.campo??'—'))+'</td>';
+    if(hasTyped){
+      cells+='<td><code class="tipo">'+escapeHtml(String(r.tipo??''))+'</code></td>';
+      cells+='<td>'+escapeHtml(String(r.obligatorio??''))+'</td>';
+      cells+='<td>'+escapeHtml(String(r.valores??''))+'</td>';
+      cells+='<td>'+escapeHtml(String(r.formato??''))+'</td>';
+    }
+    cells+='<td>'+escapeHtml(String(r.caracteristicas??'—'))+'</td>';
+    if(hasExtra) cells+='<td>'+escapeHtml(String(r.lo_usa??'—'))+'</td><td><span class="rol-tag rol-'+escapeHtml(String(r.rol||'usable'))+'">'+escapeHtml(String(r.rol??'—'))+'</span></td>';
+    if(hasTyped) cells+='<td class="ejemplo">'+escapeHtml(String(r.ejemplo??''))+'</td>';
+    return '<tr>'+cells+'</tr>';
   }).join('');
-  return `<div class="tablewrap"><table class="schema-table"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+  return '<div class="tablewrap"><table class="schema-table"><thead><tr>'+th+'</tr></thead><tbody>'+body+'</tbody></table></div>';
 }
 const catalogCombina={
  Negocio:{
