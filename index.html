@@ -90,7 +90,7 @@
 .md-modal-card header p{margin:4px 0 0;font-size:12px;color:#7b8ba0}
 .md-modal-close{border:1px solid #dce5f2;border-radius:9px;background:#fff;color:#52657e;padding:7px 10px;cursor:pointer;font-weight:700;font-size:12px}
 .md-body{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:15px;color:#34445b;font-size:13px;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.viewswitch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f3f6fb;border:1px solid #e1e7f0;border-radius:14px;padding:4px;margin:0 0 18px}.viewswitch.three{grid-template-columns:1fr 1fr 1fr}
+.viewswitch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f3f6fb;border:1px solid #e1e7f0;border-radius:14px;padding:4px;margin:0 0 18px}.viewswitch.three{grid-template-columns:1fr 1fr 1fr}.viewswitch.four{grid-template-columns:1fr 1fr 1fr 1fr}
 .viewswitch button{border:0;background:transparent;border-radius:11px;padding:11px 14px;cursor:pointer;text-align:left;color:#52657e}
 .viewswitch button[aria-selected="true"]{background:#fff;color:#185aba;box-shadow:0 1px 3px #24334a1a}
 .switch-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;letter-spacing:-.01em}
@@ -102,7 +102,7 @@
 .tabs{scrollbar-width:thin;scrollbar-color:#d5deea transparent}
 .tabs::-webkit-scrollbar{height:8px}
 .tabs::-webkit-scrollbar-thumb{background:#d5deea;border-radius:8px}
-@media(max-width:760px){.viewswitch{grid-template-columns:1fr 1fr}.viewswitch.three{grid-template-columns:1fr 1fr 1fr}.viewswitch button{padding:10px 10px}.switch-title{font-size:13px}.switch-sub{font-size:11px}}
+@media(max-width:760px){.viewswitch{grid-template-columns:1fr 1fr}.viewswitch.three{grid-template-columns:1fr 1fr}.viewswitch.four{grid-template-columns:1fr 1fr}.viewswitch button{padding:10px 10px}.switch-title{font-size:13px}.switch-sub{font-size:11px}}
 
 .ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}
 .h-ico{display:flex;align-items:center;gap:8px}
@@ -2907,7 +2907,7 @@ function exampleSection(label, schema, rows){
   return '<section class="card"><h3 class="h-ico">'+icon('examples')+'Ejemplo guardado</h3><p class="intro">'+escapeHtml(painted.hint)+'</p>'+painted.html+'</section>';
 }
 
-let section=0,contractTab=0,contractView=0,contractIoTab=0,contractExample=0,catalogTab=0,catalogInnerView=0,combinaView=0,mapaTab=0,cierreView=0;
+let section=0,contractTab=0,opsMainTab=0,opsIoPart=0,catalogTab=0,catalogInnerView=0,combinaView=0,mapaTab=0,cierreView=0;
 const SEC_MAPA=0,SEC_OPS=1,SEC_CAT=2;
 function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span class="eyebrow">${eyebrow}</span>${pill?`<span class="pill">${pill}</span>`:''}</div><h2>${title}</h2><p class="desc">${desc}</p>`}
 function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${item.icon?icon(item.icon):''}${escapeHtml(item.label)}</button>`).join('')}</div>`}
@@ -2915,7 +2915,7 @@ function bindTabs(name,callback){content.querySelectorAll('.tabs button').forEac
 function irAOperacion(label){
   const i=contracts.findIndex(c=>c.label===label);
   if(i<0)return;
-  contractTab=i;contractView=0;contractIoTab=0;section=SEC_OPS;render();
+  contractTab=i;opsMainTab=0;opsIoPart=0;section=SEC_OPS;render();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function irAModelo(label){
@@ -3954,26 +3954,30 @@ function renderOperaciones(opts){
   const d=contracts[contractTab];
   const p=purposes[d.label]||{es:d.summary,noEs:''};
   const proposito=`<section class="proposito" aria-label="Propósito"><h3 class="h-ico">${icon('proposito')} Propósito</h3><dl><div><dt>Qué es</dt><dd>${escapeHtml(p.es)}</dd></div><div><dt>Qué no es</dt><dd>${escapeHtml(p.noEs)}</dd></div></dl></section>`;
-  const viewswitch=`<div class="viewswitch three" role="tablist" aria-label="Vista del bloque"><button type="button" role="tab" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">${icon('definition')} Contrato</span><span class="switch-sub">Esquema, instrucciones, JSON</span></button><button type="button" role="tab" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">${icon('instructions')} Revisión</span><span class="switch-sub">Veredicto sobre este output</span></button><button type="button" role="tab" aria-selected="${contractView===2}" data-view="2"><span class="switch-title">${icon('examples')} Ejemplos</span><span class="switch-sub">Casos de entrada y salida</span></button></div>`;
+  const viewswitch=`<div class="viewswitch four" role="tablist" aria-label="Vista del bloque"><button type="button" role="tab" aria-selected="${opsMainTab===0}" data-ops-main="0"><span class="switch-title">${icon('input')} Input</span><span class="switch-sub">Esquema, JSON y ejemplos</span></button><button type="button" role="tab" aria-selected="${opsMainTab===1}" data-ops-main="1"><span class="switch-title">${icon('instructions')} Instrucciones</span><span class="switch-sub">Prompt del bloque</span></button><button type="button" role="tab" aria-selected="${opsMainTab===2}" data-ops-main="2"><span class="switch-title">${icon('output')} Output</span><span class="switch-sub">Esquema, JSON y ejemplos</span></button><button type="button" role="tab" aria-selected="${opsMainTab===3}" data-ops-main="3"><span class="switch-title">${icon('instructions')} Revisión</span><span class="switch-sub">Veredicto sobre este output</span></button></div>`;
   const opSch=operationSchemas[d.label]||{input:[],output:[]};
-  const contratoIoPanels=[
-    `<div class="io-group" aria-label="Input"><section class="card"><h3 class="h-ico">${icon('esquema')} Esquema</h3>${schemaTable(opSch.input)}</section><section class="card"><h3 class="h-ico">${icon('definition')} Formato JSON</h3><pre>${escapeHtml(JSON.stringify(d.input,null,2))}</pre></section></div>`,
-    `<section class="card prompt"><div class="prompthead"><h3 class="h-ico">${icon('instructions')} Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section>`,
-    `<div class="io-group" aria-label="Output"><section class="card"><h3 class="h-ico">${icon('esquema')} Esquema</h3>${schemaTable(opSch.output)}</section><section class="card"><h3 class="h-ico">${icon('definition')} Formato JSON</h3><pre>${escapeHtml(JSON.stringify(d.output,null,2))}</pre></section></div>`
-  ];
-  const contrato=`<div id="panel-vista" role="tabpanel"><div class="sidetabs" role="tablist" aria-label="Parte del contrato"><button type="button" role="tab" aria-selected="${contractIoTab===0}" data-io-tab="0">${icon('input')} Input</button><button type="button" role="tab" aria-selected="${contractIoTab===1}" data-io-tab="1">${icon('instructions')} Instrucciones</button><button type="button" role="tab" aria-selected="${contractIoTab===2}" data-io-tab="2">${icon('output')} Output</button></div>${contratoIoPanels[contractIoTab]||contratoIoPanels[0]}</div>`;
+  const ioPart=Math.max(0,Math.min(2,opsIoPart|0));
+  const ioSidetabs=`<div class="sidetabs" role="tablist" aria-label="Parte de Input u Output"><button type="button" role="tab" aria-selected="${ioPart===0}" data-ops-io="0">${icon('esquema')} Esquema</button><button type="button" role="tab" aria-selected="${ioPart===1}" data-ops-io="1">${icon('definition')} Formato JSON</button><button type="button" role="tab" aria-selected="${ioPart===2}" data-ops-io="2">${icon('examples')} Ejemplos</button></div>`;
+  function ioPanel(side){
+    const isInput=side==='input';
+    const schemaRows=isInput?opSch.input:opSch.output;
+    const jsonShape=isInput?d.input:d.output;
+    const exampleRows=isInput?inputExamples[d.label]:outputExamples[d.label];
+    const painted=renderExampleFlat(d.label, side, loadExampleRows(d.label, jsonShape, exampleRows));
+    const parts=[
+      `<section class="card"><h3 class="h-ico">${icon('esquema')} Esquema</h3>${schemaTable(schemaRows)}</section>`,
+      `<section class="card"><h3 class="h-ico">${icon('definition')} Formato JSON</h3><pre>${escapeHtml(JSON.stringify(jsonShape,null,2))}</pre></section>`,
+      `<p class="intro">${escapeHtml(painted.hint)}</p><section class="card">${painted.html}</section>`
+    ];
+    return `<div id="panel-vista" role="tabpanel">${ioSidetabs}${parts[ioPart]||parts[0]}</div>`;
+  }
+  const instrucciones=`<div id="panel-vista" role="tabpanel"><section class="card prompt"><div class="prompthead"><h3 class="h-ico">${icon('instructions')} Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section></div>`;
   const revision=`<div id="panel-vista" role="tabpanel"><p class="intro">${escapeHtml(d.review.intro)}</p><section class="card"><h3>Veredicto</h3><pre>${escapeHtml(JSON.stringify(validationOutput,null,2))}</pre></section>${exampleSection('Output de la revisión', validationOutput)}</div>`;
-  const exampleRows=contractExample===0?inputExamples[d.label]:outputExamples[d.label];
-  const exampleSchema=contractExample===0?d.input:d.output;
-  const exampleSide=contractExample===0?'input':'output';
-  const examplePainted=renderExampleFlat(d.label, exampleSide, loadExampleRows(d.label, exampleSchema, exampleRows));
-  const examples=`<div id="panel-vista" role="tabpanel"><div class="sidetabs" role="tablist" aria-label="Lado del ejemplo"><button type="button" role="tab" aria-selected="${contractExample===0}" data-side="0">${icon('input')} Input</button><button type="button" role="tab" aria-selected="${contractExample===1}" data-side="1">${icon('output')} Output</button></div><p class="intro">${escapeHtml(examplePainted.hint)}</p><section class="card">${examplePainted.html}</section></div>`;
-  const panel=contractView===0?contrato:(contractView===1?revision:examples);
-  content.innerHTML=heading('Piezas del sistema','Operaciones','Cada bloque tiene contrato, revisión (aprobar o rechazar ese output) y ejemplos. Verificación y vigilancia compara una ejecución con una referencia.','15 bloques')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos">${proposito}${viewswitch}${panel}</div>`;
-  bindTabs('contratos',i=>{contractTab=i;contractIoTab=0;renderOperaciones({preserveScroll:true})});
-  content.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{contractView=Number(b.dataset.view);renderOperaciones({preserveScroll:true})}));
-  content.querySelectorAll('[data-io-tab]').forEach(b=>b.addEventListener('click',()=>{contractIoTab=Number(b.dataset.ioTab);contractView=0;renderOperaciones({preserveScroll:true})}));
-  content.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{contractExample=Number(b.dataset.side);contractView=2;renderOperaciones({preserveScroll:true})}));
+  const panel=opsMainTab===0?ioPanel('input'):(opsMainTab===1?instrucciones:(opsMainTab===2?ioPanel('output'):revision));
+  content.innerHTML=heading('Piezas del sistema','Operaciones','Cada bloque se abre por Input, Instrucciones, Output y Revisión. En Input y Output hay Esquema, Formato JSON y Ejemplos. La revisión aprueba o rechaza ese output; Verificación y vigilancia compara una ejecución con una referencia.','15 bloques')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos">${proposito}${viewswitch}${panel}</div>`;
+  bindTabs('contratos',i=>{contractTab=i;opsIoPart=0;renderOperaciones({preserveScroll:true})});
+  content.querySelectorAll('[data-ops-main]').forEach(b=>b.addEventListener('click',()=>{opsMainTab=Number(b.dataset.opsMain);renderOperaciones({preserveScroll:true})}));
+  content.querySelectorAll('[data-ops-io]').forEach(b=>b.addEventListener('click',()=>{opsIoPart=Number(b.dataset.opsIo);renderOperaciones({preserveScroll:true})}));
   const copy=document.getElementById('copyPrompt');
   if(copy) copy.onclick=async()=>{try{await navigator.clipboard.writeText(d.instructions);copy.textContent='Copiado'}catch(e){const t=document.createElement('textarea');t.value=d.instructions;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();copy.textContent='Copiado'}};
   bindMdCapsules(content);
