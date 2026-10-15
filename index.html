@@ -11,8 +11,15 @@
 .example-table{min-width:640px}.example-table th{white-space:nowrap;position:sticky;top:0}.example-table td{vertical-align:top}.example-subrow td{background:#fbfdff;padding-top:6px}.nullcell{color:#8b98a9}.example-nest{margin-top:4px}.example-tabs{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid #e7ebf2;margin:0 0 10px;padding-bottom:8px}.example-tabs button{flex:none;border:1px solid #dce5f2;border-radius:10px;background:#fff;color:#52657e;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer}.example-tabs button[aria-selected="true"]{background:#eaf1ff;border-color:#a9c5ef;color:#185aba}.example-panel[hidden]{display:none}
 .contract-summary{margin:2px 0 14px;font-size:14px;color:#3d4d63;line-height:1.55}
 .proposito{margin:0 0 16px;padding:16px 18px;border:1px solid #e1e8f2;border-radius:14px;background:#f8fafc}
-.proposito h3{margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784}
-.proposito p{margin:0;font-size:14px;line-height:1.55;color:#2c3c50}
+.proposito>h3{margin:0 0 10px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784}
+.proposito dl{margin:0;display:grid;gap:8px}
+.proposito dt{margin:0;font-size:12px;font-weight:800;color:#5a6f8a}
+.proposito dd{margin:2px 0 0;font-size:14px;line-height:1.55;color:#2c3c50}
+.catalog-map{margin:0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:16px;color:#334155}
+.catalog-ops{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.catalog-ops li{background:#eef3fa;border-radius:8px;padding:5px 9px;font-size:12px;color:#2c3e55;cursor:pointer}
+.catalog-ops li:hover{background:#e0eaf8;color:#185aba}
+.catalog-ops li button{all:unset;cursor:pointer}
 .viewswitch{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f3f6fb;border:1px solid #e1e7f0;border-radius:14px;padding:4px;margin:0 0 18px}.viewswitch.three{grid-template-columns:1fr 1fr 1fr}
 .viewswitch button{border:0;background:transparent;border-radius:11px;padding:11px 14px;cursor:pointer;text-align:left;color:#52657e}
 .viewswitch button[aria-selected="true"]{background:#fff;color:#185aba;box-shadow:0 1px 3px #24334a1a}
@@ -2223,8 +2230,8 @@ function exampleSection(label, schema, rows){
   return '<section class="card"><h3 class="h-ico">'+icon('examples')+'Ejemplo guardado</h3><p class="intro">Cada tarjeta es un caso. Arriba están sus datos. Lo que pertenece a ese caso, como una lista de procesos, va dentro de la tarjeta.</p>'+renderRecordTable(loadExampleRows(label, schema, rows))+'</section>';
 }
 
-let section=0,contractTab=0,contractView=0,contractExample=0;
-const SEC_MAPA=0,SEC_OPS=1;
+let section=0,contractTab=0,contractView=0,contractExample=0,catalogTab=0;
+const SEC_MAPA=0,SEC_OPS=1,SEC_CAT=2;
 function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span class="eyebrow">${eyebrow}</span>${pill?`<span class="pill">${pill}</span>`:''}</div><h2>${title}</h2><p class="desc">${desc}</p>`}
 function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${escapeHtml(item.label)}</button>`).join('')}</div>`}
 function bindTabs(name,callback){content.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>callback(Number(b.dataset.tab))))}
@@ -2305,26 +2312,92 @@ function restoreOpsScroll(pageY){
   requestAnimationFrame(()=>requestAnimationFrame(apply));
 }
 const purposes={
- "Ficha del negocio":"Declara una vez el nombre, la zona horaria y el ámbito festivo del negocio. No busca enlaces de reserva, contactos ni horarios.",
- "Punto A":"Localiza cada URL donde el sitio empieza una reserva online. No reescribe la ficha ni identifica el software.",
- "Apertura":"Una vez por negocio, documenta si está abierto ahora y construye la pila de cron. No lista contactos ni decide la aptitud de las vías.",
- "Contactos del negocio":"Reúne una vez los canales de contacto que el negocio publica. No elige el canal de cancelación de un proceso concreto.",
- "Identificar software":"Atribuye el software del enlace de inicio con razonamiento y evidencia en Markdown. No investiga la integración ni genera función o script.",
- "Observar formulario":"Recorre el inicio de reserva hasta justo antes de confirmar y relata lo visto. No decide campos ni escribe justificante, función o script.",
- "Canal de cancelación":"Determina cómo se cancelaría una reserva de este proceso. No vuelve a inventariar la agenda de contactos del negocio.",
- "Investigar integración":"Una vez por proveedor, documenta la integración oficial y sus condiciones. No bloquea observar el formulario ni confirma reservas.",
- "Justificante":"Decide solo desde el relato qué datos y señales de resultado están justificados. No vuelve a recorrer la web ni define la función o el script.",
- "Función":"Define la función de reserva solo a partir del justificante. No observa el formulario ni envía una reserva.",
- "Script":"Genera el script Playwright desde el justificante y la función, sin ejecutar el envío. No reobserva el formulario.",
- "Automática":"Prueba disponibilidad y, si la compuerta lo permite, una reserva de prueba con función y script aprobados. No recalcula apertura, contactos ni cancelación.",
- "Enlace asistido":"Comprueba si un enlace conserva el progreso y deja solo la acción final en una sesión independiente. No espera a Automática ni envía la reserva real desde aquí.",
- "Verificación y vigilancia":"Registra el resultado de una ejecución, lo compara con la referencia y vigila sin crear reservas. No es el paso siguiente obligatorio de una compuerta abierta."
+ "Ficha del negocio":{es:"Declara una vez el nombre, la zona horaria y el ámbito festivo del negocio.",noEs:"No busca enlaces de reserva, contactos ni horarios."},
+ "Punto A":{es:"Localiza cada URL donde el sitio empieza una reserva online.",noEs:"No reescribe la ficha ni identifica el software."},
+ "Apertura":{es:"Una vez por negocio, documenta si está abierto ahora y construye la pila de cron.",noEs:"No lista contactos ni decide la aptitud de las vías."},
+ "Contactos del negocio":{es:"Reúne una vez los canales de contacto que el negocio publica.",noEs:"No elige el canal de cancelación de un proceso concreto."},
+ "Identificar software":{es:"Atribuye el software del enlace de inicio con razonamiento y evidencia en Markdown.",noEs:"No investiga la integración ni genera función o script."},
+ "Observar formulario":{es:"Recorre el inicio de reserva hasta justo antes de confirmar y relata lo visto.",noEs:"No decide campos ni escribe justificante, función o script."},
+ "Canal de cancelación":{es:"Determina cómo se cancelaría una reserva de este proceso.",noEs:"No vuelve a inventariar la agenda de contactos del negocio."},
+ "Investigar integración":{es:"Una vez por proveedor, documenta la integración oficial y sus condiciones.",noEs:"No bloquea observar el formulario ni confirma reservas."},
+ "Justificante":{es:"Decide solo desde el relato qué datos y señales de resultado están justificados.",noEs:"No vuelve a recorrer la web ni define la función o el script."},
+ "Función":{es:"Define la función de reserva solo a partir del justificante.",noEs:"No observa el formulario ni envía una reserva."},
+ "Script":{es:"Genera el script Playwright desde el justificante y la función.",noEs:"No ejecuta el envío ni reobserva el formulario."},
+ "Automática":{es:"Prueba disponibilidad y, si la compuerta lo permite, completa una reserva de prueba con función y script aprobados.",noEs:"No recalcula apertura, contactos ni cancelación."},
+ "Enlace asistido":{es:"Comprueba si un enlace conserva el progreso y deja solo la acción final en una sesión independiente.",noEs:"No espera a Automática ni envía la reserva real desde aquí."},
+ "Verificación y vigilancia":{es:"Registra el resultado de una ejecución, lo compara con la referencia y vigila cambios.",noEs:"No crea reservas ni es el paso siguiente obligatorio de una compuerta abierta."}
 };
+const catalogs=[
+ {
+  label:"Negocio",
+  definition:"Datos del negocio que valen para todas las ramas: ficha, contactos y apertura, una vez por sitio.",
+  escribe:["Ficha del negocio","Contactos del negocio","Apertura"],
+  lee:["Canal de cancelación","Automática","Enlace asistido","Compuerta"]
+ },
+ {
+  label:"Software",
+  definition:"Nombres de software de reserva identificados en un proceso; se reutilizan entre negocios.",
+  escribe:["Identificar software"],
+  lee:["Investigar integración","Canal de cancelación","Automática"]
+ },
+ {
+  label:"Integración",
+  definition:"Integración oficial y condiciones, una vez por software.",
+  escribe:["Investigar integración"],
+  lee:["Automática"]
+ },
+ {
+  label:"Proceso",
+  definition:"Cada URL de inicio de reserva (Punto A) y su recorrido: observación, justificante, función, script y canal.",
+  escribe:["Punto A","Observar formulario","Justificante","Función","Script","Canal de cancelación"],
+  lee:["Automática","Enlace asistido","Verificación y vigilancia","Compuerta"]
+ },
+ {
+  label:"Ejecución",
+  definition:"Corridas reales o de prueba sobre un proceso ya armado: Automática, Enlace asistido y Verificación.",
+  escribe:["Automática","Enlace asistido","Verificación y vigilancia"],
+  lee:["Oferta","Compuerta"]
+ }
+];
+const catalogAscii=`URL del negocio
+        |
+        +------------------+------------------+
+        |                  |                  |
+        v                  v                  v
+   [Negocio]          [Punto A]          (ramas)
+   ficha               procesos[]
+   contactos               |
+   apertura                |
+        |                  v
+        |            [Proceso]
+        |            observación
+        |            justificante
+        |            función → script
+        |            canal
+        |                  |
+        |                  v
+        |            [Software]
+        |            nombres hallados
+        |                  |
+        |                  v
+        |            [Integración]
+        |            1× por software
+        |                  |
+        +--------+---------+
+                 |
+                 v
+            Compuerta
+                 |
+                 v
+            [Ejecución]
+            Automática || Enlace
+            Verificación y vigilancia`;
 function renderOperaciones(opts){
   const preserveScroll=!!(opts&&opts.preserveScroll);
   const pageY=preserveScroll?(window.scrollY||window.pageYOffset||0):null;
   const d=contracts[contractTab];
-  const proposito=`<section class="proposito" aria-label="Propósito"><h3>Propósito</h3><p>${escapeHtml(purposes[d.label]||d.summary)}</p></section>`;
+  const p=purposes[d.label]||{es:d.summary,noEs:''};
+  const proposito=`<section class="proposito" aria-label="Propósito"><h3>Propósito</h3><dl><div><dt>Qué es</dt><dd>${escapeHtml(p.es)}</dd></div><div><dt>Qué no es</dt><dd>${escapeHtml(p.noEs)}</dd></div></dl></section>`;
   const viewswitch=`<div class="viewswitch three" role="tablist" aria-label="Vista del bloque"><button type="button" role="tab" aria-selected="${contractView===0}" data-view="0"><span class="switch-title">${icon('definition')} Contrato</span><span class="switch-sub">Input, instrucciones, output</span></button><button type="button" role="tab" aria-selected="${contractView===1}" data-view="1"><span class="switch-title">${icon('instructions')} Revisión</span><span class="switch-sub">Veredicto sobre este output</span></button><button type="button" role="tab" aria-selected="${contractView===2}" data-view="2"><span class="switch-title">${icon('examples')} Ejemplos</span><span class="switch-sub">Casos de entrada y salida</span></button></div>`;
   const contrato=`<div id="panel-vista" role="tabpanel"><section class="card"><h3 class="h-ico">${icon('input')} Input</h3><pre>${escapeHtml(JSON.stringify(d.input,null,2))}</pre></section><section class="card prompt"><div class="prompthead"><h3 class="h-ico">${icon('instructions')} Instrucciones</h3><button class="copy" type="button" id="copyPrompt">Copiar</button></div><p class="prompttext">${escapeHtml(d.instructions)}</p></section><section class="card"><h3 class="h-ico">${icon('output')} Output</h3><pre>${escapeHtml(JSON.stringify(d.output,null,2))}</pre></section></div>`;
   const revision=`<div id="panel-vista" role="tabpanel"><p class="intro">${escapeHtml(d.review.intro)}</p><section class="card"><h3>Veredicto</h3><pre>${escapeHtml(JSON.stringify(validationOutput,null,2))}</pre></section>${exampleSection('Output de la revisión', validationOutput)}</div>`;
@@ -2361,7 +2434,20 @@ function clasificarOferta(clasificacion, fiabilidad, compuerta){
  if((clasificacion==='apto_automatico'||clasificacion==='apto_asistido')&&fiabilidad==='fiable'&&compuerta==='abierta')return 'habilitada';
  return 'pendiente';
 }
-const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones]];
+function renderCatalogos(){
+  const c=catalogs[catalogTab];
+  const ops=(arr,kind)=>`<p class="intro" style="margin:12px 0 4px"><strong>${kind}</strong></p><ul class="catalog-ops">${arr.map(name=>`<li><button type="button" data-op="${escapeHtml(name)}">${escapeHtml(name)}</button></li>`).join('')}</ul>`;
+  const panel=`<section class="card"><h3>${escapeHtml(c.label)}</h3><p class="intro">${escapeHtml(c.definition)}</p>${ops(c.escribe,'Escriben')}${ops(c.lee,'Leen')}</section>`;
+  const mapa=`<section class="card"><h3>Cómo se conectan</h3><pre class="catalog-map">${escapeHtml(catalogAscii)}</pre></section>`;
+  content.innerHTML=heading('Capas de datos','Catálogos','Cinco pilares: qué guarda cada uno y qué operaciones escriben o leen.','5 pilares')+tabs(catalogs,catalogTab,'catalogos')+`<div id="panel-catalogos">${panel}${mapa}</div>`;
+  bindTabs('catalogos',i=>{catalogTab=i;renderCatalogos()});
+  content.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>{
+    const name=b.dataset.op;
+    if(name==='Compuerta'||name==='Oferta'){abrirResultado();return;}
+    irAOperacion(name);
+  }));
+}
+const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones],['Catálogos',renderCatalogos]];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num">${i+1}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
 render();
 </script>
