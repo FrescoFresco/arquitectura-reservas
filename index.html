@@ -142,29 +142,23 @@
 </style>
 </head>
 <body>
-<header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de reservas web</h1><p>Ficha · Punto A · Apertura y contactos · ramas por proceso · compuerta</p></div></div></header>
+<header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de reservas web</h1><p>Ficha · Ámbito festivo · Punto A · Apertura y contactos · ramas por proceso · compuerta</p></div></div></header>
 <div class="layout"><nav id="nav" aria-label="Secciones"></nav><main class="main" id="content"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
 const contracts=[
  {
   "label": "Ficha del negocio",
-  "summary": "Centralizar una vez los datos del negocio que no pertenecen a ninguna rama: nombre, zona horaria y ámbito festivo.",
+  "summary": "Centralizar una vez la identidad del negocio que no pertenece a ninguna rama: nombre y zona horaria.",
   "input": {
    "url_negocio": "URL del negocio"
   },
-  "instructions": "Tu propósito es crear la ficha del negocio: los datos que valen para todas las ramas y no deben repetirse después.\n\nCon url_negocio, identifica nombre_negocio, zona_horaria (IANA, por ejemplo Atlantic/Canary) y ambito_festivo (país, comunidad o región, isla o provincia, municipio) con fuentes atribuibles: web del negocio, ficha pública tipo Google Maps u otra fuente oficial. Cita cada fuente. No inventes nombre, zona ni ámbito.\n\nestado es completa si nombre, zona y ámbito quedan sostenidos; pendiente si falta alguno esencial. No busques enlaces de reserva (eso es Punto A). No armes la pila de cron (eso es Apertura). No listes teléfonos ni canales (eso es Contactos del negocio). No confirmes una reserva.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "instructions": "Tu propósito es crear la ficha del negocio: los datos de identidad que valen para todas las ramas y no deben repetirse después.\n\nCon url_negocio, identifica nombre_negocio y zona_horaria (IANA, por ejemplo Atlantic/Canary) con fuentes atribuibles: web del negocio, ficha pública tipo Google Maps u otra fuente oficial. Cita cada fuente. No inventes nombre ni zona.\n\nestado es completa si nombre y zona quedan sostenidos; pendiente si falta alguno esencial. No fixes el ámbito festivo (eso es Ámbito festivo). No busques enlaces de reserva (eso es Punto A). No armes la pila de cron (eso es Apertura). No listes teléfonos ni canales (eso es Contactos del negocio). No confirmes una reserva.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
   "output": {
    "estado": "completa | pendiente",
    "url_negocio": "URL del negocio",
    "nombre_negocio": "string | null",
    "zona_horaria": "IANA | null",
-   "ambito_festivo": {
-      "pais": "string | null",
-      "comunidad_o_region": "string | null",
-      "isla_o_provincia": "string | null",
-      "municipio": "string | null"
-   },
    "evidencias": [
       {
          "origen": "URL o ficha",
@@ -185,12 +179,47 @@ const contracts=[
   }
  },
  {
+  "label": "Ámbito festivo",
+  "summary": "Fijar una vez la jurisdicción del calendario de fiestas del negocio: país, comunidad o región, isla o provincia y municipio. No lista festivos.",
+  "input": {
+   "url_negocio": "URL del negocio (la misma de la ficha)"
+  },
+  "instructions": "Tu propósito es declarar el ámbito festivo del negocio: la jurisdicción del calendario de fiestas, no la lista de festivos.\n\nCon url_negocio, identifica ambito_festivo (pais, comunidad_o_region, isla_o_provincia, municipio) con fuentes atribuibles: web del negocio, ficha pública tipo Google Maps u otra fuente oficial. Cita cada fuente. No inventes subdivisiones.\n\nestado es completa si el ámbito queda sostenido al menos a nivel de país (y las subdivisiones que la evidencia sostenga); pendiente si falta la jurisdicción esencial. No reescribas nombre ni zona (eso es Ficha del negocio). No armes la pila de cron ni listes festivos concretos (eso es Apertura). No busques enlaces de reserva. No listes contactos. No confirmes una reserva.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "output": {
+   "estado": "completa | pendiente",
+   "url_negocio": "URL del negocio",
+   "ambito_festivo": {
+      "pais": "string | null",
+      "comunidad_o_region": "string | null",
+      "isla_o_provincia": "string | null",
+      "municipio": "string | null"
+   },
+   "evidencias": [
+      {
+         "origen": "URL o ficha",
+         "fragmento": "string",
+         "explicacion_md": "Markdown: cómo este fragmento sostiene el ámbito citado"
+      }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "ISO 8601",
+   "fecha_validacion": "ISO 8601 | null",
+   "explicacion_md": "Markdown completo que explica el resultado de este bloque"
+},
+  "review": {
+   "intro": "Aprueba o rechaza el output que este bloque acaba de producir. No investiga el negocio otra vez.",
+   "input": "Output del bloque",
+   "checks": [],
+   "outcome": "aprobada | cambios_solicitados | inconclusa"
+  }
+ },
+ {
   "label": "Punto A",
   "summary": "Localizar cada enlace donde el negocio empieza una reserva. No redefine la ficha.",
   "input": {
    "url_negocio": "URL del negocio (la misma de la ficha)"
   },
-  "instructions": "Tu propósito es localizar cada enlace en el que el negocio empieza una reserva. La ficha del negocio ya concentra nombre, zona y ámbito festivo: no los reescribas aquí.\n\nExplora la web y los destinos a los que conduce, incluidos widgets o servicios externos. Para cada inicio registra id_proceso, url_inicio y alcance. Separa procesos con enlace o cobertura distinta; agrupa accesos que abren el mismo inicio y explica por qué.\n\nUsa no_encontrada solo si la exploración basta para sostener que no hay reserva online. Bloqueo, web a medias o falta de evidencia es pendiente. El resultado de negocio es sin_reserva_online o pendiente, nunca no_apto.\n\nNo identifiques software, no recorras el formulario, no busques cancelación ni horario. No inventes enlaces. No confirmes una reserva. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "instructions": "Tu propósito es localizar cada enlace en el que el negocio empieza una reserva. La ficha del negocio ya concentra nombre y zona; el ámbito festivo lo declara Ámbito festivo: no los reescribas aquí.\n\nExplora la web y los destinos a los que conduce, incluidos widgets o servicios externos. Para cada inicio registra id_proceso, url_inicio y alcance. Separa procesos con enlace o cobertura distinta; agrupa accesos que abren el mismo inicio y explica por qué.\n\nUsa no_encontrada solo si la exploración basta para sostener que no hay reserva online. Bloqueo, web a medias o falta de evidencia es pendiente. El resultado de negocio es sin_reserva_online o pendiente, nunca no_apto.\n\nNo identifiques software, no recorras el formulario, no busques cancelación ni horario. No inventes enlaces. No confirmes una reserva. Registra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
   "output": {
    "estado": "encontrada | no_encontrada | pendiente",
    "procesos": [
@@ -214,14 +243,14 @@ const contracts=[
  },
  {
   "label": "Apertura",
-  "summary": "Una vez por negocio: Markdown versionado y pila de cron. La zona horaria sale de la ficha, no de cada cron.",
+  "summary": "Una vez por negocio: Markdown versionado y pila de cron. La zona sale de la ficha; el ámbito festivo, de Ámbito festivo.",
   "input": {
    "url_negocio": "URL del negocio",
    "zona_horaria": "IANA de la ficha | null",
-   "ambito_festivo": "Ámbito de la ficha | null",
+   "ambito_festivo": "Ámbito de la operación Ámbito festivo | null",
    "informe_previo": "informe de apertura anterior | null"
   },
-  "instructions": "Tu propósito es investigar si el negocio está abierto ahora. Se ejecuta una sola vez por negocio, no por cada enlace de reserva.\n\nPrimero escribe observacion_apertura_md: web del negocio y Google Maps u otra ficha pública, con URL, hora de consulta y lo observado. Cada ejecución crea un informe nuevo (v1, v2…). timestamp es el instante de este informe en la zona de la ficha. No reescribas el Markdown anterior.\n\nDespués construye pila_cron. Cada job tiene tipo, efecto (abierto|cerrado), cron de 5 campos, fuente y nota. No incluyas zona en el job: la zona_horaria vive en la ficha del negocio y se usa al evaluar. Los cierres van después de los horarios ordinarios; entre jobs que coinciden gana el último.\n\nEvalúa la pila en timestamp con la zona de la ficha. abierto_ahora es true solo con job ganador abierto y margen ≥ 60 minutos. Si zona_horaria falta, abierto_ahora es indeterminado. No registres teléfonos (Contactos del negocio). No decidas aptitud de vía. No envíes reservas.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
+  "instructions": "Tu propósito es investigar si el negocio está abierto ahora. Se ejecuta una sola vez por negocio, no por cada enlace de reserva.\n\nUsa zona_horaria de la ficha y ambito_festivo de la operación Ámbito festivo (no de la ficha) al armar festivos en pila_cron.\n\nPrimero escribe observacion_apertura_md: web del negocio y Google Maps u otra ficha pública, con URL, hora de consulta y lo observado. Cada ejecución crea un informe nuevo (v1, v2…). timestamp es el instante de este informe en la zona de la ficha. No reescribas el Markdown anterior.\n\nDespués construye pila_cron. Cada job tiene tipo, efecto (abierto|cerrado), cron de 5 campos, fuente y nota. No incluyas zona en el job: la zona_horaria vive en la ficha del negocio y se usa al evaluar. Los cierres van después de los horarios ordinarios; entre jobs que coinciden gana el último.\n\nEvalúa la pila en timestamp con la zona de la ficha. abierto_ahora es true solo con job ganador abierto y margen ≥ 60 minutos. Si zona_horaria falta, abierto_ahora es indeterminado. No registres teléfonos (Contactos del negocio). No decidas aptitud de vía. No envíes reservas.\n\nRegistra fecha_evaluacion y deja fecha_validacion vacía hasta la revisión independiente.",
   "output": {
    "version": "v1 | v2 | v3 | …",
    "timestamp": "ISO 8601; instante de este informe",
@@ -681,9 +710,10 @@ const validationOutput={
  "fecha_validacion": "ISO 8601 | null",
  "explicacion_md": "Markdown completo del veredicto: por qué se aprueba, se piden cambios o queda inconclusa"
 };
-const flow="flowchart TD\n  U[\"URL del negocio\"] --\u003e FIC[\"Ficha del negocio\"]\n  FIC --\u003e PA[\"Punto A\"]\n  FIC --\u003e AP[\"Apertura\"]\n  FIC --\u003e CT[\"Contactos\"]\n  PA --\u003e R{\"¿Hay enlace?\"}\n  R --\u003e|No| NA[\"SIN RESERVA ONLINE\"]\n  R --\u003e|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R --\u003e|Por proceso| S[\"Identificar software\"]\n  R --\u003e|Por proceso| O[\"Observar formulario\"]\n  R --\u003e|Por proceso| C[\"Canal de cancelación\"]\n  S --\u003e I[\"Integración\"]\n  CT --\u003e C\n  O --\u003e J[\"Justificante\"]\n  J --\u003e FN[\"Función\"]\n  FN --\u003e SC[\"Script\"]\n  SC --\u003e REV{\"¿Función y script OK?\"}\n  REV --\u003e|Sí| AU[\"Automática\"]\n  REV --\u003e|Sí| EN[\"Enlace asistido\"]\n  REV --\u003e|No| NI[\"Vías no intentadas\"]\n  I -.-\u003e|pista| AU\n  AU --\u003e V[\"Verificación y vigilancia\"]\n  EN --\u003e V\n  V --\u003e|formulario_cambiado| O\n  AP --\u003e G[\"Compuerta\"]\n  C --\u003e G\n  CT --\u003e G\n  AU --\u003e G\n  EN --\u003e G\n  G --\u003e|Abierta| OK[\"Envío real permitido\"]\n  G --\u003e|Cerrado| PEND[\"pendiente_apertura\"]\n  G --\u003e|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --\u003e Z[\"Resultado\"]\n  OK --\u003e Z\n  NI --\u003e Z\n  PEND --\u003e Z\n  SC2 --\u003e Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PEND pending\n  class Z summary";
+const flow="flowchart TD\n  U[\"URL del negocio\"] --\u003e FIC[\"Ficha del negocio\"]\n  FIC --\u003e PA[\"Punto A\"]\n  FIC --\u003e AF[\"Ámbito festivo\"]\n  AF --\u003e AP[\"Apertura\"]\n  FIC --\u003e CT[\"Contactos\"]\n  PA --\u003e R{\"¿Hay enlace?\"}\n  R --\u003e|No| NA[\"SIN RESERVA ONLINE\"]\n  R --\u003e|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R --\u003e|Por proceso| S[\"Identificar software\"]\n  R --\u003e|Por proceso| O[\"Observar formulario\"]\n  R --\u003e|Por proceso| C[\"Canal de cancelación\"]\n  S --\u003e I[\"Integración\"]\n  CT --\u003e C\n  O --\u003e J[\"Justificante\"]\n  J --\u003e FN[\"Función\"]\n  FN --\u003e SC[\"Script\"]\n  SC --\u003e REV{\"¿Función y script OK?\"}\n  REV --\u003e|Sí| AU[\"Automática\"]\n  REV --\u003e|Sí| EN[\"Enlace asistido\"]\n  REV --\u003e|No| NI[\"Vías no intentadas\"]\n  I -.-\u003e|pista| AU\n  AU --\u003e V[\"Verificación y vigilancia\"]\n  EN --\u003e V\n  V --\u003e|formulario_cambiado| O\n  AP --\u003e G[\"Compuerta\"]\n  C --\u003e G\n  CT --\u003e G\n  AU --\u003e G\n  EN --\u003e G\n  G --\u003e|Abierta| OK[\"Envío real permitido\"]\n  G --\u003e|Cerrado| PEND[\"pendiente_apertura\"]\n  G --\u003e|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --\u003e Z[\"Resultado\"]\n  OK --\u003e Z\n  NI --\u003e Z\n  PEND --\u003e Z\n  SC2 --\u003e Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PEND pending\n  class Z summary";
 const nodoABloque={
  "FIC": "Ficha del negocio",
+ "AF": "Ámbito festivo",
  "PA": "Punto A",
  "AP": "Apertura",
  "CT": "Contactos del negocio",
@@ -705,17 +735,11 @@ const outputExamples = {
    "url_negocio": "https://www.elmuelle.example",
    "nombre_negocio": "Restaurante El Muelle",
    "zona_horaria": "Atlantic/Canary",
-   "ambito_festivo": {
-    "pais": "España",
-    "comunidad_o_region": "Canarias",
-    "isla_o_provincia": "Tenerife",
-    "municipio": "Santa Cruz de Tenerife"
-   },
    "evidencias": [
     {
      "origen": "https://www.elmuelle.example",
      "fragmento": "El Muelle · Tenerife",
-     "explicacion_md": "# Explicación de la evidencia\n\nNombre y municipio en la web\n"
+     "explicacion_md": "# Explicación de la evidencia\n\nNombre del negocio en la web\n"
     }
    ],
    "incertidumbres": [],
@@ -728,12 +752,6 @@ const outputExamples = {
    "url_negocio": "https://www.hotelcostamar.example",
    "nombre_negocio": "Hotel Costa Mar",
    "zona_horaria": "Atlantic/Canary",
-   "ambito_festivo": {
-    "pais": "España",
-    "comunidad_o_region": "Canarias",
-    "isla_o_provincia": "Gran Canaria",
-    "municipio": "Las Palmas"
-   },
    "evidencias": [
     {
      "origen": "Maps",
@@ -744,26 +762,87 @@ const outputExamples = {
    "incertidumbres": [],
    "fecha_evaluacion": "2026-05-29T09:00:00+01:00",
    "fecha_validacion": "2026-05-29T10:00:00+01:00",
-   "explicacion_md": "# Explicación\n\nHotel con ámbito insular claro.\n"
+   "explicacion_md": "# Explicación\n\nHotel con zona Atlantic/Canary sostenida.\n"
   },
   {
    "estado": "pendiente",
    "url_negocio": "https://www.pescaderianorte.example",
    "nombre_negocio": "Pescadería Norte",
    "zona_horaria": null,
-   "ambito_festivo": {
-    "pais": "España",
-    "comunidad_o_region": null,
-    "isla_o_provincia": null,
-    "municipio": null
-   },
    "evidencias": [],
    "incertidumbres": [
     "Sin zona horaria publicitada"
    ],
    "fecha_evaluacion": "2026-10-14T10:05:00+01:00",
    "fecha_validacion": null,
-   "explicacion_md": "# Explicación\n\nFalta zona y ámbito fino.\n"
+   "explicacion_md": "# Explicación\n\nFalta zona horaria.\n"
+  }
+ ],
+ "Ámbito festivo": [
+  {
+   "estado": "completa",
+   "url_negocio": "https://www.elmuelle.example",
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": "Canarias",
+    "isla_o_provincia": "Tenerife",
+    "municipio": "Santa Cruz de Tenerife"
+   },
+   "evidencias": [
+    {
+     "origen": "https://www.elmuelle.example",
+     "fragmento": "El Muelle · Santa Cruz de Tenerife",
+     "explicacion_md": "# Explicación de la evidencia\n\nMunicipio e isla en la web del negocio\n"
+    }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-10-14T10:02:00+01:00",
+   "fecha_validacion": "2026-10-14T11:05:00+01:00",
+   "explicacion_md": "# Explicación\n\nÁmbito insular completo para el calendario de fiestas.\n"
+  },
+  {
+   "estado": "completa",
+   "url_negocio": "https://www.hotelcostamar.example",
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": "Canarias",
+    "isla_o_provincia": "Gran Canaria",
+    "municipio": "Las Palmas"
+   },
+   "evidencias": [
+    {
+     "origen": "Maps",
+     "fragmento": "Las Palmas de Gran Canaria",
+     "explicacion_md": "# Explicación de la evidencia\n\nDirección pública fija municipio e isla\n"
+    }
+   ],
+   "incertidumbres": [],
+   "fecha_evaluacion": "2026-05-29T09:05:00+01:00",
+   "fecha_validacion": "2026-05-29T10:05:00+01:00",
+   "explicacion_md": "# Explicación\n\nÁmbito insular claro (Gran Canaria).\n"
+  },
+  {
+   "estado": "pendiente",
+   "url_negocio": "https://www.pescaderianorte.example",
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": null,
+    "isla_o_provincia": null,
+    "municipio": null
+   },
+   "evidencias": [
+    {
+     "origen": "https://www.pescaderianorte.example",
+     "fragmento": "España",
+     "explicacion_md": "# Explicación de la evidencia\n\nSolo país; sin municipio ni isla publicados\n"
+    }
+   ],
+   "incertidumbres": [
+    "Sin comunidad, isla ni municipio publicitados"
+   ],
+   "fecha_evaluacion": "2026-10-14T10:06:00+01:00",
+   "fecha_validacion": null,
+   "explicacion_md": "# Explicación\n\nSolo país; falta ámbito fino.\n"
   }
  ],
  "Punto A": [
@@ -1695,6 +1774,17 @@ const inputExamples = {
    "url_negocio": "https://www.pescaderianorte.example"
   }
  ],
+ "Ámbito festivo": [
+  {
+   "url_negocio": "https://www.elmuelle.example"
+  },
+  {
+   "url_negocio": "https://www.hotelcostamar.example"
+  },
+  {
+   "url_negocio": "https://www.pescaderianorte.example"
+  }
+ ],
  "Punto A": [
   {
    "url_negocio": "https://www.elmuelle.example"
@@ -2376,6 +2466,10 @@ const EXAMPLE_GRAIN={
     output:{unnest:"evidencias",prefix:"evidencia",childKeys:["origen","fragmento","explicacion_md"],hint:"Cada fila es 1 evidencia × negocio; el Markdown se abre con Ver Markdown."},
     input:{hint:"Cada fila es 1 URL / caso."}
   },
+  "Ámbito festivo":{
+    output:{unnest:"evidencias",prefix:"evidencia",childKeys:["origen","fragmento","explicacion_md"],hint:"Cada fila es 1 evidencia × ámbito; el Markdown se abre con Ver Markdown."},
+    input:{hint:"Cada fila es 1 URL / caso."}
+  },
   "Punto A":{
     output:{unnest:"procesos",prefix:"proceso",childKeys:["id_proceso","url_inicio","alcance"],hint:"Cada fila es 1 proceso; el Markdown se abre con Ver Markdown."},
     input:{hint:"Cada fila es 1 URL / caso."}
@@ -2859,7 +2953,7 @@ function mountFlowMermaid(){
     mermaid.run({nodes:[el]}).then(()=>{
       if(status) status.textContent='';
       const byText={
-        'Ficha del negocio':'Ficha del negocio','Punto A':'Punto A','Apertura':'Apertura',
+        'Ficha del negocio':'Ficha del negocio','Ámbito festivo':'Ámbito festivo','Punto A':'Punto A','Apertura':'Apertura',
         'Contactos':'Contactos del negocio','Identificar software':'Identificar software',
         'Observar formulario':'Observar formulario','Canal de cancelación':'Canal de cancelación',
         'Integración':'Investigar integración','Justificante':'Justificante','Función':'Función',
@@ -3229,7 +3323,8 @@ function afterTabRender(opts){
   requestAnimationFrame(()=>requestAnimationFrame(apply));
 }
 const purposes={
- "Ficha del negocio":{es:"Declara una vez el nombre, la zona horaria y el ámbito festivo del negocio.",noEs:"No busca enlaces de reserva, contactos ni horarios."},
+ "Ficha del negocio":{es:"Declara una vez el nombre y la zona horaria del negocio.",noEs:"No fija el ámbito festivo ni busca enlaces, contactos u horarios."},
+ "Ámbito festivo":{es:"Declara una vez la jurisdicción del calendario de fiestas (país y subdivisiones).",noEs:"No lista festivos concretos ni reescribe la ficha."},
  "Punto A":{es:"Localiza cada URL donde el sitio empieza una reserva online.",noEs:"No reescribe la ficha ni identifica el software."},
  "Apertura":{es:"Una vez por negocio, documenta si está abierto ahora y construye la pila de cron.",noEs:"No lista contactos ni decide la aptitud de las vías."},
  "Contactos del negocio":{es:"Reúne una vez los canales de contacto que el negocio publica.",noEs:"No elige el canal de cancelación de un proceso concreto."},
@@ -3262,8 +3357,8 @@ const catalogAscii=`URL del negocio
         |                  |                  |
         v                  v                  v
    [Negocio]          [Proceso]          [Software]
-   ficha / contactos  identidad          nombres
-   apertura           (url_inicio)       reutilizables
+   ficha / ámbito     identidad          nombres
+   contactos / aper.  (url_inicio)       reutilizables
         |                  |                  |
         |                  |                  v
         |                  |            [Integración]
@@ -3289,7 +3384,7 @@ const catalogSchemas={
   {campo:"url",caracteristicas:"URL canónica del sitio del negocio."},
   {campo:"nombre",caracteristicas:"Nombre público del negocio."},
   {campo:"zona",caracteristicas:"Zona horaria IANA usada para apertura y márgenes."},
-  {campo:"ambito_festivo",caracteristicas:"Jurisdicción para festivos (país y subdivisiones aplicables)."},
+  {campo:"ambito_festivo",caracteristicas:"Salida de Ámbito festivo: jurisdicción del calendario de fiestas (país y subdivisiones). No es lista de festivos."},
   {campo:"actualizado_en",caracteristicas:"Instante de la última actualización de la ficha de negocio."}
  ],
  Software:[
@@ -3592,7 +3687,7 @@ function renderOperaciones(opts){
   const examplePainted=renderExampleFlat(d.label, exampleSide, loadExampleRows(d.label, exampleSchema, exampleRows));
   const examples=`<div id="panel-vista" role="tabpanel"><div class="sidetabs" role="tablist" aria-label="Lado del ejemplo"><button type="button" role="tab" aria-selected="${contractExample===0}" data-side="0">${icon('input')} Input</button><button type="button" role="tab" aria-selected="${contractExample===1}" data-side="1">${icon('output')} Output</button></div><p class="intro">${escapeHtml(examplePainted.hint)}</p><section class="card">${examplePainted.html}</section></div>`;
   const panel=contractView===0?contrato:(contractView===1?revision:examples);
-  content.innerHTML=heading('Piezas del sistema','Operaciones','Cada bloque tiene contrato, revisión (aprobar o rechazar ese output) y ejemplos. Verificación y vigilancia compara una ejecución con una referencia.','14 bloques')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos">${proposito}${viewswitch}${panel}</div>`;
+  content.innerHTML=heading('Piezas del sistema','Operaciones','Cada bloque tiene contrato, revisión (aprobar o rechazar ese output) y ejemplos. Verificación y vigilancia compara una ejecución con una referencia.','15 bloques')+tabs(contracts,contractTab,'contratos')+`<div id="panel-contratos">${proposito}${viewswitch}${panel}</div>`;
   bindTabs('contratos',i=>{contractTab=i;renderOperaciones({preserveScroll:true})});
   content.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{contractView=Number(b.dataset.view);renderOperaciones({preserveScroll:true})}));
   content.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{contractExample=Number(b.dataset.side);contractView=2;renderOperaciones({preserveScroll:true})}));
@@ -3669,10 +3764,10 @@ function schemaTable(rows){
 const catalogCombina={
  Negocio:{
   enlace:{"padre":[],"esta":"Negocio","hijas":["Proceso"]},
-  puntas:[{campo:"url",estable:true},{campo:"identidad del local",estable:true}],
-  porQue:"Un local tiene una sola ficha estable; la fila es ese local.",
+  puntas:[{campo:"url",estable:true},{campo:"identidad del local",estable:true},{campo:"ambito_festivo",estable:true,nota:"salida de Ámbito festivo"}],
+  porQue:"Un local tiene una sola ficha estable (nombre y zona) y un ámbito festivo declarado aparte; la fila es ese local.",
   unaFila:"un negocio",
-  estable:["url","identidad"],
+  estable:["url","identidad","ambito_festivo"],
   noEstable:[]
  },
  Software:{
