@@ -57,14 +57,22 @@
 .catalog-map{margin:0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:16px;color:#334155}
 .dbdiag{margin:0}
 .dbdiag-head{margin:0 0 6px}
-.dbdiag-sub{margin:0 0 14px;font-size:13px;color:#66758a}
-.db-mermaid-wrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid #e6edf5;border-radius:12px;background:#fbfdff;padding:10px;max-width:100%}
-.db-mermaid{overflow:visible;text-align:center;min-height:180px;margin:0}
-.db-mermaid svg{display:block;height:auto!important;min-width:640px;width:auto!important;max-width:none!important;margin:0 auto}
-.db-mermaid .er.entityBox,.db-mermaid [id*="entity"]{cursor:pointer}
-.db-mermaid g[id^="entity-"]{cursor:pointer}
+.dbdiag-sub{margin:0 0 12px;font-size:13px;color:#66758a}
+.db-zoombar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px}
+.db-zoombar .db-zoom-btns{display:inline-flex;align-items:center;gap:4px;background:#f3f6fb;border:1px solid #e1e7f0;border-radius:10px;padding:3px}
+.db-zoombar button{border:0;background:#fff;color:#315784;border-radius:8px;min-width:36px;height:34px;padding:0 10px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 1px 0 #24334a0a}
+.db-zoombar button:hover{background:#eaf1ff;color:#185aba}
+.db-zoombar button:focus-visible{outline:2px solid #266bd1;outline-offset:2px}
+.db-zoombar .db-zoom-fit{font-size:12px;font-weight:800;letter-spacing:.01em}
+.db-zoombar .db-zoom-pct{font-size:12px;font-weight:700;color:#5a6f8a;min-width:44px}
+.db-mermaid-wrap{position:relative;overflow:hidden;touch-action:none;border:1px solid #e6edf5;border-radius:12px;background:#fbfdff;max-width:100%;height:min(68vh,560px);cursor:grab}
+.db-mermaid-wrap.is-panning{cursor:grabbing}
+.db-mermaid-stage{transform-origin:0 0;will-change:transform;width:max-content}
+.db-mermaid{overflow:visible;text-align:left;min-height:120px;margin:0;padding:8px}
+.db-mermaid svg{display:block;height:auto!important;width:auto!important;max-width:none!important;min-width:0!important;margin:0}
+.db-mermaid g[id*="-entity-"]{cursor:pointer}
 @media(max-width:760px){
-  .db-mermaid svg{min-width:560px}
+  .db-mermaid-wrap{height:min(62vh,480px)}
 }
 .catalog-ops{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .catalog-ops li{background:#eef3fa;border-radius:8px;padding:5px 9px;font-size:12px;color:#2c3e55;cursor:pointer}
@@ -2504,6 +2512,153 @@ function resolveDbEntityLabel(raw){
   const first=t.split(/\s+/)[0];
   return dbEntityToTab[first]||null;
 }
+function htmlMapaTablas(){
+  return `<section class="card dbdiag">
+<div class="dbdiag-head"><h3 class="h-ico">${icon('tablas')} Diagrama de base de datos</h3></div>
+<p class="dbdiag-sub">Tablas y conexiones (1 → N). Usa + / − para zoom; arrastra para mover. Pulsa una tabla para abrirla.</p>
+<div class="db-zoombar" role="toolbar" aria-label="Zoom del diagrama">
+  <div class="db-zoom-btns">
+    <button type="button" data-db-zoom="out" title="Alejar" aria-label="Alejar">−</button>
+    <button type="button" class="db-zoom-fit" data-db-zoom="fit" title="Ajustar al contenedor" aria-label="Ajustar al contenedor">Ajustar</button>
+    <button type="button" data-db-zoom="in" title="Acercar" aria-label="Acercar">+</button>
+  </div>
+  <span class="db-zoom-pct" id="dbZoomPct" aria-live="polite">—</span>
+</div>
+<div class="db-mermaid-wrap" id="dbViewport">
+  <div class="db-mermaid-stage" id="dbStage">
+    <div class="mermaid db-mermaid" id="dbMermaid"></div>
+  </div>
+</div>
+<p class="mapstatus" id="dbMapStatus">Cargando diagrama…</p>
+</section>`;
+}
+function bindDbEntityClicks(el){
+  const entityRe=/entity-([A-Za-zÁÉÍÓÚáéíóúñÑ]+)-\d+$/;
+  el.querySelectorAll('g[id*="-entity-"]').forEach(node=>{
+    const id=node.id||'';
+    if((id.match(/entity-/g)||[]).length!==1) return;
+    const m=id.match(entityRe);
+    if(!m) return;
+    const label=dbEntityToTab[m[1]];
+    if(!label) return;
+    node.style.cursor='pointer';
+    node.setAttribute('role','link');
+    node.setAttribute('aria-label','Abrir tabla '+label);
+    node.addEventListener('click',ev=>{
+      if(window.__dbPanMoved) return;
+      ev.preventDefault();ev.stopPropagation();
+      irAModelo(label);
+    });
+  });
+}
+function setupDbZoomPan(){
+  const viewport=document.getElementById('dbViewport');
+  const stage=document.getElementById('dbStage');
+  const el=document.getElementById('dbMermaid');
+  const pctEl=document.getElementById('dbZoomPct');
+  if(!viewport||!stage||!el) return;
+  const svg=el.querySelector('svg');
+  if(!svg) return;
+
+  let scale=1, tx=0, ty=0;
+  let fitScale=1;
+  const minScale=0.25, maxScale=2.5;
+
+  const natural=()=>{
+    const bbox=svg.getBBox();
+    // prefer explicit pixel size if present
+    const w=Math.max(bbox.width||0, svg.scrollWidth||0, parseFloat(svg.getAttribute('width'))||0, 1);
+    const h=Math.max(bbox.height||0, svg.scrollHeight||0, parseFloat(svg.getAttribute('height'))||0, 1);
+    return {w,h,bbox};
+  };
+
+  const apply=()=>{
+    stage.style.transform='translate('+tx+'px,'+ty+'px) scale('+scale+')';
+    if(pctEl) pctEl.textContent=Math.round(scale*100)+'%';
+  };
+
+  const fit=()=>{
+    const {w,h,bbox}=natural();
+    const pad=20;
+    const vw=Math.max(1, viewport.clientWidth-pad*2);
+    const vh=Math.max(1, viewport.clientHeight-pad*2);
+    fitScale=Math.min(vw/w, vh/h, 1);
+    // Start slightly able to see whole diagram: never above fit
+    scale=Math.max(minScale, fitScale);
+    // Center content. SVG may have negative bbox origin.
+    const ox=bbox.x||0, oy=bbox.y||0;
+    tx=pad+(vw-w*scale)/2 - ox*scale;
+    ty=pad+(vh-h*scale)/2 - oy*scale;
+    apply();
+  };
+
+  const zoomBy=(factor, cx, cy)=>{
+    const rect=viewport.getBoundingClientRect();
+    const pivotX=(cx!=null?cx:rect.left+rect.width/2)-rect.left;
+    const pivotY=(cy!=null?cy:rect.top+rect.height/2)-rect.top;
+    const next=Math.min(maxScale, Math.max(minScale, scale*factor));
+    if(next===scale) return;
+    // Keep point under cursor stable
+    const wx=(pivotX-tx)/scale;
+    const wy=(pivotY-ty)/scale;
+    scale=next;
+    tx=pivotX-wx*scale;
+    ty=pivotY-wy*scale;
+    apply();
+  };
+
+  content.querySelectorAll('[data-db-zoom]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const a=btn.dataset.dbZoom;
+      if(a==='in') zoomBy(1.2);
+      else if(a==='out') zoomBy(1/1.2);
+      else if(a==='fit') fit();
+    });
+  });
+
+  // Pan (desktop + touch via pointer events); protect entity clicks
+  let panning=false, startX=0, startY=0, originTx=0, originTy=0;
+  window.__dbPanMoved=false;
+  viewport.addEventListener('pointerdown',ev=>{
+    if(ev.button!=null && ev.button!==0) return;
+    panning=true;
+    window.__dbPanMoved=false;
+    startX=ev.clientX; startY=ev.clientY;
+    originTx=tx; originTy=ty;
+    viewport.classList.add('is-panning');
+    try{viewport.setPointerCapture(ev.pointerId)}catch(_){}
+  });
+  viewport.addEventListener('pointermove',ev=>{
+    if(!panning) return;
+    const dx=ev.clientX-startX, dy=ev.clientY-startY;
+    if(Math.abs(dx)>4||Math.abs(dy)>4) window.__dbPanMoved=true;
+    tx=originTx+dx; ty=originTy+dy;
+    apply();
+  });
+  const endPan=ev=>{
+    if(!panning) return;
+    panning=false;
+    viewport.classList.remove('is-panning');
+    try{viewport.releasePointerCapture(ev.pointerId)}catch(_){}
+    // Clear flag after click handlers run
+    setTimeout(()=>{window.__dbPanMoved=false},0);
+  };
+  viewport.addEventListener('pointerup',endPan);
+  viewport.addEventListener('pointercancel',endPan);
+
+  // Wheel zoom (optional nicety)
+  viewport.addEventListener('wheel',ev=>{
+    if(ev.ctrlKey||ev.metaKey||Math.abs(ev.deltaY)>0){
+      ev.preventDefault();
+      const factor=ev.deltaY<0?1.1:1/1.1;
+      zoomBy(factor, ev.clientX, ev.clientY);
+    }
+  },{passive:false});
+
+  // Initial fit after layout
+  requestAnimationFrame(()=>requestAnimationFrame(fit));
+  window.addEventListener('resize',()=>{ /* soft refit only if near fit */ },{once:true});
+}
 function mountDbMermaid(){
   const el=document.getElementById('dbMermaid'),status=document.getElementById('dbMapStatus');
   if(!el) return;
@@ -2522,23 +2677,8 @@ function mountDbMermaid(){
     });
     mermaid.run({nodes:[el]}).then(()=>{
       if(status) status.textContent='Pulsa una tabla para abrirla en Modelo de datos.';
-      const entityRe=/entity-([A-Za-zÁÉÍÓÚáéíóúñÑ]+)-\d+$/;
-      el.querySelectorAll('g[id*="-entity-"]').forEach(node=>{
-        const id=node.id||'';
-        // Skip relationship edge groups (contain two entity refs)
-        if((id.match(/entity-/g)||[]).length!==1) return;
-        const m=id.match(entityRe);
-        if(!m) return;
-        const label=dbEntityToTab[m[1]];
-        if(!label) return;
-        node.style.cursor='pointer';
-        node.setAttribute('role','link');
-        node.setAttribute('aria-label','Abrir tabla '+label);
-        node.addEventListener('click',ev=>{
-          ev.preventDefault();ev.stopPropagation();
-          irAModelo(label);
-        });
-      });
+      bindDbEntityClicks(el);
+      setupDbZoomPan();
     }).catch(err=>{
       el.className='map-fallback';
       el.textContent=dbErDiagram;
@@ -2550,16 +2690,6 @@ function mountDbMermaid(){
     el.textContent=dbErDiagram;
     if(status) status.textContent='No se pudo renderizar el erDiagram.';
   }
-}
-function htmlMapaTablas(){
-  return `<section class="card dbdiag">
-<div class="dbdiag-head"><h3 class="h-ico">${icon('tablas')} Diagrama de base de datos</h3></div>
-<p class="dbdiag-sub">Tablas y conexiones (1 → N). En móvil, desplaza el diagrama en horizontal si hace falta.</p>
-<div class="db-mermaid-wrap">
-  <div class="mermaid db-mermaid" id="dbMermaid"></div>
-</div>
-<p class="mapstatus" id="dbMapStatus">Cargando diagrama…</p>
-</section>`;
 }
 function renderMapa(){
   const desc=['Pulsa un bloque para abrir su operación.','Diagrama de base de datos: tablas y conexiones.','Reglas que combinan las salidas: detección, aptitud, compuerta y oferta.'][mapaTab]||'';
