@@ -198,6 +198,35 @@ h4.subhead{margin:1rem 0 .4rem;font-size:.85rem;font-weight:600;color:var(--mute
 .apertura-exlist li{font-size:12px;line-height:1.45;color:#5f6f84;padding:8px 10px;border:1px dashed #d7e0ec;border-radius:10px;background:#fff}
 .apertura-exlist strong{color:#9b3b3b}
 .repre-ascii{margin:12px 0 0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:12px 14px;color:#334155}
+/* Representación: Canal de cancelación (flujo horizontal) */
+.canal-flow{display:flex;align-items:stretch;gap:10px;margin:18px 0 6px;flex-wrap:nowrap;overflow:auto;padding-bottom:4px}
+.canal-col{display:flex;flex-direction:column;justify-content:center;gap:10px;flex:none}
+.canal-box{border:1px solid #d5dde8;border-radius:12px;background:#fbfdff;padding:12px 14px;min-width:132px;max-width:180px}
+.canal-box .cb-title{font-size:13px;font-weight:750;color:#1c2b3e;margin:0 0 4px;line-height:1.25}
+.canal-box .cb-sub{font-size:11px;color:#5f6f84;line-height:1.4;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.canal-box.is-src{background:#f6f8fc}
+.canal-box.is-pref{border-color:#a9c5ef;background:#f3f8ff;box-shadow:0 0 0 3px #185aba14}
+.canal-box.is-gate{border-color:#c5d3e6;background:#fff}
+.canal-join{display:flex;align-items:center;justify-content:center;flex:none;color:#7a90ad;font-size:18px;font-weight:700;padding:0 2px;align-self:center}
+.canal-join .join-brace{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1;font-size:22px;color:#9aa8bc}
+.canal-semaforo{display:flex;flex-direction:column;justify-content:center;gap:8px;flex:none;min-width:168px}
+.canal-lamp{border-radius:10px;padding:10px 12px;font-size:12px;font-weight:700;line-height:1.35;border:1px solid transparent}
+.canal-lamp .lamp-k{display:block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;opacity:.85}
+.canal-lamp.ok{background:#e7f6ee;border-color:#b7e0c8;color:#0f7a45}
+.canal-lamp.block{background:#fde8e8;border-color:#e3a0a0;color:#9b3b3b}
+.canal-lamp.block code{font-size:10px;font-weight:650;color:#7a2e2e}
+.canal-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 0;font-size:12px;color:#52657e}
+.canal-legend span{display:inline-flex;align-items:center;gap:6px}
+.canal-legend i{width:10px;height:10px;border-radius:3px;border:1px solid #c5d3e6;flex:none}
+.canal-legend i.ok{background:#c8e6d4;border-color:#8fc9a8}
+.canal-legend i.block{background:#f5c2c2;border-color:#e3a0a0}
+@media(max-width:720px){
+  .canal-flow{flex-wrap:wrap;justify-content:flex-start}
+  .canal-join{transform:rotate(90deg);padding:4px 0}
+  .canal-box{max-width:none;min-width:140px;flex:1 1 140px}
+  .canal-semaforo{flex-direction:row;flex-wrap:wrap;min-width:0;width:100%}
+  .canal-lamp{flex:1 1 140px}
+}
 @media(max-width:520px){
   .journey{max-width:100%}
   .journey-node .jn-label{font-size:11px;max-width:5.5rem}
@@ -4345,12 +4374,45 @@ function aperturaCalendarHtml(){
 <pre class="repre-ascii">${escapeHtml(ascii)}</pre>
 </section>`;
 }
+/** Visual Canal de cancelación: dos entradas → preferido → compuerta → envío. */
+function canalCancelacionFlowHtml(){
+  return `<section class="repre-card" aria-label="Canal de cancelación">
+<h3 class="h-ico">${icon('canal')} Preferido → compuerta → envío</h3>
+<p class="repre-note">Inputs: catálogo <code>contactos_negocio</code> + cancelación del sistema (enlace/área del proveedor). Se elige <strong>un</strong> <code>canal_preferido_cancelacion</code> (<code>origen</code>: sistema | contacto_negocio). No reúne la agenda de nuevo ni prueba la reserva.</p>
+<div class="canal-flow" role="img" aria-label="Contactos y Sistema convergen en preferido, luego compuerta y semáforo de envío">
+  <div class="canal-col">
+    <div class="canal-box is-src"><p class="cb-title">Contactos</p><p class="cb-sub">contactos_negocio</p></div>
+    <div class="canal-box is-src"><p class="cb-title">Sistema</p><p class="cb-sub">cancelacion_sistema</p></div>
+  </div>
+  <div class="canal-join" aria-hidden="true"><span class="join-brace"><span>┐</span><span>├─►</span><span>┘</span></span></div>
+  <div class="canal-col">
+    <div class="canal-box is-pref"><p class="cb-title">preferido</p><p class="cb-sub">canal_preferido_cancelacion<br>origen: sistema | contacto_negocio</p></div>
+  </div>
+  <div class="canal-join" aria-hidden="true">─►</div>
+  <div class="canal-col">
+    <div class="canal-box is-gate"><p class="cb-title">compuerta</p><p class="cb-sub">estado → encontrado<br>alimenta envío</p></div>
+  </div>
+  <div class="canal-join" aria-hidden="true">─►</div>
+  <div class="canal-semaforo">
+    <div class="canal-lamp ok"><span class="lamp-k">encontrado</span>envío OK</div>
+    <div class="canal-lamp block"><span class="lamp-k">no_encontrado</span>bloqueado · <code>sin_canal_de_cancelacion</code></div>
+  </div>
+</div>
+<div class="canal-legend" aria-hidden="true">
+  <span><i class="ok"></i> encontrado → envío permitido</span>
+  <span><i class="block"></i> no_encontrado → bloquea envío (vía no se vuelve no_apta)</span>
+</div>
+</section>`;
+}
 function repreVisualFor(label){
   if(label==='Punto A'){
     return `<section class="repre-card"><h3 class="h-ico">${icon('puntoa')} Recorrido de reserva</h3>${journeyNodesHtml('A')}<p class="repre-note">Punto A es el inicio de la reserva (A) en la línea web → inicio → formulario.</p></section>`;
   }
   if(label==='Apertura'){
     return aperturaCalendarHtml();
+  }
+  if(label==='Canal de cancelación'){
+    return canalCancelacionFlowHtml();
   }
   return `<p class="repre-empty">Sin representación aún.</p>`;
 }
@@ -4362,7 +4424,7 @@ function renderRepresentacion(opts){
   const d=contracts[repreTab];
   const visual=repreVisualFor(d.label);
   const panel=`<div id="panel-representacion"><div class="catalog-panel"><h3 class="catalog-title">${icon(d.icon||'representacion')}${escapeHtml(d.label)}</h3>${visual}</div></div>`;
-  content.innerHTML=heading('Piezas del sistema','Representación','Misma lista de operaciones; croquis en Punto A (1 — A — B) y calendario de apertura en Apertura.','15 bloques')+tabs(contracts,repreTab,'representacion')+panel;
+  content.innerHTML=heading('Piezas del sistema','Representación','Misma lista de operaciones; croquis en Punto A, calendario en Apertura y flujo de Canal de cancelación.','15 bloques')+tabs(contracts,repreTab,'representacion')+panel;
   bindTabs('representacion',i=>{repreTab=i;renderRepresentacion({preserveScroll:true})});
   if(preserveScroll) restoreOpsScroll(pageY, tabScrolls);
   else afterTabRender({tabScrolls, focusActive:true});
