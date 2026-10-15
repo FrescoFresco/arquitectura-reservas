@@ -3014,7 +3014,7 @@ const catalogCombina={
  Negocio:{
   enlace:{"padre":[],"esta":"Negocio","hijas":["Proceso"]},
   puntas:[{campo:"url",estable:true},{campo:"identidad del local",estable:true}],
-  porQue:"El local es uno y estable.",
+  porQue:"Un local tiene una sola ficha estable; la fila es ese local.",
   unaFila:"un negocio",
   estable:["url","identidad"],
   noEstable:[]
@@ -3022,7 +3022,7 @@ const catalogCombina={
  Software:{
   enlace:{"padre":[],"esta":"Software","hijas":["Integración"]},
   puntas:[{campo:"nombre",estable:true}],
-  porQue:"El mismo proveedor sirve a muchos negocios.",
+  porQue:"Un proveedor se reutiliza entre negocios; la fila es ese proveedor.",
   unaFila:"un software",
   estable:["nombre"],
   noEstable:[]
@@ -3030,7 +3030,7 @@ const catalogCombina={
  Integración:{
   enlace:{"padre":["Software"],"esta":"Integración","hijas":[]},
   puntas:[{campo:"id_software",estable:true},{campo:"version",estable:false},{campo:"documentacion_md",estable:false}],
-  porQue:"El software es uno; la documentación se actualiza.",
+  porQue:"Cuando cambia la documentación del proveedor, se guarda una versión nueva; la fila es esa versión documentada.",
   unaFila:"una versión documentada",
   estable:["id_software"],
   noEstable:["version","documentacion_md"]
@@ -3038,7 +3038,7 @@ const catalogCombina={
  Proceso:{
   enlace:{"padre":["Negocio"],"esta":"Proceso","hijas":["Observación","Justificante","Función","Script","Canal","Ejecución"]},
   puntas:[{campo:"id_negocio",estable:true},{campo:"url_inicio",estable:true},{campo:"id_software",estable:null,nota:"software visto"}],
-  porQue:"Un negocio puede tener varios inicios de reserva.",
+  porQue:"Un negocio puede tener varios inicios de reserva; la fila es uno de esos enlaces.",
   unaFila:"un proceso",
   estable:["id_negocio","url_inicio"],
   noEstable:[],
@@ -3047,7 +3047,7 @@ const catalogCombina={
  Observación:{
   enlace:{"padre":["Proceso"],"esta":"Observación","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
-  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  porQue:"Cada recorrido del formulario hasta antes de confirmar se guarda aparte; la fila es ese recorrido.",
   unaFila:"una versión del artefacto",
   estable:["id_proceso"],
   noEstable:["version","documento"]
@@ -3055,7 +3055,7 @@ const catalogCombina={
  Justificante:{
   enlace:{"padre":["Proceso"],"esta":"Justificante","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
-  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  porQue:"Cada decisión sobre campos y señales se guarda aparte; la fila es ese justificante.",
   unaFila:"una versión del artefacto",
   estable:["id_proceso"],
   noEstable:["version","documento"]
@@ -3063,7 +3063,7 @@ const catalogCombina={
  Función:{
   enlace:{"padre":["Proceso"],"esta":"Función","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
-  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  porQue:"Cada contrato ejecutable generado se guarda aparte; la fila es esa función.",
   unaFila:"una versión del artefacto",
   estable:["id_proceso"],
   noEstable:["version","documento"]
@@ -3071,7 +3071,7 @@ const catalogCombina={
  Script:{
   enlace:{"padre":["Proceso"],"esta":"Script","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
-  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  porQue:"Cada código Playwright generado se guarda aparte; la fila es ese script.",
   unaFila:"una versión del artefacto",
   estable:["id_proceso"],
   noEstable:["version","documento"]
@@ -3079,7 +3079,7 @@ const catalogCombina={
  Canal:{
   enlace:{"padre":["Proceso"],"esta":"Canal","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
-  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  porQue:"Cada dictamen de cómo cancelar ese proceso se guarda aparte; la fila es ese canal.",
   unaFila:"una versión del artefacto",
   estable:["id_proceso"],
   noEstable:["version","documento"]
@@ -3087,7 +3087,7 @@ const catalogCombina={
  Ejecución:{
   enlace:{"padre":["Proceso"],"esta":"Ejecución","hijas":[]},
   puntas:[{campo:"id_proceso",estable:true},{campo:"via",estable:false},{campo:"timestamp",estable:false}],
-  porQue:"Hace falta el historial de intentos.",
+  porQue:"Cada intento de Automática, Enlace o verificación se registra; la fila es ese intento.",
   unaFila:"un intento",
   estable:["id_proceso"],
   noEstable:["timestamp","resultado"],
