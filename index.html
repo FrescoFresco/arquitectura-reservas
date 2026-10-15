@@ -133,6 +133,11 @@
 .empty{margin:0;color:#8b98a9;font-size:13px}
 
 .tabs button{display:inline-flex;align-items:center;gap:7px}
+.tabs button .ico{width:15px;height:15px;margin:0;flex:none;color:currentColor}
+.tabs button .ico svg{width:15px;height:15px;display:block}
+.num .ico{width:16px;height:16px;margin:0;color:currentColor}
+.num .ico svg{width:16px;height:16px;display:block}
+nav button.active .num{background:#dbe9ff;border-color:#a9c5ef;color:#165bd4}
 .catalog-panel{margin:0}
 .catalog-title{display:flex;align-items:center;gap:10px;margin:4px 0 14px;font-size:20px;letter-spacing:-.02em;color:#1c2b3e}
 .catalog-title .ico{width:20px;height:20px;color:#315784}
@@ -165,6 +170,7 @@ h4.subhead{margin:1rem 0 .4rem;font-size:.85rem;font-weight:600;color:var(--mute
 const contracts=[
  {
   "label": "Ficha del negocio",
+  "icon": "negocio",
   "summary": "Centralizar una vez la identidad del negocio que no pertenece a ninguna rama: nombre y zona horaria.",
   "input": {
    "url_negocio": "URL del negocio"
@@ -196,6 +202,7 @@ const contracts=[
  },
  {
   "label": "Ámbito festivo",
+  "icon": "ambito",
   "summary": "Fijar una vez la jurisdicción del calendario de fiestas del negocio: país, comunidad o región, isla o provincia y municipio. No lista festivos.",
   "input": {
    "url_negocio": "URL del negocio (la misma de la ficha)"
@@ -231,6 +238,7 @@ const contracts=[
  },
  {
   "label": "Punto A",
+  "icon": "puntoa",
   "summary": "Localizar cada enlace donde el negocio empieza una reserva. No redefine la ficha.",
   "input": {
    "url_negocio": "URL del negocio (la misma de la ficha)"
@@ -259,6 +267,7 @@ const contracts=[
  },
  {
   "label": "Apertura",
+  "icon": "apertura",
   "summary": "Una vez por negocio: Markdown versionado y pila de cron. La zona sale de la ficha; el ámbito festivo, de Ámbito festivo.",
   "input": {
    "url_negocio": "URL del negocio",
@@ -296,6 +305,7 @@ const contracts=[
  },
  {
   "label": "Contactos del negocio",
+  "icon": "contactos",
   "summary": "Una vez por negocio: canales de contacto publicados (teléfono, WhatsApp, email, formulario).",
   "input": {
    "url_negocio": "URL del negocio"
@@ -329,6 +339,7 @@ const contracts=[
  },
  {
   "label": "Identificar software",
+  "icon": "software",
   "summary": "Decir qué software usa el enlace de inicio, con un razonamiento completo en Markdown y evidencia aparte.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -360,6 +371,7 @@ const contracts=[
  },
  {
   "label": "Observar formulario",
+  "icon": "observacion",
   "summary": "Recorrer el enlace de inicio hasta justo antes de confirmar y relatar lo visto.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -389,6 +401,7 @@ const contracts=[
  },
  {
   "label": "Canal de cancelación",
+  "icon": "canal",
   "summary": "Por proceso: cómo se cancelaría una reserva de este recorrido. Los teléfonos del negocio se citan desde Contactos.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -444,6 +457,7 @@ const contracts=[
  },
  {
   "label": "Investigar integración",
+  "icon": "integracion",
   "summary": "Investigar una vez por proveedor qué integración oficial existe y qué condiciones tiene.",
   "input": {
    "software": "nombre del proveedor",
@@ -482,6 +496,7 @@ const contracts=[
  },
  {
   "label": "Justificante",
+  "icon": "justificante",
   "summary": "Decidir, solo desde el relato de observación, qué datos y qué señales de resultado están justificados.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -505,6 +520,7 @@ const contracts=[
  },
  {
   "label": "Función",
+  "icon": "funcion",
   "summary": "Definir la función de reserva solo desde el justificante, con una respuesta fija de cuatro claves.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -548,6 +564,7 @@ const contracts=[
  },
  {
   "label": "Script",
+  "icon": "script",
   "summary": "Generar el script Playwright desde el justificante y la función, sin enviar la reserva.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -577,6 +594,7 @@ const contracts=[
  },
  {
   "label": "Automática",
+  "icon": "automatica",
   "summary": "Probar disponibilidad y completar una reserva solo con la función y el script aprobados y con la compuerta abierta.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -617,6 +635,7 @@ const contracts=[
  },
  {
   "label": "Enlace asistido",
+  "icon": "enlace",
   "summary": "Comprobar si un enlace conserva el progreso y deja a la persona solo la acción final, en una sesión independiente.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -656,6 +675,7 @@ const contracts=[
  },
  {
   "label": "Verificación y vigilancia",
+  "icon": "verificacion",
   "summary": "Registrar qué respondió una ejecución, compararlo con la referencia y vigilar sin crear reservas.",
   "input": {
    "id_proceso": "Identificador del proceso",
@@ -2354,6 +2374,13 @@ esquema:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width
 markdown:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h6"/></svg>',
 estabilidad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>',
 enlace:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.2 10.6 15M16 7.2 13.4 15"/></svg>',
+ambito:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/><circle cx="12" cy="15" r="2"/><path d="M12 17v2"/></svg>',
+puntoa:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-11a7 7 0 1 1 14 0c0 6.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+apertura:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M5 3 3 5M19 3l2 2"/></svg>',
+contactos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.5"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a3.5 3.5 0 0 1 0 6.74"/></svg>',
+automatica:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg>',
+verificacion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M16.5 8.5 19 6"/></svg>'
+operaciones:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17h7M17.5 14v7"/></svg>',
 
 };
 function icon(name){return '<span class="ico" aria-hidden="true">'+(iconSvg[name]||'')+'</span>'}
@@ -4269,8 +4296,8 @@ function renderCatalogos(){
   bindMdCapsules(content);
   afterTabRender({tabScrolls, pageY, focusActive:true});
 }
-const sections=[['Mapa',renderMapa],['Operaciones',renderOperaciones],['Modelo de datos',renderCatalogos]];
-function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num">${i+1}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
+const sections=[['Mapa',renderMapa,'mapa'],['Operaciones',renderOperaciones,'operaciones'],['Modelo de datos',renderCatalogos,'tablas']];
+function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label,,ico],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num" aria-hidden="true">${icon(ico)}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
 render();
 </script>
 </body>
