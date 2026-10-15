@@ -78,6 +78,19 @@
 .chips{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
 .chips li{background:#eef3fa;border-radius:999px;padding:5px 9px;font-size:12px;color:#2c3e55}
 .empty{margin:0;color:#8b98a9;font-size:13px}
+
+.tabs button{display:inline-flex;align-items:center;gap:7px}
+.catalog-panel{margin:0}
+.catalog-title{display:flex;align-items:center;gap:10px;margin:4px 0 14px;font-size:20px;letter-spacing:-.02em;color:#1c2b3e}
+.catalog-title .ico{width:20px;height:20px;color:#315784}
+.catalog-title .ico svg{width:20px;height:20px}
+.combina .combina-lab{display:inline-flex;align-items:center;gap:6px;margin-right:6px;font-family:inherit;font-size:12px;font-weight:800;color:#5a6f8a;text-transform:none;letter-spacing:0}
+.combina .combina-row{display:flex;align-items:flex-start;gap:8px;margin:0 0 6px;font-size:13px;line-height:1.5;color:#3d4d63}
+.combina .combina-row:last-child{margin-bottom:0}
+.combina .combina-row .ico{margin-top:1px;color:#5a6f8a}
+.combina h4{display:flex;align-items:center;gap:8px}
+.md-capsule .cap-ico{display:inline-flex;width:14px;height:14px;color:currentColor}
+.md-capsule .cap-ico svg{width:14px;height:14px;display:block}
 @media(max-width:760px){.meta{grid-template-columns:1fr}.state{margin-left:0}}
 </style>
 </head>
@@ -2159,7 +2172,26 @@ input:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="
 output:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
 instructions:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>',
 case:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>',
-nested:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="M15 10l5 5-5 5"/></svg>'
+nested:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="M15 10l5 5-5 5"/></svg>',
+
+mapa:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>',
+negocio:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>',
+software:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 15h6M9 12h6"/></svg>',
+integracion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+proceso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8.2 7.5 10.5 15M15.8 7.5 13.5 15"/></svg>',
+observacion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+justificante:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13l2 2 4-4"/></svg>',
+funcion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16"/><path d="M4 8h6a4 4 0 0 1 0 8H4"/><path d="M16 8l4 4-4 4"/></svg>',
+script:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
+canal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v2a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h2a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/></svg>',
+ejecucion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="10 8 16 12 10 16 10 8"/></svg>',
+combina:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>',
+porque:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 2.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+unafila:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+puntas:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3"/><rect x="8" y="3" width="8" height="6" rx="1"/><path d="M12 13v4"/></svg>',
+esquema:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M3 12h18M3 19h18"/><path d="M8 5v14"/></svg>',
+markdown:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h6"/></svg>',
+
 };
 function icon(name){return '<span class="ico" aria-hidden="true">'+(iconSvg[name]||'')+'</span>'}
 function isPlainObject(value){return value!==null&&typeof value==='object'&&!Array.isArray(value)}
@@ -2254,7 +2286,7 @@ function exampleSection(label, schema, rows){
 let section=0,contractTab=0,contractView=0,contractExample=0,catalogTab=0,catalogInnerView=0;
 const SEC_MAPA=0,SEC_OPS=1,SEC_CAT=2;
 function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span class="eyebrow">${eyebrow}</span>${pill?`<span class="pill">${pill}</span>`:''}</div><h2>${title}</h2><p class="desc">${desc}</p>`}
-function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${escapeHtml(item.label)}</button>`).join('')}</div>`}
+function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${item.icon?icon(item.icon):''}${escapeHtml(item.label)}</button>`).join('')}</div>`}
 function bindTabs(name,callback){content.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>callback(Number(b.dataset.tab))))}
 function irAOperacion(label){
   const i=contracts.findIndex(c=>c.label===label);
@@ -2349,17 +2381,17 @@ const purposes={
  "Verificación y vigilancia":{es:"Registra el resultado de una ejecución, lo compara con la referencia y vigila cambios.",noEs:"No crea reservas ni es el paso siguiente obligatorio de una compuerta abierta."}
 };
 const catalogTabs=[
- {label:"Mapa"},
- {label:"Negocio"},
- {label:"Software"},
- {label:"Integración"},
- {label:"Proceso"},
- {label:"Observación"},
- {label:"Justificante"},
- {label:"Función"},
- {label:"Script"},
- {label:"Canal"},
- {label:"Ejecución"}
+ {label:"Mapa",icon:"mapa"},
+ {label:"Negocio",icon:"negocio"},
+ {label:"Software",icon:"software"},
+ {label:"Integración",icon:"integracion"},
+ {label:"Proceso",icon:"proceso"},
+ {label:"Observación",icon:"observacion"},
+ {label:"Justificante",icon:"justificante"},
+ {label:"Función",icon:"funcion"},
+ {label:"Script",icon:"script"},
+ {label:"Canal",icon:"canal"},
+ {label:"Ejecución",icon:"ejecucion"}
 ];
 const catalogAscii=`URL del negocio
         |
@@ -2727,7 +2759,7 @@ function mdCapsule(title, md, meta){
   const id='md-'+Math.random().toString(36).slice(2,10);
   window.__mdDocs=window.__mdDocs||{};
   window.__mdDocs[id]={title:title||'Documento', md:md||'', meta:meta||''};
-  return `<button type="button" class="md-capsule" data-md-id="${id}"><span class="cap-ico" aria-hidden="true">▣</span>Ver Markdown</button>`;
+  return `<button type="button" class="md-capsule" data-md-id="${id}"><span class="cap-ico" aria-hidden="true">${iconSvg.markdown}</span>Ver Markdown</button>`;
 }
 function openMdModal(id){
   const doc=(window.__mdDocs||{})[id];
@@ -2783,16 +2815,18 @@ const catalogCombina={
 function combinaBlock(label){
   const c=catalogCombina[label];
   if(!c) return '';
-  return `<section class="combina" aria-label="Combina"><h4>Combina</h4><p class="combina-keys">${escapeHtml(c.keys)}</p><p><strong>Por qué:</strong> ${escapeHtml(c.porQue)}</p><p><strong>Una fila =</strong> ${escapeHtml(c.unaFila)}</p></section>`;
+  return `<section class="combina" aria-label="Combina"><h4>${icon('combina')} Combina</h4><p class="combina-keys"><span class="combina-lab">${icon('puntas')} Puntas</span>${escapeHtml(c.keys)}</p><p class="combina-row">${icon('porque')}<span><strong>Por qué:</strong> ${escapeHtml(c.porQue)}</span></p><p class="combina-row">${icon('unafila')}<span><strong>Una fila =</strong> ${escapeHtml(c.unaFila)}</span></p></section>`;
 }
 function renderCatalogos(){
-  const label=catalogTabs[catalogTab].label;
+  const tab=catalogTabs[catalogTab];
+  const label=tab.label;
+  const tabIcon=tab.icon?icon(tab.icon):'';
   let panel='';
   if(label==='Mapa'){
-    panel=`<section class="card"><h3>Conexión del modelo</h3><p class="intro">Negocio, Proceso y Software salen de la URL. Integración cuelga de Software. Observación, Justificante, Función, Script y Canal son tablas versionadas ligadas al proceso. La compuerta combina capas; Ejecución registra intentos.</p><pre class="catalog-map">${escapeHtml(catalogAscii)}</pre></section>`;
+    panel=`<section class="card"><h3 class="h-ico">${icon('mapa')} Conexión del modelo</h3><p class="intro">Negocio, Proceso y Software salen de la URL. Integración cuelga de Software. Observación, Justificante, Función, Script y Canal son tablas versionadas ligadas al proceso. La compuerta combina capas; Ejecución registra intentos.</p><pre class="catalog-map">${escapeHtml(catalogAscii)}</pre></section>`;
   }else{
     const combina=combinaBlock(label);
-    const inner=`<div class="sidetabs" role="tablist" aria-label="Vista de la tabla"><button type="button" role="tab" aria-selected="${catalogInnerView===0}" data-cat-inner="0">Esquema</button><button type="button" role="tab" aria-selected="${catalogInnerView===1}" data-cat-inner="1">Ejemplos</button></div>`;
+    const inner=`<div class="sidetabs" role="tablist" aria-label="Vista de la tabla"><button type="button" role="tab" aria-selected="${catalogInnerView===0}" data-cat-inner="0">${icon('esquema')} Esquema</button><button type="button" role="tab" aria-selected="${catalogInnerView===1}" data-cat-inner="1">${icon('examples')} Ejemplos</button></div>`;
     let body='';
     if(catalogInnerView===0){
       body=`<p class="intro">Campos de la tabla <strong>${escapeHtml(label)}</strong>.</p>${schemaTable(catalogSchemas[label])}`;
@@ -2810,7 +2844,7 @@ function renderCatalogos(){
     }else if(label==='Ejecución'){
       body=`<p class="intro">Una fila por intento.</p>${flatTable(['id_ejecucion','id_proceso','via','timestamp','resultado','id_referencia'],catalogEjecucion)}`;
     }
-    panel=`<section class="card"><h3>${escapeHtml(label)}</h3>${combina}${inner}${body}</section>`;
+    panel=`<div class="catalog-panel"><h3 class="catalog-title">${tabIcon}${escapeHtml(label)}</h3>${combina}<section class="card">${inner}${body}</section></div>`;
   }
   content.innerHTML=heading('Capas de datos','Modelo de datos','Tablas del modelo: esquema y ejemplos. Filas planas; el Markdown se abre en cápsula.','Modelo')+tabs(catalogTabs,catalogTab,'modelo')+`<div id="panel-modelo">${panel}</div>`;
   bindTabs('modelo',i=>{catalogTab=i;catalogInnerView=0;renderCatalogos()});
