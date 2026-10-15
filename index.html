@@ -16,11 +16,29 @@
 .proposito dt{margin:0;font-size:12px;font-weight:800;color:#5a6f8a}
 .proposito dd{margin:2px 0 0;font-size:14px;line-height:1.55;color:#2c3c50}
 .combina{margin:0 0 16px;padding:14px 16px;border:1px solid #e1e8f2;border-radius:12px;background:#f8fafc}
-.combina h4{margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784}
-.combina .combina-keys{margin:0 0 8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:#1c2b3e}
-.combina p{margin:0 0 4px;font-size:13px;line-height:1.5;color:#3d4d63}
-.combina p:last-child{margin-bottom:0}
+.combina>h4{margin:0;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784;display:flex;align-items:center;gap:8px}
+.combina .combina-rule{border:0;border-top:1px solid #d7e0ec;margin:10px 0 12px}
+.combina .combina-sec{margin:0 0 12px}
+.combina .combina-sec:last-child{margin-bottom:0}
+.combina .combina-lab{display:inline-flex;align-items:center;gap:6px;margin:0 0 8px;font-family:inherit;font-size:12px;font-weight:800;color:#5a6f8a;letter-spacing:0;text-transform:none}
+.combina .puntas-row{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.combina .punta{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:112px;padding:9px 11px;border:1px solid #d7e0ec;border-radius:10px;background:#fff;box-shadow:0 1px 0 #24334a08}
+.combina .punta-name{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:700;color:#1c2b3e;line-height:1.3}
+.combina .punta-tag{font-size:10px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;border-radius:999px;padding:2px 7px}
+.combina .punta-tag.ok{background:#e7f6ee;color:#0f7a45}
+.combina .punta-tag.no{background:#f1f4f8;color:#5c6b80}
+.combina .punta-tag.note{background:#eef3fa;color:#315784}
+.combina .combina-row{display:flex;align-items:flex-start;gap:8px;margin:0;font-size:13px;line-height:1.5;color:#3d4d63}
+.combina .combina-row .ico{margin-top:1px;color:#5a6f8a}
+.combina .estab{display:grid;gap:6px;margin:0}
+.combina .estab-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 8px;font-size:13px;line-height:1.45;color:#3d4d63}
+.combina .estab-k{font-size:12px;font-weight:800;color:#243246;min-width:84px}
+.combina .estab-chips{display:inline-flex;flex-wrap:wrap;gap:5px}
+.combina .estab-chip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:#eef3fa;color:#2c3e55}
+.combina .estab-chip.no{background:#f1f4f8;color:#5c6b80}
+.combina .estab-empty{font-size:12px;color:#8b98a9;font-style:italic}
 .combina strong{color:#243246}
+.combina p{margin:0 0 4px;font-size:13px;line-height:1.5;color:#3d4d63}
 .catalog-map{margin:0;overflow:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#f4f7fb;border:1px solid #e6edf5;border-radius:10px;padding:16px;color:#334155}
 .catalog-ops{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .catalog-ops li{background:#eef3fa;border-radius:8px;padding:5px 9px;font-size:12px;color:#2c3e55;cursor:pointer}
@@ -84,11 +102,6 @@
 .catalog-title{display:flex;align-items:center;gap:10px;margin:4px 0 14px;font-size:20px;letter-spacing:-.02em;color:#1c2b3e}
 .catalog-title .ico{width:20px;height:20px;color:#315784}
 .catalog-title .ico svg{width:20px;height:20px}
-.combina .combina-lab{display:inline-flex;align-items:center;gap:6px;margin-right:6px;font-family:inherit;font-size:12px;font-weight:800;color:#5a6f8a;text-transform:none;letter-spacing:0}
-.combina .combina-row{display:flex;align-items:flex-start;gap:8px;margin:0 0 6px;font-size:13px;line-height:1.5;color:#3d4d63}
-.combina .combina-row:last-child{margin-bottom:0}
-.combina .combina-row .ico{margin-top:1px;color:#5a6f8a}
-.combina h4{display:flex;align-items:center;gap:8px}
 .md-capsule .cap-ico{display:inline-flex;width:14px;height:14px;color:currentColor}
 .md-capsule .cap-ico svg{width:14px;height:14px;display:block}
 @media(max-width:760px){.meta{grid-template-columns:1fr}.state{margin-left:0}}
@@ -2191,6 +2204,7 @@ unafila:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width
 puntas:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3"/><rect x="8" y="3" width="8" height="6" rx="1"/><path d="M12 13v4"/></svg>',
 esquema:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M3 12h18M3 19h18"/><path d="M8 5v14"/></svg>',
 markdown:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h6"/></svg>',
+estabilidad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>',
 
 };
 function icon(name){return '<span class="ico" aria-hidden="true">'+(iconSvg[name]||'')+'</span>'}
@@ -2801,21 +2815,116 @@ function schemaTable(rows){
   return flatTable(['campo','caracteristicas'], rows);
 }
 const catalogCombina={
- Negocio:{keys:"url · identidad del local",porQue:"El local es uno y estable.",unaFila:"un negocio"},
- Software:{keys:"nombre del motor",porQue:"El mismo proveedor sirve a muchos negocios.",unaFila:"un software"},
- Integración:{keys:"id_software · version · documentacion_md",porQue:"El software es uno; la documentación se actualiza.",unaFila:"una versión documentada"},
- Proceso:{keys:"id_negocio · url_inicio",porQue:"Un negocio puede tener varios inicios de reserva.",unaFila:"un proceso"},
- Observación:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
- Justificante:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
- Función:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
- Script:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
- Canal:{keys:"id_proceso · version · documento",porQue:"El proceso no se pisa; cada regeneración es otra fila.",unaFila:"una versión del artefacto"},
- Ejecución:{keys:"id_proceso · via · timestamp",porQue:"Hace falta el historial de intentos.",unaFila:"un intento"}
+ Negocio:{
+  puntas:[{campo:"url",estable:true},{campo:"identidad del local",estable:true}],
+  porQue:"El local es uno y estable.",
+  unaFila:"un negocio",
+  estable:["url","identidad"],
+  noEstable:[]
+ },
+ Software:{
+  puntas:[{campo:"nombre",estable:true}],
+  porQue:"El mismo proveedor sirve a muchos negocios.",
+  unaFila:"un software",
+  estable:["nombre"],
+  noEstable:[]
+ },
+ Integración:{
+  puntas:[{campo:"id_software",estable:true},{campo:"version",estable:false},{campo:"documentacion_md",estable:false}],
+  porQue:"El software es uno; la documentación se actualiza.",
+  unaFila:"una versión documentada",
+  estable:["id_software"],
+  noEstable:["version","documentacion_md"]
+ },
+ Proceso:{
+  puntas:[{campo:"id_negocio",estable:true},{campo:"url_inicio",estable:true},{campo:"id_software",estable:null,nota:"software visto"}],
+  porQue:"Un negocio puede tener varios inicios de reserva.",
+  unaFila:"un proceso",
+  estable:["id_negocio","url_inicio"],
+  noEstable:[],
+  notaEstable:"id_software es el software visto en ese inicio, si existe."
+ },
+ Observación:{
+  puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
+  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  unaFila:"una versión del artefacto",
+  estable:["id_proceso"],
+  noEstable:["version","documento"]
+ },
+ Justificante:{
+  puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
+  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  unaFila:"una versión del artefacto",
+  estable:["id_proceso"],
+  noEstable:["version","documento"]
+ },
+ Función:{
+  puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
+  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  unaFila:"una versión del artefacto",
+  estable:["id_proceso"],
+  noEstable:["version","documento"]
+ },
+ Script:{
+  puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
+  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  unaFila:"una versión del artefacto",
+  estable:["id_proceso"],
+  noEstable:["version","documento"]
+ },
+ Canal:{
+  puntas:[{campo:"id_proceso",estable:true},{campo:"version",estable:false},{campo:"documento",estable:false}],
+  porQue:"El proceso no se pisa; cada regeneración es otra fila.",
+  unaFila:"una versión del artefacto",
+  estable:["id_proceso"],
+  noEstable:["version","documento"]
+ },
+ Ejecución:{
+  puntas:[{campo:"id_proceso",estable:true},{campo:"via",estable:false},{campo:"timestamp",estable:false}],
+  porQue:"Hace falta el historial de intentos.",
+  unaFila:"un intento",
+  estable:["id_proceso"],
+  noEstable:["timestamp","resultado"],
+  notaEstable:"Cada intento es histórico: una fila nueva; id_proceso enlaza al proceso."
+ }
 };
+function puntaTag(p){
+  if(p.nota) return `<span class="punta-tag note">${escapeHtml(p.nota)}</span>`;
+  if(p.estable===true) return '<span class="punta-tag ok">estable</span>';
+  if(p.estable===false) return '<span class="punta-tag no">no estable</span>';
+  return '';
+}
+function estabChips(list, kind){
+  if(!list||!list.length) return '<span class="estab-empty">—</span>';
+  return '<span class="estab-chips">'+list.map(x=>`<span class="estab-chip${kind==='no'?' no':''}">${escapeHtml(x)}</span>`).join('')+'</span>';
+}
 function combinaBlock(label){
   const c=catalogCombina[label];
   if(!c) return '';
-  return `<section class="combina" aria-label="Combina"><h4>${icon('combina')} Combina</h4><p class="combina-keys"><span class="combina-lab">${icon('puntas')} Puntas</span>${escapeHtml(c.keys)}</p><p class="combina-row">${icon('porque')}<span><strong>Por qué:</strong> ${escapeHtml(c.porQue)}</span></p><p class="combina-row">${icon('unafila')}<span><strong>Una fila =</strong> ${escapeHtml(c.unaFila)}</span></p></section>`;
+  const puntas=(c.puntas||[]).map(p=>`<li class="punta"><span class="punta-name">${escapeHtml(p.campo)}</span>${puntaTag(p)}</li>`).join('');
+  const nota=c.notaEstable?`<p class="intro" style="margin:4px 0 0">${escapeHtml(c.notaEstable)}</p>`:'';
+  return `<section class="combina" aria-label="Combina">
+<h4>${icon('combina')} Combina</h4>
+<hr class="combina-rule">
+<div class="combina-sec">
+  <div class="combina-lab">${icon('puntas')} Puntas</div>
+  <ul class="puntas-row">${puntas}</ul>
+</div>
+<div class="combina-sec">
+  <p class="combina-row">${icon('porque')}<span><strong>Por qué:</strong> ${escapeHtml(c.porQue)}</span></p>
+</div>
+<div class="combina-sec">
+  <div class="combina-lab">${icon('estabilidad')} Estabilidad</div>
+  <div class="estab">
+    <div class="estab-line"><span class="estab-k">Estable:</span>${estabChips(c.estable,'ok')}</div>
+    <div class="estab-line"><span class="estab-k">No estable:</span>${estabChips(c.noEstable,'no')}</div>
+    ${nota}
+  </div>
+</div>
+<div class="combina-sec">
+  <p class="combina-row">${icon('unafila')}<span><strong>Una fila =</strong> ${escapeHtml(c.unaFila)}</span></p>
+</div>
+</section>`;
 }
 function renderCatalogos(){
   const tab=catalogTabs[catalogTab];
