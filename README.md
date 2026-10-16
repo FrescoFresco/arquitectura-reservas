@@ -48,6 +48,16 @@ gh repo add-collaborator USUARIO_GITHUB --permission push
 
 No invites a nadie concreto hasta tener su handle de GitHub.
 
+## Seed MongoDB
+
+El archivo [`seed-arquitectura-reservas.js`](./seed-arquitectura-reservas.js) crea de una vez la base `arquitectura_reservas`, las 10 colecciones y los documentos de ejemplo de la sección MongoDB.
+
+```bash
+mongosh "mongodb://localhost:27017" seed-arquitectura-reservas.js
+```
+
+También está el botón **Descargar seed mongosh** en la sección MongoDB del sitio.
+
 ## Visibilidad
 
 Este repositorio es **público**: cualquiera puede ver el código y el sitio en Pages. Solo quienes sean colaboradores (o tengan permisos en la org/cuenta) pueden hacer push.
