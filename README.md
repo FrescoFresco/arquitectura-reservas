@@ -48,15 +48,24 @@ gh repo add-collaborator USUARIO_GITHUB --permission push
 
 No invites a nadie concreto hasta tener su handle de GitHub.
 
-## Seed MongoDB
+## Importar datos en MongoDB
 
-El archivo [`seed-arquitectura-reservas.js`](./seed-arquitectura-reservas.js) crea de una vez la base `arquitectura_reservas`, las 10 colecciones y los documentos de ejemplo de la sección MongoDB.
+Lo más sencillo: descarga [`arquitectura-reservas-mongo-import.zip`](./arquitectura-reservas-mongo-import.zip) (también desde el botón **Descargar JSON para importar** en la sección MongoDB del sitio).
+
+Dentro hay un `.json` (array Extended JSON) por colección: `negocios`, `procesos`, `software`, `integraciones`, `observaciones`, `justificantes`, `funciones`, `scripts`, `canales`, `ejecuciones`. Base lógica: `arquitectura_reservas`.
+
+- **Atlas:** Add Data → Import JSON file → eliges la colección
+- **Compass:** Import data → eliges el archivo de esa colección
+
+Los mismos JSON sueltos están en [`mongo-import/`](./mongo-import/).
+
+### Avanzado: seed mongosh
+
+[`seed-arquitectura-reservas.js`](./seed-arquitectura-reservas.js) crea la base y hace upsert por `_id` en un comando:
 
 ```bash
 mongosh "mongodb://localhost:27017" seed-arquitectura-reservas.js
 ```
-
-También está el botón **Descargar seed mongosh** en la sección MongoDB del sitio.
 
 ## Visibilidad
 

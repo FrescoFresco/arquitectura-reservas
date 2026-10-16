@@ -1,0 +1,22 @@
+[
+  {
+    "_id": "jus-sala-v1",
+    "id_proceso": "proc-muelle-sala",
+    "version": "v1",
+    "timestamp": {
+      "$date": "2026-10-12T14:00:00.000Z"
+    },
+    "estado": "justificado",
+    "resumen": "Campos y señales desde observación v1",
+    "documento_md": "# Justificante\n\nCampos derivados de la observación.\n",
+    "auditoria_op": {
+      "fecha_evaluacion": {
+        "$date": "2026-10-12T00:00:00.000Z"
+      },
+      "fecha_validacion": {
+        "$date": "2026-10-13T00:00:00.000Z"
+      },
+      "explicacion_md": "# Explicación\n\nJustificado.\n"
+    }
+  }
+]

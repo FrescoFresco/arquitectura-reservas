@@ -1,0 +1,12 @@
+[
+  {
+    "_id": "sw-covermanager",
+    "nombre": "CoverManager",
+    "primera_vez": {
+      "$date": "2026-10-12T00:00:00.000Z"
+    },
+    "actualizado_en": {
+      "$date": "2026-10-13T00:00:00.000Z"
+    }
+  }
+]

@@ -26,6 +26,14 @@
 .mongo-seed-howto{margin:0 0 8px;font-size:13px;line-height:1.55;color:#3d4d63}
 .mongo-seed-howto:last-child{margin-bottom:0}
 .mongo-seed-cmd{margin:0 0 8px;padding:12px 14px;background:#eef3fa;border:1px solid #d7e0ec;border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:#1c2b3e;overflow:auto;white-space:pre-wrap}
+.mongo-seed-steps{margin:0 0 10px;padding-left:1.2em;font-size:13px;line-height:1.55;color:#3d4d63}
+.mongo-seed-steps li{margin:0 0 4px}
+.mongo-seed-adv{margin-top:14px;padding-top:12px;border-top:1px dashed #c5d4e8}
+.mongo-seed-adv summary{cursor:pointer;font-size:13px;font-weight:700;color:#315784;list-style:none}
+.mongo-seed-adv summary::-webkit-details-marker{display:none}
+.mongo-seed-adv summary::before{content:"▸ ";font-weight:900}
+.mongo-seed-adv[open] summary::before{content:"▾ "}
+.mongo-seed-adv .mongo-seed-row{margin-top:10px}
 
 .combina{margin:0 0 16px;padding:14px 16px;border:1px solid #e1e8f2;border-radius:12px;background:#f8fafc}
 .combina>h4{margin:0;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784;display:flex;align-items:center;gap:8px}
@@ -5146,7 +5154,7 @@ function renderMongo(opts){
     body=`<p class="intro">Documento${docs.length>1?'s':''} Extended JSON listo${docs.length>1?'s':''} para insertar en <strong>${escapeHtml(name)}</strong>.</p>${blocks||'<p class="empty">Sin ejemplos.</p>'}`;
   }
   const panel=`<div class="catalog-panel"><h3 class="catalog-title">${tabIcon}${escapeHtml(name)}</h3>${purpose}<section class="card">${inner}${body}</section></div>`;
-  const seedBox=`<div class="mongo-seed"><div class="mongo-seed-row"><a class="doclink mongo-seed-dl" href="seed-arquitectura-reservas.js" download="seed-arquitectura-reservas.js">Descargar seed mongosh</a><span class="pill">1 archivo · 10 colecciones</span></div><p class="mongo-seed-howto">Descarga e inyecta en MongoDB de una vez: crea la base <code>arquitectura_reservas</code>, las 10 colecciones y los documentos de ejemplo (mismas claves que esta sección; fechas como <code>ISODate</code>). Idempotente por <code>_id</code>.</p><pre class="mongo-seed-cmd">mongosh "mongodb://localhost:27017" seed-arquitectura-reservas.js</pre><p class="mongo-seed-howto">Sustituye la URI por la de tu cluster, o pega el contenido del archivo en una sesión mongosh ya conectada.</p></div>`;
+  const seedBox=`<div class="mongo-seed"><div class="mongo-seed-row"><a class="doclink mongo-seed-dl" href="arquitectura-reservas-mongo-import.zip" download="arquitectura-reservas-mongo-import.zip">Descargar JSON para importar</a><span class="pill">ZIP · 10 colecciones</span></div><p class="mongo-seed-howto">Un <code>.json</code> (array) por colección — mismos documentos que esta sección. Base lógica: <code>arquitectura_reservas</code>.</p><ul class="mongo-seed-steps"><li><strong>Atlas:</strong> Add Data → Import JSON file → eliges la colección</li><li><strong>Compass:</strong> Import data → eliges el archivo de esa colección</li></ul><details class="mongo-seed-adv"><summary>Avanzado: seed mongosh</summary><div class="mongo-seed-row"><a class="doclink mongo-seed-dl" href="seed-arquitectura-reservas.js" download="seed-arquitectura-reservas.js">Descargar seed mongosh</a><span class="pill">1 archivo · script</span></div><p class="mongo-seed-howto">Para quien ya usa mongosh: crea la base y hace upsert por <code>_id</code> (fechas como <code>ISODate</code>).</p><pre class="mongo-seed-cmd">mongosh "mongodb://localhost:27017" seed-arquitectura-reservas.js</pre></details></div>`;
   content.innerHTML=heading('Capas de datos','MongoDB','Colecciones persistidas: esquema, formato Extended JSON y ejemplos insertables.','10 colecciones')+seedBox+tabs(mongoTabs,mongoTab,'mongo')+`<div id="panel-mongo">${panel}</div>`;
   bindTabs('mongo',i=>{mongoTab=i;mongoInnerView=0;renderMongo({preserveScroll:true})});
   content.querySelectorAll('[data-mongo-inner]').forEach(b=>b.addEventListener('click',()=>{mongoInnerView=Number(b.dataset.mongoInner);renderMongo({preserveScroll:true})}));

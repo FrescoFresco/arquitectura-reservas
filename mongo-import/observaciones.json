@@ -1,0 +1,29 @@
+[
+  {
+    "_id": "obs-sala-v1",
+    "id_proceso": "proc-muelle-sala",
+    "version": "v1",
+    "timestamp": {
+      "$date": "2026-10-12T13:00:00.000Z"
+    },
+    "estado": "completa",
+    "resumen": "Formulario CoverManager hasta antes de confirmar",
+    "documento_md": "# Observación — proc-muelle-sala\n\nRelato hasta antes de confirmar.\n",
+    "evidencias": [
+      {
+        "tipo": "captura",
+        "url": "https://www.elmuelle.example/reservas/cena-sala",
+        "nota": "widget cargado"
+      }
+    ],
+    "auditoria_op": {
+      "fecha_evaluacion": {
+        "$date": "2026-10-12T00:00:00.000Z"
+      },
+      "fecha_validacion": {
+        "$date": "2026-10-13T00:00:00.000Z"
+      },
+      "explicacion_md": "# Explicación\n\nObservación completa.\n"
+    }
+  }
+]

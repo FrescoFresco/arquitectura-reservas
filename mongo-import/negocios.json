@@ -1,0 +1,102 @@
+[
+  {
+    "_id": "neg-el-muelle",
+    "url": "https://www.elmuelle.example",
+    "nombre": "Restaurante El Muelle",
+    "zona": "Atlantic/Canary",
+    "ambito_festivo": {
+      "pais": "España",
+      "comunidad_o_region": "Canarias",
+      "isla_o_provincia": "Tenerife",
+      "municipio": "Santa Cruz de Tenerife"
+    },
+    "canales_contacto": [
+      {
+        "tipo": "telefono",
+        "valor": "+34 922 000 222",
+        "tipo_linea": "fijo",
+        "uso_publicado": "contacto",
+        "verificado_como_contacto": true,
+        "fuente": "https://www.elmuelle.example/contacto",
+        "fecha_consulta": {
+          "$date": "2026-10-14T11:00:00.000Z"
+        },
+        "evidencia": "Publicado en Contacto"
+      }
+    ],
+    "apertura": {
+      "version": "v1",
+      "timestamp": {
+        "$date": "2026-10-14T20:55:00.000Z"
+      },
+      "observacion_apertura_md": "# Apertura — Restaurante El Muelle\n**version:** v1\n",
+      "pila_cron": [
+        {
+          "tipo": "horario_ordinario",
+          "efecto": "abierto",
+          "cron": "0 13-15 * * 1-6",
+          "fuente": "https://www.elmuelle.example/horario",
+          "nota": "comida"
+        },
+        {
+          "tipo": "horario_ordinario",
+          "efecto": "abierto",
+          "cron": "0 20-22 * * 1-6",
+          "fuente": "https://www.elmuelle.example/horario",
+          "nota": "cena"
+        },
+        {
+          "tipo": "cierre_semanal",
+          "efecto": "cerrado",
+          "cron": "0 0 * * 0",
+          "fuente": "https://www.elmuelle.example/horario",
+          "nota": "domingo"
+        }
+      ],
+      "abierto_ahora": true,
+      "margen_hasta_cierre_min": 95,
+      "proxima_hora_valida": null
+    },
+    "auditoria_op": {
+      "ficha": {
+        "estado": "completa",
+        "evidencias": [
+          {
+            "origen": "https://www.elmuelle.example",
+            "fragmento": "El Muelle · Tenerife",
+            "explicacion_md": "# Explicación de la evidencia\n\nNombre del negocio en la web\n"
+          }
+        ],
+        "incertidumbres": [],
+        "fecha_evaluacion": {
+          "$date": "2026-10-14T09:00:00.000Z"
+        },
+        "fecha_validacion": {
+          "$date": "2026-10-14T10:00:00.000Z"
+        },
+        "explicacion_md": "# Explicación\n\nFicha completa con zona Atlantic/Canary.\n"
+      },
+      "ambito": {
+        "estado": "completa",
+        "fecha_evaluacion": {
+          "$date": "2026-10-14T09:02:00.000Z"
+        },
+        "fecha_validacion": {
+          "$date": "2026-10-14T10:05:00.000Z"
+        }
+      },
+      "contactos": {
+        "estado": "encontrado",
+        "fecha_evaluacion": {
+          "$date": "2026-10-14T11:05:00.000Z"
+        },
+        "fecha_validacion": {
+          "$date": "2026-10-14T12:00:00.000Z"
+        }
+      }
+    },
+    "actualizado_en": {
+      "$date": "2026-10-14T12:00:00.000Z"
+    }
+  }
+]
