@@ -16,6 +16,11 @@
 .proposito dl{margin:0;display:grid;gap:8px}
 .proposito dt{margin:0;font-size:12px;font-weight:800;color:#5a6f8a}
 .proposito dd{margin:2px 0 0;font-size:14px;line-height:1.55;color:#2c3c50}
+.mongo-purpose{margin:0 0 12px;font-size:14px;line-height:1.5;color:#2c3c50}
+.mongo-writers{margin:0 0 14px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.mongo-writers .label{font-size:12px;font-weight:800;color:#5a6f8a;margin-right:2px}
+.mongo-writers .estab-chip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:#eef3fa;color:#2c3e55}
+
 .combina{margin:0 0 16px;padding:14px 16px;border:1px solid #e1e8f2;border-radius:12px;background:#f8fafc}
 .combina>h4{margin:0;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#315784;display:flex;align-items:center;gap:8px}
 .combina .combina-rule{border:0;border-top:1px solid #d7e0ec;margin:10px 0 12px}
@@ -2392,6 +2397,7 @@ contactos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wid
 automatica:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg>',
 verificacion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M16.5 8.5 19 6"/></svg>',
 operaciones:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17h7M17.5 14v7"/></svg>',
+mongodb:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>',
 representacion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 14h4M7 10h10M15 14h2"/><circle cx="18" cy="19" r="1"/><path d="M3 19h12"/></svg>',
 
 };
@@ -2941,7 +2947,7 @@ function exampleSection(label, schema, rows){
   return '<section class="card"><h3 class="h-ico">'+icon('examples')+'Ejemplo guardado</h3><p class="intro">'+escapeHtml(painted.hint)+'</p>'+painted.html+'</section>';
 }
 
-let section=0,contractTab=0,opsMainTab=0,opsIoPart=0,catalogTab=0,catalogInnerView=0,combinaView=0,mapaTab=0,cierreView=0,repreTab=0;
+let section=0,contractTab=0,opsMainTab=0,opsIoPart=0,catalogTab=0,catalogInnerView=0,combinaView=0,mapaTab=0,cierreView=0,repreTab=0,mongoTab=0,mongoInnerView=0;
 const SEC_MAPA=0,SEC_OPS=1,SEC_CAT=2,SEC_REPRE=3;
 function heading(eyebrow,title,desc,pill=''){return `<div class="top"><span class="eyebrow">${eyebrow}</span>${pill?`<span class="pill">${pill}</span>`:''}</div><h2>${title}</h2><p class="desc">${desc}</p>`}
 function tabs(items,selected,name){return `<div class="tabs" role="tablist" aria-label="${name}">${items.map((item,i)=>`<button type="button" role="tab" id="${name}-${i}" aria-controls="panel-${name}" aria-selected="${i===selected}" data-tab="${i}">${item.icon?icon(item.icon):''}${escapeHtml(item.label)}</button>`).join('')}</div>`}
@@ -4530,7 +4536,619 @@ function renderRepresentacion(opts){
   else afterTabRender({tabScrolls, focusActive:true});
 }
 
-const sections=[['Mapa',renderMapa,'mapa'],['Operaciones',renderOperaciones,'operaciones'],['Modelo de datos',renderCatalogos,'tablas'],['Representación',renderRepresentacion,'representacion']];
+
+
+const mongoTabs=[
+ {label:"negocios",icon:"negocio"},
+ {label:"procesos",icon:"proceso"},
+ {label:"software",icon:"software"},
+ {label:"integraciones",icon:"integracion"},
+ {label:"observaciones",icon:"observacion"},
+ {label:"justificantes",icon:"justificante"},
+ {label:"funciones",icon:"funcion"},
+ {label:"scripts",icon:"script"},
+ {label:"canales",icon:"canal"},
+ {label:"ejecuciones",icon:"ejecucion"}
+];
+const mongoWriters={
+ negocios:["Ficha","Ámbito","Contactos","Apertura"],
+ procesos:["Punto A","Identificar software"],
+ software:["Identificar software"],
+ integraciones:["Investigar integración"],
+ observaciones:["Observar formulario"],
+ justificantes:["Justificante"],
+ funciones:["Función"],
+ scripts:["Script"],
+ canales:["Canal de cancelación"],
+ ejecuciones:["Automática","Enlace asistido","Verificación y vigilancia"]
+};
+const mongoSchemas={
+ negocios:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id_negocio del catálogo.",ejemplo:"neg-el-muelle"},
+  {campo:"url",tipo:"string",obligatorio:"sí",formato:"URL",caracteristicas:"URL canónica.",ejemplo:"https://www.elmuelle.example"},
+  {campo:"nombre",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"← nombre_negocio (Ficha).",ejemplo:"Restaurante El Muelle"},
+  {campo:"zona",tipo:"string | null",obligatorio:"sí",formato:"IANA",caracteristicas:"← zona_horaria (Ficha).",ejemplo:"Atlantic/Canary"},
+  {campo:"ambito_festivo",tipo:"object",obligatorio:"sí",formato:"",caracteristicas:"{pais, comunidad_o_region, isla_o_provincia, municipio} — objeto, no string.",ejemplo:"{pais, …}"},
+  {campo:"canales_contacto",tipo:"array",obligatorio:"no",formato:"",caracteristicas:"Embebido desde Contactos.",ejemplo:"[{tipo, valor, …}]"},
+  {campo:"apertura",tipo:"object | null",obligatorio:"no",formato:"",caracteristicas:"Última Apertura embebida (pila_cron, abierto_ahora, …).",ejemplo:"{version, timestamp, …}"},
+  {campo:"auditoria_op",tipo:"object",obligatorio:"no",formato:"",caracteristicas:"Sobre de ops (ficha/ámbito/contactos) sin inventar claves.",ejemplo:"{ficha, ambito, contactos}"},
+  {campo:"actualizado_en",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'}
+ ],
+ procesos:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id_proceso.",ejemplo:"proc-muelle-sala"},
+  {campo:"id_negocio",tipo:"string",obligatorio:"sí",clave:"FK",formato:"",caracteristicas:"Ref. a negocios._id.",ejemplo:"neg-el-muelle"},
+  {campo:"url_inicio",tipo:"string",obligatorio:"sí",formato:"URL",caracteristicas:"Inicio del recorrido.",ejemplo:"…/cena-sala"},
+  {campo:"alcance",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Texto libre del sitio.",ejemplo:"cena-sala"},
+  {campo:"id_software",tipo:"string | null",obligatorio:"no",formato:"",caracteristicas:"Ref. blanda a software._id.",ejemplo:"sw-covermanager"},
+  {campo:"actualizado_en",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'}
+ ],
+ software:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id_software.",ejemplo:"sw-covermanager"},
+  {campo:"nombre",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Nombre del proveedor.",ejemplo:"CoverManager"},
+  {campo:"primera_vez",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'},
+  {campo:"actualizado_en",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'}
+ ],
+ integraciones:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id_integracion.",ejemplo:"int-cm-v1"},
+  {campo:"id_software",tipo:"string",obligatorio:"sí",clave:"FK",formato:"",caracteristicas:"Ref. a software._id.",ejemplo:"sw-covermanager"},
+  {campo:"version",tipo:"string",obligatorio:"sí",formato:"vN",caracteristicas:"Versión del artefacto.",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"documentada | no_localizada | pendiente",formato:"",caracteristicas:"Estado de la investigación.",ejemplo:"documentada"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Título corto.",ejemplo:"API partner…"},
+  {campo:"documentacion_md",tipo:"string",obligatorio:"sí",formato:"Markdown",caracteristicas:"Artefacto Markdown.",ejemplo:"# CoverManager…"},
+  {campo:"auditoria_op",tipo:"object",obligatorio:"no",formato:"",caracteristicas:"Sobre de la op (software, fechas, md).",ejemplo:"{software, …}"}
+ ],
+ observaciones:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id de versión.",ejemplo:"obs-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",clave:"FK",formato:"",caracteristicas:"Ref. a procesos._id.",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",formato:"vN",caracteristicas:"Versión; regenerar añade doc.",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"completa | pendiente",formato:"",caracteristicas:"Estado corto.",ejemplo:"completa"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Título corto.",ejemplo:"Formulario CoverManager…"},
+  {campo:"documento_md",tipo:"string",obligatorio:"sí",formato:"Markdown",caracteristicas:"← observacion_formulario_md.",ejemplo:"# Observación…"},
+  {campo:"evidencias",tipo:"array",obligatorio:"no",formato:"",caracteristicas:"Forma Observar: {tipo, url, nota}.",ejemplo:"[{tipo, url, nota}]"},
+  {campo:"auditoria_op",tipo:"object",obligatorio:"no",formato:"",caracteristicas:"Fechas y explicacion_md de la op.",ejemplo:"{fecha_*, explicacion_md}"}
+ ],
+ justificantes:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id de versión.",ejemplo:"jus-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",clave:"FK",formato:"",caracteristicas:"Ref. a procesos._id.",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",formato:"vN",caracteristicas:"Versión.",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"justificado | pendiente",formato:"",caracteristicas:"Estado.",ejemplo:"justificado"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Título corto.",ejemplo:"Campos y señales…"},
+  {campo:"documento_md",tipo:"string",obligatorio:"sí",formato:"Markdown",caracteristicas:"← justificante_campos_md.",ejemplo:"# Justificante…"},
+  {campo:"auditoria_op",tipo:"object",obligatorio:"no",formato:"",caracteristicas:"Sobre de la op.",ejemplo:"{fecha_*, explicacion_md}"}
+ ],
+ funciones:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id de versión.",ejemplo:"fun-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",clave:"FK",formato:"",caracteristicas:"Ref. a procesos._id.",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",formato:"vN",caracteristicas:"Versión.",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"generada | pendiente | error",formato:"",caracteristicas:"← estado_generacion.",ejemplo:"generada"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Título corto.",ejemplo:"reservar_el_muelle_cena_sala"},
+  {campo:"funcion_json",tipo:"object",obligatorio:"sí",formato:"",caracteristicas:"Artefacto embebido {name, parameters[], response}.",ejemplo:"{name, parameters, response}"},
+  {campo:"documento_md",tipo:"string",obligatorio:"no",formato:"Markdown",caracteristicas:"Explicación asociada.",ejemplo:"# Explicación…"}
+ ],
+ scripts:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id de versión.",ejemplo:"scr-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",clave:"FK",formato:"",caracteristicas:"Ref. a procesos._id.",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",formato:"vN",caracteristicas:"Versión.",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"generada | pendiente | error",formato:"",caracteristicas:"← estado_generacion.",ejemplo:"generada"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Título corto.",ejemplo:"Playwright cena-sala"},
+  {campo:"script_js",tipo:"object",obligatorio:"sí",formato:"",caracteristicas:"Artefacto embebido {contenido, version, huella, referencia_codigo}.",ejemplo:"{contenido, version, …}"},
+  {campo:"documento_md",tipo:"string",obligatorio:"no",formato:"Markdown",caracteristicas:"Explicación asociada.",ejemplo:"# Explicación…"}
+ ],
+ canales:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id de versión.",ejemplo:"can-sala-v1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",clave:"FK",formato:"",caracteristicas:"id_proceso estable del catálogo.",ejemplo:"proc-muelle-sala"},
+  {campo:"version",tipo:"string",obligatorio:"sí",formato:"vN",caracteristicas:"Versión.",ejemplo:"v1"},
+  {campo:"timestamp",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'},
+  {campo:"estado",tipo:"enum",obligatorio:"sí",valores:"encontrado | no_encontrado | pendiente",formato:"",caracteristicas:"Estado del dictamen.",ejemplo:"encontrado"},
+  {campo:"resumen",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Título corto.",ejemplo:"Enlace + teléfono"},
+  {campo:"busqueda_realizada",tipo:"object",obligatorio:"sí",formato:"",caracteristicas:"Expediente de búsqueda.",ejemplo:"{fuentes_consultadas, …}"},
+  {campo:"cancelacion_sistema",tipo:"object",obligatorio:"sí",formato:"",caracteristicas:"Disponibilidad en el sistema.",ejemplo:"{disponible, metodo, …}"},
+  {campo:"canal_preferido_cancelacion",tipo:"object",obligatorio:"sí",formato:"",caracteristicas:"Canal elegido.",ejemplo:"{origen, tipo, valor, …}"},
+  {campo:"politica_cancelacion",tipo:"object",obligatorio:"sí",formato:"",caracteristicas:"Política publicada.",ejemplo:"{resumen, plazo, …}"},
+  {campo:"documento_md",tipo:"string",obligatorio:"no",formato:"Markdown",caracteristicas:"Dictamen en Markdown.",ejemplo:"# Explicación…"},
+  {campo:"auditoria_op",tipo:"object",obligatorio:"no",formato:"",caracteristicas:"Sobre de la op.",ejemplo:"{fecha_*, incertidumbres}"}
+ ],
+ ejecuciones:[
+  {campo:"_id",tipo:"string",obligatorio:"sí",clave:"PK",formato:"",caracteristicas:"= id_ejecucion.",ejemplo:"ej-sala-auto-1"},
+  {campo:"id_proceso",tipo:"string",obligatorio:"sí",clave:"FK",formato:"",caracteristicas:"Ref. a procesos._id.",ejemplo:"proc-muelle-sala"},
+  {campo:"via",tipo:"enum",obligatorio:"sí",valores:"automatica | enlace | vigilancia",formato:"",caracteristicas:"Vía del intento.",ejemplo:"automatica"},
+  {campo:"timestamp",tipo:"date",obligatorio:"sí",formato:"Extended JSON $date",caracteristicas:"BSON Date.",ejemplo:'{"$date":"…Z"}'},
+  {campo:"resultado",tipo:"string",obligatorio:"sí",formato:"",caracteristicas:"Resultado corto del intento.",ejemplo:"apta"},
+  {campo:"id_referencia",tipo:"string | null",obligatorio:"no",formato:"",caracteristicas:"Código de reserva si existe.",ejemplo:"RES-1042"},
+  {campo:"detalle",tipo:"object",obligatorio:"no",formato:"",caracteristicas:"Claves del output de la vía (sin renombrar).",ejemplo:"{metodo_utilizado, …}"}
+ ]
+};
+const mongoFormats={
+ negocios:{
+  _id:"string",
+  url:"string",
+  nombre:"string",
+  zona:"string | null",
+  ambito_festivo:{pais:"string",comunidad_o_region:"string",isla_o_provincia:"string",municipio:"string"},
+  canales_contacto:[{tipo:"string",valor:"string",tipo_linea:"string",uso_publicado:"string",verificado_como_contacto:"boolean",fuente:"string",fecha_consulta:{"$date":"ISO-8601"},evidencia:"string"}],
+  apertura:{version:"string",timestamp:{"$date":"ISO-8601"},observacion_apertura_md:"string",pila_cron:[{tipo:"string",efecto:"string",cron:"string",fuente:"string",nota:"string"}],abierto_ahora:"true | false | indeterminado",margen_hasta_cierre_min:"number | null",proxima_hora_valida:"string | null"},
+  auditoria_op:{ficha:"object",ambito:"object",contactos:"object"},
+  actualizado_en:{"$date":"ISO-8601"}
+ },
+ procesos:{_id:"string",id_negocio:"string",url_inicio:"string",alcance:"string",id_software:"string | null",actualizado_en:{"$date":"ISO-8601"}},
+ software:{_id:"string",nombre:"string",primera_vez:{"$date":"ISO-8601"},actualizado_en:{"$date":"ISO-8601"}},
+ integraciones:{_id:"string",id_software:"string",version:"string",timestamp:{"$date":"ISO-8601"},estado:"documentada | no_localizada | pendiente",resumen:"string",documentacion_md:"string",auditoria_op:"object"},
+ observaciones:{_id:"string",id_proceso:"string",version:"string",timestamp:{"$date":"ISO-8601"},estado:"completa | pendiente",resumen:"string",documento_md:"string",evidencias:[{tipo:"string",url:"string",nota:"string"}],auditoria_op:"object"},
+ justificantes:{_id:"string",id_proceso:"string",version:"string",timestamp:{"$date":"ISO-8601"},estado:"justificado | pendiente",resumen:"string",documento_md:"string",auditoria_op:"object"},
+ funciones:{_id:"string",id_proceso:"string",version:"string",timestamp:{"$date":"ISO-8601"},estado:"generada | pendiente | error",resumen:"string",funcion_json:{name:"string",parameters:[{nombre:"string",tipo:"string",obligatorio:"boolean",opciones:"string[]?"}],response:{estado:"string",referencia:"string",alternativas:"array",motivo:"string | null"}},documento_md:"string"},
+ scripts:{_id:"string",id_proceso:"string",version:"string",timestamp:{"$date":"ISO-8601"},estado:"generada | pendiente | error",resumen:"string",script_js:{contenido:"string",version:"string",huella:"string",referencia_codigo:"string"},documento_md:"string"},
+ canales:{_id:"string",id_proceso:"string",version:"string",timestamp:{"$date":"ISO-8601"},estado:"encontrado | no_encontrado | pendiente",resumen:"string",busqueda_realizada:"object",cancelacion_sistema:"object",canal_preferido_cancelacion:"object",politica_cancelacion:"object",documento_md:"string",auditoria_op:"object"},
+ ejecuciones:{_id:"string",id_proceso:"string",via:"automatica | enlace | vigilancia",timestamp:{"$date":"ISO-8601"},resultado:"string",id_referencia:"string | null",detalle:"object"}
+};
+const mongoExamples={
+ "negocios": [
+  {
+   "_id": "neg-el-muelle",
+   "url": "https://www.elmuelle.example",
+   "nombre": "Restaurante El Muelle",
+   "zona": "Atlantic/Canary",
+   "ambito_festivo": {
+    "pais": "España",
+    "comunidad_o_region": "Canarias",
+    "isla_o_provincia": "Tenerife",
+    "municipio": "Santa Cruz de Tenerife"
+   },
+   "canales_contacto": [
+    {
+     "tipo": "telefono",
+     "valor": "+34 922 000 222",
+     "tipo_linea": "fijo",
+     "uso_publicado": "contacto",
+     "verificado_como_contacto": true,
+     "fuente": "https://www.elmuelle.example/contacto",
+     "fecha_consulta": {
+      "$date": "2026-10-14T11:00:00.000Z"
+     },
+     "evidencia": "Publicado en Contacto"
+    }
+   ],
+   "apertura": {
+    "version": "v1",
+    "timestamp": {
+     "$date": "2026-10-14T20:55:00.000Z"
+    },
+    "observacion_apertura_md": "# Apertura — Restaurante El Muelle\n**version:** v1\n",
+    "pila_cron": [
+     {
+      "tipo": "horario_ordinario",
+      "efecto": "abierto",
+      "cron": "0 13-15 * * 1-6",
+      "fuente": "https://www.elmuelle.example/horario",
+      "nota": "comida"
+     },
+     {
+      "tipo": "horario_ordinario",
+      "efecto": "abierto",
+      "cron": "0 20-22 * * 1-6",
+      "fuente": "https://www.elmuelle.example/horario",
+      "nota": "cena"
+     },
+     {
+      "tipo": "cierre_semanal",
+      "efecto": "cerrado",
+      "cron": "0 0 * * 0",
+      "fuente": "https://www.elmuelle.example/horario",
+      "nota": "domingo"
+     }
+    ],
+    "abierto_ahora": true,
+    "margen_hasta_cierre_min": 95,
+    "proxima_hora_valida": null
+   },
+   "auditoria_op": {
+    "ficha": {
+     "estado": "completa",
+     "evidencias": [
+      {
+       "origen": "https://www.elmuelle.example",
+       "fragmento": "El Muelle · Tenerife",
+       "explicacion_md": "# Explicación de la evidencia\n\nNombre del negocio en la web\n"
+      }
+     ],
+     "incertidumbres": [],
+     "fecha_evaluacion": {
+      "$date": "2026-10-14T09:00:00.000Z"
+     },
+     "fecha_validacion": {
+      "$date": "2026-10-14T10:00:00.000Z"
+     },
+     "explicacion_md": "# Explicación\n\nFicha completa con zona Atlantic/Canary.\n"
+    },
+    "ambito": {
+     "estado": "completa",
+     "fecha_evaluacion": {
+      "$date": "2026-10-14T09:02:00.000Z"
+     },
+     "fecha_validacion": {
+      "$date": "2026-10-14T10:05:00.000Z"
+     }
+    },
+    "contactos": {
+     "estado": "encontrado",
+     "fecha_evaluacion": {
+      "$date": "2026-10-14T11:05:00.000Z"
+     },
+     "fecha_validacion": {
+      "$date": "2026-10-14T12:00:00.000Z"
+     }
+    }
+   },
+   "actualizado_en": {
+    "$date": "2026-10-14T12:00:00.000Z"
+   }
+  }
+ ],
+ "procesos": [
+  {
+   "_id": "proc-muelle-sala",
+   "id_negocio": "neg-el-muelle",
+   "url_inicio": "https://www.elmuelle.example/reservas/cena-sala",
+   "alcance": "cena-sala",
+   "id_software": "sw-covermanager",
+   "actualizado_en": {
+    "$date": "2026-10-13T00:00:00.000Z"
+   }
+  },
+  {
+   "_id": "proc-muelle-terraza",
+   "id_negocio": "neg-el-muelle",
+   "url_inicio": "https://www.elmuelle.example/reservas/terraza",
+   "alcance": "terraza",
+   "id_software": null,
+   "actualizado_en": {
+    "$date": "2026-10-13T00:00:00.000Z"
+   }
+  }
+ ],
+ "software": [
+  {
+   "_id": "sw-covermanager",
+   "nombre": "CoverManager",
+   "primera_vez": {
+    "$date": "2026-10-12T00:00:00.000Z"
+   },
+   "actualizado_en": {
+    "$date": "2026-10-13T00:00:00.000Z"
+   }
+  }
+ ],
+ "integraciones": [
+  {
+   "_id": "int-cm-v1",
+   "id_software": "sw-covermanager",
+   "version": "v1",
+   "timestamp": {
+    "$date": "2026-10-12T15:00:00.000Z"
+   },
+   "estado": "documentada",
+   "resumen": "API partner CoverManager; acceso por negocio pendiente",
+   "documentacion_md": "# CoverManager — documentación de integración v1\n\nAPI partner para disponibilidad, alta y cancelación.\n",
+   "auditoria_op": {
+    "software": "CoverManager",
+    "incertidumbres": [],
+    "fecha_evaluacion": {
+     "$date": "2026-10-12T00:00:00.000Z"
+    },
+    "fecha_validacion": null,
+    "explicacion_md": "# Explicación\n\nCoverManager documenta una API de reservas.\n"
+   }
+  }
+ ],
+ "observaciones": [
+  {
+   "_id": "obs-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": {
+    "$date": "2026-10-12T13:00:00.000Z"
+   },
+   "estado": "completa",
+   "resumen": "Formulario CoverManager hasta antes de confirmar",
+   "documento_md": "# Observación — proc-muelle-sala\n\nRelato hasta antes de confirmar.\n",
+   "evidencias": [
+    {
+     "tipo": "captura",
+     "url": "https://www.elmuelle.example/reservas/cena-sala",
+     "nota": "widget cargado"
+    }
+   ],
+   "auditoria_op": {
+    "fecha_evaluacion": {
+     "$date": "2026-10-12T00:00:00.000Z"
+    },
+    "fecha_validacion": {
+     "$date": "2026-10-13T00:00:00.000Z"
+    },
+    "explicacion_md": "# Explicación\n\nObservación completa.\n"
+   }
+  }
+ ],
+ "justificantes": [
+  {
+   "_id": "jus-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": {
+    "$date": "2026-10-12T14:00:00.000Z"
+   },
+   "estado": "justificado",
+   "resumen": "Campos y señales desde observación v1",
+   "documento_md": "# Justificante\n\nCampos derivados de la observación.\n",
+   "auditoria_op": {
+    "fecha_evaluacion": {
+     "$date": "2026-10-12T00:00:00.000Z"
+    },
+    "fecha_validacion": {
+     "$date": "2026-10-13T00:00:00.000Z"
+    },
+    "explicacion_md": "# Explicación\n\nJustificado.\n"
+   }
+  }
+ ],
+ "funciones": [
+  {
+   "_id": "fun-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": {
+    "$date": "2026-10-12T15:00:00.000Z"
+   },
+   "estado": "generada",
+   "resumen": "reservar_el_muelle_cena_sala",
+   "funcion_json": {
+    "name": "reservar_el_muelle_cena_sala",
+    "parameters": [
+     {
+      "nombre": "fecha",
+      "tipo": "fecha",
+      "obligatorio": true
+     },
+     {
+      "nombre": "hora",
+      "tipo": "hora",
+      "obligatorio": true
+     },
+     {
+      "nombre": "comensales",
+      "tipo": "entero",
+      "obligatorio": true
+     },
+     {
+      "nombre": "nombre",
+      "tipo": "texto",
+      "obligatorio": true
+     },
+     {
+      "nombre": "telefono",
+      "tipo": "telefono",
+      "obligatorio": true
+     },
+     {
+      "nombre": "email",
+      "tipo": "email",
+      "obligatorio": false
+     },
+     {
+      "nombre": "zona",
+      "tipo": "opcion",
+      "opciones": [
+       "cena-sala"
+      ],
+      "obligatorio": true
+     }
+    ],
+    "response": {
+     "estado": "confirmada",
+     "referencia": "string",
+     "alternativas": [],
+     "motivo": null
+    }
+   },
+   "documento_md": "# Explicación\n\nLa función de cena-sala sale del justificante.\n"
+  }
+ ],
+ "scripts": [
+  {
+   "_id": "scr-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": {
+    "$date": "2026-10-12T15:30:00.000Z"
+   },
+   "estado": "generada",
+   "resumen": "Playwright cena-sala",
+   "script_js": {
+    "contenido": "// Reserva de prueba El Muelle, cena-sala. Sin credenciales.\nasync function reservar(page, datos) {\n  // rellena y se detiene antes de confirmar\n}\n",
+    "version": "1.0.0",
+    "huella": "script-sala-v1",
+    "referencia_codigo": "ejemplos/proc-muelle-sala/reservar.js@1.0.0"
+   },
+   "documento_md": "# Explicación\n\nEl script de cena-sala rellena el formulario y se detiene antes de confirmar.\n"
+  }
+ ],
+ "canales": [
+  {
+   "_id": "can-sala-v1",
+   "id_proceso": "proc-muelle-sala",
+   "version": "v1",
+   "timestamp": {
+    "$date": "2026-10-14T12:40:00.000Z"
+   },
+   "estado": "encontrado",
+   "resumen": "Enlace cancelación + teléfono Contactos",
+   "busqueda_realizada": {
+    "fuentes_consultadas": [
+     "confirmación",
+     "web"
+    ],
+    "opciones_revisadas": [
+     "enlace sistema",
+     "teléfono"
+    ],
+    "limitaciones": []
+   },
+   "cancelacion_sistema": {
+    "disponible": "si",
+    "metodo": "enlace de confirmación",
+    "url_o_instrucciones": "https://www.elmuelle.example/cancelar",
+    "evidencias": [
+     {
+      "fuente": "https://www.elmuelle.example/cancelar",
+      "fecha_consulta": {
+       "$date": "2026-10-14T12:40:00.000Z"
+      },
+      "fragmento": "Cancelar reserva"
+     }
+    ]
+   },
+   "canal_preferido_cancelacion": {
+    "origen": "contacto_negocio",
+    "tipo": "telefono",
+    "valor": "+34 922 000 222",
+    "metodo": "llamada",
+    "motivo": "Contacto verificado en Contactos; atienden cancelaciones"
+   },
+   "politica_cancelacion": {
+    "resumen": "Sin coste hasta 2 horas antes",
+    "plazo": "2 horas",
+    "coste_o_penalizacion": "sin coste",
+    "garantia_tarjeta": null
+   },
+   "documento_md": "# Explicación\n\nPrefiere el teléfono ya verificado en Contactos.\n",
+   "auditoria_op": {
+    "fecha_evaluacion": {
+     "$date": "2026-10-14T12:45:00.000Z"
+    },
+    "fecha_validacion": {
+     "$date": "2026-10-14T16:10:00.000Z"
+    },
+    "incertidumbres": []
+   }
+  }
+ ],
+ "ejecuciones": [
+  {
+   "_id": "ej-sala-auto-1",
+   "id_proceso": "proc-muelle-sala",
+   "via": "automatica",
+   "timestamp": {
+    "$date": "2026-10-13T11:00:00.000Z"
+   },
+   "resultado": "apta",
+   "id_referencia": "RES-1042",
+   "detalle": {
+    "metodo_utilizado": "script",
+    "pruebas_realizadas": [
+     {
+      "tipo": "disponibilidad",
+      "resultado": "hueco",
+      "detalle": "mesa para 2 el 2026-10-18 a las 21:00 en cena-sala"
+     },
+     {
+      "tipo": "confirmacion",
+      "resultado": "confirmada",
+      "detalle": "RES-1042"
+     }
+    ],
+    "reserva_prueba": {
+     "estado": "confirmada",
+     "referencia": "RES-1042",
+     "fecha": "2026-10-18",
+     "hora": "21:00",
+     "comensales": 2,
+     "zona": "cena-sala",
+     "titular": "Ana Rojas"
+    },
+    "impedimento": null
+   }
+  },
+  {
+   "_id": "ej-sala-vig-1",
+   "id_proceso": "proc-muelle-sala",
+   "via": "vigilancia",
+   "timestamp": {
+    "$date": "2026-10-14T07:00:00.000Z"
+   },
+   "resultado": "referencia_completa",
+   "id_referencia": "RES-1042",
+   "detalle": {
+    "referencia": {
+     "codigo": "RES-1042",
+     "tipo": "reserva_confirmada",
+     "revisada": true
+    },
+    "contrato_resultado_ejecucion": {
+     "respuesta_interpretable": true,
+     "estado_respuesta": "confirmada",
+     "referencia": "RES-1042",
+     "coincide_con_sistema": true,
+     "version": "1.0.0",
+     "huella": "fn-sala-v1"
+    },
+    "vigilancia": {
+     "activa": true,
+     "ultima_lectura": {
+      "$date": "2026-10-13T08:00:00.000Z"
+     },
+     "crea_reservas": false
+    },
+    "alertas": [],
+    "fiabilidad": "fiable",
+    "accion_requerida": null
+   }
+  }
+ ]
+};
+
+function mongoWritersHtml(name){
+  const list=mongoWriters[name]||[];
+  if(!list.length) return '';
+  return `<div class="mongo-writers"><span class="label">lo escriben:</span>${list.map(x=>`<span class="estab-chip">${escapeHtml(x)}</span>`).join('')}</div>`;
+}
+function renderMongo(opts){
+  const preserveScroll=!!(opts&&opts.preserveScroll);
+  const pageY=preserveScroll?(window.scrollY||window.pageYOffset||0):null;
+  const tabScrolls=snapshotTabScrolls();
+  if(mongoTab<0||mongoTab>=mongoTabs.length) mongoTab=0;
+  const tab=mongoTabs[mongoTab];
+  const name=tab.label;
+  const tabIcon=tab.icon?icon(tab.icon):'';
+  const writers=mongoWritersHtml(name);
+  const purpose=`<p class="mongo-purpose">Documentos listos para persistir.</p>${writers}`;
+  const inner=`<div class="sidetabs" role="tablist" aria-label="Vista de la colección"><button type="button" role="tab" aria-selected="${mongoInnerView===0}" data-mongo-inner="0">${icon('esquema')} Esquema</button><button type="button" role="tab" aria-selected="${mongoInnerView===1}" data-mongo-inner="1">${icon('definition')} Formato JSON</button><button type="button" role="tab" aria-selected="${mongoInnerView===2}" data-mongo-inner="2">${icon('examples')} Ejemplos</button></div>`;
+  let body='';
+  if(mongoInnerView===0){
+    body=`<p class="intro">Campos del documento en <strong>${escapeHtml(name)}</strong>. Fechas como BSON Date (Extended JSON <code>$date</code>).</p>${schemaTable(mongoSchemas[name])}`;
+  }else if(mongoInnerView===1){
+    body=`<p class="intro">Forma del documento insertable (tipos / Extended JSON).</p><section class="card"><h3 class="h-ico">${icon('definition')} Formato JSON</h3><pre>${escapeHtml(JSON.stringify(mongoFormats[name],null,2))}</pre></section>`;
+  }else{
+    const docs=mongoExamples[name]||[];
+    const blocks=docs.map((doc,i)=>{
+      const title=docs.length>1?`Ejemplo ${i+1} · ${doc._id||name}`:`Ejemplo · ${doc._id||name}`;
+      return `<section class="card"><h3 class="h-ico">${icon('examples')} ${escapeHtml(title)}</h3><pre>${escapeHtml(JSON.stringify(doc,null,2))}</pre></section>`;
+    }).join('');
+    body=`<p class="intro">Documento${docs.length>1?'s':''} Extended JSON listo${docs.length>1?'s':''} para insertar en <strong>${escapeHtml(name)}</strong>.</p>${blocks||'<p class="empty">Sin ejemplos.</p>'}`;
+  }
+  const panel=`<div class="catalog-panel"><h3 class="catalog-title">${tabIcon}${escapeHtml(name)}</h3>${purpose}<section class="card">${inner}${body}</section></div>`;
+  content.innerHTML=heading('Capas de datos','MongoDB','Colecciones persistidas: esquema, formato Extended JSON y ejemplos insertables.','10 colecciones')+tabs(mongoTabs,mongoTab,'mongo')+`<div id="panel-mongo">${panel}</div>`;
+  bindTabs('mongo',i=>{mongoTab=i;mongoInnerView=0;renderMongo({preserveScroll:true})});
+  content.querySelectorAll('[data-mongo-inner]').forEach(b=>b.addEventListener('click',()=>{mongoInnerView=Number(b.dataset.mongoInner);renderMongo({preserveScroll:true})}));
+  if(preserveScroll) restoreOpsScroll(pageY, tabScrolls);
+  else afterTabRender({tabScrolls, focusActive:true});
+}
+
+
+const sections=[['Mapa',renderMapa,'mapa'],['Operaciones',renderOperaciones,'operaciones'],['Modelo de datos',renderCatalogos,'tablas'],['Representación',renderRepresentacion,'representacion'],['MongoDB',renderMongo,'mongodb']];
 function render(){document.getElementById('nav').innerHTML='<div class="navtitle">Arquitectura</div>'+sections.map(([label,,ico],i)=>`<button type="button" class="${section===i?'active':''}" aria-current="${section===i?'page':'false'}" data-section="${i}"><span class="num" aria-hidden="true">${icon(ico)}</span>${label}</button>`).join('');document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{section=Number(b.dataset.section);render();window.scrollTo({top:0,behavior:'smooth'})}));sections[section][1]()}
 render();
 </script>
