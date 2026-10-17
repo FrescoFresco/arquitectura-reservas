@@ -50,7 +50,7 @@ No invites a nadie concreto hasta tener su handle de GitHub.
 
 ## Importar datos en MongoDB
 
-Lo más sencillo: descarga [`arquitectura-reservas-mongo-import.zip`](./arquitectura-reservas-mongo-import.zip) (también desde el botón **Descargar JSON para importar** en la sección MongoDB del sitio).
+Los JSON de importación siguen en el repositorio: [`arquitectura-reservas-mongo-import.zip`](./arquitectura-reservas-mongo-import.zip). El sitio publicado solo muestra el mapa de flujo y no enlaza estas descargas.
 
 Dentro hay un `.json` (array Extended JSON) por colección: `negocios`, `procesos`, `software`, `integraciones`, `observaciones`, `justificantes`, `funciones`, `scripts`, `canales`, `ejecuciones`. Base lógica: `arquitectura_reservas`.
 
