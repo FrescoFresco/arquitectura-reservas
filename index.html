@@ -4,15 +4,96 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arquitectura de reservas web</title>
-<meta name="description" content="Mapa operativo del sistema de reservas: ficha, ámbito festivo, punto A, apertura y contactos, ramas por proceso y compuerta.">
+<meta name="description" content="Mapa operativo del sistema de reservas y catálogo de microoperaciones.">
 <style>
 :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17212f;background:#f6f8fb}*{box-sizing:border-box}body{margin:0}header{background:white;border-bottom:1px solid #e5eaf1;padding:20px clamp(16px,4vw,54px)}.brand{max-width:1180px;margin:auto;display:flex;align-items:center;gap:13px}.brandmark{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:12px;background:#eaf1ff;color:#1c63d5;font-size:22px}h1{font-size:21px;margin:0 0 5px}header p{margin:0;color:#677488;font-size:13px}.layout{max-width:1180px;margin:24px auto;padding:0 16px}.main{background:white;border:1px solid #e7ebf2;border-radius:18px;box-shadow:0 8px 30px #24334a08;min-height:570px;padding:clamp(22px,4vw,45px)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.1em;color:#4579dc}.pill{font-size:11px;background:#edf3ff;color:#315eb6;border-radius:40px;padding:8px 11px;font-weight:700}h2{font-size:28px;letter-spacing:-.035em;margin:12px 0}p.desc{font-size:15px;color:#5f6f84;line-height:1.65;max-width:750px;margin:0 0 22px}.map-panel{border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;overflow:hidden}.map-panel>summary{list-style:none;display:flex;gap:12px;align-items:center;cursor:pointer;padding:17px 20px;font-size:14px;font-weight:800;color:#245bb2}.map-panel>summary::-webkit-details-marker{display:none}.map-body{padding:0 16px 20px}.mermaid{overflow:auto;text-align:center;min-height:110px;max-width:100%;border-radius:12px}.mermaid svg{display:block;width:100%!important;max-width:100%!important;height:auto!important;min-width:0!important;margin:auto}.map-fallback{white-space:pre-wrap;overflow:auto;max-height:360px;padding:16px;background:#f3f6fc;border-radius:10px;font-size:11px;color:#334155}.mapstatus{color:#75859a;font-size:12px;margin:10px 0 0}.ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}@media(max-width:760px){.layout{margin:12px auto}.main{min-height:520px}h2{font-size:24px}.brand{flex-wrap:wrap}}
+</style>
+<style>
+
+.layout{display:flex;flex-direction:column;gap:18px}
+.places{display:flex;flex-wrap:wrap;gap:8px}
+.places a{text-decoration:none;font-size:13px;font-weight:800;color:#315eb6;background:white;border:1px solid #e7ebf2;border-radius:999px;padding:8px 12px}
+.places a:hover{border-color:#c5d4ef}
+#mapa,#catalogos{scroll-margin-top:12px}
+.catalogos.main{min-height:0}
+.catalogos h3{margin:6px 0 14px;font-size:20px;letter-spacing:-.02em}
+.limite{margin:10px 0 16px;color:#5f6f84;font-size:13px;line-height:1.5;max-width:68ch}
+.estado{margin:0 0 14px;color:#5f6f84;font-size:14px}
+.split{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+.split.is-open{grid-template-columns:minmax(260px,380px) minmax(0,1fr)}
+.bloques{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.bloque{border:1px solid #e5eaf1;border-radius:14px;background:white;padding:14px}
+.bloque.is-open{border-color:#9db7ea;box-shadow:0 0 0 3px #e7efff}
+.bloque-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.bloque-nombre{margin:0;font-size:16px;letter-spacing:-.02em;overflow-wrap:anywhere}
+.bloque-ver{margin:4px 0 0;color:#315eb6;font-size:13px;font-weight:700}
+.en-navegador,.origen{margin:4px 0 0;color:#75859a;font-size:12px;line-height:1.4}
+.btn{font:inherit;cursor:pointer;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;line-height:1.2}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.primary,.btn.ver{background:#1c63d5;color:white;border:1px solid #1c63d5}
+.btn.primary{padding:10px 14px}
+.btn.version,.btn.ghost{background:white;color:#1c63d5;border:1px solid #c5d4ef}
+.btn.version{display:block;width:100%;margin-top:12px}
+.btn.ver{display:inline-block;margin-top:10px}
+.btn:hover,.icon-btn:hover{filter:brightness(.97)}
+.btn:focus-visible,.icon-btn:focus-visible,.places a:focus-visible,.historial button:focus-visible,.dlg input:focus-visible,.dlg textarea:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.reader{position:relative;min-width:0;border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;min-height:280px}
+.reader-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 16px 0}
+.reader-top h3{margin:0;font-size:20px;letter-spacing:-.02em;overflow-wrap:anywhere}
+.historial-ancla{position:relative;flex:none}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2;display:grid;place-items:center;cursor:pointer}
+.icon-btn[aria-expanded="true"]{background:#edf3ff}
+.icon-btn svg{width:18px;height:18px;display:block}
+.historial{position:absolute;top:calc(100% + 6px);right:0;width:min(280px,70vw);background:white;border:1px solid #e5eaf1;border-radius:14px;box-shadow:0 12px 40px #24334a24;padding:10px;z-index:3}
+.historial-titulo{margin:0 8px 6px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#677488}
+.historial ul{list-style:none;margin:0;padding:0;max-height:240px;overflow:auto}
+.historial li{margin:0}
+.historial button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;font:inherit;font-size:13px;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#17212f;cursor:pointer}
+.historial button[aria-current="true"]{background:#edf3ff;color:#1c4fae;font-weight:700}
+.historial button:hover{background:#f4f7fb}
+.historial button[aria-current="true"]:hover{background:#e3ecff}
+.marca{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.md-wrap{padding:8px 18px 18px;max-height:min(70vh,760px);overflow:auto}
+.md{font-size:15px;line-height:1.65;color:#17212f;overflow-wrap:anywhere}
+.md h1{font-size:22px;margin:0 0 12px}
+.md h2{font-size:18px;margin:18px 0 8px}
+.md h3,.md h4{font-size:16px;margin:16px 0 8px}
+.md p{margin:0 0 12px}
+.md ul,.md ol{margin:0 0 12px;padding-left:1.2em}
+.md li{margin:0 0 4px}
+.md pre{background:#f3f6fc;padding:12px 14px;border-radius:10px;overflow:auto;font-size:13px;line-height:1.5;margin:0 0 12px}
+.md code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+.md p code,.md li code{background:#f3f6fc;padding:1px 5px;border-radius:5px}
+.md blockquote{margin:0 0 12px;padding:2px 0 2px 12px;border-left:3px solid #c5d4ef;color:#3e4d63}
+.md a{color:#1c63d5}
+.md hr{border:0;border-top:1px solid #e5eaf1;margin:16px 0}
+.md .vacio-md{color:#75859a}
+dialog{border:0;border-radius:16px;padding:0;width:min(520px,calc(100vw - 32px));box-shadow:0 20px 60px #17212f33}
+dialog::backdrop{background:#17212f66}
+.dlg{padding:20px}
+.dlg h3{margin:0 0 8px;font-size:18px}
+.dlg .nota,.dlg .destino{margin:0 0 14px;color:#5f6f84;font-size:13px;line-height:1.5}
+.dlg .destino{color:#17212f;font-weight:700}
+.dlg label{display:block;font-size:13px;font-weight:700;margin:0 0 12px}
+.dlg input[type="text"],.dlg textarea{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white}
+.dlg textarea{min-height:140px;resize:vertical}
+.dlg input[type="file"]{display:block;margin-top:6px;font-weight:400;font-size:13px}
+.archivo-nombre{margin:6px 0 0;font-weight:400;color:#677488;font-size:12px}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.form-error{color:#9f1239;font-size:13px;min-height:1.2em;margin:0 0 8px}
+@media(max-width:800px){.split.is-open{grid-template-columns:1fr}.reader{position:static}}
+@media(min-width:801px){.split.is-open .reader{position:sticky;top:12px}}
+
 </style>
 </head>
 <body>
 <header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de reservas web</h1><p>Ficha · Ámbito festivo · Punto A · Apertura y contactos · ramas por proceso · compuerta</p></div></div></header>
 <div class="layout">
-<main class="main" id="content">
+<nav class="places" aria-label="Lugares">
+<a href="#mapa">Mapa</a>
+<a href="#catalogos">Catálogos</a>
+</nav>
+<main class="main" id="mapa">
 <div class="top"><span class="eyebrow">Vista general</span><span class="pill">Diagrama</span></div>
 <h2>Mapa</h2>
 <p class="desc">Diagrama operativo del sistema.</p>
@@ -21,7 +102,81 @@
 <div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div>
 </details>
 </main>
+<section class="main catalogos" id="catalogos" aria-labelledby="catalogos-titulo">
+<div class="top"><span class="eyebrow">Catálogos</span><span class="pill">Primer catálogo</span></div>
+<h2 id="catalogos-titulo">Catálogos</h2>
+<p class="desc">Microoperaciones es el primero. Los siguientes aparecerán en este lugar.</p>
+<div id="microoperaciones">
+<h3>Microoperaciones</h3>
+<button type="button" class="btn primary" id="btnNueva">Subir instrucción nueva</button>
+<p class="limite">La subida se queda en este navegador, encima del índice publicado. No se envía a GitHub.</p>
+<p class="estado" id="catalogoEstado" role="status">Cargando el índice…</p>
+<div class="split" id="catalogoSplit">
+<ul class="bloques" id="bloques"></ul>
+<article class="reader" id="reader" hidden>
+<div class="reader-top">
+<div>
+<h3 id="readerNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="readerVersion" aria-live="polite"></p>
+<p class="origen" id="readerOrigen" hidden></p>
 </div>
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistorial" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historial">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="historial" hidden role="dialog" aria-label="Versiones">
+<p class="historial-titulo">Versiones</p>
+<ul id="historialLista"></ul>
+</div>
+</div>
+</div>
+<div class="md-wrap"><div class="md" id="md"></div></div>
+</article>
+</div>
+</div>
+</section>
+</div>
+<dialog id="dlgNueva" aria-labelledby="dlgNuevaTitulo">
+<form class="dlg" id="formNueva">
+<h3 id="dlgNuevaTitulo">Subir instrucción nueva</h3>
+<p class="nota">Crea otra instrucción. Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="form-error" id="nuevaError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre de la instrucción">
+</label>
+<label>Archivo .md
+<input type="file" name="archivo" id="nuevaArchivo" accept=".md,.markdown,.txt,text/markdown,text/plain">
+<span class="archivo-nombre" id="nuevaArchivoNombre"></span>
+</label>
+<label>O pega el markdown
+<textarea name="markdown" placeholder="Pega aquí el markdown si no subes un archivo."></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevaCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Subir instrucción nueva</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgVersion" aria-labelledby="dlgVersionTitulo">
+<form class="dlg" id="formVersion">
+<h3 id="dlgVersionTitulo">Subir versión</h3>
+<p class="destino" id="versionDestino"></p>
+<p class="nota">Añade una versión a esta instrucción. Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="form-error" id="versionError" role="alert"></p>
+<label>Archivo .md
+<input type="file" name="archivo" id="versionArchivo" accept=".md,.markdown,.txt,text/markdown,text/plain">
+<span class="archivo-nombre" id="versionArchivoNombre"></span>
+</label>
+<label>O pega el markdown
+<textarea name="markdown" placeholder="Pega aquí el markdown de la nueva versión."></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="versionCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Subir versión</button>
+</div>
+</form>
+</dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
 const flow="flowchart TD\n  U[\"URL del negocio\"] --\u003e FIC[\"Ficha del negocio\"]\n  FIC --\u003e PA[\"Punto A\"]\n  FIC --\u003e AF[\"Ámbito festivo\"]\n  AF --\u003e AP[\"Apertura\"]\n  FIC --\u003e CT[\"Contactos\"]\n  PA --\u003e R{\"¿Hay enlace?\"}\n  R --\u003e|No| NA[\"SIN RESERVA ONLINE\"]\n  R --\u003e|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R --\u003e|Por proceso| S[\"Identificar software\"]\n  R --\u003e|Por proceso| O[\"Observar formulario\"]\n  R --\u003e|Por proceso| C[\"Canal de cancelación\"]\n  S --\u003e I[\"Integración\"]\n  CT --\u003e C\n  O --\u003e J[\"Justificante\"]\n  J --\u003e FN[\"Función\"]\n  FN --\u003e SC[\"Script\"]\n  SC --\u003e REV{\"¿Función y script OK?\"}\n  REV --\u003e|Sí| AU[\"Automática\"]\n  REV --\u003e|Sí| EN[\"Enlace asistido\"]\n  REV --\u003e|No| NI[\"Vías no intentadas\"]\n  I -.-\u003e|pista| AU\n  AU --\u003e V[\"Verificación y vigilancia\"]\n  EN --\u003e V\n  V --\u003e|formulario_cambiado| O\n  AP --\u003e G[\"Compuerta\"]\n  C --\u003e G\n  CT --\u003e G\n  AU --\u003e G\n  EN --\u003e G\n  G --\u003e|Abierta| OK[\"Envío real permitido\"]\n  G --\u003e|Cerrado| PEND[\"pendiente_apertura\"]\n  G --\u003e|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --\u003e Z[\"Resultado\"]\n  OK --\u003e Z\n  NI --\u003e Z\n  PEND --\u003e Z\n  SC2 --\u003e Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PEND pending\n  class Z summary";
@@ -39,5 +194,6 @@ function mountFlowMermaid(){
 }
 mountFlowMermaid();
 </script>
+<script src="catalogo-ui.js"></script>
 </body>
 </html>

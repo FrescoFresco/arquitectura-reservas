@@ -9,6 +9,22 @@ Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualqui
 
 El sitio se sirve desde la rama `main`, carpeta raíz (`/`). Tras un push a `main`, Pages se actualiza solo (suele tardar uno o dos minutos).
 
+La página tiene dos lugares: el **mapa** de flujo y **Catálogos**. El primer catálogo es **Microoperaciones**. El índice compartido está en [`catalogo/microoperaciones/index.json`](./catalogo/microoperaciones/index.json). Si `instrucciones` está vacío, el catálogo se muestra vacío.
+
+Cada instrucción del índice lleva `id`, `nombre` y `versiones`. Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`) y `ruta` de un `.md` relativo a la raíz del sitio:
+
+```json
+{
+  "id": "id-estable",
+  "nombre": "Nombre visible",
+  "versiones": [
+    { "numero": 1, "fecha": "2026-10-19", "ruta": "catalogo/microoperaciones/id-estable/v1.md" }
+  ]
+}
+```
+
+**Subir instrucción nueva** crea otra instrucción. **Subir versión** añade una versión a esa instrucción. Las dos guardan el markdown en el `localStorage` de ese navegador, encima del índice. No hacen commit ni actualizan GitHub.
+
 ## Cómo editar
 
 1. Clonar el repositorio:
@@ -50,7 +66,7 @@ No invites a nadie concreto hasta tener su handle de GitHub.
 
 ## Importar datos en MongoDB
 
-Los JSON de importación siguen en el repositorio: [`arquitectura-reservas-mongo-import.zip`](./arquitectura-reservas-mongo-import.zip). El sitio publicado solo muestra el mapa de flujo y no enlaza estas descargas.
+Los JSON de importación siguen en el repositorio: [`arquitectura-reservas-mongo-import.zip`](./arquitectura-reservas-mongo-import.zip). El sitio publicado no enlaza estas descargas.
 
 Dentro hay un `.json` (array Extended JSON) por colección: `negocios`, `procesos`, `software`, `integraciones`, `observaciones`, `justificantes`, `funciones`, `scripts`, `canales`, `ejecuciones`. Base lógica: `arquitectura_reservas`.
 
