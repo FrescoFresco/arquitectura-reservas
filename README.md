@@ -22,6 +22,7 @@ Para publicar un bloque, una versión del mapa o una de esas tablas, un agente u
 ```bash
 GITHUB_TOKEN=… node scripts/subir.js bloques --nueva --nombre "Abrir ficha" --archivo ./nota.md
 GITHUB_TOKEN=… node scripts/subir.js bloques --id abrir-ficha --archivo ./nota.pdf
+GITHUB_TOKEN=… node scripts/subir.js bloques --eliminar --id abrir-ficha
 GITHUB_TOKEN=… node scripts/subir.js mapa --archivo ./flujo.mmd
 GITHUB_TOKEN=… node scripts/subir.js tabla-activacion --tabla reglas --archivo ./reglas.json
 GITHUB_TOKEN=… node scripts/subir.js tabla-activacion --tabla pasos --archivo ./pasos.json

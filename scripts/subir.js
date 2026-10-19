@@ -156,12 +156,32 @@ function planificarSubida(opts) {
   };
 }
 
+function planificarEliminacion(opts) {
+  const id = String(opts.id || '');
+  if (!ID_RE.test(id)) throw new Error('El id no es válido.');
+  const indice = clonar(opts.indice && typeof opts.indice === 'object' ? opts.indice : {});
+  if (!Array.isArray(indice.instrucciones)) indice.instrucciones = [];
+  indice.id = indice.id || 'microoperaciones';
+  if (!indice.nombre || indice.nombre === 'Microoperaciones') indice.nombre = 'Bloques';
+  const antes = indice.instrucciones.length;
+  indice.instrucciones = indice.instrucciones.filter(function (item) {
+    return !(item && item.id === id);
+  });
+  if (indice.instrucciones.length === antes) throw new Error('No está ese bloque: ' + id + '.');
+  return {
+    indiceRuta: 'catalogo/microoperaciones/index.json',
+    indiceMensaje: 'Elimina ' + id + ' de Bloques',
+    indice: indice
+  };
+}
+
 function parseArgs(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--nueva') out.nueva = true;
     else if (a === '--ensayo') out.ensayo = true;
+    else if (a === '--eliminar') out.eliminar = true;
     else if (a.startsWith('--')) {
       const key = a.slice(2);
       const val = argv[i + 1];
@@ -235,20 +255,26 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const destino = args._[0];
   if (!destino || args._.length !== 1) {
-    throw new Error('Uso: node scripts/subir.js bloques|mapa|tabla-activacion --archivo ./fichero [--tabla reglas|pasos] [--nueva --nombre "Nombre"] [--id id] [--ensayo]');
+    throw new Error('Uso: node scripts/subir.js bloques|mapa|tabla-activacion --archivo ./fichero [--tabla reglas|pasos] [--nueva --nombre "Nombre"] [--id id] [--eliminar --id id] [--ensayo]');
   }
   const tipo = destino === 'microoperaciones' ? 'bloques' : destino;
   if (tipo !== 'bloques' && tipo !== 'mapa' && tipo !== 'tabla-activacion') {
     throw new Error('El destino tiene que ser bloques, mapa o tabla-activacion.');
   }
-  if (!args.archivo) throw new Error('Falta --archivo.');
-  const bytes = fs.readFileSync(args.archivo);
-  if (tipo === 'mapa') {
+  if (args.eliminar) {
+    if (tipo !== 'bloques') throw new Error('Eliminar solo vale para un bloque.');
+    if (args.archivo || args.nueva || args.nombre) throw new Error('Eliminar no crea una versión ni lleva archivo.');
+    if (!args.id) throw new Error('Falta --id.');
+  } else if (!args.archivo) {
+    throw new Error('Falta --archivo.');
+  }
+  const bytes = args.eliminar ? null : fs.readFileSync(args.archivo);
+  if (!args.eliminar && tipo === 'mapa') {
     if (bytes.includes(0)) throw new Error('El mapa tiene que ser texto UTF-8.');
     const texto = bytes.toString('utf8');
     if (!texto.trim()) throw new Error('El mapa está vacío.');
   }
-  if (tipo === 'tabla-activacion') validarTabla(bytes.toString('utf8'));
+  if (!args.eliminar && tipo === 'tabla-activacion') validarTabla(bytes.toString('utf8'));
   const fecha = args.fecha || fechaHoy();
   const repo = process.env.GITHUB_REPOSITORIO || REPO_DEFECTO;
   const rama = process.env.GITHUB_RAMA || RAMA_DEFECTO;
@@ -271,26 +297,28 @@ async function main() {
     const leido = await leerIndice(repo, rama, token, indiceRuta);
     indice = leido.json;
   }
-  const plan = planificarSubida({
-    tipo: tipo,
-    nueva: !!args.nueva,
-    nombre: args.nombre,
-    id: args.id,
-    nombreArchivo: path.basename(args.archivo),
-    tabla: args.tabla,
-    fecha: fecha,
-    indice: indice
-  });
+  const plan = args.eliminar
+    ? planificarEliminacion({ id: args.id, indice: indice })
+    : planificarSubida({
+      tipo: tipo,
+      nueva: !!args.nueva,
+      nombre: args.nombre,
+      id: args.id,
+      nombreArchivo: path.basename(args.archivo),
+      tabla: args.tabla,
+      fecha: fecha,
+      indice: indice
+    });
   if (args.ensayo) {
     process.stdout.write(JSON.stringify({
-      archivo: plan.archivo,
+      archivo: plan.archivo || null,
       indiceRuta: plan.indiceRuta,
       indice: plan.indice
     }, null, 2) + '\n');
     return;
   }
   const token = tokenDeEntorno();
-  await ponerArchivo(repo, rama, token, plan.archivo.ruta, plan.archivo.mensaje, bytes);
+  if (plan.archivo) await ponerArchivo(repo, rama, token, plan.archivo.ruta, plan.archivo.mensaje, bytes);
   const fresco = await leerIndice(repo, rama, token, plan.indiceRuta);
   const body = {
     message: plan.indiceMensaje,
@@ -299,11 +327,12 @@ async function main() {
   };
   if (fresco.sha) body.sha = fresco.sha;
   await gh('PUT', repo, rama, plan.indiceRuta, token, body);
-  process.stdout.write(plan.archivo.ruta + '\n');
+  process.stdout.write((plan.archivo ? plan.archivo.ruta : plan.indiceRuta) + '\n');
 }
 
 module.exports = {
   planificarSubida: planificarSubida,
+  planificarEliminacion: planificarEliminacion,
   validarTabla: validarTabla,
   extensionDe: extensionDe,
   slugId: slugId,

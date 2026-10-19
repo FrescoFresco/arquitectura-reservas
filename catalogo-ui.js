@@ -210,7 +210,7 @@ function copiaVersion(v) {
   return o;
 }
 
-function mergeInstrucciones(remotas, locales) {
+function mergeInstrucciones(remotas, locales, eliminados) {
   const map = new Map();
   remotas.forEach(function (ins) {
     map.set(ins.id, {
@@ -237,7 +237,8 @@ function mergeInstrucciones(remotas, locales) {
     });
     prev.versiones = Array.from(byNum.values()).sort(function (a, b) { return a.numero - b.numero; });
   });
-  return Array.from(map.values());
+  const ocultos = new Set(eliminados || []);
+  return Array.from(map.values()).filter(function (ins) { return !ocultos.has(ins.id); });
 }
 
 function escapeHtml(s) {
@@ -343,15 +344,29 @@ function htmlDeMarkdown(text) {
   return renderMarkdown(text);
 }
 
+function idsEliminados(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (id) {
+    if (typeof id !== 'string') return;
+    const limpio = id.trim();
+    if (!limpio || limpio.length > 80 || seen.has(limpio)) return;
+    seen.add(limpio);
+    out.push(limpio);
+  });
+  return out;
+}
+
 function leerStore() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return { instrucciones: [] };
+    if (!raw) return { instrucciones: [], eliminados: [] };
     const data = JSON.parse(raw);
-    if (!data || !Array.isArray(data.instrucciones)) return { instrucciones: [] };
-    return { instrucciones: data.instrucciones };
+    if (!data || !Array.isArray(data.instrucciones)) return { instrucciones: [], eliminados: [] };
+    return { instrucciones: data.instrucciones, eliminados: idsEliminados(data.eliminados) };
   } catch (e) {
-    return { instrucciones: [] };
+    return { instrucciones: [], eliminados: [] };
   }
 }
 
@@ -368,7 +383,8 @@ function guardarLocal(store) {
 }
 
 function refrescar() {
-  state.instrucciones = mergeInstrucciones(state.remotas, normalizeLocales(leerStore().instrucciones));
+  const store = leerStore();
+  state.instrucciones = mergeInstrucciones(state.remotas, normalizeLocales(store.instrucciones), store.eliminados);
 }
 
 function versionActual(ins) {
@@ -417,11 +433,16 @@ function bloqueDe(ins) {
   abrir.append(el('h4', 'bloque-nombre', ins.nombre));
   abrir.append(el('p', 'bloque-ver', formatVersion(actual.numero, actual.fecha)));
   if (actual.origen === 'local') abrir.append(el('p', 'en-navegador', 'En este navegador'));
+  const eliminar = el('button', 'btn eliminar', 'Eliminar');
+  eliminar.type = 'button';
+  eliminar.dataset.accion = 'eliminar';
+  eliminar.dataset.id = ins.id;
+  eliminar.setAttribute('aria-label', 'Eliminar ' + ins.nombre);
   const subir = el('button', 'btn version', 'Subir versión');
   subir.type = 'button';
   subir.dataset.accion = 'subir-version';
   subir.dataset.id = ins.id;
-  li.append(ojo, abrir, subir);
+  li.append(ojo, abrir, eliminar, subir);
   return li;
 }
 
@@ -625,6 +646,35 @@ function abrirDialogoNuevo() {
   form.nombre.focus();
 }
 
+function eliminarBloque(id) {
+  const store = leerStore();
+  store.instrucciones = store.instrucciones.filter(function (ins) {
+    return !(ins && ins.id === id);
+  });
+  if (store.eliminados.indexOf(id) < 0) store.eliminados.push(id);
+  guardarLocal(store);
+  if (state.abiertaId === id) {
+    state.abiertaId = null;
+    state.abiertaNumero = null;
+    state.historial = false;
+  }
+  render();
+}
+
+function abrirDialogoEliminar(id) {
+  const ins = state.instrucciones.find(function (item) { return item.id === id; });
+  if (!ins) return;
+  const dlg = document.getElementById('dlgEliminar');
+  const form = document.getElementById('formEliminar');
+  if (!dlg || !form) return;
+  form.dataset.id = id;
+  const error = document.getElementById('eliminarError');
+  if (error) error.textContent = '';
+  dlg.showModal();
+  const cancelar = document.getElementById('eliminarCancelar');
+  if (cancelar) cancelar.focus();
+}
+
 function abrirDialogoVersion(id) {
   const ins = state.instrucciones.find(function (item) { return item.id === id; });
   if (!ins) return;
@@ -729,6 +779,12 @@ function cerrarHistorial() {
 }
 
 function onClickBloques(e) {
+  const eliminar = e.target.closest('[data-accion="eliminar"]');
+  if (eliminar) {
+    e.preventDefault();
+    abrirDialogoEliminar(eliminar.dataset.id);
+    return;
+  }
   const subir = e.target.closest('[data-accion="subir-version"]');
   if (subir) {
     e.preventDefault();
@@ -794,6 +850,21 @@ async function onSubmitNueva(e) {
     error.textContent = err.message;
   } finally {
     submit.disabled = false;
+  }
+}
+
+function onSubmitEliminar(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('eliminarError');
+  if (error) error.textContent = '';
+  const id = form.dataset.id;
+  if (!id) return;
+  try {
+    eliminarBloque(id);
+    document.getElementById('dlgEliminar').close();
+  } catch (err) {
+    if (error) error.textContent = err.message;
   }
 }
 
@@ -1641,8 +1712,14 @@ function iniciar() {
   document.getElementById('versionCancelar').addEventListener('click', function () {
     document.getElementById('dlgVersion').close();
   });
+  const eliminarCancelar = document.getElementById('eliminarCancelar');
+  if (eliminarCancelar) eliminarCancelar.addEventListener('click', function () {
+    document.getElementById('dlgEliminar').close();
+  });
   document.getElementById('formNueva').addEventListener('submit', onSubmitNueva);
   document.getElementById('formVersion').addEventListener('submit', onSubmitVersion);
+  const formEliminar = document.getElementById('formEliminar');
+  if (formEliminar) formEliminar.addEventListener('submit', onSubmitEliminar);
   document.getElementById('nuevaArchivo').addEventListener('change', function (e) {
     nombreDeArchivo(e.target, 'nuevaArchivoNombre');
   });

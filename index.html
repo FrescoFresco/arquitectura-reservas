@@ -105,7 +105,8 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .ojo svg{width:18px;height:18px;display:block}
 .bloque.is-open .ojo{color:#1c63d5;background:#e7efff}
 .bloque:not(.is-open) .ojo{color:#8b98ab}
-.bloque-abrir{display:block;width:100%;margin:0;padding:14px 44px 4px 14px;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:14px}
+.bloque-abrir{display:block;width:100%;margin:0;padding:14px 132px 4px 14px;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:14px}
+.btn.eliminar{position:absolute;top:12px;right:48px;z-index:2;padding:4px 8px;font-size:12px;line-height:1.2;white-space:nowrap;background:white;color:#9f1239;border:1px solid #f0c4ce}
 .bloque .btn.version{width:calc(100% - 28px);margin:8px 14px 14px}
 .bloque-abrir:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
 .mapa-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px}
@@ -121,6 +122,12 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
 .doc p code,.doc li code{background:#f3f6fc;padding:1px 5px;border-radius:5px}
 .doc a{color:#1c63d5}
+.conectar{margin:0 0 18px;padding:14px 16px;border:1px solid #dce5f2;border-radius:14px;background:#fbfdff}
+.conectar h3{margin:0 0 8px;font-size:16px;letter-spacing:-.02em}
+.conectar p{margin:0 0 8px;font-size:14px;line-height:1.55;color:#243246;max-width:78ch}
+.conectar p:last-child{margin-bottom:0}
+.conectar a{color:#1c63d5}
+.conectar code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;background:#f3f6fc;padding:1px 5px;border-radius:5px}
 
 .tabla-wrap{overflow:auto;border:1px solid #e5eaf1;border-radius:14px;background:white}
 .tabla-wrap table{width:100%;border-collapse:collapse;font-size:14px}
@@ -177,7 +184,7 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
 <div role="tabpanel" id="panel-microoperaciones" data-catalogo="microoperaciones">
 <button type="button" class="btn primary" id="btnNueva">Subir instrucción nueva</button>
-<p class="limite">La subida se queda en este navegador, encima del índice publicado. No se envía a GitHub. Para publicarla, el contrato está en Documentación → API.</p>
+<p class="limite">La subida y Eliminar se quedan en este navegador, encima del índice publicado. No se envían a GitHub. Para publicarlos, el contrato está en Documentación → API.</p>
 <p class="estado" id="catalogoEstado" role="status">Cargando el índice…</p>
 <div class="split" id="catalogoSplit">
 <ul class="bloques" id="bloques"></ul>
@@ -230,6 +237,13 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <div class="top"><span class="eyebrow">Documentación</span></div>
 <h2 id="documentacion-titulo">Documentación</h2>
 <p class="desc">Contrato para que un agente publique en el repositorio. La página no guarda el token.</p>
+<section class="conectar" aria-labelledby="conectar-titulo">
+<h3 id="conectar-titulo">Conectar un agente</h3>
+<p>Empieza leyendo Documentación → API (<a href="https://frescofresco.github.io/arquitectura-reservas/">https://frescofresco.github.io/arquitectura-reservas/</a>) y el contrato que ya está en el repo. No inventes rutas.</p>
+<p>Hace falta un token de GitHub con escritura (el de quien invita al agente). No va en el HTML ni en el repo.</p>
+<p>Puede modificar tres cosas. Cada cambio es una versión nueva y no pisa la anterior: Bloques (documento o versión), el flujo del mapa, y una tabla de tabla-activación (reglas o pasos, solo esa tabla). También puede eliminar un bloque. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
+<p>El cliente de referencia es <code>scripts/subir.js</code>. Lee el índice antes de escribir.</p>
+</section>
 <div class="catalogo-tabs" id="docTabs" role="tablist" aria-label="Documentación"></div>
 <div class="doc" role="tabpanel" id="panel-api" data-doc="api">
 <p>Un agente publica con la API de contenidos de GitHub. El token de escritura va en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No va en esta página.</p>
@@ -289,6 +303,18 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
   "nombreArchivo": "nota.pdf"
 }</code></pre>
 <p>El id solo usa minúsculas, números y guiones: <code>^[a-z0-9][a-z0-9-]{0,60}$</code>.</p>
+<h3>Eliminar un bloque</h3>
+<p>En la página, <strong>Eliminar</strong> está al lado del ojo. Pregunta «¿Estás seguro de eliminar el bloque?» con <strong>Confirmar</strong> y <strong>Cancelar</strong>. Cancelar cierra. Confirmar quita ese bloque y sus versiones de la lista de este navegador. La API no pregunta: cuando el agente lo pide, borra el bloque del índice. No se añade una versión ni se escribe otro archivo.</p>
+<p>1. Leer el índice. La respuesta trae <code>sha</code> y el JSON en <code>content</code> (base64).</p>
+<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/index.json?ref=main</code></pre>
+<p>2. Quitar ese objeto de <code>instrucciones</code> y volver a escribir el índice con ese <code>sha</code>.</p>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/index.json</code></pre>
+<pre><code>{
+  "message": "Elimina abrir-ficha de Bloques",
+  "content": "BASE64_DEL_JSON",
+  "branch": "main",
+  "sha": "SHA_DEL_GET"
+}</code></pre>
 <h3>Publicar una edición del mapa</h3>
 <p>El lápiz abre un popup con el fuente de la versión que se está viendo. Cancelar cierra sin cambiar nada. Guardar crea la versión siguiente en este navegador y el mapa pasa a mostrarla. Para dejar esa versión en el repositorio, un agente usa el mismo mecanismo. El contenido es el fuente Mermaid de ese diagrama.</p>
 <p>La versión 1 ya está en <code>mapa/v1.mmd</code>. La siguiente es la 2.</p>
@@ -320,14 +346,15 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <pre><code>{ "numero": 2, "fecha": "2026-10-19", "ruta": "catalogo/tabla-activacion/reglas/v2.json" }</code></pre>
 <p>Para pasos, la ruta del archivo es <code>catalogo/tabla-activacion/pasos/v2.json</code> y el índice es <code>catalogo/tabla-activacion/pasos/index.json</code>. Sus columnas son Bloque, Se activa por y Lo usan.</p>
 <h3>Cliente de referencia</h3>
-<p><code>scripts/subir.js</code> hace esas dos escrituras. El token sale del entorno. <code>bloques</code> escribe en la carpeta de Bloques; no abre otro catálogo.</p>
+<p><code>scripts/subir.js</code> hace esas escrituras. El token sale del entorno. <code>bloques</code> escribe en la carpeta de Bloques; no abre otro catálogo. Con <code>--eliminar</code> solo vuelve a escribir el índice: quita el bloque y no deja una versión nueva.</p>
 <pre><code>GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --nueva --nombre "Abrir ficha" --archivo ./nota.md
 GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --id abrir-ficha --archivo ./nota.pdf
+GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --eliminar --id abrir-ficha
 GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd
 GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla reglas --archivo ./reglas.json
 GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archivo ./pasos.json</code></pre>
 <p><code>--ensayo</code> muestra la ruta y el índice sin llamar a GitHub. <code>GITHUB_REPOSITORIO</code> (por defecto <code>FrescoFresco/arquitectura-reservas</code>) y <code>GITHUB_RAMA</code> (por defecto <code>main</code>) cambian el destino.</p>
-<p>La subida del navegador sigue en este navegador y no usa este contrato: <strong>Subir instrucción nueva</strong>, <strong>Subir versión</strong>, el lápiz del mapa y <strong>Añadir columna</strong> o <strong>Añadir valor</strong>.</p>
+<p>La subida del navegador sigue en este navegador y no usa este contrato: <strong>Subir instrucción nueva</strong>, <strong>Subir versión</strong>, <strong>Eliminar</strong>, el lápiz del mapa y <strong>Añadir columna</strong> o <strong>Añadir valor</strong>.</p>
 </div>
 </section>
 </div>
@@ -413,6 +440,16 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
 </div>
 </form>
 </dialog>
+<dialog id="dlgEliminar" aria-labelledby="dlgEliminarTitulo">
+<form class="dlg" id="formEliminar">
+<h3 id="dlgEliminarTitulo">¿Estás seguro de eliminar el bloque?</h3>
+<p class="form-error" id="eliminarError" role="alert"></p>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="eliminarCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Confirmar</button>
+</div>
+</form>
+</dialog>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
 (function () {
@@ -449,7 +486,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
   abrir(desdeHash());
 })();
 </script>
-<script src="catalogo-ui.js?v=20261019d"></script>
+<script src="catalogo-ui.js?v=20261019e"></script>
 
 </body>
 </html>
