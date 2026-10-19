@@ -1,9 +1,13 @@
 'use strict';
 
+const CATALOGOS = [
+  { id: 'microoperaciones', nombre: 'Microoperaciones' }
+];
 const LS_KEY = 'arquitectura-reservas.catalogo.microoperaciones';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 const state = {
+  catalogoId: CATALOGOS[0].id,
   ready: false,
   indexError: false,
   remotas: [],
@@ -693,12 +697,89 @@ async function onSubmitVersion(e) {
   }
 }
 
+function renderPestanas() {
+  const lista = document.getElementById('catalogoTabs');
+  if (!lista) return;
+  const actual = state.catalogoId || CATALOGOS[0].id;
+  lista.replaceChildren();
+  CATALOGOS.forEach(function (cat) {
+    const btn = el('button', 'pestana', cat.nombre);
+    btn.type = 'button';
+    btn.id = 'tab-' + cat.id;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-controls', 'panel-' + cat.id);
+    btn.dataset.catalogo = cat.id;
+    const on = cat.id === actual;
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    btn.tabIndex = on ? 0 : -1;
+    lista.append(btn);
+  });
+  document.querySelectorAll('[role="tabpanel"][data-catalogo]').forEach(function (panel) {
+    const on = panel.dataset.catalogo === actual;
+    panel.hidden = !on;
+    if (on) panel.setAttribute('aria-labelledby', 'tab-' + panel.dataset.catalogo);
+  });
+}
+
+function seleccionarCatalogo(id) {
+  const existe = CATALOGOS.some(function (cat) { return cat.id === id; });
+  if (!existe) return;
+  state.catalogoId = id;
+  renderPestanas();
+  const tab = document.getElementById('tab-' + id);
+  if (tab) tab.focus();
+}
+
+function destinoDeHash() {
+  return location.hash === '#catalogos' ? 'catalogos' : 'mapa';
+}
+
+function mostrarDestino(destino, push) {
+  const id = destino === 'catalogos' ? 'catalogos' : 'mapa';
+  const mapa = document.getElementById('mapa');
+  const catalogos = document.getElementById('catalogos');
+  if (mapa) mapa.hidden = id !== 'mapa';
+  if (catalogos) catalogos.hidden = id !== 'catalogos';
+  document.querySelectorAll('#hub [data-destino]').forEach(function (btn) {
+    if (btn.dataset.destino === id) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
+  const hash = '#' + id;
+  if (push && location.hash !== hash) history.pushState({ destino: id }, '', hash);
+  if (push) window.scrollTo(0, 0);
+}
+
 function nombreDeArchivo(input, destinoId) {
   const file = input.files && input.files[0];
   document.getElementById(destinoId).textContent = file ? file.name : '';
 }
 
 function iniciar() {
+  renderPestanas();
+  mostrarDestino(destinoDeHash(), false);
+  document.getElementById('hub').addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-destino]');
+    if (!btn) return;
+    mostrarDestino(btn.dataset.destino, true);
+  });
+  document.getElementById('catalogoTabs').addEventListener('click', function (e) {
+    const tab = e.target.closest('[data-catalogo]');
+    if (!tab) return;
+    seleccionarCatalogo(tab.dataset.catalogo);
+  });
+  document.getElementById('catalogoTabs').addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const tabs = Array.from(document.querySelectorAll('#catalogoTabs [role="tab"]'));
+    const i = tabs.indexOf(document.activeElement);
+    if (i < 0 || !tabs.length) return;
+    e.preventDefault();
+    const delta = e.key === 'ArrowRight' ? 1 : -1;
+    const next = tabs[(i + delta + tabs.length) % tabs.length];
+    seleccionarCatalogo(next.dataset.catalogo);
+  });
+  window.addEventListener('popstate', function () {
+    mostrarDestino(destinoDeHash(), false);
+  });
   document.getElementById('btnNueva').addEventListener('click', abrirDialogoNuevo);
   document.getElementById('nuevaCancelar').addEventListener('click', function () {
     document.getElementById('dlgNueva').close();
@@ -752,6 +833,7 @@ function iniciar() {
 }
 
 const api = {
+  CATALOGOS: CATALOGOS,
   formatVersion: formatVersion,
   todayISO: todayISO,
   siguienteNumero: siguienteNumero,

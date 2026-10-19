@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Arquitectura de reservas web</title>
 <meta name="description" content="Mapa operativo del sistema de reservas y catálogo de microoperaciones.">
 <style>
@@ -11,12 +11,18 @@
 <style>
 
 .layout{display:flex;flex-direction:column;gap:18px}
-.places{display:flex;flex-wrap:wrap;gap:8px}
-.places a{text-decoration:none;font-size:13px;font-weight:800;color:#315eb6;background:white;border:1px solid #e7ebf2;border-radius:999px;padding:8px 12px}
-.places a:hover{border-color:#c5d4ef}
-#mapa,#catalogos{scroll-margin-top:12px}
+.hub{background:#fff;border-bottom:1px solid #e5eaf1}
+.hub-inner{max-width:1180px;margin:0 auto;display:flex;gap:4px;padding:0 16px}
+.hub button{display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;border-bottom:2px solid transparent;color:#677488;font:inherit;font-size:14px;font-weight:800;padding:12px 14px;cursor:pointer}
+.hub button svg{width:18px;height:18px;display:block}
+.hub button[aria-current="page"]{color:#1c63d5;border-bottom-color:#1c63d5}
+.hub button:hover{color:#1c63d5}
 .catalogos.main{min-height:0}
-.catalogos h3{margin:6px 0 14px;font-size:20px;letter-spacing:-.02em}
+.catalogo-tabs{display:flex;gap:0;margin:0 0 16px;border-bottom:1px solid #e5eaf1;overflow-x:auto;scrollbar-width:none}
+.catalogo-tabs::-webkit-scrollbar{display:none}
+.pestana{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 14px;font:inherit;font-size:14px;font-weight:800;color:#677488;cursor:pointer;white-space:nowrap}
+.pestana[aria-selected="true"]{color:#1c63d5;border-bottom-color:#1c63d5}
+.pestana:hover{color:#1c63d5}
 .limite{margin:10px 0 16px;color:#5f6f84;font-size:13px;line-height:1.5;max-width:68ch}
 .estado{margin:0 0 14px;color:#5f6f84;font-size:14px}
 .split{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
@@ -36,7 +42,7 @@
 .btn.version{display:block;width:100%;margin-top:12px}
 .btn.ver{display:inline-block;margin-top:10px}
 .btn:hover,.icon-btn:hover{filter:brightness(.97)}
-.btn:focus-visible,.icon-btn:focus-visible,.places a:focus-visible,.historial button:focus-visible,.dlg input:focus-visible,.dlg textarea:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.btn:focus-visible,.icon-btn:focus-visible,.hub button:focus-visible,.pestana:focus-visible,.historial button:focus-visible,.dlg input:focus-visible,.dlg textarea:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
 .reader{position:relative;min-width:0;border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;min-height:280px}
 .reader-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 16px 0}
 .reader-top h3{margin:0;font-size:20px;letter-spacing:-.02em;overflow-wrap:anywhere}
@@ -83,16 +89,26 @@ dialog::backdrop{background:#17212f66}
 .form-error{color:#9f1239;font-size:13px;min-height:1.2em;margin:0 0 8px}
 @media(max-width:800px){.split.is-open{grid-template-columns:1fr}.reader{position:static}}
 @media(min-width:801px){.split.is-open .reader{position:sticky;top:12px}}
+@media(max-width:800px){
+.hub{position:fixed;left:0;right:0;bottom:0;z-index:40;border-bottom:0;border-top:1px solid #e5eaf1;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -8px 24px #24334a12}
+.hub-inner{max-width:none;padding:0;gap:0}
+.hub button{flex:1;flex-direction:column;justify-content:center;gap:3px;min-height:56px;padding:8px 4px 6px;border-bottom:0;font-size:11px;font-weight:700}
+.hub button svg{width:22px;height:22px}
+.hub button[aria-current="page"]{background:#f3f7ff}
+body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
+}
 
 </style>
 </head>
 <body>
 <header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de reservas web</h1><p>Ficha · Ámbito festivo · Punto A · Apertura y contactos · ramas por proceso · compuerta</p></div></div></header>
-<div class="layout">
-<nav class="places" aria-label="Lugares">
-<a href="#mapa">Mapa</a>
-<a href="#catalogos">Catálogos</a>
+<nav class="hub" id="hub" aria-label="Menú principal">
+<div class="hub-inner">
+<button type="button" data-destino="mapa" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="21" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg><span>Mapa</span></button>
+<button type="button" data-destino="catalogos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></button>
+</div>
 </nav>
+<div class="layout">
 <main class="main" id="mapa">
 <div class="top"><span class="eyebrow">Vista general</span><span class="pill">Diagrama</span></div>
 <h2>Mapa</h2>
@@ -102,12 +118,12 @@ dialog::backdrop{background:#17212f66}
 <div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div>
 </details>
 </main>
-<section class="main catalogos" id="catalogos" aria-labelledby="catalogos-titulo">
-<div class="top"><span class="eyebrow">Catálogos</span><span class="pill">Primer catálogo</span></div>
+<section class="main catalogos" id="catalogos" hidden aria-labelledby="catalogos-titulo">
+<div class="top"><span class="eyebrow">Catálogos</span></div>
 <h2 id="catalogos-titulo">Catálogos</h2>
-<p class="desc">Microoperaciones es el primero. Los siguientes aparecerán en este lugar.</p>
-<div id="microoperaciones">
-<h3>Microoperaciones</h3>
+<p class="desc">Microoperaciones es el primero. Cada catálogo ocupa una pestaña.</p>
+<div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
+<div role="tabpanel" id="panel-microoperaciones" data-catalogo="microoperaciones">
 <button type="button" class="btn primary" id="btnNueva">Subir instrucción nueva</button>
 <p class="limite">La subida se queda en este navegador, encima del índice publicado. No se envía a GitHub.</p>
 <p class="estado" id="catalogoEstado" role="status">Cargando el índice…</p>

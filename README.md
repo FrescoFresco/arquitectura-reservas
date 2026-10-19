@@ -9,7 +9,7 @@ Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualqui
 
 El sitio se sirve desde la rama `main`, carpeta raíz (`/`). Tras un push a `main`, Pages se actualiza solo (suele tardar uno o dos minutos).
 
-La página tiene dos lugares: el **mapa** de flujo y **Catálogos**. El primer catálogo es **Microoperaciones**. El índice compartido está en [`catalogo/microoperaciones/index.json`](./catalogo/microoperaciones/index.json). Si `instrucciones` está vacío, el catálogo se muestra vacío.
+El menú principal tiene dos destinos: **Mapa** y **Catálogos**. En pantalla estrecha esa barra queda fija abajo. Dentro de Catálogos, cada catálogo es una pestaña; la primera es **Microoperaciones**. El índice compartido está en [`catalogo/microoperaciones/index.json`](./catalogo/microoperaciones/index.json). Si `instrucciones` está vacío, el catálogo se muestra vacío.
 
 Cada instrucción del índice lleva `id`, `nombre` y `versiones`. Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`) y `ruta` de un `.md` relativo a la raíz del sitio:
 
