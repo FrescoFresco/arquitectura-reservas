@@ -1,0 +1,11 @@
+{
+  "id": "reglas",
+  "nombre": "Tabla de reglas",
+  "versiones": [
+    {
+      "numero": 1,
+      "fecha": "2026-10-19",
+      "ruta": "catalogo/tabla-activacion/reglas/v1.json"
+    }
+  ]
+}

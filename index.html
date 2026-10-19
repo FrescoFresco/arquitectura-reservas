@@ -122,6 +122,14 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .doc p code,.doc li code{background:#f3f6fc;padding:1px 5px;border-radius:5px}
 .doc a{color:#1c63d5}
 
+.tabla-wrap{overflow:auto;border:1px solid #e5eaf1;border-radius:14px;background:white}
+.tabla-wrap table{width:100%;border-collapse:collapse;font-size:14px}
+.tabla-wrap th,.tabla-wrap td{text-align:left;padding:10px 12px;border-bottom:1px solid #eef2f7;vertical-align:top}
+.tabla-wrap th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#677488;background:#f8fafc;white-space:nowrap}
+.tabla-wrap tr:last-child td{border-bottom:0}
+.tabla-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.dlg select{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;background:white;color:#17212f}
+
 </style>
 </head>
 <body>
@@ -144,7 +152,7 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <div class="mapa-bar">
 <p class="bloque-ver" id="mapaVersion" aria-live="polite"></p>
 <div class="mapa-acciones">
-<button type="button" class="btn version compact" id="btnEdicion" aria-expanded="false" aria-controls="edicion">Edición</button>
+<button type="button" class="icon-btn" id="btnEdicion" aria-label="Editar el diagrama" title="Editar el diagrama"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
 <div class="historial-ancla">
 <button type="button" class="icon-btn" id="btnHistMapa" aria-label="Historial de versiones del mapa" title="Historial de versiones" aria-expanded="false" aria-controls="mapaHistorial">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
@@ -156,13 +164,7 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 </div>
 </div>
 </div>
-<div class="edicion" id="edicion" hidden>
-<label>Fuente del diagrama
-<textarea id="mapaFuente" spellcheck="false" aria-label="Fuente del diagrama"></textarea>
-</label>
-<button type="button" class="btn version compact" id="btnPrevisualizar">Previsualizar</button>
-<p class="limite">La previsualización no publica una versión. Para publicarla, el contrato está en Documentación → API.</p>
-</div>
+<p class="origen" id="mapaOrigen" hidden></p>
 <div class="mermaid" id="flowMermaid"></div>
 <p class="mapstatus" id="mapStatus" role="status">Cargando diagrama…</p>
 </div>
@@ -171,7 +173,7 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <section class="main catalogos" id="catalogos" hidden aria-labelledby="catalogos-titulo">
 <div class="top"><span class="eyebrow">Catálogos</span></div>
 <h2 id="catalogos-titulo">Catálogos</h2>
-<p class="desc">Bloques es el primero. Cada catálogo ocupa una pestaña.</p>
+<p class="desc">Bloques y tabla-activación. Cada catálogo ocupa una pestaña.</p>
 <div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
 <div role="tabpanel" id="panel-microoperaciones" data-catalogo="microoperaciones">
 <button type="button" class="btn primary" id="btnNueva">Subir instrucción nueva</button>
@@ -199,6 +201,29 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <div class="md-wrap"><div class="md" id="md"></div></div>
 </article>
 </div>
+</div>
+<div role="tabpanel" id="panel-tabla-activacion" data-catalogo="tabla-activacion" hidden>
+<div class="catalogo-tabs" id="tablaTabs" role="tablist" aria-label="Tablas de tabla-activación"></div>
+<div class="mapa-bar">
+<p class="bloque-ver" id="tablaVersion" aria-live="polite"></p>
+<div class="tabla-acciones">
+<button type="button" class="btn version compact" id="btnColumna">Añadir columna</button>
+<button type="button" class="btn version compact" id="btnValor">Añadir valor</button>
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistTabla" aria-label="Historial de versiones de la tabla" title="Historial de versiones" aria-expanded="false" aria-controls="tablaHistorial">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="tablaHistorial" hidden role="dialog" aria-label="Versiones de la tabla">
+<p class="historial-titulo">Versiones</p>
+<ul id="tablaHistorialLista"></ul>
+</div>
+</div>
+</div>
+</div>
+<p class="origen" id="tablaOrigen" hidden></p>
+<p class="limite">Añadir columna y Añadir valor se quedan en este navegador, encima del JSON publicado. No se envían a GitHub y solo cambian esta tabla.</p>
+<p class="estado" id="tablaEstado" role="status">Cargando la tabla…</p>
+<div class="tabla-wrap" id="tablaActiva"><table id="tablaGrid"></table></div>
 </div>
 </section>
 <section class="main catalogos" id="documentacion" hidden aria-labelledby="documentacion-titulo">
@@ -265,7 +290,7 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 }</code></pre>
 <p>El id solo usa minúsculas, números y guiones: <code>^[a-z0-9][a-z0-9-]{0,60}$</code>.</p>
 <h3>Publicar una edición del mapa</h3>
-<p>El diagrama que se ve es la última versión de <code>mapa/index.json</code>, salvo que elijas otra en el historial. <strong>Edición</strong> en el mapa solo previsualiza: no crea una versión. Para publicarla se usa el mismo mecanismo. El contenido es el fuente Mermaid de ese diagrama.</p>
+<p>El lápiz abre un popup con el fuente de la versión que se está viendo. Cancelar cierra sin cambiar nada. Guardar crea la versión siguiente en este navegador y el mapa pasa a mostrarla. Para dejar esa versión en el repositorio, un agente usa el mismo mecanismo. El contenido es el fuente Mermaid de ese diagrama.</p>
 <p>La versión 1 ya está en <code>mapa/v1.mmd</code>. La siguiente es la 2.</p>
 <pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/mapa/v2.mmd</code></pre>
 <pre><code>{
@@ -275,13 +300,34 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 }</code></pre>
 <p>Después, GET y PUT de <code>mapa/index.json</code> con su <code>sha</code>, añadiendo la versión:</p>
 <pre><code>{ "numero": 2, "fecha": "2026-10-19", "ruta": "mapa/v2.mmd" }</code></pre>
+<h3>Publicar una versión de tabla-activación</h3>
+<p>El catálogo tabla-activación tiene dos tablas, cada una con su versión. <strong>Tabla de reglas</strong> vive en <code>catalogo/tabla-activacion/reglas/</code>. <strong>Tabla de pasos</strong> vive en <code>catalogo/tabla-activacion/pasos/</code>. Publicar una no toca el índice de la otra ni el de Bloques.</p>
+<p>El archivo de una versión es el JSON completo de esa tabla: <code>columnas</code> y <code>filas</code>. La versión 1 de reglas ya está en <code>catalogo/tabla-activacion/reglas/v1.json</code>. La siguiente es la 2.</p>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/tabla-activacion/reglas/v2.json</code></pre>
+<pre><code>{
+  "message": "Publica Tabla de reglas v2",
+  "content": "BASE64_DEL_JSON",
+  "branch": "main"
+}</code></pre>
+<p>El JSON que va en <code>content</code> tiene esta forma. Las filas tienen tantas celdas como columnas. No se añade otra tabla.</p>
+<pre><code>{
+  "columnas": ["Bloque", "Se activa por", "Qué entrega", "A quién"],
+  "filas": [
+    ["1-01", "la URL del negocio", "nombre, zona horaria y si es sector dedicado", "3-01, 2-02 y el código"]
+  ]
+}</code></pre>
+<p>Después, GET y PUT de <code>catalogo/tabla-activacion/reglas/index.json</code> con su <code>sha</code>. Se añade una entrada y no se reescribe el índice de pasos:</p>
+<pre><code>{ "numero": 2, "fecha": "2026-10-19", "ruta": "catalogo/tabla-activacion/reglas/v2.json" }</code></pre>
+<p>Para pasos, la ruta del archivo es <code>catalogo/tabla-activacion/pasos/v2.json</code> y el índice es <code>catalogo/tabla-activacion/pasos/index.json</code>. Sus columnas son Bloque, Se activa por y Lo usan.</p>
 <h3>Cliente de referencia</h3>
 <p><code>scripts/subir.js</code> hace esas dos escrituras. El token sale del entorno. <code>bloques</code> escribe en la carpeta de Bloques; no abre otro catálogo.</p>
 <pre><code>GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --nueva --nombre "Abrir ficha" --archivo ./nota.md
 GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --id abrir-ficha --archivo ./nota.pdf
-GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
+GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd
+GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla reglas --archivo ./reglas.json
+GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archivo ./pasos.json</code></pre>
 <p><code>--ensayo</code> muestra la ruta y el índice sin llamar a GitHub. <code>GITHUB_REPOSITORIO</code> (por defecto <code>FrescoFresco/arquitectura-reservas</code>) y <code>GITHUB_RAMA</code> (por defecto <code>main</code>) cambian el destino.</p>
-<p>La subida del navegador, <strong>Subir instrucción nueva</strong> y <strong>Subir versión</strong>, sigue en este navegador y no usa este contrato.</p>
+<p>La subida del navegador sigue en este navegador y no usa este contrato: <strong>Subir instrucción nueva</strong>, <strong>Subir versión</strong>, el lápiz del mapa y <strong>Añadir columna</strong> o <strong>Añadir valor</strong>.</p>
 </div>
 </section>
 </div>
@@ -326,6 +372,47 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
 </form>
 </dialog>
 
+<dialog id="dlgMapa" aria-labelledby="dlgMapaTitulo">
+<form class="dlg" id="formMapa">
+<h3 id="dlgMapaTitulo">Editar el diagrama</h3>
+<p class="destino" id="mapaEditVersion"></p>
+<p class="form-error" id="mapaError" role="alert"></p>
+<textarea id="mapaFuente" spellcheck="false" aria-label="Fuente del diagrama"></textarea>
+<p class="nota">Guardar crea la versión siguiente y el mapa pasa a mostrarla. Cancelar no cambia nada. En este navegador no se envía a GitHub.</p>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="mapaCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgColumna" aria-labelledby="dlgColumnaTitulo">
+<form class="dlg" id="formColumna">
+<h3 id="dlgColumnaTitulo">Añadir columna</h3>
+<p class="destino" id="columnaDestino"></p>
+<p class="nota">Crea la versión siguiente de esta tabla, en este navegador. No cambia la otra tabla ni se publica en GitHub.</p>
+<p class="form-error" id="columnaError" role="alert"></p>
+<label>Nombre de la columna
+<input type="text" name="nombre" maxlength="80" autocomplete="off" required>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="columnaCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir columna</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgValor" aria-labelledby="dlgValorTitulo">
+<form class="dlg" id="formValor">
+<h3 id="dlgValorTitulo">Añadir valor</h3>
+<p class="destino" id="valorDestino"></p>
+<p class="nota">Una fila nueva, o una celda si ya hay fila. Crea la versión siguiente de esta tabla, en este navegador.</p>
+<p class="form-error" id="valorError" role="alert"></p>
+<div id="valorCampos"></div>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="valorCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir valor</button>
+</div>
+</form>
+</dialog>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
 (function () {
@@ -362,6 +449,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
   abrir(desdeHash());
 })();
 </script>
-<script src="catalogo-ui.js?v=20261019c"></script>
+<script src="catalogo-ui.js?v=20261019d"></script>
+
 </body>
 </html>

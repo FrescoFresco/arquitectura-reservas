@@ -1,12 +1,19 @@
 'use strict';
 
 const CATALOGOS = [
-  { id: 'microoperaciones', nombre: 'Bloques' }
+  { id: 'microoperaciones', nombre: 'Bloques' },
+  { id: 'tabla-activacion', nombre: 'tabla-activación' }
+];
+const TABLAS = [
+  { id: 'reglas', nombre: 'Tabla de reglas' },
+  { id: 'pasos', nombre: 'Tabla de pasos' }
 ];
 const DOCUMENTOS = [
   { id: 'api', nombre: 'API' }
 ];
 const LS_KEY = 'arquitectura-reservas.catalogo.microoperaciones';
+const LS_TABLA = 'arquitectura-reservas.catalogo.tabla-activacion';
+const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const OJO_ABIERTO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 const OJO_CERRADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>';
@@ -14,6 +21,12 @@ const OJO_CERRADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 const state = {
   catalogoId: CATALOGOS[0].id,
   docId: DOCUMENTOS[0].id,
+  tablaId: TABLAS[0].id,
+  tablaHistorial: false,
+  tablas: {
+    reglas: { remotas: [], versiones: [], abiertaNumero: null, ready: false, error: false },
+    pasos: { remotas: [], versiones: [], abiertaNumero: null, ready: false, error: false }
+  },
   ready: false,
   indexError: false,
   remotas: [],
@@ -25,6 +38,7 @@ const state = {
   inflightRuta: null,
   pendingFocus: null,
   mapa: {
+    remotas: [],
     versiones: [],
     abiertaNumero: null,
     historial: false,
@@ -973,6 +987,49 @@ function normalizarMapa(data) {
   return versiones;
 }
 
+function leerMapaLocal() {
+  try {
+    const raw = localStorage.getItem(LS_MAPA);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    const list = data && Array.isArray(data.versiones) ? data.versiones : [];
+    return list.map(function (v) {
+      const numero = Number(v && v.numero);
+      const fecha = v && typeof v.fecha === 'string' ? v.fecha : '';
+      if (!Number.isInteger(numero) || numero < 1) return null;
+      if (!/^(\d{4})-(\d{2})-(\d{2})/.test(fecha)) return null;
+      if (typeof v.fuente !== 'string' || !v.fuente.trim()) return null;
+      return { numero: numero, fecha: fecha.slice(0, 10), fuente: v.fuente, origen: 'local' };
+    }).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+}
+
+function mergeMapa(remotas, locales) {
+  const map = new Map();
+  remotas.forEach(function (v) { map.set(v.numero, v); });
+  locales.forEach(function (v) { map.set(v.numero, v); });
+  return Array.from(map.values()).sort(function (a, b) { return a.numero - b.numero; });
+}
+
+function refrescarMapa() {
+  state.mapa.versiones = mergeMapa(state.mapa.remotas, leerMapaLocal());
+}
+
+function pintarOrigenMapa() {
+  const nodo = document.getElementById('mapaOrigen');
+  const v = versionMapaAbierta();
+  if (!nodo) return;
+  if (v && v.origen === 'local') {
+    nodo.hidden = false;
+    nodo.textContent = 'En este navegador. No está en GitHub.';
+  } else {
+    nodo.hidden = true;
+    nodo.textContent = '';
+  }
+}
+
 function elegirVersionMapa(numero) {
   const v = state.mapa.versiones.find(function (item) { return item.numero === numero; });
   if (!v) return;
@@ -980,6 +1037,12 @@ function elegirVersionMapa(numero) {
   state.mapa.preview = false;
   state.mapa.historial = false;
   pintarMapaChrome();
+  pintarOrigenMapa();
+  if (typeof v.fuente === 'string') {
+    state.mapa.fuente = v.fuente;
+    montarDiagrama(v.fuente);
+    return;
+  }
   const token = ++state.mapa.token;
   const status = document.getElementById('mapStatus');
   if (status) status.textContent = 'Cargando diagrama…';
@@ -997,10 +1060,9 @@ function elegirVersionMapa(numero) {
       if (token !== state.mapa.token) return;
       state.mapa.fuente = text;
       state.mapa.preview = false;
-      const ta = document.getElementById('mapaFuente');
-      if (ta) ta.value = text;
       montarDiagrama(text);
       pintarMapaChrome();
+      pintarOrigenMapa();
     })
     .catch(function () {
       if (token !== state.mapa.token) return;
@@ -1016,7 +1078,8 @@ function cargarMapa() {
       return res.json();
     })
     .then(function (data) {
-      state.mapa.versiones = normalizarMapa(data);
+      state.mapa.remotas = normalizarMapa(data);
+      refrescarMapa();
       if (!state.mapa.versiones.length) {
         if (status) status.textContent = 'No hay versiones del mapa.';
         pintarMapaChrome();
@@ -1030,31 +1093,62 @@ function cargarMapa() {
     });
 }
 
-function alternarEdicion() {
-  const box = document.getElementById('edicion');
-  const btn = document.getElementById('btnEdicion');
-  if (!box || !btn) return;
-  const abrir = box.hidden;
-  box.hidden = !abrir;
-  btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-  if (abrir) {
-    const ta = document.getElementById('mapaFuente');
-    if (ta && !state.mapa.preview) ta.value = state.mapa.fuente;
-    if (ta) ta.focus();
-  }
+function guardarVersionMapa(fuente) {
+  const store = { versiones: leerMapaLocal().map(function (v) {
+    return { numero: v.numero, fecha: v.fecha, fuente: v.fuente };
+  }) };
+  const creada = { numero: siguienteNumero(state.mapa.versiones), fecha: todayISO(), fuente: fuente };
+  store.versiones.push(creada);
+  const json = JSON.stringify(store);
+  if (json.length > 4500000) throw new Error('No cabe en el almacenamiento de este navegador.');
+  localStorage.setItem(LS_MAPA, json);
+  refrescarMapa();
+  return creada;
 }
 
-function previsualizarMapa() {
+function abrirEdicionMapa() {
+  const dlg = document.getElementById('dlgMapa');
   const ta = document.getElementById('mapaFuente');
-  const status = document.getElementById('mapStatus');
-  if (!ta) return;
-  if (!ta.value.trim()) {
-    if (status) status.textContent = 'El diagrama está vacío.';
+  const err = document.getElementById('mapaError');
+  if (!dlg || !ta) return;
+  if (!state.mapa.fuente) {
+    const status = document.getElementById('mapStatus');
+    if (status) status.textContent = 'El diagrama todavía no está cargado.';
     return;
   }
-  state.mapa.preview = true;
-  montarDiagrama(ta.value);
-  pintarMapaChrome();
+  ta.value = state.mapa.fuente;
+  if (err) err.textContent = '';
+  const label = document.getElementById('mapaEditVersion');
+  const v = versionMapaAbierta();
+  if (label) label.textContent = v ? formatVersion(v.numero, v.fecha) : '';
+  dlg.showModal();
+  ta.focus();
+}
+
+function onSubmitMapa(e) {
+  e.preventDefault();
+  const ta = document.getElementById('mapaFuente');
+  const err = document.getElementById('mapaError');
+  const submit = e.currentTarget.querySelector('[type="submit"]');
+  const texto = ta.value;
+  if (!texto.trim()) {
+    err.textContent = 'El diagrama está vacío.';
+    return;
+  }
+  if (texto.length > 400000) {
+    err.textContent = 'El diagrama es demasiado grande para este navegador.';
+    return;
+  }
+  submit.disabled = true;
+  try {
+    const creada = guardarVersionMapa(texto);
+    document.getElementById('dlgMapa').close();
+    elegirVersionMapa(creada.numero);
+  } catch (error) {
+    err.textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
 }
 
 function alternarHistMapa() {
@@ -1071,9 +1165,453 @@ function alternarHistMapa() {
   }
 }
 
+function clonarTabla(tabla) {
+  return {
+    columnas: tabla.columnas.slice(),
+    filas: tabla.filas.map(function (fila) { return fila.slice(); })
+  };
+}
+
+function aplicarColumna(tabla, nombre) {
+  const n = String(nombre || '').trim();
+  if (!n) throw new Error('Escribe el nombre de la columna.');
+  if (n.length > 80) throw new Error('El nombre de la columna es demasiado largo.');
+  if (tabla.columnas.some(function (c) { return c === n; })) throw new Error('Esa columna ya está.');
+  const siguiente = clonarTabla(tabla);
+  siguiente.columnas.push(n);
+  siguiente.filas = siguiente.filas.map(function (fila) {
+    const row = fila.slice();
+    while (row.length < siguiente.columnas.length - 1) row.push('');
+    row.push('');
+    return row;
+  });
+  return siguiente;
+}
+
+function aplicarValor(tabla, cambio) {
+  const siguiente = clonarTabla(tabla);
+  if (!cambio || cambio.tipo === 'fila') {
+    const celdas = ((cambio && cambio.celdas) || []).map(function (c) { return String(c == null ? '' : c); });
+    if (celdas.length !== siguiente.columnas.length) throw new Error('La fila no coincide con las columnas.');
+    if (!celdas.some(function (c) { return c.trim() !== ''; })) throw new Error('Escribe algún valor.');
+    siguiente.filas.push(celdas);
+    return siguiente;
+  }
+  if (cambio.tipo === 'celda') {
+    const fila = Number(cambio.fila);
+    const col = Number(cambio.columna);
+    if (!Number.isInteger(fila) || fila < 0 || fila >= siguiente.filas.length) throw new Error('Elige una fila.');
+    if (!Number.isInteger(col) || col < 0 || col >= siguiente.columnas.length) throw new Error('Elige una columna.');
+    const valor = String(cambio.valor == null ? '' : cambio.valor);
+    if (!valor.trim()) throw new Error('Escribe el valor.');
+    siguiente.filas[fila][col] = valor;
+    return siguiente;
+  }
+  throw new Error('Elige una fila nueva o una celda.');
+}
+
+function normalizarCuerpoTabla(data) {
+  if (!data || !Array.isArray(data.columnas) || !data.columnas.length) return null;
+  if (!data.columnas.every(function (c) { return typeof c === 'string' && c.trim() !== ''; })) return null;
+  if (!Array.isArray(data.filas)) return null;
+  const filas = [];
+  for (let i = 0; i < data.filas.length; i++) {
+    const fila = data.filas[i];
+    if (!Array.isArray(fila) || fila.length !== data.columnas.length) return null;
+    if (!fila.every(function (c) { return typeof c === 'string'; })) return null;
+    filas.push(fila.slice());
+  }
+  return { columnas: data.columnas.slice(), filas: filas };
+}
+
+function leerTablasStore() {
+  const vacio = { reglas: [], pasos: [] };
+  try {
+    const raw = localStorage.getItem(LS_TABLA);
+    if (!raw) return vacio;
+    const data = JSON.parse(raw);
+    TABLAS.forEach(function (tabla) {
+      const list = data && Array.isArray(data[tabla.id]) ? data[tabla.id] : [];
+      vacio[tabla.id] = list.map(function (v) {
+        const numero = Number(v && v.numero);
+        const fecha = v && typeof v.fecha === 'string' ? v.fecha : '';
+        const cuerpo = normalizarCuerpoTabla(v);
+        if (!Number.isInteger(numero) || numero < 1 || !/^(\d{4})-(\d{2})-(\d{2})/.test(fecha) || !cuerpo) return null;
+        return {
+          numero: numero,
+          fecha: fecha.slice(0, 10),
+          columnas: cuerpo.columnas,
+          filas: cuerpo.filas,
+          origen: 'local'
+        };
+      }).filter(Boolean);
+    });
+    return vacio;
+  } catch (e) {
+    return { reglas: [], pasos: [] };
+  }
+}
+
+function guardarTablasStore(store) {
+  const json = JSON.stringify(store);
+  if (json.length > 4500000) throw new Error('No cabe en el almacenamiento de este navegador.');
+  localStorage.setItem(LS_TABLA, json);
+}
+
+function mergeTablas(remotas, locales) {
+  const map = new Map();
+  remotas.forEach(function (v) { map.set(v.numero, v); });
+  locales.forEach(function (v) { map.set(v.numero, v); });
+  return Array.from(map.values()).sort(function (a, b) { return a.numero - b.numero; });
+}
+
+function refrescarTabla(id) {
+  const bolsa = state.tablas[id];
+  const locales = leerTablasStore()[id] || [];
+  bolsa.versiones = mergeTablas(bolsa.remotas, locales);
+}
+
+function versionTablaAbierta() {
+  const bolsa = state.tablas[state.tablaId];
+  return bolsa.versiones.find(function (v) { return v.numero === bolsa.abiertaNumero; }) || null;
+}
+
+const tablaCache = new Map();
+
+function cuerpoDeVersion(v) {
+  if (v && v.columnas) return Promise.resolve({ columnas: v.columnas, filas: v.filas });
+  if (tablaCache.has(v.ruta)) return Promise.resolve(tablaCache.get(v.ruta));
+  return fetch(hrefRuta(v.ruta), { cache: 'no-store' }).then(function (res) {
+    if (!res.ok) throw new Error('http');
+    return res.json();
+  }).then(function (data) {
+    const cuerpo = normalizarCuerpoTabla(data);
+    if (!cuerpo) throw new Error('tabla');
+    tablaCache.set(v.ruta, cuerpo);
+    return cuerpo;
+  });
+}
+
+function renderTablaPestanas() {
+  const lista = document.getElementById('tablaTabs');
+  if (!lista) return;
+  lista.replaceChildren();
+  TABLAS.forEach(function (tabla) {
+    const btn = el('button', 'pestana', tabla.nombre);
+    btn.type = 'button';
+    btn.id = 'tab-' + tabla.id;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-controls', 'tablaActiva');
+    btn.dataset.tabla = tabla.id;
+    const on = tabla.id === state.tablaId;
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    btn.tabIndex = on ? 0 : -1;
+    lista.append(btn);
+  });
+}
+
+function pintarTabla(cuerpo) {
+  const grid = document.getElementById('tablaGrid');
+  if (!grid) return;
+  grid.replaceChildren();
+  const thead = document.createElement('thead');
+  const hr = document.createElement('tr');
+  cuerpo.columnas.forEach(function (col) { hr.append(el('th', null, col)); });
+  thead.append(hr);
+  const tbody = document.createElement('tbody');
+  cuerpo.filas.forEach(function (fila) {
+    const tr = document.createElement('tr');
+    fila.forEach(function (celda) { tr.append(el('td', null, celda)); });
+    tbody.append(tr);
+  });
+  grid.append(thead, tbody);
+}
+
+function pintarHistTabla() {
+  const pop = document.getElementById('tablaHistorial');
+  const lista = document.getElementById('tablaHistorialLista');
+  const btn = document.getElementById('btnHistTabla');
+  const bolsa = state.tablas[state.tablaId];
+  if (!pop || !lista || !btn || !bolsa) return;
+  pop.hidden = !state.tablaHistorial;
+  btn.setAttribute('aria-expanded', state.tablaHistorial ? 'true' : 'false');
+  lista.replaceChildren();
+  const orden = bolsa.versiones.slice().sort(function (a, b) { return b.numero - a.numero; });
+  orden.forEach(function (item) {
+    const li = document.createElement('li');
+    const b = el('button', null, '');
+    b.type = 'button';
+    b.dataset.tablaVersion = String(item.numero);
+    const marca = item.numero === bolsa.abiertaNumero;
+    if (marca) b.setAttribute('aria-current', 'true');
+    b.append(el('span', null, formatVersion(item.numero, item.fecha)));
+    if (marca) b.append(el('span', 'marca', 'Abierta'));
+    li.append(b);
+    lista.append(li);
+  });
+}
+
+function renderTablaEstado(texto) {
+  const nodo = document.getElementById('tablaEstado');
+  if (!nodo) return;
+  nodo.textContent = texto || '';
+  nodo.hidden = !texto;
+}
+
+function mostrarTablaAbierta() {
+  const bolsa = state.tablas[state.tablaId];
+  const label = document.getElementById('tablaVersion');
+  const origen = document.getElementById('tablaOrigen');
+  const v = versionTablaAbierta();
+  if (label) label.textContent = v ? formatVersion(v.numero, v.fecha) : '';
+  if (origen) {
+    origen.hidden = !(v && v.origen === 'local');
+    origen.textContent = v && v.origen === 'local' ? 'En este navegador. No está en GitHub.' : '';
+  }
+  pintarHistTabla();
+  if (!bolsa.ready) {
+    renderTablaEstado('Cargando la tabla…');
+    return;
+  }
+  if (bolsa.error && !bolsa.versiones.length) {
+    renderTablaEstado('No se pudo leer el índice de esta tabla.');
+    const grid = document.getElementById('tablaGrid');
+    if (grid) grid.replaceChildren();
+    return;
+  }
+  if (!v) {
+    renderTablaEstado('No hay versiones.');
+    return;
+  }
+  renderTablaEstado('');
+  cuerpoDeVersion(v).then(function (cuerpo) {
+    if (versionTablaAbierta() !== v) return;
+    pintarTabla(cuerpo);
+  }).catch(function () {
+    if (versionTablaAbierta() !== v) return;
+    renderTablaEstado('No se pudo leer esta versión.');
+  });
+}
+
+function elegirVersionTabla(numero) {
+  const bolsa = state.tablas[state.tablaId];
+  if (!bolsa.versiones.some(function (v) { return v.numero === numero; })) return;
+  bolsa.abiertaNumero = numero;
+  state.tablaHistorial = false;
+  mostrarTablaAbierta();
+}
+
+function seleccionarTabla(id) {
+  if (!TABLAS.some(function (t) { return t.id === id; })) return;
+  state.tablaId = id;
+  state.tablaHistorial = false;
+  renderTablaPestanas();
+  mostrarTablaAbierta();
+  const tab = document.getElementById('tab-' + id);
+  if (tab) tab.focus();
+}
+
+function publicarTablaLocal(id, cuerpo) {
+  const store = leerTablasStore();
+  const bolsa = state.tablas[id];
+  const creada = {
+    numero: siguienteNumero(bolsa.versiones),
+    fecha: todayISO(),
+    columnas: cuerpo.columnas,
+    filas: cuerpo.filas
+  };
+  store[id].push(creada);
+  guardarTablasStore(store);
+  refrescarTabla(id);
+  bolsa.abiertaNumero = creada.numero;
+  state.tablaHistorial = false;
+  mostrarTablaAbierta();
+  return creada;
+}
+
+function abrirDialogoColumna() {
+  const dlg = document.getElementById('dlgColumna');
+  const form = document.getElementById('formColumna');
+  form.reset();
+  document.getElementById('columnaError').textContent = '';
+  const nombre = TABLAS.find(function (t) { return t.id === state.tablaId; });
+  document.getElementById('columnaDestino').textContent = nombre ? nombre.nombre : '';
+  dlg.showModal();
+  form.nombre.focus();
+}
+
+function camposDeValor(cuerpo) {
+  const box = document.getElementById('valorCampos');
+  box.replaceChildren();
+  const modo = document.createElement('select');
+  modo.id = 'valorModo';
+  const labelModo = el('label', null, 'Dónde');
+  modo.replaceChildren();
+  const optNueva = el('option', null, 'Fila nueva');
+  optNueva.value = 'nueva';
+  modo.append(optNueva);
+  cuerpo.filas.forEach(function (fila, i) {
+    const opt = el('option', null, 'Fila ' + (i + 1) + (fila[0] ? ' · ' + fila[0] : ''));
+    opt.value = String(i);
+    modo.append(opt);
+  });
+  if (!cuerpo.filas.length) modo.disabled = true;
+  labelModo.append(modo);
+  const dinamico = el('div', null, null);
+  dinamico.id = 'valorDinamico';
+  box.append(labelModo, dinamico);
+  function pintar() {
+    dinamico.replaceChildren();
+    if (modo.value === 'nueva') {
+      cuerpo.columnas.forEach(function (col, i) {
+        const label = el('label', null, col);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = 'celda-' + i;
+        input.autocomplete = 'off';
+        label.append(input);
+        dinamico.append(label);
+      });
+      return;
+    }
+    const labelCol = el('label', null, 'Columna');
+    const sel = document.createElement('select');
+    sel.name = 'columna';
+    cuerpo.columnas.forEach(function (col, i) {
+      const opt = el('option', null, col);
+      opt.value = String(i);
+      sel.append(opt);
+    });
+    labelCol.append(sel);
+    const labelVal = el('label', null, 'Valor');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.name = 'valor';
+    input.autocomplete = 'off';
+    labelVal.append(input);
+    dinamico.append(labelCol, labelVal);
+  }
+  modo.onchange = pintar;
+  pintar();
+}
+
+function abrirDialogoValor() {
+  const v = versionTablaAbierta();
+  const err = document.getElementById('valorError');
+  err.textContent = '';
+  if (!v) {
+    err.textContent = 'No hay una versión abierta.';
+    return;
+  }
+  cuerpoDeVersion(v).then(function (cuerpo) {
+    if (versionTablaAbierta() !== v) return;
+    const dlg = document.getElementById('dlgValor');
+    const form = document.getElementById('formValor');
+    form.dataset.base = JSON.stringify(cuerpo);
+    const nombre = TABLAS.find(function (t) { return t.id === state.tablaId; });
+    document.getElementById('valorDestino').textContent = nombre ? nombre.nombre : '';
+    camposDeValor(cuerpo);
+    dlg.showModal();
+  }).catch(function () {
+    err.textContent = 'No se pudo leer esta versión.';
+  });
+}
+
+function onSubmitColumna(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const err = document.getElementById('columnaError');
+  const submit = form.querySelector('[type="submit"]');
+  err.textContent = '';
+  const v = versionTablaAbierta();
+  const id = state.tablaId;
+  if (!v) {
+    err.textContent = 'No hay una versión abierta.';
+    return;
+  }
+  submit.disabled = true;
+  cuerpoDeVersion(v).then(function (cuerpo) {
+    const siguiente = aplicarColumna(cuerpo, form.nombre.value);
+    publicarTablaLocal(id, siguiente);
+    document.getElementById('dlgColumna').close();
+  }).catch(function (error) {
+    err.textContent = error.message;
+  }).then(function () {
+    submit.disabled = false;
+  });
+}
+
+function onSubmitValor(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const err = document.getElementById('valorError');
+  const submit = form.querySelector('[type="submit"]');
+  err.textContent = '';
+  let cuerpo;
+  try { cuerpo = JSON.parse(form.dataset.base || ''); } catch (error) {
+    err.textContent = 'No se pudo leer esta versión.';
+    return;
+  }
+  const modo = document.getElementById('valorModo').value;
+  let cambio;
+  if (modo === 'nueva') {
+    cambio = {
+      tipo: 'fila',
+      celdas: cuerpo.columnas.map(function (_col, i) { return form.elements['celda-' + i].value; })
+    };
+  } else {
+    cambio = {
+      tipo: 'celda',
+      fila: Number(modo),
+      columna: Number(form.elements.columna.value),
+      valor: form.elements.valor.value
+    };
+  }
+  submit.disabled = true;
+  try {
+    const siguiente = aplicarValor(cuerpo, cambio);
+    publicarTablaLocal(state.tablaId, siguiente);
+    document.getElementById('dlgValor').close();
+  } catch (error) {
+    err.textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function cargarTablas() {
+  TABLAS.forEach(function (tabla) {
+    fetch('catalogo/tabla-activacion/' + tabla.id + '/index.json', { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('http');
+        return res.json();
+      })
+      .then(function (data) {
+        const bolsa = state.tablas[tabla.id];
+        bolsa.remotas = normalizarMapa(data);
+        bolsa.error = false;
+      })
+      .catch(function () {
+        const bolsa = state.tablas[tabla.id];
+        bolsa.remotas = [];
+        bolsa.error = true;
+      })
+      .then(function () {
+        const bolsa = state.tablas[tabla.id];
+        bolsa.ready = true;
+        refrescarTabla(tabla.id);
+        if (!bolsa.abiertaNumero && bolsa.versiones.length) {
+          bolsa.abiertaNumero = bolsa.versiones[bolsa.versiones.length - 1].numero;
+        }
+        if (state.tablaId === tabla.id) mostrarTablaAbierta();
+      });
+  });
+}
+
 function iniciar() {
   renderPestanasCatalogo();
   renderDocPestanas();
+  renderTablaPestanas();
   const tabs = document.getElementById('catalogoTabs');
   if (tabs) {
     tabs.addEventListener('click', function (e) {
@@ -1115,9 +1653,58 @@ function iniciar() {
   document.getElementById('btnHistorial').addEventListener('click', alternarHistorial);
   document.getElementById('historialLista').addEventListener('click', onClickHistorial);
   const btnEdicion = document.getElementById('btnEdicion');
-  if (btnEdicion) btnEdicion.addEventListener('click', alternarEdicion);
-  const btnPrev = document.getElementById('btnPrevisualizar');
-  if (btnPrev) btnPrev.addEventListener('click', previsualizarMapa);
+  if (btnEdicion) btnEdicion.addEventListener('click', abrirEdicionMapa);
+  const formMapa = document.getElementById('formMapa');
+  if (formMapa) formMapa.addEventListener('submit', onSubmitMapa);
+  const mapaCancelar = document.getElementById('mapaCancelar');
+  if (mapaCancelar) mapaCancelar.addEventListener('click', function () {
+    document.getElementById('dlgMapa').close();
+  });
+  const tablaTabs = document.getElementById('tablaTabs');
+  if (tablaTabs) {
+    tablaTabs.addEventListener('click', function (e) {
+      const tab = e.target.closest('[data-tabla]');
+      if (!tab) return;
+      seleccionarTabla(tab.dataset.tabla);
+    });
+    tablaTabs.addEventListener('keydown', function (e) {
+      teclasPestana(e, '#tablaTabs [role="tab"]', 'tabla', seleccionarTabla);
+    });
+  }
+  const btnColumna = document.getElementById('btnColumna');
+  if (btnColumna) btnColumna.addEventListener('click', abrirDialogoColumna);
+  const btnValor = document.getElementById('btnValor');
+  if (btnValor) btnValor.addEventListener('click', abrirDialogoValor);
+  const columnaCancelar = document.getElementById('columnaCancelar');
+  if (columnaCancelar) columnaCancelar.addEventListener('click', function () {
+    document.getElementById('dlgColumna').close();
+  });
+  const valorCancelar = document.getElementById('valorCancelar');
+  if (valorCancelar) valorCancelar.addEventListener('click', function () {
+    document.getElementById('dlgValor').close();
+  });
+  const formColumna = document.getElementById('formColumna');
+  if (formColumna) formColumna.addEventListener('submit', onSubmitColumna);
+  const formValor = document.getElementById('formValor');
+  if (formValor) formValor.addEventListener('submit', onSubmitValor);
+  const btnHistTabla = document.getElementById('btnHistTabla');
+  if (btnHistTabla) btnHistTabla.addEventListener('click', function () {
+    const bolsa = state.tablas[state.tablaId];
+    if (!bolsa || !bolsa.versiones.length) return;
+    state.tablaHistorial = !state.tablaHistorial;
+    const venia = document.activeElement && document.activeElement.id === 'btnHistTabla';
+    pintarHistTabla();
+    if (state.tablaHistorial) {
+      const current = document.querySelector('#tablaHistorialLista [aria-current="true"]');
+      if (current) current.focus();
+    } else if (venia && btnHistTabla) btnHistTabla.focus();
+  });
+  const listaTabla = document.getElementById('tablaHistorialLista');
+  if (listaTabla) listaTabla.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-tabla-version]');
+    if (!btn) return;
+    elegirVersionTabla(Number(btn.dataset.tablaVersion));
+  });
   const btnHistMapa = document.getElementById('btnHistMapa');
   if (btnHistMapa) btnHistMapa.addEventListener('click', alternarHistMapa);
   const listaMapa = document.getElementById('mapaHistorialLista');
@@ -1131,6 +1718,10 @@ function iniciar() {
     if (state.mapa.historial && !e.target.closest('#mapaHistorial') && !e.target.closest('#btnHistMapa')) {
       state.mapa.historial = false;
       pintarMapaChrome();
+    }
+    if (state.tablaHistorial && !e.target.closest('#tablaHistorial') && !e.target.closest('#btnHistTabla')) {
+      state.tablaHistorial = false;
+      pintarHistTabla();
     }
   });
   document.addEventListener('keydown', function (e) {
@@ -1148,6 +1739,14 @@ function iniciar() {
       state.mapa.historial = false;
       pintarMapaChrome();
       const boton = document.getElementById('btnHistMapa');
+      if (boton) boton.focus();
+      return;
+    }
+    if (state.tablaHistorial) {
+      e.preventDefault();
+      state.tablaHistorial = false;
+      pintarHistTabla();
+      const boton = document.getElementById('btnHistTabla');
       if (boton) boton.focus();
     }
   });
@@ -1170,11 +1769,16 @@ function iniciar() {
       render();
     });
   cargarMapa();
+  cargarTablas();
 }
 
 const api = {
   CATALOGOS: CATALOGOS,
+  TABLAS: TABLAS,
   DOCUMENTOS: DOCUMENTOS,
+  aplicarColumna: aplicarColumna,
+  aplicarValor: aplicarValor,
+  normalizarCuerpoTabla: normalizarCuerpoTabla,
   formatVersion: formatVersion,
   todayISO: todayISO,
   siguienteNumero: siguienteNumero,
