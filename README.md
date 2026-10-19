@@ -9,9 +9,23 @@ Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualqui
 
 El sitio se sirve desde la rama `main`, carpeta raíz (`/`). Tras un push a `main`, Pages se actualiza solo (suele tardar uno o dos minutos).
 
-El menú principal tiene dos destinos: **Mapa** y **Catálogos**. En pantalla estrecha esa barra queda fija abajo. Dentro de Catálogos, cada catálogo es una pestaña; la primera es **Microoperaciones**. El índice compartido está en [`catalogo/microoperaciones/index.json`](./catalogo/microoperaciones/index.json). Si `instrucciones` está vacío, el catálogo se muestra vacío.
+El menú principal tiene tres destinos: **Mapa**, **Catálogos** y **Documentación**. En pantalla estrecha esa barra queda fija abajo. Dentro de Catálogos hay una pestaña, **Bloques** (el id interno y la carpeta siguen siendo `microoperaciones`). Dentro de Documentación hay una pestaña, **API**.
 
-Cada instrucción del índice lleva `id`, `nombre` y `versiones`. Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`) y `ruta` de un `.md` relativo a la raíz del sitio:
+El índice de Bloques está en [`catalogo/microoperaciones/index.json`](./catalogo/microoperaciones/index.json). Si `instrucciones` está vacío, el catálogo se muestra vacío. Cada bloque lleva `id`, `nombre` y `versiones`. Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga.
+
+El mapa también está versionado en [`mapa/index.json`](./mapa/index.json). La versión 1 es el diagrama actual, [`mapa/v1.mmd`](./mapa/v1.mmd). En la página, **Edición** solo previsualiza.
+
+Para publicar un bloque o una versión del mapa, un agente usa la API de contenidos de GitHub (el token no está en la página). El contrato está en Documentación → API. El cliente de referencia es [`scripts/subir.js`](./scripts/subir.js):
+
+```bash
+GITHUB_TOKEN=… node scripts/subir.js bloques --nueva --nombre "Abrir ficha" --archivo ./nota.md
+GITHUB_TOKEN=… node scripts/subir.js bloques --id abrir-ficha --archivo ./nota.pdf
+GITHUB_TOKEN=… node scripts/subir.js mapa --archivo ./flujo.mmd
+```
+
+`--ensayo` no llama a GitHub. En el navegador, **Subir instrucción nueva** y **Subir versión** siguen guardándose solo en ese navegador.
+
+Ejemplo de bloque en el índice:
 
 ```json
 {
@@ -23,7 +37,7 @@ Cada instrucción del índice lleva `id`, `nombre` y `versiones`. Cada versión 
 }
 ```
 
-**Subir instrucción nueva** crea otra instrucción. **Subir versión** añade una versión a esa instrucción. Las dos guardan el markdown en el `localStorage` de ese navegador, encima del índice. No hacen commit ni actualizan GitHub.
+**Subir instrucción nueva** crea otro bloque. **Subir versión** añade una versión a ese bloque. Las dos guardan el archivo en el `localStorage` de ese navegador, encima del índice. No hacen commit ni actualizan GitHub.
 
 ## Cómo editar
 

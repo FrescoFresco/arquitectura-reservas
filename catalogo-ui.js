@@ -1,13 +1,19 @@
 'use strict';
 
 const CATALOGOS = [
-  { id: 'microoperaciones', nombre: 'Microoperaciones' }
+  { id: 'microoperaciones', nombre: 'Bloques' }
+];
+const DOCUMENTOS = [
+  { id: 'api', nombre: 'API' }
 ];
 const LS_KEY = 'arquitectura-reservas.catalogo.microoperaciones';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const OJO_ABIERTO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const OJO_CERRADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>';
 
 const state = {
   catalogoId: CATALOGOS[0].id,
+  docId: DOCUMENTOS[0].id,
   ready: false,
   indexError: false,
   remotas: [],
@@ -17,7 +23,17 @@ const state = {
   historial: false,
   fetchToken: 0,
   inflightRuta: null,
-  pendingFocus: null
+  pendingFocus: null,
+  mapa: {
+    versiones: [],
+    abiertaNumero: null,
+    historial: false,
+    fuente: '',
+    preview: false,
+    token: 0,
+    dibujo: 0,
+    mermaidListo: false
+  }
 };
 
 const mdCache = new Map();
@@ -65,6 +81,23 @@ function hrefRuta(ruta) {
   return ruta.split('/').map(encodeURIComponent).join('/');
 }
 
+function esMarkdownNombre(nombre) {
+  const n = String(nombre || '').toLowerCase().split('?')[0].split('#')[0];
+  return n.endsWith('.md') || n.endsWith('.markdown') || n.endsWith('.txt');
+}
+
+function nombreArchivoDe(v) {
+  if (!v || typeof v.nombreArchivo !== 'string') return '';
+  const base = v.nombreArchivo.trim().split('/').pop().split('\\').pop();
+  if (!base || base.length > 180 || base.indexOf('..') !== -1) return '';
+  return base;
+}
+
+function nombreSeguro(nombre) {
+  const base = String(nombre || 'archivo').split('/').pop().split('\\').pop().replace(/["<>]/g, '');
+  return base || 'archivo';
+}
+
 function versionesUnicas(list) {
   const map = new Map();
   list.forEach(function (v) {
@@ -80,12 +113,15 @@ function normalizeVersionIndice(v) {
   const fecha = typeof v.fecha === 'string' ? v.fecha : '';
   if (!/^(\d{4})-(\d{2})-(\d{2})/.test(fecha)) return null;
   if (!rutaValida(v.ruta)) return null;
-  return {
+  const out = {
     numero: numero,
     fecha: fecha.slice(0, 10),
     ruta: String(v.ruta).trim(),
     origen: 'indice'
   };
+  const nombre = nombreArchivoDe(v);
+  if (nombre) out.nombreArchivo = nombre;
+  return out;
 }
 
 function normalizeVersionLocal(v) {
@@ -94,13 +130,19 @@ function normalizeVersionLocal(v) {
   if (!Number.isInteger(numero) || numero < 1) return null;
   const fecha = typeof v.fecha === 'string' ? v.fecha : '';
   if (!/^(\d{4})-(\d{2})-(\d{2})/.test(fecha)) return null;
-  if (typeof v.markdown !== 'string') return null;
-  return {
+  const tieneMd = typeof v.markdown === 'string';
+  const tieneDatos = typeof v.datos === 'string' && v.datos.indexOf('data:') === 0;
+  if (!tieneMd && !tieneDatos) return null;
+  const out = {
     numero: numero,
     fecha: fecha.slice(0, 10),
-    markdown: v.markdown,
     origen: 'local'
   };
+  if (tieneMd) out.markdown = v.markdown;
+  if (tieneDatos) out.datos = v.datos;
+  const nombre = nombreArchivoDe(v);
+  if (nombre) out.nombreArchivo = nombre;
+  return out;
 }
 
 function normalizeInstruccion(item, versionFn) {
@@ -145,6 +187,15 @@ function normalizeLocales(list) {
   return out;
 }
 
+function copiaVersion(v) {
+  const o = { numero: v.numero, fecha: v.fecha, origen: v.origen };
+  if (v.ruta) o.ruta = v.ruta;
+  if (typeof v.markdown === 'string') o.markdown = v.markdown;
+  if (v.datos) o.datos = v.datos;
+  if (v.nombreArchivo) o.nombreArchivo = v.nombreArchivo;
+  return o;
+}
+
 function mergeInstrucciones(remotas, locales) {
   const map = new Map();
   remotas.forEach(function (ins) {
@@ -152,14 +203,7 @@ function mergeInstrucciones(remotas, locales) {
       id: ins.id,
       nombre: ins.nombre,
       origen: 'indice',
-      versiones: ins.versiones.map(function (v) {
-        return {
-          numero: v.numero,
-          fecha: v.fecha,
-          ruta: v.ruta,
-          origen: 'indice'
-        };
-      })
+      versiones: ins.versiones.map(copiaVersion)
     });
   });
   locales.forEach(function (ins) {
@@ -169,25 +213,13 @@ function mergeInstrucciones(remotas, locales) {
         id: ins.id,
         nombre: ins.nombre,
         origen: 'local',
-        versiones: ins.versiones.map(function (v) {
-          return {
-            numero: v.numero,
-            fecha: v.fecha,
-            markdown: v.markdown,
-            origen: 'local'
-          };
-        })
+        versiones: ins.versiones.map(copiaVersion)
       });
       return;
     }
     const byNum = new Map(prev.versiones.map(function (v) { return [v.numero, v]; }));
     ins.versiones.forEach(function (v) {
-      byNum.set(v.numero, {
-        numero: v.numero,
-        fecha: v.fecha,
-        markdown: v.markdown,
-        origen: 'local'
-      });
+      byNum.set(v.numero, copiaVersion(v));
     });
     prev.versiones = Array.from(byNum.values()).sort(function (a, b) { return a.numero - b.numero; });
   });
@@ -347,45 +379,105 @@ function el(tag, className, text) {
 
 function renderEstado() {
   const nodo = document.getElementById('catalogoEstado');
+  if (!nodo) return;
   const partes = [];
   if (!state.ready) partes.push('Cargando el índice…');
   else if (state.indexError) partes.push('No se pudo leer el índice compartido.');
-  if (state.ready && state.instrucciones.length === 0) partes.push('No hay instrucciones.');
+  if (state.ready && state.instrucciones.length === 0) partes.push('No hay bloques.');
   nodo.textContent = partes.join(' ');
   nodo.hidden = partes.length === 0;
 }
 
 function bloqueDe(ins) {
   const actual = versionActual(ins);
-  const li = el('li', 'bloque' + (ins.id === state.abiertaId ? ' is-open' : ''));
-  if (ins.id === state.abiertaId) li.setAttribute('aria-current', 'true');
-  li.append(el('h4', 'bloque-nombre', ins.nombre));
-  li.append(el('p', 'bloque-ver', formatVersion(actual.numero, actual.fecha)));
-  const ver = el('button', 'btn ver', 'Ver');
-  ver.type = 'button';
-  ver.dataset.accion = 'ver';
-  ver.dataset.id = ins.id;
+  const abierto = ins.id === state.abiertaId;
+  const li = el('li', 'bloque' + (abierto ? ' is-open' : ''));
+  if (abierto) li.setAttribute('aria-current', 'true');
+  const ojo = el('span', 'ojo');
+  ojo.setAttribute('aria-hidden', 'true');
+  ojo.innerHTML = abierto ? OJO_ABIERTO : OJO_CERRADO;
+  const abrir = el('button', 'bloque-abrir');
+  abrir.type = 'button';
+  abrir.dataset.accion = 'abrir';
+  abrir.dataset.id = ins.id;
+  abrir.append(el('h4', 'bloque-nombre', ins.nombre));
+  abrir.append(el('p', 'bloque-ver', formatVersion(actual.numero, actual.fecha)));
+  if (actual.origen === 'local') abrir.append(el('p', 'en-navegador', 'En este navegador'));
   const subir = el('button', 'btn version', 'Subir versión');
   subir.type = 'button';
   subir.dataset.accion = 'subir-version';
   subir.dataset.id = ins.id;
-  li.append(ver, subir);
-  if (actual.origen === 'local') li.append(el('p', 'en-navegador', 'En este navegador'));
+  li.append(ojo, abrir, subir);
   return li;
 }
 
 function renderBloques() {
   const ul = document.getElementById('bloques');
+  if (!ul) return;
   ul.replaceChildren.apply(ul, state.instrucciones.map(bloqueDe));
 }
 
-function pintarMarkdown(v) {
+function esMarkdownVersion(v) {
+  if (typeof v.markdown === 'string') return true;
+  if (v.datos && esMarkdownNombre(v.nombreArchivo || '')) return true;
+  if (v.ruta && esMarkdownNombre(v.ruta)) return true;
+  return false;
+}
+
+function textoDeDatos(datos) {
+  const coma = String(datos).indexOf(',');
+  if (coma < 0) return '';
+  const meta = datos.slice(0, coma);
+  const payload = datos.slice(coma + 1);
+  if (/;base64/i.test(meta)) {
+    const bin = atob(payload);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+  try { return decodeURIComponent(payload); } catch (e) { return payload; }
+}
+
+function pintarDescarga(nombre, href) {
+  const md = document.getElementById('md');
+  if (!md) return;
+  const seguro = nombreSeguro(nombre);
+  md.innerHTML = '<p><a download="' + escapeHtml(seguro) + '" href="' + escapeHtml(href) + '">Descargar ' + escapeHtml(seguro) + '</a></p>'
+    + '<p class="vacio-md">Este archivo no es markdown. Se descarga.</p>';
+}
+
+function pintarVersion(v) {
   const md = document.getElementById('md');
   if (!md) return;
   if (typeof v.markdown === 'string') {
     state.inflightRuta = null;
     state.fetchToken += 1;
     md.innerHTML = htmlDeMarkdown(v.markdown);
+    return;
+  }
+  if (v.datos) {
+    state.inflightRuta = null;
+    state.fetchToken += 1;
+    if (esMarkdownNombre(v.nombreArchivo || '')) {
+      try {
+        md.innerHTML = htmlDeMarkdown(textoDeDatos(v.datos));
+      } catch (e) {
+        pintarDescarga(v.nombreArchivo || 'archivo', v.datos);
+      }
+      return;
+    }
+    pintarDescarga(v.nombreArchivo || 'archivo', v.datos);
+    return;
+  }
+  if (!esMarkdownVersion(v)) {
+    state.inflightRuta = null;
+    state.fetchToken += 1;
+    let href = '';
+    try { href = hrefRuta(v.ruta); } catch (e) {
+      md.textContent = 'No se pudo preparar la descarga de esta versión.';
+      return;
+    }
+    pintarDescarga(v.nombreArchivo || v.ruta.split('/').pop(), href);
     return;
   }
   if (mdCache.has(v.ruta)) {
@@ -436,6 +528,7 @@ function renderHistorial(ins, abierta) {
   const pop = document.getElementById('historial');
   const lista = document.getElementById('historialLista');
   const btn = document.getElementById('btnHistorial');
+  if (!pop || !lista || !btn) return;
   pop.hidden = !state.historial;
   btn.setAttribute('aria-expanded', state.historial ? 'true' : 'false');
   lista.replaceChildren();
@@ -447,8 +540,7 @@ function renderHistorial(ins, abierta) {
     b.dataset.numero = String(v.numero);
     const marca = v.numero === abierta.numero;
     if (marca) b.setAttribute('aria-current', 'true');
-    const etiqueta = el('span', null, formatVersion(v.numero, v.fecha));
-    b.append(etiqueta);
+    b.append(el('span', null, formatVersion(v.numero, v.fecha)));
     if (marca) b.append(el('span', 'marca', 'Abierta'));
     li.append(b);
     lista.append(li);
@@ -458,6 +550,7 @@ function renderHistorial(ins, abierta) {
 function renderReader() {
   const split = document.getElementById('catalogoSplit');
   const reader = document.getElementById('reader');
+  if (!split || !reader) return;
   const ins = instruccionAbierta();
   if (!ins) {
     state.abiertaId = null;
@@ -482,7 +575,7 @@ function renderReader() {
     origen.textContent = '';
   }
   renderHistorial(ins, v);
-  pintarMarkdown(v);
+  pintarVersion(v);
 }
 
 function render() {
@@ -495,7 +588,7 @@ function render() {
   if (state.pendingFocus) {
     const id = state.pendingFocus;
     state.pendingFocus = null;
-    const btn = document.querySelector('#bloques [data-accion="ver"][data-id="' + CSS.escape(id) + '"]');
+    const btn = document.querySelector('#bloques [data-accion="abrir"][data-id="' + CSS.escape(id) + '"]');
     if (btn) btn.focus();
   } else if (state.historial && focoEnHistorial) {
     const current = document.querySelector('#historialLista [aria-current="true"]');
@@ -529,14 +622,8 @@ function abrirDialogoVersion(id) {
   document.getElementById('versionArchivoNombre').textContent = '';
   document.getElementById('versionDestino').textContent = ins.nombre;
   dlg.showModal();
-  form.markdown.focus();
-}
-
-function archivoMarkdown(file) {
-  const nombre = file.name.toLowerCase();
-  const tipoOk = !file.type || file.type.indexOf('text/') === 0 || file.type === 'application/octet-stream';
-  const extOk = nombre.endsWith('.md') || nombre.endsWith('.markdown') || nombre.endsWith('.txt');
-  return tipoOk && extOk;
+  const campo = form.elements.archivo;
+  if (campo) campo.focus();
 }
 
 function leerArchivo(file) {
@@ -548,37 +635,52 @@ function leerArchivo(file) {
   });
 }
 
-async function markdownDelFormulario(form) {
-  const file = form.archivo.files && form.archivo.files[0];
-  if (file) {
-    if (!archivoMarkdown(file)) throw new Error('El archivo tiene que ser markdown (.md).');
-    const text = await leerArchivo(file);
-    if (!text.trim()) throw new Error('El archivo está vacío.');
-    if (text.length > 400000) throw new Error('El markdown es demasiado grande para este navegador.');
-    return text;
-  }
-  const pasted = form.markdown.value;
-  if (!pasted.trim()) throw new Error('Elige un archivo markdown o pega el texto.');
-  if (pasted.length > 400000) throw new Error('El markdown es demasiado grande para este navegador.');
-  return pasted;
+function leerDatos(file) {
+  return new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function () { resolve(String(reader.result || '')); };
+    reader.onerror = function () { reject(new Error('No se pudo leer el archivo.')); };
+    reader.readAsDataURL(file);
+  });
 }
 
-function guardarInstruccionNueva(nombre, markdown) {
+async function contenidoDelFormulario(form) {
+  const file = form.archivo.files && form.archivo.files[0];
+  if (file) {
+    if (!file.size) throw new Error('El archivo está vacío.');
+    if (file.size > 350000) throw new Error('El archivo es demasiado grande para este navegador.');
+    if (esMarkdownNombre(file.name)) {
+      const text = await leerArchivo(file);
+      if (!text.trim()) throw new Error('El archivo está vacío.');
+      if (text.length > 400000) throw new Error('El archivo es demasiado grande para este navegador.');
+      return { markdown: text, nombreArchivo: file.name };
+    }
+    const datos = await leerDatos(file);
+    if (datos.indexOf('data:') !== 0) throw new Error('No se pudo leer el archivo.');
+    return { datos: datos, nombreArchivo: file.name };
+  }
+  const pasted = form.markdown.value;
+  if (!pasted.trim()) throw new Error('Elige un archivo o pega el markdown.');
+  if (pasted.length > 400000) throw new Error('El markdown es demasiado grande para este navegador.');
+  return { markdown: pasted };
+}
+
+function guardarInstruccionNueva(nombre, contenido) {
   const store = leerStore();
-  const ins = {
-    id: slugId(nombre),
-    nombre: nombre,
-    versiones: [{ numero: 1, fecha: todayISO(), markdown: markdown }]
-  };
+  const version = { numero: 1, fecha: todayISO() };
+  if (contenido.markdown != null) version.markdown = contenido.markdown;
+  if (contenido.datos) version.datos = contenido.datos;
+  if (contenido.nombreArchivo) version.nombreArchivo = contenido.nombreArchivo;
+  const ins = { id: slugId(nombre), nombre: nombre, versiones: [version] };
   store.instrucciones.push(ins);
   guardarLocal(store);
   return ins;
 }
 
-function guardarVersion(id, markdown) {
+function guardarVersion(id, contenido) {
   refrescar();
   const actual = state.instrucciones.find(function (ins) { return ins.id === id; });
-  if (!actual) throw new Error('No está esa instrucción.');
+  if (!actual) throw new Error('No está ese bloque.');
   const store = leerStore();
   let entrada = store.instrucciones.find(function (ins) { return ins && ins.id === id; });
   if (!entrada) {
@@ -586,7 +688,10 @@ function guardarVersion(id, markdown) {
     store.instrucciones.push(entrada);
   }
   if (!Array.isArray(entrada.versiones)) entrada.versiones = [];
-  const creada = { numero: siguienteNumero(actual.versiones), fecha: todayISO(), markdown: markdown };
+  const creada = { numero: siguienteNumero(actual.versiones), fecha: todayISO() };
+  if (contenido.markdown != null) creada.markdown = contenido.markdown;
+  if (contenido.datos) creada.datos = contenido.datos;
+  if (contenido.nombreArchivo) creada.nombreArchivo = contenido.nombreArchivo;
   entrada.versiones.push(creada);
   guardarLocal(store);
   return creada;
@@ -610,16 +715,18 @@ function cerrarHistorial() {
 }
 
 function onClickBloques(e) {
-  const ver = e.target.closest('[data-accion="ver"]');
-  if (ver) {
-    const ins = state.instrucciones.find(function (item) { return item.id === ver.dataset.id; });
-    if (!ins) return;
-    state.pendingFocus = null;
-    abrirInstruccion(ins.id, versionActual(ins).numero);
+  const subir = e.target.closest('[data-accion="subir-version"]');
+  if (subir) {
+    e.preventDefault();
+    abrirDialogoVersion(subir.dataset.id);
     return;
   }
-  const subir = e.target.closest('[data-accion="subir-version"]');
-  if (subir) abrirDialogoVersion(subir.dataset.id);
+  const abrir = e.target.closest('[data-accion="abrir"]');
+  if (!abrir) return;
+  const ins = state.instrucciones.find(function (item) { return item.id === abrir.dataset.id; });
+  if (!ins) return;
+  state.pendingFocus = null;
+  abrirInstruccion(ins.id, versionActual(ins).numero);
 }
 
 function onClickHistorial(e) {
@@ -664,8 +771,8 @@ async function onSubmitNueva(e) {
   }
   submit.disabled = true;
   try {
-    const markdown = await markdownDelFormulario(form);
-    const ins = guardarInstruccionNueva(nombre, markdown);
+    const contenido = await contenidoDelFormulario(form);
+    const ins = guardarInstruccionNueva(nombre, contenido);
     document.getElementById('dlgNueva').close();
     state.pendingFocus = ins.id;
     abrirInstruccion(ins.id, 1);
@@ -685,8 +792,8 @@ async function onSubmitVersion(e) {
   const id = form.dataset.id;
   submit.disabled = true;
   try {
-    const markdown = await markdownDelFormulario(form);
-    const creada = guardarVersion(id, markdown);
+    const contenido = await contenidoDelFormulario(form);
+    const creada = guardarVersion(id, contenido);
     document.getElementById('dlgVersion').close();
     state.pendingFocus = id;
     abrirInstruccion(id, creada.numero);
@@ -697,56 +804,64 @@ async function onSubmitVersion(e) {
   }
 }
 
-function renderPestanas() {
-  const lista = document.getElementById('catalogoTabs');
+function renderPestanas(listaId, items, actual, attr, panelAttr) {
+  const lista = document.getElementById(listaId);
   if (!lista) return;
-  const actual = state.catalogoId || CATALOGOS[0].id;
   lista.replaceChildren();
-  CATALOGOS.forEach(function (cat) {
-    const btn = el('button', 'pestana', cat.nombre);
+  items.forEach(function (item) {
+    const btn = el('button', 'pestana', item.nombre);
     btn.type = 'button';
-    btn.id = 'tab-' + cat.id;
+    btn.id = 'tab-' + item.id;
     btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-controls', 'panel-' + cat.id);
-    btn.dataset.catalogo = cat.id;
-    const on = cat.id === actual;
+    btn.setAttribute('aria-controls', 'panel-' + item.id);
+    btn.dataset[attr] = item.id;
+    const on = item.id === actual;
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
     btn.tabIndex = on ? 0 : -1;
     lista.append(btn);
   });
-  document.querySelectorAll('[role="tabpanel"][data-catalogo]').forEach(function (panel) {
-    const on = panel.dataset.catalogo === actual;
+  document.querySelectorAll('[role="tabpanel"][' + panelAttr + ']').forEach(function (panel) {
+    const on = panel.getAttribute(panelAttr) === actual;
     panel.hidden = !on;
-    if (on) panel.setAttribute('aria-labelledby', 'tab-' + panel.dataset.catalogo);
+    if (on) panel.setAttribute('aria-labelledby', 'tab-' + panel.getAttribute(panelAttr));
   });
+}
+
+function renderPestanasCatalogo() {
+  renderPestanas('catalogoTabs', CATALOGOS, state.catalogoId, 'catalogo', 'data-catalogo');
+}
+
+function renderDocPestanas() {
+  renderPestanas('docTabs', DOCUMENTOS, state.docId, 'doc', 'data-doc');
 }
 
 function seleccionarCatalogo(id) {
   const existe = CATALOGOS.some(function (cat) { return cat.id === id; });
   if (!existe) return;
   state.catalogoId = id;
-  renderPestanas();
+  renderPestanasCatalogo();
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
 }
 
-function destinoDeHash() {
-  return location.hash === '#catalogos' ? 'catalogos' : 'mapa';
+function seleccionarDoc(id) {
+  const existe = DOCUMENTOS.some(function (doc) { return doc.id === id; });
+  if (!existe) return;
+  state.docId = id;
+  renderDocPestanas();
+  const tab = document.getElementById('tab-' + id);
+  if (tab) tab.focus();
 }
 
-function mostrarDestino(destino, push) {
-  const id = destino === 'catalogos' ? 'catalogos' : 'mapa';
-  const mapa = document.getElementById('mapa');
-  const catalogos = document.getElementById('catalogos');
-  if (mapa) mapa.hidden = id !== 'mapa';
-  if (catalogos) catalogos.hidden = id !== 'catalogos';
-  document.querySelectorAll('#hub [data-destino]').forEach(function (btn) {
-    if (btn.dataset.destino === id) btn.setAttribute('aria-current', 'page');
-    else btn.removeAttribute('aria-current');
-  });
-  const hash = '#' + id;
-  if (push && location.hash !== hash) history.pushState({ destino: id }, '', hash);
-  if (push) window.scrollTo(0, 0);
+function teclasPestana(e, selector, actual, elegir) {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const tabs = Array.from(document.querySelectorAll(selector));
+  const i = tabs.indexOf(document.activeElement);
+  if (i < 0 || !tabs.length) return;
+  e.preventDefault();
+  const delta = e.key === 'ArrowRight' ? 1 : -1;
+  const next = tabs[(i + delta + tabs.length) % tabs.length];
+  elegir(next.dataset[actual]);
 }
 
 function nombreDeArchivo(input, destinoId) {
@@ -754,32 +869,233 @@ function nombreDeArchivo(input, destinoId) {
   document.getElementById(destinoId).textContent = file ? file.name : '';
 }
 
+function versionMapaAbierta() {
+  return state.mapa.versiones.find(function (v) { return v.numero === state.mapa.abiertaNumero; }) || null;
+}
+
+function pintarMapaChrome() {
+  const v = versionMapaAbierta();
+  const label = document.getElementById('mapaVersion');
+  if (label) label.textContent = v ? formatVersion(v.numero, v.fecha) : '';
+  const pop = document.getElementById('mapaHistorial');
+  const lista = document.getElementById('mapaHistorialLista');
+  const btn = document.getElementById('btnHistMapa');
+  if (!pop || !lista || !btn) return;
+  pop.hidden = !state.mapa.historial;
+  btn.setAttribute('aria-expanded', state.mapa.historial ? 'true' : 'false');
+  lista.replaceChildren();
+  const orden = state.mapa.versiones.slice().sort(function (a, b) { return b.numero - a.numero; });
+  orden.forEach(function (item) {
+    const li = document.createElement('li');
+    const b = el('button', null, '');
+    b.type = 'button';
+    b.dataset.mapaVersion = String(item.numero);
+    const marca = item.numero === state.mapa.abiertaNumero;
+    if (marca) b.setAttribute('aria-current', 'true');
+    b.append(el('span', null, formatVersion(item.numero, item.fecha)));
+    if (marca) b.append(el('span', 'marca', 'Abierta'));
+    li.append(b);
+    lista.append(li);
+  });
+}
+
+function asegurarMermaid() {
+  if (!window.mermaid) return false;
+  if (!state.mapa.mermaidListo) {
+    window.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'default',
+      flowchart: { useMaxWidth: true, htmlLabels: true, nodeSpacing: 28, rankSpacing: 36 }
+    });
+    state.mapa.mermaidListo = true;
+  }
+  return true;
+}
+
+function montarDiagrama(fuente) {
+  const status = document.getElementById('mapStatus');
+  const actual = document.getElementById('flowMermaid');
+  if (!actual) return;
+  const token = ++state.mapa.dibujo;
+  const el = document.createElement('div');
+  el.id = 'flowMermaid';
+  el.className = 'mermaid';
+  el.textContent = fuente;
+  actual.replaceWith(el);
+  const nota = state.mapa.preview ? 'Vista previa sin publicar. No crea una versión.' : '';
+  function fallo(texto) {
+    if (token !== state.mapa.dibujo) return;
+    el.className = 'map-fallback';
+    el.textContent = fuente;
+    if (status) status.textContent = nota || texto;
+  }
+  if (!asegurarMermaid()) {
+    fallo('Mapa en texto: requiere conexión para visualizar el diagrama.');
+    return;
+  }
+  if (status) status.textContent = nota || 'Cargando diagrama…';
+  const renderId = 'flowSvg' + token;
+  let done;
+  try {
+    done = window.mermaid.render(renderId, fuente);
+  } catch (e) {
+    fallo('Mapa en texto.');
+    return;
+  }
+  Promise.resolve(done).then(function (res) {
+    if (token !== state.mapa.dibujo) return;
+    const svg = res && res.svg ? res.svg : '';
+    if (!svg) {
+      fallo('Mapa en texto.');
+      return;
+    }
+    el.innerHTML = svg;
+    const suelto = document.getElementById(renderId);
+    if (suelto && !el.contains(suelto)) suelto.remove();
+    if (status) status.textContent = nota;
+  }).catch(function () {
+    fallo('Mapa en texto.');
+  });
+}
+
+function normalizarMapa(data) {
+  const list = data && Array.isArray(data.versiones) ? data.versiones : [];
+  const seen = new Set();
+  const versiones = [];
+  list.forEach(function (v) {
+    const n = normalizeVersionIndice(v);
+    if (!n || seen.has(n.numero)) return;
+    seen.add(n.numero);
+    versiones.push(n);
+  });
+  versiones.sort(function (a, b) { return a.numero - b.numero; });
+  return versiones;
+}
+
+function elegirVersionMapa(numero) {
+  const v = state.mapa.versiones.find(function (item) { return item.numero === numero; });
+  if (!v) return;
+  state.mapa.abiertaNumero = v.numero;
+  state.mapa.preview = false;
+  state.mapa.historial = false;
+  pintarMapaChrome();
+  const token = ++state.mapa.token;
+  const status = document.getElementById('mapStatus');
+  if (status) status.textContent = 'Cargando diagrama…';
+  let url;
+  try { url = hrefRuta(v.ruta); } catch (e) {
+    if (status) status.textContent = 'No se pudo leer esta versión del mapa.';
+    return;
+  }
+  fetch(url, { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.text();
+    })
+    .then(function (text) {
+      if (token !== state.mapa.token) return;
+      state.mapa.fuente = text;
+      state.mapa.preview = false;
+      const ta = document.getElementById('mapaFuente');
+      if (ta) ta.value = text;
+      montarDiagrama(text);
+      pintarMapaChrome();
+    })
+    .catch(function () {
+      if (token !== state.mapa.token) return;
+      if (status) status.textContent = 'No se pudo leer esta versión del mapa.';
+    });
+}
+
+function cargarMapa() {
+  const status = document.getElementById('mapStatus');
+  fetch('mapa/index.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.json();
+    })
+    .then(function (data) {
+      state.mapa.versiones = normalizarMapa(data);
+      if (!state.mapa.versiones.length) {
+        if (status) status.textContent = 'No hay versiones del mapa.';
+        pintarMapaChrome();
+        return;
+      }
+      const ultima = state.mapa.versiones[state.mapa.versiones.length - 1];
+      elegirVersionMapa(ultima.numero);
+    })
+    .catch(function () {
+      if (status) status.textContent = 'No se pudo leer el índice del mapa.';
+    });
+}
+
+function alternarEdicion() {
+  const box = document.getElementById('edicion');
+  const btn = document.getElementById('btnEdicion');
+  if (!box || !btn) return;
+  const abrir = box.hidden;
+  box.hidden = !abrir;
+  btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  if (abrir) {
+    const ta = document.getElementById('mapaFuente');
+    if (ta && !state.mapa.preview) ta.value = state.mapa.fuente;
+    if (ta) ta.focus();
+  }
+}
+
+function previsualizarMapa() {
+  const ta = document.getElementById('mapaFuente');
+  const status = document.getElementById('mapStatus');
+  if (!ta) return;
+  if (!ta.value.trim()) {
+    if (status) status.textContent = 'El diagrama está vacío.';
+    return;
+  }
+  state.mapa.preview = true;
+  montarDiagrama(ta.value);
+  pintarMapaChrome();
+}
+
+function alternarHistMapa() {
+  if (!state.mapa.versiones.length) return;
+  state.mapa.historial = !state.mapa.historial;
+  const venia = document.activeElement && document.activeElement.id === 'btnHistMapa';
+  pintarMapaChrome();
+  if (state.mapa.historial) {
+    const current = document.querySelector('#mapaHistorialLista [aria-current="true"]');
+    if (current) current.focus();
+  } else if (venia) {
+    const boton = document.getElementById('btnHistMapa');
+    if (boton) boton.focus();
+  }
+}
+
 function iniciar() {
-  renderPestanas();
-  mostrarDestino(destinoDeHash(), false);
-  document.getElementById('hub').addEventListener('click', function (e) {
-    const btn = e.target.closest('[data-destino]');
-    if (!btn) return;
-    mostrarDestino(btn.dataset.destino, true);
-  });
-  document.getElementById('catalogoTabs').addEventListener('click', function (e) {
-    const tab = e.target.closest('[data-catalogo]');
-    if (!tab) return;
-    seleccionarCatalogo(tab.dataset.catalogo);
-  });
-  document.getElementById('catalogoTabs').addEventListener('keydown', function (e) {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const tabs = Array.from(document.querySelectorAll('#catalogoTabs [role="tab"]'));
-    const i = tabs.indexOf(document.activeElement);
-    if (i < 0 || !tabs.length) return;
-    e.preventDefault();
-    const delta = e.key === 'ArrowRight' ? 1 : -1;
-    const next = tabs[(i + delta + tabs.length) % tabs.length];
-    seleccionarCatalogo(next.dataset.catalogo);
-  });
-  window.addEventListener('popstate', function () {
-    mostrarDestino(destinoDeHash(), false);
-  });
+  renderPestanasCatalogo();
+  renderDocPestanas();
+  const tabs = document.getElementById('catalogoTabs');
+  if (tabs) {
+    tabs.addEventListener('click', function (e) {
+      const tab = e.target.closest('[data-catalogo]');
+      if (!tab) return;
+      seleccionarCatalogo(tab.dataset.catalogo);
+    });
+    tabs.addEventListener('keydown', function (e) {
+      teclasPestana(e, '#catalogoTabs [role="tab"]', 'catalogo', seleccionarCatalogo);
+    });
+  }
+  const docTabs = document.getElementById('docTabs');
+  if (docTabs) {
+    docTabs.addEventListener('click', function (e) {
+      const tab = e.target.closest('[data-doc]');
+      if (!tab) return;
+      seleccionarDoc(tab.dataset.doc);
+    });
+    docTabs.addEventListener('keydown', function (e) {
+      teclasPestana(e, '#docTabs [role="tab"]', 'doc', seleccionarDoc);
+    });
+  }
   document.getElementById('btnNueva').addEventListener('click', abrirDialogoNuevo);
   document.getElementById('nuevaCancelar').addEventListener('click', function () {
     document.getElementById('dlgNueva').close();
@@ -798,17 +1114,40 @@ function iniciar() {
   document.getElementById('bloques').addEventListener('click', onClickBloques);
   document.getElementById('btnHistorial').addEventListener('click', alternarHistorial);
   document.getElementById('historialLista').addEventListener('click', onClickHistorial);
+  const btnEdicion = document.getElementById('btnEdicion');
+  if (btnEdicion) btnEdicion.addEventListener('click', alternarEdicion);
+  const btnPrev = document.getElementById('btnPrevisualizar');
+  if (btnPrev) btnPrev.addEventListener('click', previsualizarMapa);
+  const btnHistMapa = document.getElementById('btnHistMapa');
+  if (btnHistMapa) btnHistMapa.addEventListener('click', alternarHistMapa);
+  const listaMapa = document.getElementById('mapaHistorialLista');
+  if (listaMapa) listaMapa.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-mapa-version]');
+    if (!btn) return;
+    elegirVersionMapa(Number(btn.dataset.mapaVersion));
+  });
   document.addEventListener('click', function (e) {
-    if (!state.historial) return;
-    if (e.target.closest('#historial') || e.target.closest('#btnHistorial')) return;
-    cerrarHistorial();
+    if (state.historial && !e.target.closest('#historial') && !e.target.closest('#btnHistorial')) cerrarHistorial();
+    if (state.mapa.historial && !e.target.closest('#mapaHistorial') && !e.target.closest('#btnHistMapa')) {
+      state.mapa.historial = false;
+      pintarMapaChrome();
+    }
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && state.historial) {
+    if (e.key !== 'Escape') return;
+    if (state.historial) {
       e.preventDefault();
       state.historial = false;
       render();
       const boton = document.getElementById('btnHistorial');
+      if (boton) boton.focus();
+      return;
+    }
+    if (state.mapa.historial) {
+      e.preventDefault();
+      state.mapa.historial = false;
+      pintarMapaChrome();
+      const boton = document.getElementById('btnHistMapa');
       if (boton) boton.focus();
     }
   });
@@ -830,19 +1169,23 @@ function iniciar() {
       state.ready = true;
       render();
     });
+  cargarMapa();
 }
 
 const api = {
   CATALOGOS: CATALOGOS,
+  DOCUMENTOS: DOCUMENTOS,
   formatVersion: formatVersion,
   todayISO: todayISO,
   siguienteNumero: siguienteNumero,
   slugId: slugId,
+  esMarkdownNombre: esMarkdownNombre,
   normalizeIndice: normalizeIndice,
   normalizeLocales: normalizeLocales,
   mergeInstrucciones: mergeInstrucciones,
   renderMarkdown: renderMarkdown,
-  htmlDeMarkdown: htmlDeMarkdown
+  htmlDeMarkdown: htmlDeMarkdown,
+  normalizarMapa: normalizarMapa
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = api;

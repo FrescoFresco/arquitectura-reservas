@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Arquitectura de reservas web</title>
-<meta name="description" content="Mapa operativo del sistema de reservas y catálogo de microoperaciones.">
+<title>Arquitectura de acoplamiento a reservas web</title>
+<meta name="description" content="Mapa del sistema de reservas, catálogo Bloques y el contrato para publicarlo.">
 <style>
-:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17212f;background:#f6f8fb}*{box-sizing:border-box}body{margin:0}header{background:white;border-bottom:1px solid #e5eaf1;padding:20px clamp(16px,4vw,54px)}.brand{max-width:1180px;margin:auto;display:flex;align-items:center;gap:13px}.brandmark{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:12px;background:#eaf1ff;color:#1c63d5;font-size:22px}h1{font-size:21px;margin:0 0 5px}header p{margin:0;color:#677488;font-size:13px}.layout{max-width:1180px;margin:24px auto;padding:0 16px}.main{background:white;border:1px solid #e7ebf2;border-radius:18px;box-shadow:0 8px 30px #24334a08;min-height:570px;padding:clamp(22px,4vw,45px)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.1em;color:#4579dc}.pill{font-size:11px;background:#edf3ff;color:#315eb6;border-radius:40px;padding:8px 11px;font-weight:700}h2{font-size:28px;letter-spacing:-.035em;margin:12px 0}p.desc{font-size:15px;color:#5f6f84;line-height:1.65;max-width:750px;margin:0 0 22px}.map-panel{border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;overflow:hidden}.map-panel>summary{list-style:none;display:flex;gap:12px;align-items:center;cursor:pointer;padding:17px 20px;font-size:14px;font-weight:800;color:#245bb2}.map-panel>summary::-webkit-details-marker{display:none}.map-body{padding:0 16px 20px}.mermaid{overflow:auto;text-align:center;min-height:110px;max-width:100%;border-radius:12px}.mermaid svg{display:block;width:100%!important;max-width:100%!important;height:auto!important;min-width:0!important;margin:auto}.map-fallback{white-space:pre-wrap;overflow:auto;max-height:360px;padding:16px;background:#f3f6fc;border-radius:10px;font-size:11px;color:#334155}.mapstatus{color:#75859a;font-size:12px;margin:10px 0 0}.ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}@media(max-width:760px){.layout{margin:12px auto}.main{min-height:520px}h2{font-size:24px}.brand{flex-wrap:wrap}}
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17212f;background:#f6f8fb}*{box-sizing:border-box}body{margin:0}header{background:white;border-bottom:1px solid #e5eaf1;padding:20px clamp(16px,4vw,54px)}.brand{max-width:1180px;margin:auto;display:flex;align-items:center;gap:13px}.brandmark{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:12px;background:#eaf1ff;color:#1c63d5;font-size:22px}h1{font-size:21px;margin:0}header p{margin:0;color:#677488;font-size:13px}.layout{max-width:1180px;margin:24px auto;padding:0 16px}.main{background:white;border:1px solid #e7ebf2;border-radius:18px;box-shadow:0 8px 30px #24334a08;min-height:570px;padding:clamp(22px,4vw,45px)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.1em;color:#4579dc}.pill{font-size:11px;background:#edf3ff;color:#315eb6;border-radius:40px;padding:8px 11px;font-weight:700}h2{font-size:28px;letter-spacing:-.035em;margin:12px 0}p.desc{font-size:15px;color:#5f6f84;line-height:1.65;max-width:750px;margin:0 0 22px}.map-panel{border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;overflow:hidden}.map-panel>summary{list-style:none;display:flex;gap:12px;align-items:center;cursor:pointer;padding:17px 20px;font-size:14px;font-weight:800;color:#245bb2}.map-panel>summary::-webkit-details-marker{display:none}.map-body{padding:0 16px 20px}.mermaid{overflow:auto;text-align:center;min-height:110px;max-width:100%;border-radius:12px}.mermaid svg{display:block;width:100%!important;max-width:100%!important;height:auto!important;min-width:0!important;margin:auto}.map-fallback{white-space:pre-wrap;overflow:auto;max-height:360px;padding:16px;background:#f3f6fc;border-radius:10px;font-size:11px;color:#334155}.mapstatus{color:#75859a;font-size:12px;margin:10px 0 0}.ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}@media(max-width:760px){.layout{margin:12px auto}.main{min-height:520px}h2{font-size:24px}.brand{flex-wrap:wrap}}
 </style>
 <style>
 
 .layout{display:flex;flex-direction:column;gap:18px}
 .hub{background:#fff;border-bottom:1px solid #e5eaf1}
 .hub-inner{max-width:1180px;margin:0 auto;display:flex;gap:4px;padding:0 16px}
-.hub button{display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;border-bottom:2px solid transparent;color:#677488;font:inherit;font-size:14px;font-weight:800;padding:12px 14px;cursor:pointer}
-.hub button svg{width:18px;height:18px;display:block}
-.hub button[aria-current="page"]{color:#1c63d5;border-bottom-color:#1c63d5}
-.hub button:hover{color:#1c63d5}
+.hub a{display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;border-bottom:2px solid transparent;color:#677488;font:inherit;font-size:14px;font-weight:800;padding:12px 14px;cursor:pointer}
+.hub a svg{width:18px;height:18px;display:block}
+.hub a[aria-current="page"]{color:#1c63d5;border-bottom-color:#1c63d5}
+.hub a:hover{color:#1c63d5}
 .catalogos.main{min-height:0}
 .catalogo-tabs{display:flex;gap:0;margin:0 0 16px;border-bottom:1px solid #e5eaf1;overflow-x:auto;scrollbar-width:none}
 .catalogo-tabs::-webkit-scrollbar{display:none}
@@ -42,7 +42,7 @@
 .btn.version{display:block;width:100%;margin-top:12px}
 .btn.ver{display:inline-block;margin-top:10px}
 .btn:hover,.icon-btn:hover{filter:brightness(.97)}
-.btn:focus-visible,.icon-btn:focus-visible,.hub button:focus-visible,.pestana:focus-visible,.historial button:focus-visible,.dlg input:focus-visible,.dlg textarea:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.btn:focus-visible,.icon-btn:focus-visible,.hub a:focus-visible,.pestana:focus-visible,.historial button:focus-visible,.dlg input:focus-visible,.dlg textarea:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
 .reader{position:relative;min-width:0;border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;min-height:280px}
 .reader-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 16px 0}
 .reader-top h3{margin:0;font-size:20px;letter-spacing:-.02em;overflow-wrap:anywhere}
@@ -92,20 +92,45 @@ dialog::backdrop{background:#17212f66}
 @media(max-width:800px){
 .hub{position:fixed;left:0;right:0;bottom:0;z-index:40;border-bottom:0;border-top:1px solid #e5eaf1;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -8px 24px #24334a12}
 .hub-inner{max-width:none;padding:0;gap:0}
-.hub button{flex:1;flex-direction:column;justify-content:center;gap:3px;min-height:56px;padding:8px 4px 6px;border-bottom:0;font-size:11px;font-weight:700}
-.hub button svg{width:22px;height:22px}
-.hub button[aria-current="page"]{background:#f3f7ff}
+.hub a{flex:1;flex-direction:column;justify-content:center;gap:3px;min-height:56px;padding:8px 4px 6px;border-bottom:0;font-size:11px;font-weight:700}
+.hub a svg{width:22px;height:22px}
+.hub a[aria-current="page"]{background:#f3f7ff}
 body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 }
+
+.hub a{text-decoration:none;touch-action:manipulation}
+.hub a span{white-space:nowrap}
+.bloque{position:relative;padding:0}
+.ojo{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:999px;display:grid;place-items:center;pointer-events:none}
+.ojo svg{width:18px;height:18px;display:block}
+.bloque.is-open .ojo{color:#1c63d5;background:#e7efff}
+.bloque:not(.is-open) .ojo{color:#8b98ab}
+.bloque-abrir{display:block;width:100%;margin:0;padding:14px 44px 4px 14px;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:14px}
+.bloque .btn.version{width:calc(100% - 28px);margin:8px 14px 14px}
+.bloque-abrir:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.mapa-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+.mapa-acciones{display:flex;align-items:center;gap:8px}
+.btn.compact{width:auto;margin-top:0;display:inline-flex;align-items:center}
+.edicion{margin:0 0 14px}
+.edicion textarea{display:block;width:100%;min-height:200px;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white;resize:vertical}
+.doc h3{font-size:18px;margin:22px 0 8px;letter-spacing:-.02em}
+.doc p,.doc li{font-size:15px;line-height:1.65;color:#243246}
+.doc ul,.doc ol{margin:0 0 12px;padding-left:1.2em}
+.doc li{margin:0 0 6px}
+.doc pre{background:#f3f6fc;padding:12px 14px;border-radius:10px;overflow:auto;font-size:12px;line-height:1.5;margin:0 0 14px}
+.doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+.doc p code,.doc li code{background:#f3f6fc;padding:1px 5px;border-radius:5px}
+.doc a{color:#1c63d5}
 
 </style>
 </head>
 <body>
-<header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de reservas web</h1><p>Ficha · Ámbito festivo · Punto A · Apertura y contactos · ramas por proceso · compuerta</p></div></div></header>
+<header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de acoplamiento a reservas web</h1></div></div></header>
 <nav class="hub" id="hub" aria-label="Menú principal">
 <div class="hub-inner">
-<button type="button" data-destino="mapa" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="21" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg><span>Mapa</span></button>
-<button type="button" data-destino="catalogos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></button>
+<a href="#mapa" data-destino="mapa" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="21" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg><span>Mapa</span></a>
+<a href="#catalogos" data-destino="catalogos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></a>
+<a href="#documentacion" data-destino="documentacion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Documentación</span></a>
 </div>
 </nav>
 <div class="layout">
@@ -115,17 +140,42 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <p class="desc">Diagrama operativo del sistema.</p>
 <details class="map-panel" open>
 <summary><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="21" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg></span> <span>Mapa del sistema</span></summary>
-<div class="map-body"><div class="mermaid" id="flowMermaid"></div><p class="mapstatus" id="mapStatus">Cargando diagrama…</p></div>
+<div class="map-body">
+<div class="mapa-bar">
+<p class="bloque-ver" id="mapaVersion" aria-live="polite"></p>
+<div class="mapa-acciones">
+<button type="button" class="btn version compact" id="btnEdicion" aria-expanded="false" aria-controls="edicion">Edición</button>
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistMapa" aria-label="Historial de versiones del mapa" title="Historial de versiones" aria-expanded="false" aria-controls="mapaHistorial">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="mapaHistorial" hidden role="dialog" aria-label="Versiones del mapa">
+<p class="historial-titulo">Versiones</p>
+<ul id="mapaHistorialLista"></ul>
+</div>
+</div>
+</div>
+</div>
+<div class="edicion" id="edicion" hidden>
+<label>Fuente del diagrama
+<textarea id="mapaFuente" spellcheck="false" aria-label="Fuente del diagrama"></textarea>
+</label>
+<button type="button" class="btn version compact" id="btnPrevisualizar">Previsualizar</button>
+<p class="limite">La previsualización no publica una versión. Para publicarla, el contrato está en Documentación → API.</p>
+</div>
+<div class="mermaid" id="flowMermaid"></div>
+<p class="mapstatus" id="mapStatus" role="status">Cargando diagrama…</p>
+</div>
 </details>
 </main>
 <section class="main catalogos" id="catalogos" hidden aria-labelledby="catalogos-titulo">
 <div class="top"><span class="eyebrow">Catálogos</span></div>
 <h2 id="catalogos-titulo">Catálogos</h2>
-<p class="desc">Microoperaciones es el primero. Cada catálogo ocupa una pestaña.</p>
+<p class="desc">Bloques es el primero. Cada catálogo ocupa una pestaña.</p>
 <div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
 <div role="tabpanel" id="panel-microoperaciones" data-catalogo="microoperaciones">
 <button type="button" class="btn primary" id="btnNueva">Subir instrucción nueva</button>
-<p class="limite">La subida se queda en este navegador, encima del índice publicado. No se envía a GitHub.</p>
+<p class="limite">La subida se queda en este navegador, encima del índice publicado. No se envía a GitHub. Para publicarla, el contrato está en Documentación → API.</p>
 <p class="estado" id="catalogoEstado" role="status">Cargando el índice…</p>
 <div class="split" id="catalogoSplit">
 <ul class="bloques" id="bloques"></ul>
@@ -151,17 +201,100 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 </div>
 </div>
 </section>
+<section class="main catalogos" id="documentacion" hidden aria-labelledby="documentacion-titulo">
+<div class="top"><span class="eyebrow">Documentación</span></div>
+<h2 id="documentacion-titulo">Documentación</h2>
+<p class="desc">Contrato para que un agente publique en el repositorio. La página no guarda el token.</p>
+<div class="catalogo-tabs" id="docTabs" role="tablist" aria-label="Documentación"></div>
+<div class="doc" role="tabpanel" id="panel-api" data-doc="api">
+<p>Un agente publica con la API de contenidos de GitHub. El token de escritura va en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No va en esta página.</p>
+<p>Repositorio <code>FrescoFresco/arquitectura-reservas</code>. Rama <code>main</code>. Cada publicación son dos escrituras: primero el archivo y después el índice, con el <code>sha</code> que devolvió el GET.</p>
+<h3>Subir un documento a Bloques</h3>
+<p>El catálogo se llama Bloques. El id interno sigue siendo <code>microoperaciones</code> y la carpeta no cambia: <code>catalogo/microoperaciones/</code>. No hay otro catálogo al lado.</p>
+<p>Ejemplo: un bloque nuevo, «Abrir ficha», id <code>abrir-ficha</code>, archivo <code>nota.md</code>.</p>
+<p>1. Crear el archivo. Un archivo nuevo no lleva <code>sha</code>. Si la ruta ya existe, el cuerpo incluye el <code>sha</code> del GET de esa misma ruta.</p>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/abrir-ficha/v1.md</code></pre>
+<p>Cabeceras:</p>
+<ul>
+<li><code>Authorization: Bearer TOKEN</code></li>
+<li><code>Accept: application/vnd.github+json</code></li>
+<li><code>X-GitHub-Api-Version: 2022-11-28</code></li>
+</ul>
+<pre><code>{
+  "message": "Añade abrir-ficha v1 a Bloques",
+  "content": "BASE64_DEL_ARCHIVO",
+  "branch": "main"
+}</code></pre>
+<p>2. Leer el índice. La respuesta trae <code>sha</code> y el JSON en <code>content</code> (base64).</p>
+<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/index.json?ref=main</code></pre>
+<p>3. Añadir la versión y volver a escribir el índice con ese <code>sha</code>.</p>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/index.json</code></pre>
+<pre><code>{
+  "message": "Actualiza el índice de Bloques",
+  "content": "BASE64_DEL_JSON",
+  "branch": "main",
+  "sha": "SHA_DEL_GET"
+}</code></pre>
+<p>El JSON queda así. El bloque nuevo entra en <code>instrucciones</code>. Una versión nueva se añade al array <code>versiones</code> de ese bloque. <code>numero</code> es el máximo actual más uno. <code>fecha</code> es <code>YYYY-MM-DD</code>. <code>ruta</code> es relativa a la raíz del sitio.</p>
+<pre><code>{
+  "id": "microoperaciones",
+  "nombre": "Bloques",
+  "instrucciones": [
+    {
+      "id": "abrir-ficha",
+      "nombre": "Abrir ficha",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-19",
+          "ruta": "catalogo/microoperaciones/abrir-ficha/v1.md",
+          "nombreArchivo": "nota.md"
+        }
+      ]
+    }
+  ]
+}</code></pre>
+<p>Vale cualquier tipo de archivo. La página pinta markdown (<code>.md</code>, <code>.markdown</code>, <code>.txt</code>). El resto se descarga.</p>
+<p>Otra versión del mismo bloque, por ejemplo un PDF:</p>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/abrir-ficha/v2.pdf</code></pre>
+<pre><code>{
+  "numero": 2,
+  "fecha": "2026-10-19",
+  "ruta": "catalogo/microoperaciones/abrir-ficha/v2.pdf",
+  "nombreArchivo": "nota.pdf"
+}</code></pre>
+<p>El id solo usa minúsculas, números y guiones: <code>^[a-z0-9][a-z0-9-]{0,60}$</code>.</p>
+<h3>Publicar una edición del mapa</h3>
+<p>El diagrama que se ve es la última versión de <code>mapa/index.json</code>, salvo que elijas otra en el historial. <strong>Edición</strong> en el mapa solo previsualiza: no crea una versión. Para publicarla se usa el mismo mecanismo. El contenido es el fuente Mermaid de ese diagrama.</p>
+<p>La versión 1 ya está en <code>mapa/v1.mmd</code>. La siguiente es la 2.</p>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/mapa/v2.mmd</code></pre>
+<pre><code>{
+  "message": "Publica el mapa v2",
+  "content": "BASE64_DEL_DIAGRAMA_UTF8",
+  "branch": "main"
+}</code></pre>
+<p>Después, GET y PUT de <code>mapa/index.json</code> con su <code>sha</code>, añadiendo la versión:</p>
+<pre><code>{ "numero": 2, "fecha": "2026-10-19", "ruta": "mapa/v2.mmd" }</code></pre>
+<h3>Cliente de referencia</h3>
+<p><code>scripts/subir.js</code> hace esas dos escrituras. El token sale del entorno. <code>bloques</code> escribe en la carpeta de Bloques; no abre otro catálogo.</p>
+<pre><code>GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --nueva --nombre "Abrir ficha" --archivo ./nota.md
+GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --id abrir-ficha --archivo ./nota.pdf
+GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
+<p><code>--ensayo</code> muestra la ruta y el índice sin llamar a GitHub. <code>GITHUB_REPOSITORIO</code> (por defecto <code>FrescoFresco/arquitectura-reservas</code>) y <code>GITHUB_RAMA</code> (por defecto <code>main</code>) cambian el destino.</p>
+<p>La subida del navegador, <strong>Subir instrucción nueva</strong> y <strong>Subir versión</strong>, sigue en este navegador y no usa este contrato.</p>
+</div>
+</section>
 </div>
 <dialog id="dlgNueva" aria-labelledby="dlgNuevaTitulo">
 <form class="dlg" id="formNueva">
 <h3 id="dlgNuevaTitulo">Subir instrucción nueva</h3>
-<p class="nota">Crea otra instrucción. Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="nota">Crea un bloque nuevo. Se guarda en este navegador, encima del índice. No se publica en GitHub. Markdown se lee aquí; otro tipo queda para descargar.</p>
 <p class="form-error" id="nuevaError" role="alert"></p>
 <label>Nombre
 <input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre de la instrucción">
 </label>
-<label>Archivo .md
-<input type="file" name="archivo" id="nuevaArchivo" accept=".md,.markdown,.txt,text/markdown,text/plain">
+<label>Archivo
+<input type="file" name="archivo" id="nuevaArchivo">
 <span class="archivo-nombre" id="nuevaArchivoNombre"></span>
 </label>
 <label>O pega el markdown
@@ -177,10 +310,10 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <form class="dlg" id="formVersion">
 <h3 id="dlgVersionTitulo">Subir versión</h3>
 <p class="destino" id="versionDestino"></p>
-<p class="nota">Añade una versión a esta instrucción. Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="nota">Añade una versión a este bloque. Se guarda en este navegador, encima del índice. No se publica en GitHub. Markdown se lee aquí; otro tipo queda para descargar.</p>
 <p class="form-error" id="versionError" role="alert"></p>
-<label>Archivo .md
-<input type="file" name="archivo" id="versionArchivo" accept=".md,.markdown,.txt,text/markdown,text/plain">
+<label>Archivo
+<input type="file" name="archivo" id="versionArchivo">
 <span class="archivo-nombre" id="versionArchivoNombre"></span>
 </label>
 <label>O pega el markdown
@@ -195,21 +328,40 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
-const flow="flowchart TD\n  U[\"URL del negocio\"] --\u003e FIC[\"Ficha del negocio\"]\n  FIC --\u003e PA[\"Punto A\"]\n  FIC --\u003e AF[\"Ámbito festivo\"]\n  AF --\u003e AP[\"Apertura\"]\n  FIC --\u003e CT[\"Contactos\"]\n  PA --\u003e R{\"¿Hay enlace?\"}\n  R --\u003e|No| NA[\"SIN RESERVA ONLINE\"]\n  R --\u003e|Inconcluso| PE[\"DETECCIÓN PENDIENTE\"]\n  R --\u003e|Por proceso| S[\"Identificar software\"]\n  R --\u003e|Por proceso| O[\"Observar formulario\"]\n  R --\u003e|Por proceso| C[\"Canal de cancelación\"]\n  S --\u003e I[\"Integración\"]\n  CT --\u003e C\n  O --\u003e J[\"Justificante\"]\n  J --\u003e FN[\"Función\"]\n  FN --\u003e SC[\"Script\"]\n  SC --\u003e REV{\"¿Función y script OK?\"}\n  REV --\u003e|Sí| AU[\"Automática\"]\n  REV --\u003e|Sí| EN[\"Enlace asistido\"]\n  REV --\u003e|No| NI[\"Vías no intentadas\"]\n  I -.-\u003e|pista| AU\n  AU --\u003e V[\"Verificación y vigilancia\"]\n  EN --\u003e V\n  V --\u003e|formulario_cambiado| O\n  AP --\u003e G[\"Compuerta\"]\n  C --\u003e G\n  CT --\u003e G\n  AU --\u003e G\n  EN --\u003e G\n  G --\u003e|Abierta| OK[\"Envío real permitido\"]\n  G --\u003e|Cerrado| PEND[\"pendiente_apertura\"]\n  G --\u003e|Sin canal| SC2[\"sin_canal_de_cancelacion\"]\n  V --\u003e Z[\"Resultado\"]\n  OK --\u003e Z\n  NI --\u003e Z\n  PEND --\u003e Z\n  SC2 --\u003e Z\n  classDef summary fill:#dbeafe,stroke:#2563eb,color:#1e40af\n  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e\n  classDef failure fill:#fee2e2,stroke:#dc2626,color:#991b1b\n  class NA,SC2 failure\n  class PE,NI,PEND pending\n  class Z summary";
-function mountFlowMermaid(){
-  const el=document.getElementById('flowMermaid'),status=document.getElementById('mapStatus');
-  if(!el) return;
-  el.textContent=flow;
-  if(!window.mermaid){el.className='map-fallback';if(status)status.textContent='Mapa en texto: requiere conexión para visualizar el diagrama.';return}
-  try{
-    mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'default',flowchart:{useMaxWidth:true,htmlLabels:true,nodeSpacing:28,rankSpacing:36}});
-    mermaid.run({nodes:[el]}).then(()=>{
-      if(status) status.textContent='';
-    }).catch(()=>{el.className='map-fallback';el.textContent=flow;if(status)status.textContent='Mapa en texto.'});
-  }catch(e){el.className='map-fallback';el.textContent=flow;if(status)status.textContent='Mapa en texto.'}
-}
-mountFlowMermaid();
+(function () {
+  var IDS = ['mapa', 'catalogos', 'documentacion'];
+  function abrir(id) {
+    if (IDS.indexOf(id) < 0) id = 'mapa';
+    for (var i = 0; i < IDS.length; i++) {
+      var nodo = document.getElementById(IDS[i]);
+      if (nodo) nodo.hidden = IDS[i] !== id;
+    }
+    var links = document.querySelectorAll('#hub [data-destino]');
+    for (var j = 0; j < links.length; j++) {
+      if (links[j].getAttribute('data-destino') === id) links[j].setAttribute('aria-current', 'page');
+      else links[j].removeAttribute('aria-current');
+    }
+  }
+  function desdeHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    return IDS.indexOf(h) < 0 ? 'mapa' : h;
+  }
+  window.abrirDestino = abrir;
+  window.addEventListener('hashchange', function () { abrir(desdeHash()); });
+  var hub = document.getElementById('hub');
+  if (hub) hub.addEventListener('click', function (e) {
+    var n = e.target;
+    while (n && n !== hub) {
+      if (n.getAttribute && n.getAttribute('data-destino')) {
+        abrir(n.getAttribute('data-destino'));
+        return;
+      }
+      n = n.parentNode;
+    }
+  });
+  abrir(desdeHash());
+})();
 </script>
-<script src="catalogo-ui.js"></script>
+<script src="catalogo-ui.js?v=20261019c"></script>
 </body>
 </html>
