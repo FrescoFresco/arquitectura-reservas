@@ -1,9 +1,9 @@
 'use strict';
 
 const CATALOGOS = [
-  { id: 'skills', nombre: 'Skills' },
-  { id: 'campos-ancla', nombre: 'Campos ancla' },
-  { id: 'campos-mongodb', nombre: 'Campos MongoDB' }
+  { id: 'skills', nombre: 'Skills', icono: 'skills' },
+  { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
+  { id: 'campos-mongodb', nombre: 'Campos MongoDB', icono: 'mongo' }
 ];
 const TABLAS = [];
 const DOCUMENTOS = [
@@ -531,6 +531,88 @@ function el(tag, className, text) {
   return node;
 }
 
+function svgPath(d, attrs) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', d);
+  if (attrs) Object.keys(attrs).forEach(function (k) { path.setAttribute(k, attrs[k]); });
+  return path;
+}
+
+function svgCircle(cx, cy, r) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const c = document.createElementNS(ns, 'circle');
+  c.setAttribute('cx', cx);
+  c.setAttribute('cy', cy);
+  c.setAttribute('r', r);
+  return c;
+}
+
+function svgEllipse(cx, cy, rx, ry) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const c = document.createElementNS(ns, 'ellipse');
+  c.setAttribute('cx', cx);
+  c.setAttribute('cy', cy);
+  c.setAttribute('rx', rx);
+  c.setAttribute('ry', ry);
+  return c;
+}
+
+function svgLine(x1, y1, x2, y2) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const line = document.createElementNS(ns, 'line');
+  line.setAttribute('x1', x1);
+  line.setAttribute('y1', y1);
+  line.setAttribute('x2', x2);
+  line.setAttribute('y2', y2);
+  return line;
+}
+
+function svgPolyline(points) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const p = document.createElementNS(ns, 'polyline');
+  p.setAttribute('points', points);
+  return p;
+}
+
+/** Inline Lucide-style icons already used across the site (stroke 24×24). */
+function svgPestanaCatalogo(tipo) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('class', 'pestana-svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  if (tipo === 'skills') {
+    // Lucide: file-text
+    svg.append(
+      svgPath('M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'),
+      svgPolyline('14 2 14 8 20 8'),
+      svgLine('16', '13', '8', '13'),
+      svgLine('16', '17', '8', '17'),
+      svgLine('10', '9', '8', '9')
+    );
+  } else if (tipo === 'ancla') {
+    svg.append(
+      svgCircle('12', '5', '2.5'),
+      svgPath('M12 7.5v10.5'),
+      svgPath('M8 14c0 2.5 1.8 4.5 4 4.5s4-2 4-4.5'),
+      svgPath('M7 11h10')
+    );
+  } else if (tipo === 'mongo') {
+    svg.append(
+      svgEllipse('12', '6', '7', '3'),
+      svgPath('M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6'),
+      svgPath('M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6')
+    );
+  }
+  return svg;
+}
+
 function skillsBridge() {
   return {
     getSnapshot: function () {
@@ -736,12 +818,16 @@ function cerrarFichaCampo() {
 }
 
 function cerrarSkillModal() {
+  const dlg = document.getElementById('dlgSkill');
+  if (dlg && dlg.open) {
+    dlg.close();
+    return;
+  }
   state.abiertaId = null;
   state.abiertaNumero = null;
   state.historial = false;
-  const dlg = document.getElementById('dlgSkill');
-  if (dlg && dlg.open) dlg.close();
   render();
+  reabrirAnclaTrasSkillSiProcede();
 }
 
 function pintarCampos() {
@@ -1113,8 +1199,31 @@ function extrasFichaAncla() {
   });
   return {
     nombresSkill: nombres,
-    mongo: null
+    mongo: null,
+    onAbrirSkill: function (id) { abrirVistaSkill(id); }
   };
+}
+
+/** Vista de skill (dlgSkill). Cierra la ficha ancla si hace falta (no hay dos modales a la vez). */
+function abrirVistaSkill(id, numero) {
+  const anclaId = state.campos && state.campos.abiertoId;
+  const dlgCampo = document.getElementById('dlgCampoFicha');
+  if (dlgCampo && dlgCampo.open && anclaId) {
+    state.reabrirAnclaTrasSkill = anclaId;
+    cerrarFichaCampo();
+    setTimeout(function () {
+      abrirInstruccion(id, numero == null ? null : numero);
+    }, 0);
+    return;
+  }
+  abrirInstruccion(id, numero == null ? null : numero);
+}
+
+function reabrirAnclaTrasSkillSiProcede() {
+  const reabrir = state.reabrirAnclaTrasSkill;
+  state.reabrirAnclaTrasSkill = null;
+  if (!reabrir) return;
+  setTimeout(function () { abrirFichaCampo(reabrir); }, 0);
 }
 
 function mongoParaAncla(campo) {
@@ -1745,12 +1854,16 @@ function renderPestanas(listaId, items, actual, attr, panelAttr) {
   if (!lista) return;
   lista.replaceChildren();
   items.forEach(function (item) {
-    const btn = el('button', 'pestana', item.nombre);
+    const btn = el('button', 'pestana');
     btn.type = 'button';
     btn.id = 'tab-' + item.id;
     btn.setAttribute('role', 'tab');
     btn.setAttribute('aria-controls', 'panel-' + item.id);
     btn.dataset[attr] = item.id;
+    if (item.icono) btn.append(svgPestanaCatalogo(item.icono));
+    const label = document.createElement('span');
+    label.textContent = item.nombre;
+    btn.append(label);
     const on = item.id === actual;
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
     btn.tabIndex = on ? 0 : -1;
@@ -2631,6 +2744,11 @@ function iniciar() {
   if (historialLista) historialLista.addEventListener('click', onClickHistorial);
   const btnCerrarSkill = document.getElementById('btnCerrarSkill');
   if (btnCerrarSkill) btnCerrarSkill.addEventListener('click', cerrarSkillModal);
+  const btnEditarSkill = document.getElementById('btnEditarSkill');
+  if (btnEditarSkill) btnEditarSkill.addEventListener('click', function () {
+    if (!state.abiertaId) return;
+    abrirDialogoEditar(state.abiertaId);
+  });
   const readerTabs = document.getElementById('readerTabs');
   if (readerTabs) readerTabs.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-reader-tab]');
@@ -2647,12 +2765,11 @@ function iniciar() {
   });
   const dlgSkill = document.getElementById('dlgSkill');
   if (dlgSkill) dlgSkill.addEventListener('close', function () {
-    if (state.abiertaId) {
-      state.abiertaId = null;
-      state.abiertaNumero = null;
-      state.historial = false;
-      pintarSkills();
-    }
+    state.abiertaId = null;
+    state.abiertaNumero = null;
+    state.historial = false;
+    pintarSkills();
+    reabrirAnclaTrasSkillSiProcede();
   });
   const dlgCampoFicha = document.getElementById('dlgCampoFicha');
   if (dlgCampoFicha) dlgCampoFicha.addEventListener('close', function () {

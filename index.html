@@ -32,9 +32,10 @@
 .catalogos.main{min-height:0}
 .catalogo-tabs{display:flex;gap:0;margin:0 0 16px;border-bottom:1px solid #e5eaf1;overflow-x:auto;scrollbar-width:none}
 .catalogo-tabs::-webkit-scrollbar{display:none}
-.pestana{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 14px;font:inherit;font-size:14px;font-weight:800;color:#677488;cursor:pointer;white-space:nowrap}
+.pestana{appearance:none;display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 14px;font:inherit;font-size:14px;font-weight:800;color:#677488;cursor:pointer;white-space:nowrap}
 .pestana[aria-selected="true"]{color:#1c63d5;border-bottom-color:#1c63d5}
 .pestana:hover{color:#1c63d5}
+.pestana-svg{width:16px;height:16px;display:block;flex:none}
 .limite{margin:10px 0 16px;color:#5f6f84;font-size:13px;line-height:1.5;max-width:68ch}
 .estado{margin:0 0 14px;color:#5f6f84;font-size:14px}
 .split{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
@@ -147,11 +148,13 @@ dialog::backdrop{background:#17212f66}
 .catalogo-toolbar .limite{margin:0;flex:1;min-width:0;max-width:none;white-space:nowrap}
 .catalogo-toolbar .btn{flex:none}
 .skills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;align-items:start}
-.skill-card{position:relative;border:1px solid #e5eaf1;border-radius:14px;background:white;padding:0 0 14px;overflow:visible}
+.skill-card{position:relative;display:block;width:100%;margin:0;border:1px solid #e5eaf1;border-radius:14px;background:white;padding:0 0 14px;overflow:visible;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
+.skill-card:hover{background:#fafbfd;border-color:#c9d5e8}
+.skill-card:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.skill-card.is-open{border-color:#9db7ea;background:#f8fbff}
 .skill-card-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 14px 0}
 .skill-card-ver{margin:0;flex:1;min-width:0}
-.skill-card-abrir{display:block;width:calc(100% - 28px);margin:10px 14px 0;padding:0;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}
-.skill-card-abrir:focus-visible{outline:2px solid #1c63d5;outline-offset:2px;border-radius:8px}
+.skill-card-titulo{display:block;width:calc(100% - 28px);margin:10px 14px 0;padding:0}
 .skill-nombre{margin:0;font-size:16px;letter-spacing:-.02em;overflow-wrap:anywhere}
 .skill-desc{margin:8px 14px 0;color:#5f6f84;font-size:13px;line-height:1.5}
 .skill-card-local{margin:6px 14px 0}
@@ -181,9 +184,14 @@ dialog::backdrop{background:#17212f66}
 .ancla-ficha-tab:hover{color:#1c63d5}
 .ancla-ficha-body{padding:14px 18px 20px}
 .ancla-ficha-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:4px}
-.ancla-skill-card{padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff}
-.ancla-skill-nombre{display:block;font-size:13px;font-weight:700;color:#17212f}
-.ancla-skill-id{display:block;margin-top:4px;font-size:11px;color:#677488}
+.ancla-skill-card{display:flex;align-items:center;gap:10px;width:100%;margin:0;padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
+.ancla-skill-card:hover{background:#f5f8fc;border-color:#c9d5e8}
+.ancla-skill-card:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.ancla-skill-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.ancla-skill-nombre{display:block;font-size:13px;font-weight:700;color:#17212f;overflow-wrap:anywhere}
+.ancla-skill-id{display:block;font-size:11px;color:#677488;overflow-wrap:anywhere}
+.ancla-skill-enlace{flex:none;display:grid;place-items:center;width:28px;height:28px;color:#1c63d5}
+.ancla-skill-enlace svg{width:16px;height:16px;display:block}
 .ancla-ficha-local{margin:0 18px 16px}
 .reader-tabs{margin:4px 0 0}
 .reader-panel[hidden]{display:none!important}
@@ -237,10 +245,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </nav>
 <div class="app-main">
 <div class="layout">
-<section class="main catalogos" id="catalogos" aria-labelledby="catalogos-titulo">
-<div class="top"><span class="eyebrow">Catálogos</span></div>
-<h2 id="catalogos-titulo">Catálogos</h2>
-<p class="desc">Skills, Campos ancla y Campos MongoDB. Cada catálogo ocupa una pestaña.</p>
+<section class="main catalogos" id="catalogos" aria-label="Catálogos">
 <div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
 <div role="tabpanel" id="panel-skills" data-catalogo="skills">
 <div id="skills-root"></div>
@@ -270,6 +275,9 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <ul id="historialLista"></ul>
 </div>
 </div>
+<button type="button" class="icon-btn" id="btnEditarSkill" aria-label="Editar skill" title="Editar (guarda como versión nueva)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
 <button type="button" class="icon-btn" id="btnCerrarSkill" aria-label="Cerrar">×</button>
 </div>
 </div>
@@ -299,10 +307,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgMongoFicha" class="dlg-wide" aria-label="Ficha del campo MongoDB">
 <div id="mongo-ficha-mount"></div>
 </dialog>
-<section class="main catalogos" id="documentacion" hidden aria-labelledby="documentacion-titulo">
-<div class="top"><span class="eyebrow">Documentación</span></div>
-<h2 id="documentacion-titulo">Documentación</h2>
-<p class="desc">Contrato para que un agente publique en el repositorio. La página no guarda el token.</p>
+<section class="main catalogos" id="documentacion" hidden aria-label="Documentación">
 <section class="conectar" aria-labelledby="conectar-titulo">
 <h3 id="conectar-titulo">Conectar un agente</h3>
 <p>Empieza leyendo Documentación → API (<a href="https://frescofresco.github.io/arquitectura-reservas/">https://frescofresco.github.io/arquitectura-reservas/</a>) y el contrato que ya está en el repo. No inventes rutas.</p>
@@ -644,10 +649,10 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020j"></script>
-<script src="campos-ancla-ui.js?v=20261020m"></script>
-<script src="campos-mongodb-ui.js?v=20261020m"></script>
-<script src="catalogo-ui.js?v=20261020j"></script>
+<script src="skills-ui.js?v=20261020n"></script>
+<script src="campos-ancla-ui.js?v=20261020n"></script>
+<script src="campos-mongodb-ui.js?v=20261020n"></script>
+<script src="catalogo-ui.js?v=20261020n"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>

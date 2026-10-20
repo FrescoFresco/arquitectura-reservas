@@ -133,6 +133,7 @@
   }
 
   function IconoEnlace() {
+    // Lucide: external-link
     return e('svg', {
       className: 'catalogo-fila-enlace-svg',
       viewBox: '0 0 24 24',
@@ -143,9 +144,9 @@
       strokeLinejoin: 'round',
       'aria-hidden': 'true'
     },
-      e('path', { d: 'M14 4h6v6' }),
-      e('path', { d: 'M10 14L20 4' }),
-      e('path', { d: 'M20 11v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7' })
+      e('path', { d: 'M15 3h6v6' }),
+      e('path', { d: 'M10 14L21 3' }),
+      e('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' })
     );
   }
 

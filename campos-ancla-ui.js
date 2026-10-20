@@ -111,9 +111,27 @@
     );
   }
 
+  function IconoEnlaceExterno() {
+    // Lucide: external-link
+    return e('svg', {
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('path', { d: 'M15 3h6v6' }),
+      e('path', { d: 'M10 14L21 3' }),
+      e('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' })
+    );
+  }
+
   function PanelSkills(props) {
     var skills = props.skills || [];
     var nombres = props.nombres || {};
+    var onAbrirSkill = props.onAbrirSkill;
     if (!skills.length) {
       return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-skills', role: 'tabpanel' },
         'Ninguna skill usa este ancla todavía.'
@@ -121,9 +139,22 @@
     }
     return e('div', { className: 'ancla-ficha-skills', id: 'ancla-panel-skills', role: 'tabpanel' },
       skills.map(function (id) {
-        return e('div', { className: 'ancla-skill-card', key: id },
-          e('span', { className: 'ancla-skill-nombre' }, nombreSkill(id, nombres)),
-          e('code', { className: 'ancla-skill-id' }, id)
+        var nombre = nombreSkill(id, nombres);
+        return e('button', {
+          type: 'button',
+          className: 'ancla-skill-card',
+          key: id,
+          title: 'Ver skill',
+          'aria-label': 'Ver skill ' + nombre,
+          onClick: function () {
+            if (onAbrirSkill) onAbrirSkill(id);
+          }
+        },
+          e('span', { className: 'ancla-skill-main' },
+            e('span', { className: 'ancla-skill-nombre' }, nombre),
+            e('code', { className: 'ancla-skill-id' }, id)
+          ),
+          e('span', { className: 'ancla-skill-enlace', 'aria-hidden': 'true' }, e(IconoEnlaceExterno))
         );
       })
     );
@@ -176,7 +207,11 @@
       e('div', { className: 'ancla-ficha-body' },
         tab === 'definicion' ? e(PanelDefinicion, { campo: c }) : null,
         tab === 'mongo' ? e(PanelMongo, { campo: c, mongo: props.mongo }) : null,
-        tab === 'skills' ? e(PanelSkills, { skills: skills, nombres: props.nombresSkill }) : null,
+        tab === 'skills' ? e(PanelSkills, {
+          skills: skills,
+          nombres: props.nombresSkill,
+          onAbrirSkill: props.onAbrirSkill
+        }) : null,
         tab === 'interno' ? e(PanelInterno, { campo: c }) : null
       ),
       c.origen === 'local'
@@ -204,6 +239,7 @@
   }
 
   function IconoEnlace() {
+    // Lucide: external-link
     return e('svg', {
       className: 'catalogo-fila-enlace-svg',
       viewBox: '0 0 24 24',
@@ -214,9 +250,9 @@
       strokeLinejoin: 'round',
       'aria-hidden': 'true'
     },
-      e('path', { d: 'M14 4h6v6' }),
-      e('path', { d: 'M10 14L20 4' }),
-      e('path', { d: 'M20 11v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7' })
+      e('path', { d: 'M15 3h6v6' }),
+      e('path', { d: 'M10 14L21 3' }),
+      e('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' })
     );
   }
 
@@ -299,7 +335,8 @@
       mensaje: mensaje,
       onCerrar: onCerrar,
       mongo: opts.mongo || null,
-      nombresSkill: opts.nombresSkill || {}
+      nombresSkill: opts.nombresSkill || {},
+      onAbrirSkill: opts.onAbrirSkill || null
     }));
   }
 

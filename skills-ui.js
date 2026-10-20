@@ -107,8 +107,25 @@
     var showHist = historialId === ins.id;
     var anclas = Array.isArray(ins.anclas) ? ins.anclas : [];
 
+    function abrirVista(ev) {
+      if (ev) ev.preventDefault();
+      onAbrir(ins.id);
+    }
+
     return e('article', {
-      className: 'skill-card'
+      className: 'skill-card' + (isOpen ? ' is-open' : ''),
+      role: 'button',
+      tabIndex: 0,
+      'data-accion': 'abrir',
+      'data-id': ins.id,
+      'aria-label': 'Ver skill ' + ins.nombre,
+      onClick: abrirVista,
+      onKeyDown: function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          onAbrir(ins.id);
+        }
+      }
     },
       e('div', { className: 'skill-card-meta' },
         e('p', { className: 'bloque-ver skill-card-ver' }, formatVersion(actual.numero, actual.fecha)),
@@ -156,13 +173,7 @@
           }, ICONO_TRASH)
         )
       ),
-      e('button', {
-        type: 'button',
-        className: 'skill-card-abrir',
-        'data-accion': 'abrir',
-        'data-id': ins.id,
-        onClick: function () { onAbrir(ins.id); }
-      },
+      e('div', { className: 'skill-card-titulo' },
         e('h4', { className: 'skill-nombre' }, ins.nombre)
       ),
       actual.origen === 'local' ? e('p', { className: 'en-navegador skill-card-local' }, 'En este navegador') : null,
