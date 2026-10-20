@@ -148,20 +148,20 @@ dialog::backdrop{background:#17212f66}
 
 .catalogo-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:nowrap;margin:0 0 16px}
 .catalogo-toolbar .btn{flex:none}
-.reader-anclas{margin:0}
-.editar-anclas{margin:0}
 .dlg .reader-tabs{margin:12px 0 0}
-.skill-anclas-box{margin:12px 14px 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc}
-.skill-anclas-titulo{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#677488}
-.skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
+.editar-anclas-top{justify-content:flex-end}
 .ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;line-height:1.25;padding:2px 6px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
 .hash-full-btn{appearance:none;display:inline;margin:0;padding:0;border:0;background:transparent;cursor:pointer;text-align:left;max-width:100%}
 .hash-full{display:inline;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#edf3ff;color:#315eb6;padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
 .hash-full-btn:hover .hash-full{filter:brightness(.96)}
-.editar-anclas-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 2px}
+.editar-anclas-top{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:0 0 8px}
 .editar-anclas-top .icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2;flex:none}
 .editar-anclas-top .icon-btn svg{width:16px;height:16px;display:block}
 .ancla-ficha{padding:0;min-width:0;background:#fbfdff}
+.ficha-titulo-icon{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:#edf3ff;color:#1c63d5}
+.ficha-titulo-icon svg{width:20px;height:20px;display:block}
+.reader-top-titulo{display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1}
 .ancla-ficha-header{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 14px;background:#fbfdff;border-bottom:1px solid #e8eef6}
 .ancla-ficha-header-text{min-width:0;flex:1;display:flex;flex-direction:column;gap:8px}
 .ancla-ficha-titulo{margin:0;font-size:18px;letter-spacing:-.02em;font-weight:700;color:#17212f;overflow-wrap:anywhere}
@@ -246,10 +246,13 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgSkill" class="dlg-wide" aria-labelledby="readerNombre">
 <article class="reader dlg-reader" id="reader">
 <div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></span>
 <div>
 <h3 id="readerNombre" tabindex="-1"></h3>
 <p class="bloque-ver" id="readerVersion" aria-live="polite"></p>
 <p class="origen" id="readerOrigen" hidden></p>
+</div>
 </div>
 <div class="reader-top-acciones">
 <div class="historial-ancla">
@@ -282,7 +285,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div class="md-wrap"><div class="md" id="md"></div></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelAnclas" role="tabpanel" aria-labelledby="readerTabAnclas" hidden>
-<div class="skill-anclas-box reader-anclas" id="readerAnclas">
+<div id="readerAnclas">
 <div class="skill-anclas-list" id="readerAnclasLista"></div>
 <p class="ancla-ficha-vacio" id="readerAnclasVacio" hidden>Ninguna ancla asociada.</p>
 </div>
@@ -500,9 +503,8 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 </label>
 </div>
 <div class="reader-panel ancla-ficha-body" id="editarPanelAnclas" role="tabpanel" aria-labelledby="editarTabAnclas" hidden>
-<div class="skill-anclas-box editar-anclas" id="editarAnclasBox">
+<div class="editar-anclas" id="editarAnclasBox">
 <div class="editar-anclas-top">
-<p class="skill-anclas-titulo">Anclas</p>
 <button type="button" class="icon-btn" id="btnEditarAnclas" aria-label="Editar anclas" title="Editar anclas">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
 </button>

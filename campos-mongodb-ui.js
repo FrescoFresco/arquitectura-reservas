@@ -62,6 +62,7 @@
     if (!c) {
       return e('div', { className: 'ancla-ficha' },
         e('div', { className: 'ancla-ficha-header' },
+          e('span', { className: 'ficha-titulo-icon', 'aria-hidden': 'true' }, e(IconoMongo)),
           e('div', { className: 'ancla-ficha-header-text' },
             e('h3', { className: 'ancla-ficha-titulo' }, 'Campo MongoDB')
           ),
@@ -73,6 +74,7 @@
     var label = c.campo || (c.coleccion + '.' + c.clave);
     return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo MongoDB' },
       e('div', { className: 'ancla-ficha-header' },
+        e('span', { className: 'ficha-titulo-icon', 'aria-hidden': 'true' }, e(IconoMongo)),
         e('div', { className: 'ancla-ficha-header-text' },
           e('h3', { className: 'ancla-ficha-titulo' }, label),
           c.ancla ? e('code', { className: 'ancla-ficha-codigo' }, c.ancla) : null

@@ -176,6 +176,7 @@
     if (!c) {
       return e('div', { className: 'ancla-ficha' },
         e('div', { className: 'ancla-ficha-header' },
+          e('span', { className: 'ficha-titulo-icon', 'aria-hidden': 'true' }, e(IconoAncla)),
           e('div', { className: 'ancla-ficha-header-text' },
             e('h3', { className: 'ancla-ficha-titulo' }, 'Campo ancla')
           ),
@@ -192,6 +193,7 @@
     var skills = Array.isArray(c.skills) ? c.skills : [];
     return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo ancla' },
       e('div', { className: 'ancla-ficha-header' },
+        e('span', { className: 'ficha-titulo-icon', 'aria-hidden': 'true' }, e(IconoAncla)),
         e('div', { className: 'ancla-ficha-header-text' },
           e('h3', { className: 'ancla-ficha-titulo' }, c.etiqueta || 'Campo ancla'),
           e('code', { className: 'ancla-ficha-codigo' }, c.ancla)
