@@ -203,42 +203,41 @@
     );
   }
 
+  function IconoEnlace() {
+    return e('svg', {
+      className: 'catalogo-fila-enlace-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('path', { d: 'M14 4h6v6' }),
+      e('path', { d: 'M10 14L20 4' }),
+      e('path', { d: 'M20 11v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7' })
+    );
+  }
+
   function FilaLista(props) {
     var c = props.campo;
     var abierta = props.abierta;
     var titulo = c.etiqueta || c.ancla;
-    function abrir() { props.onAbrir(c.id); }
-    return e('div', {
+    return e('button', {
+      type: 'button',
       className: 'catalogo-fila' + (abierta ? ' is-open' : ''),
-      role: 'listitem'
+      role: 'listitem',
+      title: titulo,
+      'aria-label': 'Abrir ' + titulo,
+      onClick: function () { props.onAbrir(c.id); }
     },
       e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoAncla)),
-      e('button', {
-        type: 'button',
-        className: 'catalogo-fila-main',
-        onClick: abrir,
-        title: titulo
-      },
+      e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, titulo),
         e('code', { className: 'catalogo-fila-codigo' }, c.ancla)
       ),
-      e('button', {
-        type: 'button',
-        className: 'catalogo-fila-abrir',
-        onClick: abrir,
-        'aria-label': 'Abrir ' + titulo
-      },
-        e('span', null, 'Abrir'),
-        e('svg', {
-          viewBox: '0 0 24 24',
-          fill: 'none',
-          stroke: 'currentColor',
-          strokeWidth: '2',
-          strokeLinecap: 'round',
-          strokeLinejoin: 'round',
-          'aria-hidden': 'true'
-        }, e('path', { d: 'M9 6l6 6-6 6' }))
-      )
+      e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlace))
     );
   }
 

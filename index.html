@@ -190,18 +190,17 @@ dialog::backdrop{background:#17212f66}
 .reader-panel[hidden]{display:none!important}
 .skill-historial{position:absolute;top:calc(100% + 6px);right:0;width:min(280px,70vw);z-index:5}
 .catalogo-lista{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
-.catalogo-fila{display:flex;align-items:center;gap:12px;min-width:0;padding:12px 12px 12px 14px;border:1px solid #e5eaf1;border-radius:12px;background:#fff}
+.catalogo-fila{display:flex;align-items:center;gap:12px;width:100%;min-width:0;margin:0;padding:12px 12px 12px 14px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
+.catalogo-fila:hover{background:#f5f8fc;border-color:#c9d5e8}
+.catalogo-fila:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
 .catalogo-fila.is-open{border-color:#9db7ea;background:#f8fbff}
 .catalogo-fila-icon{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#edf3ff;color:#1c63d5}
 .catalogo-fila-svg{width:18px;height:18px;display:block}
-.catalogo-fila-main{flex:1;min-width:0;margin:0;padding:0;border:0;background:transparent;text-align:left;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:3px}
-.catalogo-fila-main:focus-visible{outline:2px solid #1c63d5;outline-offset:2px;border-radius:8px}
+.catalogo-fila-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .catalogo-fila-titulo{margin:0;font-size:14px;font-weight:700;letter-spacing:-.01em;color:#17212f;overflow-wrap:anywhere}
 .catalogo-fila-codigo{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.35;color:#315eb6;overflow-wrap:anywhere}
-.catalogo-fila-abrir{flex:none;display:inline-flex;align-items:center;gap:2px;margin:0;padding:7px 10px;border:1px solid #d5deec;border-radius:10px;background:#fff;color:#1c63d5;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
-.catalogo-fila-abrir svg{width:14px;height:14px;display:block}
-.catalogo-fila-abrir:hover{background:#edf3ff;border-color:#9db7ea}
-.catalogo-fila-abrir:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.catalogo-fila-enlace{flex:none;display:grid;place-items:center;width:28px;height:28px;color:#1c63d5}
+.catalogo-fila-enlace-svg{width:16px;height:16px;display:block}
 @media(max-width:800px){.catalogo-lista{grid-template-columns:1fr}}
 dialog.dlg-wide{width:min(760px,calc(100vw - 24px));max-height:min(90vh,900px);padding:0;border:0;border-radius:16px;box-shadow:0 20px 60px #17212f33;overflow:auto}
 dialog.dlg-wide::backdrop{background:#17212f66}
