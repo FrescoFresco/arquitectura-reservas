@@ -9,11 +9,16 @@
 (function () {
   try {
     var params = new URLSearchParams(location.search);
-    if (!params.has('code') && !params.has('error')) return;
-    sessionStorage.setItem('arquitectura-reservas.oauth.vuelta', JSON.stringify({
-      code: params.get('code') || '',
-      state: params.get('state') || '',
-      error: params.get('error') || ''
+    if (!params.has('code') && !params.has('error') && !params.has('installation_id')) return;
+    function corto(clave, max) {
+      var valor = params.get(clave) || '';
+      return valor.length > max ? '' : valor;
+    }
+    sessionStorage.setItem('arquitectura-reservas.app.vuelta', JSON.stringify({
+      code: corto('code', 80),
+      state: corto('state', 80),
+      error: corto('error', 40),
+      installationId: corto('installation_id', 12)
     }));
     history.replaceState(null, '', location.pathname + location.hash);
   } catch (e) {}
@@ -260,12 +265,16 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <section class="conectar" aria-labelledby="conectar-titulo">
 <h3 id="conectar-titulo">Conectar un agente</h3>
 <p>Empieza leyendo Documentación → API (<a href="https://frescofresco.github.io/arquitectura-reservas/">https://frescofresco.github.io/arquitectura-reservas/</a>) y el contrato que ya está en el repo. No inventes rutas.</p>
-<p>El token se obtiene con el botón <strong>Generar token</strong>. La persona confirma con la cuenta de GitHub que puede escribir en <code>FrescoFresco/arquitectura-reservas</code>. El token pertenece a esa cuenta; pégalo solo en el agente.</p>
+<p>El token se obtiene con el botón <strong>Generar token</strong>. La primera vez confirmas en GitHub con la cuenta que puede escribir en <code>FrescoFresco/arquitectura-reservas</code>. En este navegador, los clics siguientes emiten otro token sin volver a GitHub. El token dura 1 hora. Pégalo solo en el agente.</p>
 <p>Puede modificar tres cosas. Cada cambio es una versión nueva y no pisa la anterior: Bloques (documento o versión), el flujo del mapa, y una tabla de tabla-activación (reglas o pasos, solo esa tabla). También puede eliminar un bloque. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
 <p>El cliente de referencia es <code>scripts/subir.js</code>. Lee el índice antes de escribir.</p>
 <div class="token-box">
-<button type="button" class="btn primary" id="btnGenerarToken" aria-describedby="tokenAviso">Generar token</button>
-<p class="aviso" id="tokenAviso" role="status" tabindex="-1">Este botón todavía no puede emitir el token. Falta registrar la aplicación OAuth en <a href="https://github.com/settings/applications/new" rel="noopener noreferrer">https://github.com/settings/applications/new</a>. Application name: Arquitectura de reservas. Homepage URL: https://frescofresco.github.io/arquitectura-reservas/. Authorization callback URL: https://frescofresco.github.io/arquitectura-reservas/. El client secret no va en esta página.</p>
+<div class="token-acciones">
+<button type="button" class="btn primary" id="btnGenerarToken" aria-describedby="tokenDuracion">Generar token</button>
+<button type="button" class="btn ghost" id="btnOlvidar">Olvidar esta autorización</button>
+</div>
+<p class="aviso" id="tokenAviso" role="status" tabindex="-1" hidden></p>
+<p class="pegar" id="tokenDuracion">El token dura 1 hora.</p>
 <div id="tokenResultado" hidden>
 <label for="tokenValor">Token
 <input type="text" id="tokenValor" readonly autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off">
@@ -279,7 +288,7 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 </section>
 <div class="catalogo-tabs" id="docTabs" role="tablist" aria-label="Documentación"></div>
 <div class="doc" role="tabpanel" id="panel-api" data-doc="api">
-<p>Un agente publica con la API de contenidos de GitHub. El token se obtiene con Generar token, en Conectar un agente, y va en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No se guarda en esta página.</p>
+<p>Un agente publica con la API de contenidos de GitHub. El token se obtiene con Generar token, en Conectar un agente, dura 1 hora y va en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No se guarda en esta página.</p>
 <p>Repositorio <code>FrescoFresco/arquitectura-reservas</code>. Rama <code>main</code>. Cada publicación son dos escrituras: primero el archivo y después el índice, con el <code>sha</code> que devolvió el GET.</p>
 <h3>Subir un documento a Bloques</h3>
 <p>El catálogo se llama Bloques. El id interno sigue siendo <code>microoperaciones</code> y la carpeta no cambia: <code>catalogo/microoperaciones/</code>. No hay otro catálogo al lado.</p>
@@ -520,7 +529,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
 })();
 </script>
 <script src="catalogo-ui.js?v=20261019e"></script>
-<script src="token-ui.js?v=20261020a"></script>
+<script src="token-ui.js?v=20261020b"></script>
 
 </body>
 </html>

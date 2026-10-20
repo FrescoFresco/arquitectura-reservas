@@ -1,16 +1,13 @@
 'use strict';
 
-const OAUTH = {
-  clientId: '',
-  intercambio: '',
-  alcance: 'public_repo',
-  redirectUri: 'https://frescofresco.github.io/arquitectura-reservas/',
-  autorizar: 'https://github.com/login/oauth/authorize'
-};
+const SITIO = 'https://frescofresco.github.io/arquitectura-reservas/';
+const LS_APP = 'arquitectura-reservas.app';
+const SS_STATE = 'arquitectura-reservas.app.state';
+const SS_INSTALAR = 'arquitectura-reservas.app.instalar';
+const SS_VUELTA = 'arquitectura-reservas.app.vuelta';
 
-const SS_STATE = 'arquitectura-reservas.oauth.state';
-const SS_VERIFIER = 'arquitectura-reservas.oauth.verifier';
-const SS_VUELTA = 'arquitectura-reservas.oauth.vuelta';
+let epoca = 0;
+let salida = 0;
 
 function base64url(bytes) {
   let s = '';
@@ -24,50 +21,124 @@ function aleatorio(n) {
   return base64url(bytes);
 }
 
-function reto(verifier) {
-  const data = new TextEncoder().encode(verifier);
-  return crypto.subtle.digest('SHA-256', data).then(function (buf) {
-    return base64url(new Uint8Array(buf));
-  });
+function unir(partes) {
+  let n = 0;
+  for (let i = 0; i < partes.length; i++) n += partes[i].length;
+  const out = new Uint8Array(n);
+  let o = 0;
+  for (let i = 0; i < partes.length; i++) {
+    out.set(partes[i], o);
+    o += partes[i].length;
+  }
+  return out;
 }
 
-function intercambioPermitido(url) {
-  let parsed;
-  try { parsed = new URL(url); } catch (e) { return false; }
-  if (parsed.protocol !== 'https:') return false;
-  const host = parsed.hostname.toLowerCase();
-  if (host === 'github.com' || host.endsWith('.github.com')) return false;
-  if (host === 'githubusercontent.com' || host.endsWith('.githubusercontent.com')) return false;
-  return true;
+function derLongitud(n) {
+  if (n < 0x80) return Uint8Array.of(n);
+  const bytes = [];
+  let x = n;
+  while (x > 0) {
+    bytes.unshift(x & 0xff);
+    x = Math.floor(x / 256);
+  }
+  return Uint8Array.of(0x80 | bytes.length, ...bytes);
 }
 
-function oauthListo() {
-  return typeof OAUTH.clientId === 'string'
-    && OAUTH.clientId.trim() !== ''
-    && intercambioPermitido(OAUTH.intercambio);
+function der(etiqueta, contenido) {
+  const len = derLongitud(contenido.length);
+  const out = new Uint8Array(1 + len.length + contenido.length);
+  out[0] = etiqueta;
+  out.set(len, 1);
+  out.set(contenido, 1 + len.length);
+  return out;
+}
+
+function bytesDeBase64(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function pkcs8DesdePkcs1(pkcs1) {
+  const oid = Uint8Array.of(0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01);
+  const algoritmo = der(0x30, unir([oid, Uint8Array.of(0x05, 0x00)]));
+  const version = Uint8Array.of(0x02, 0x01, 0x00);
+  return der(0x30, unir([version, algoritmo, der(0x04, pkcs1)]));
+}
+
+function pkcs8DesdePem(pem) {
+  const texto = String(pem || '').replace(/\r/g, '');
+  const match = /-----BEGIN ([A-Z0-9 ]+)-----([^-]+)-----END \1-----/.exec(texto);
+  if (!match) throw new Error('pem');
+  const derClave = bytesDeBase64(match[2].replace(/\s/g, ''));
+  if (match[1] === 'PRIVATE KEY') return derClave;
+  if (match[1] === 'RSA PRIVATE KEY') return pkcs8DesdePkcs1(derClave);
+  throw new Error('pem');
+}
+
+function pemValido(pem) {
+  return typeof pem === 'string'
+    && pem.length > 80
+    && pem.length < 20000
+    && /-----BEGIN (?:RSA )?PRIVATE KEY-----/.test(pem)
+    && /-----END (?:RSA )?PRIVATE KEY-----/.test(pem);
+}
+
+function slugValido(slug) {
+  return typeof slug === 'string' && /^[a-z0-9][a-z0-9-]{0,98}$/.test(slug);
+}
+
+function manifiesto() {
+  return {
+    name: 'Arquitectura reservas',
+    url: SITIO,
+    redirect_url: SITIO,
+    callback_urls: [SITIO],
+    setup_url: SITIO,
+    public: false,
+    default_permissions: { contents: 'write' },
+    request_oauth_on_install: false,
+    hook_attributes: { url: SITIO, active: false }
+  };
+}
+
+function urlAlta(state) {
+  return 'https://github.com/settings/apps/new?state=' + encodeURIComponent(state);
+}
+
+function textoB64url(texto) {
+  return base64url(new TextEncoder().encode(texto));
+}
+
+async function jwtDeApp(appId, pem) {
+  const clave = await crypto.subtle.importKey(
+    'pkcs8',
+    pkcs8DesdePem(pem),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const ahora = Math.floor(Date.now() / 1000);
+  const cuerpo = textoB64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+    + '.'
+    + textoB64url(JSON.stringify({ iat: ahora - 60, exp: ahora + 300, iss: String(appId) }));
+  const firma = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', clave, new TextEncoder().encode(cuerpo));
+  return cuerpo + '.' + base64url(new Uint8Array(firma));
+}
+
+function mensajeSeguro(texto) {
+  const t = String(texto || '').replace(/\s+/g, ' ').trim();
+  if (!t || t.length > 180) return 'GitHub no completó la autorización.';
+  if (/private key|begin |ghs_|ghp_|gho_|ghu_|ghr_|github_pat_|-----/i.test(t)) {
+    return 'GitHub no completó la autorización.';
+  }
+  if (/failed to fetch|networkerror|cors/i.test(t)) return 'El navegador no pudo hablar con la API de GitHub.';
+  return t;
 }
 
 function avisoNodo() {
   return document.getElementById('tokenAviso');
-}
-
-function pintarPropietario(nodo) {
-  nodo.replaceChildren();
-  nodo.append('Este botón todavía no puede emitir el token. Falta registrar la aplicación OAuth en ');
-  const enlace = document.createElement('a');
-  enlace.href = 'https://github.com/settings/applications/new';
-  enlace.rel = 'noopener noreferrer';
-  enlace.textContent = 'https://github.com/settings/applications/new';
-  nodo.append(enlace);
-  nodo.append('. Application name: Arquitectura de reservas. Homepage URL: https://frescofresco.github.io/arquitectura-reservas/. Authorization callback URL: https://frescofresco.github.io/arquitectura-reservas/. El client secret no va en esta página.');
-  nodo.hidden = false;
-}
-
-function mensajeSeguro(texto) {
-  const t = String(texto || '').trim();
-  if (!t || t.length > 240) return 'No se pudo obtener el token.';
-  if (/gh[pousr]_/i.test(t) || /github_pat_/i.test(t)) return 'No se pudo obtener el token.';
-  return t;
 }
 
 function mostrarAviso(texto) {
@@ -80,6 +151,17 @@ function mostrarAviso(texto) {
   }
   nodo.hidden = false;
   nodo.textContent = texto;
+}
+
+function ocupado(si) {
+  const nodo = document.getElementById('btnGenerarToken');
+  if (nodo) nodo.disabled = !!si;
+}
+
+function cancelarSalida() {
+  if (!salida) return;
+  clearTimeout(salida);
+  salida = 0;
 }
 
 function ocultarToken() {
@@ -100,27 +182,35 @@ function mostrarToken(token) {
   input.select();
 }
 
-function leerVuelta() {
-  let raw = '';
-  try { raw = sessionStorage.getItem(SS_VUELTA) || ''; } catch (e) { raw = ''; }
-  try { sessionStorage.removeItem(SS_VUELTA); } catch (e) {}
-  if (!raw) return null;
+function leerApp() {
   try {
-    const data = JSON.parse(raw);
+    const data = JSON.parse(localStorage.getItem(LS_APP) || '');
     if (!data || typeof data !== 'object') return null;
-    return {
-      code: typeof data.code === 'string' ? data.code : '',
-      state: typeof data.state === 'string' ? data.state : '',
-      error: typeof data.error === 'string' ? data.error : ''
-    };
+    const id = Number(data.id);
+    const slug = data.slug;
+    const pem = data.pem;
+    if (!Number.isInteger(id) || id < 1 || !slugValido(slug) || !pemValido(pem)) return null;
+    const app = { id: id, slug: slug, pem: pem };
+    const installationId = Number(data.installationId);
+    if (Number.isInteger(installationId) && installationId > 0) app.installationId = installationId;
+    return app;
   } catch (e) {
     return null;
   }
 }
 
-function guardarSesion(state, verifier) {
-  sessionStorage.setItem(SS_STATE, state);
-  sessionStorage.setItem(SS_VERIFIER, verifier);
+function guardarApp(app) {
+  const dato = { id: app.id, slug: app.slug, pem: app.pem };
+  if (app.installationId) dato.installationId = app.installationId;
+  localStorage.setItem(LS_APP, JSON.stringify(dato));
+}
+
+function borrarSesion() {
+  try {
+    sessionStorage.removeItem(SS_STATE);
+    sessionStorage.removeItem(SS_INSTALAR);
+    sessionStorage.removeItem(SS_VUELTA);
+  } catch (e) {}
 }
 
 function leerYBorrar(clave) {
@@ -130,70 +220,188 @@ function leerYBorrar(clave) {
   return valor;
 }
 
-function empezar() {
-  ocultarToken();
-  if (!oauthListo()) {
-    const nodo = avisoNodo();
-    if (nodo) {
-      nodo.textContent = '';
-      pintarPropietario(nodo);
-      nodo.scrollIntoView({ block: 'nearest' });
-      nodo.focus();
-    }
+function leerVuelta() {
+  const raw = leerYBorrar(SS_VUELTA);
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return null;
+    return {
+      code: typeof data.code === 'string' ? data.code : '',
+      state: typeof data.state === 'string' ? data.state : '',
+      error: typeof data.error === 'string' ? data.error : '',
+      installationId: typeof data.installationId === 'string' ? data.installationId : ''
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function enviarManifiesto(state) {
+  const form = document.createElement('form');
+  form.method = 'post';
+  form.action = urlAlta(state);
+  form.acceptCharset = 'UTF-8';
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'manifest';
+  input.value = JSON.stringify(manifiesto());
+  form.append(input);
+  document.body.append(form);
+  form.submit();
+}
+
+function irAInstalar(slug) {
+  const marca = epoca;
+  try {
+    sessionStorage.setItem(SS_INSTALAR, '1');
+  } catch (e) {
+    ocupado(false);
+    mostrarAviso('Este navegador no pudo guardar la autorización en curso.');
     return;
   }
-  if (!crypto.subtle || !crypto.getRandomValues) {
-    mostrarAviso('Este navegador no puede preparar la autorización.');
-    return;
+  mostrarAviso('instálala solo en FrescoFresco/arquitectura-reservas.');
+  const nodo = avisoNodo();
+  if (nodo) {
+    nodo.scrollIntoView({ block: 'nearest' });
+    nodo.focus();
   }
-  const state = aleatorio(16);
-  const verifier = aleatorio(32);
-  reto(verifier).then(function (challenge) {
-    try {
-      guardarSesion(state, verifier);
-    } catch (e) {
-      mostrarAviso('Este navegador no pudo guardar la autorización en curso.');
-      return;
+  cancelarSalida();
+  ocupado(true);
+  salida = setTimeout(function () {
+    salida = 0;
+    if (marca !== epoca) return;
+    location.assign('https://github.com/apps/' + slug + '/installations/new');
+  }, 1600);
+}
+
+async function convertir(code) {
+  let res;
+  try {
+    res = await fetch('https://api.github.com/app-manifests/' + encodeURIComponent(code) + '/conversions', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    });
+  } catch (e) {
+    throw new Error('El navegador no pudo hablar con la API de GitHub.');
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  const id = data ? Number(data.id) : 0;
+  const slug = data && typeof data.slug === 'string' ? data.slug : '';
+  const pem = data && typeof data.pem === 'string' ? data.pem : '';
+  if (!res.ok || !Number.isInteger(id) || id < 1 || !slugValido(slug) || !pemValido(pem)) {
+    const msg = data && typeof data.message === 'string' ? data.message : '';
+    throw new Error(mensajeSeguro(msg) || 'GitHub no entregó la aplicación.');
+  }
+  return { id: id, slug: slug, pem: pem };
+}
+
+async function emitirToken(app) {
+  let jwt;
+  try {
+    jwt = await jwtDeApp(app.id, app.pem);
+  } catch (e) {
+    throw new Error('No se pudo preparar la autorización de este navegador.');
+  }
+  let res;
+  try {
+    res = await fetch('https://api.github.com/app/installations/' + app.installationId + '/access_tokens', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: 'Bearer ' + jwt,
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    });
+  } catch (e) {
+    throw new Error('El navegador no pudo hablar con la API de GitHub.');
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  const token = data && typeof data.token === 'string' ? data.token : '';
+  if (!res.ok || !token) {
+    const error = new Error(mensajeSeguro(data && data.message) || 'GitHub no entregó el token.');
+    if (res.status === 404) error.recuperarInstalacion = true;
+    throw error;
+  }
+  return token;
+}
+
+function emitirYMostrar(app) {
+  const marca = epoca;
+  ocupado(true);
+  mostrarAviso('Emitiendo el token…');
+  emitirToken(app).then(function (token) {
+    if (marca !== epoca) return;
+    mostrarToken(token);
+  }).catch(function (err) {
+    if (marca !== epoca) return;
+    ocultarToken();
+    if (err && err.recuperarInstalacion) {
+      const copia = leerApp();
+      if (copia) {
+        delete copia.installationId;
+        try { guardarApp(copia); } catch (e) {}
+        irAInstalar(copia.slug);
+        return;
+      }
     }
-    const url = new URL(OAUTH.autorizar);
-    url.searchParams.set('client_id', OAUTH.clientId.trim());
-    url.searchParams.set('redirect_uri', OAUTH.redirectUri);
-    url.searchParams.set('scope', OAUTH.alcance);
-    url.searchParams.set('state', state);
-    url.searchParams.set('code_challenge', challenge);
-    url.searchParams.set('code_challenge_method', 'S256');
-    url.searchParams.set('allow_signup', 'false');
-    location.assign(url.toString());
-  }).catch(function () {
-    mostrarAviso('Este navegador no puede preparar la autorización.');
+    mostrarAviso(mensajeSeguro(err && err.message));
+  }).then(function () {
+    if (marca === epoca && !salida) ocupado(false);
   });
 }
 
-function canjear(code, verifier) {
-  return fetch(OAUTH.intercambio, {
-    method: 'POST',
-    mode: 'cors',
-    credentials: 'omit',
-    referrerPolicy: 'no-referrer',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json'
-    },
-    body: JSON.stringify({
-      code: code,
-      code_verifier: verifier,
-      redirect_uri: OAUTH.redirectUri
-    })
-  }).then(function (res) {
-    return res.json().catch(function () { return null; }).then(function (data) {
-      const token = data && typeof data.access_token === 'string' ? data.access_token : '';
-      if (!res.ok || !token) {
-        const error = data && typeof data.error === 'string' ? data.error : '';
-        throw new Error(mensajeSeguro(error));
-      }
-      return token;
-    });
-  });
+function generar() {
+  cancelarSalida();
+  ocupado(true);
+  const app = leerApp();
+  if (app && app.installationId) {
+    emitirYMostrar(app);
+    return;
+  }
+  if (app && app.slug) {
+    irAInstalar(app.slug);
+    return;
+  }
+  let state = '';
+  try {
+    state = aleatorio(16);
+    sessionStorage.setItem(SS_STATE, state);
+  } catch (e) {
+    ocupado(false);
+    mostrarAviso('Este navegador no pudo guardar la autorización en curso.');
+    return;
+  }
+  enviarManifiesto(state);
+}
+
+function olvidar() {
+  epoca += 1;
+  cancelarSalida();
+  ocupado(false);
+  try { localStorage.removeItem(LS_APP); } catch (e) {}
+  borrarSesion();
+  ocultarToken();
+  mostrarAviso('Autorización olvidada.');
+}
+
+function codeValido(code) {
+  return /^[a-f0-9]{20,80}$/i.test(code || '');
+}
+
+function stateValido(state) {
+  return /^[A-Za-z0-9_-]{16,80}$/.test(state || '');
+}
+
+function idInstalacion(valor) {
+  if (!/^\d{1,12}$/.test(valor || '')) return 0;
+  const n = Number(valor);
+  return Number.isInteger(n) && n > 0 ? n : 0;
 }
 
 function alVolver() {
@@ -201,33 +409,45 @@ function alVolver() {
   if (!vuelta) return;
   if (window.abrirDestino) window.abrirDestino('documentacion');
   if (location.hash !== '#documentacion') location.hash = '#documentacion';
-  if (!oauthListo()) {
-    leerYBorrar(SS_STATE);
-    leerYBorrar(SS_VERIFIER);
-    const nodo = avisoNodo();
-    if (nodo) pintarPropietario(nodo);
+  const instalacion = idInstalacion(vuelta.installationId);
+  if (instalacion) {
+    const esperada = leerYBorrar(SS_INSTALAR);
+    const app = leerApp();
+    if (esperada !== '1' || !app) {
+      mostrarAviso('La vuelta de GitHub no coincide. Pulsa Generar token otra vez.');
+      return;
+    }
+    app.installationId = instalacion;
+    try {
+      guardarApp(app);
+    } catch (e) {
+      mostrarAviso('Este navegador no pudo guardar la autorización.');
+      return;
+    }
+    emitirYMostrar(app);
     return;
   }
   if (vuelta.error) {
-    mostrarAviso('GitHub no autorizó el token.');
+    leerYBorrar(SS_STATE);
+    mostrarAviso('GitHub no autorizó la aplicación.');
     return;
   }
   const esperado = leerYBorrar(SS_STATE);
-  const verifier = leerYBorrar(SS_VERIFIER);
-  if (!vuelta.code || !vuelta.state || !esperado || vuelta.state !== esperado || !verifier) {
+  if (!codeValido(vuelta.code) || !stateValido(vuelta.state) || vuelta.state !== esperado) {
     mostrarAviso('La vuelta de GitHub no coincide. Pulsa Generar token otra vez.');
     return;
   }
-  const btn = document.getElementById('btnGenerarToken');
-  if (btn) btn.disabled = true;
+  const marca = epoca;
+  ocupado(true);
   mostrarAviso('Confirmando con GitHub…');
-  canjear(vuelta.code, verifier).then(function (token) {
-    mostrarToken(token);
+  convertir(vuelta.code).then(function (app) {
+    if (marca !== epoca) return;
+    guardarApp(app);
+    irAInstalar(app.slug);
   }).catch(function (err) {
-    ocultarToken();
+    if (marca !== epoca) return;
+    ocupado(false);
     mostrarAviso(mensajeSeguro(err && err.message));
-  }).then(function () {
-    if (btn) btn.disabled = false;
   });
 }
 
@@ -258,15 +478,11 @@ function copiar() {
 function iniciarToken() {
   const btn = document.getElementById('btnGenerarToken');
   if (!btn) return;
-  btn.addEventListener('click', empezar);
+  btn.addEventListener('click', generar);
+  const olvidarBtn = document.getElementById('btnOlvidar');
+  if (olvidarBtn) olvidarBtn.addEventListener('click', olvidar);
   const copiarBtn = document.getElementById('btnCopiarToken');
   if (copiarBtn) copiarBtn.addEventListener('click', copiar);
-  if (!oauthListo()) {
-    const nodo = avisoNodo();
-    if (nodo) pintarPropietario(nodo);
-  } else {
-    mostrarAviso('');
-  }
   alVolver();
 }
 
@@ -274,3 +490,15 @@ if (typeof document !== 'undefined' && document.getElementById) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarToken);
   else iniciarToken();
 }
+
+const apiToken = {
+  SITIO: SITIO,
+  manifiesto: manifiesto,
+  urlAlta: urlAlta,
+  pkcs8DesdePem: pkcs8DesdePem,
+  jwtDeApp: jwtDeApp,
+  pemValido: pemValido,
+  slugValido: slugValido
+};
+
+if (typeof module !== 'undefined' && module.exports) module.exports = apiToken;
