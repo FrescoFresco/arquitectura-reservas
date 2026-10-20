@@ -1,7 +1,7 @@
 'use strict';
 
 const CATALOGOS = [
-  { id: 'microoperaciones', nombre: 'Bloques' },
+  { id: 'skills', nombre: 'Skills' },
   { id: 'tabla-activacion', nombre: 'tabla-activación' }
 ];
 const TABLAS = [
@@ -11,7 +11,7 @@ const TABLAS = [
 const DOCUMENTOS = [
   { id: 'api', nombre: 'API' }
 ];
-const LS_KEY = 'arquitectura-reservas.catalogo.microoperaciones';
+const LS_KEY = 'arquitectura-reservas.catalogo.skills';
 const LS_TABLA = 'arquitectura-reservas.catalogo.tabla-activacion';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -34,6 +34,7 @@ const state = {
   abiertaId: null,
   abiertaNumero: null,
   historial: false,
+  historialSkillId: null,
   fetchToken: 0,
   inflightRuta: null,
   pendingFocus: null,
@@ -159,6 +160,41 @@ function normalizeVersionLocal(v) {
   return out;
 }
 
+function normalizarAnclas(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (raw) {
+    let a = String(raw || '').trim();
+    if (!a) return;
+    if (a.charAt(0) !== '_') a = '_' + a;
+    if (a.charAt(a.length - 1) !== '_') a = a + '_';
+    if (!/^_[a-z][a-z0-9_.]*_$/i.test(a)) return;
+    const key = a.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(a);
+  });
+  return out;
+}
+
+function anclasDeMarkdown(texto) {
+  const out = [];
+  const seen = new Set();
+  const re = /`([a-z][a-z0-9_.]*)`|_([a-z][a-z0-9_.]*)_/gi;
+  String(texto || '').replace(re, function (_, a, b) {
+    const ruta = (a || b || '').trim();
+    if (!ruta) return '';
+    const ancla = '_' + ruta + '_';
+    const key = ancla.toLowerCase();
+    if (seen.has(key)) return '';
+    seen.add(key);
+    out.push(ancla);
+    return '';
+  });
+  return out.slice(0, 24);
+}
+
 function normalizeInstruccion(item, versionFn) {
   if (!item || typeof item !== 'object') return null;
   if (typeof item.id !== 'string' || !item.id.trim()) return null;
@@ -166,11 +202,17 @@ function normalizeInstruccion(item, versionFn) {
   if (!Array.isArray(item.versiones)) return null;
   const versiones = versionesUnicas(item.versiones.map(versionFn).filter(Boolean));
   if (!versiones.length) return null;
-  return {
+  const out = {
     id: item.id.trim(),
     nombre: item.nombre.trim(),
     versiones: versiones
   };
+  if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
+    out.descripcion = item.descripcion.trim().slice(0, 280);
+  }
+  const anclas = normalizarAnclas(item.anclas);
+  if (anclas.length) out.anclas = anclas;
+  return out;
 }
 
 function normalizeIndice(data) {
@@ -210,25 +252,31 @@ function copiaVersion(v) {
   return o;
 }
 
+function conMetaSkill(destino, fuente) {
+  if (fuente.descripcion) destino.descripcion = fuente.descripcion;
+  if (fuente.anclas && fuente.anclas.length) destino.anclas = fuente.anclas.slice();
+  return destino;
+}
+
 function mergeInstrucciones(remotas, locales, eliminados) {
   const map = new Map();
   remotas.forEach(function (ins) {
-    map.set(ins.id, {
+    map.set(ins.id, conMetaSkill({
       id: ins.id,
       nombre: ins.nombre,
       origen: 'indice',
       versiones: ins.versiones.map(copiaVersion)
-    });
+    }, ins));
   });
   locales.forEach(function (ins) {
     const prev = map.get(ins.id);
     if (!prev) {
-      map.set(ins.id, {
+      map.set(ins.id, conMetaSkill({
         id: ins.id,
         nombre: ins.nombre,
         origen: 'local',
         versiones: ins.versiones.map(copiaVersion)
-      });
+      }, ins));
       return;
     }
     const byNum = new Map(prev.versiones.map(function (v) { return [v.numero, v]; }));
@@ -236,6 +284,8 @@ function mergeInstrucciones(remotas, locales, eliminados) {
       byNum.set(v.numero, copiaVersion(v));
     });
     prev.versiones = Array.from(byNum.values()).sort(function (a, b) { return a.numero - b.numero; });
+    if (ins.descripcion) prev.descripcion = ins.descripcion;
+    if (ins.anclas && ins.anclas.length) prev.anclas = ins.anclas.slice();
   });
   const ocultos = new Set(eliminados || []);
   return Array.from(map.values()).filter(function (ins) { return !ocultos.has(ins.id); });
@@ -407,49 +457,40 @@ function el(tag, className, text) {
   return node;
 }
 
-function renderEstado() {
-  const nodo = document.getElementById('catalogoEstado');
-  if (!nodo) return;
-  const partes = [];
-  if (!state.ready) partes.push('Cargando el índice…');
-  else if (state.indexError) partes.push('No se pudo leer el índice compartido.');
-  if (state.ready && state.instrucciones.length === 0) partes.push('No hay bloques.');
-  nodo.textContent = partes.join(' ');
-  nodo.hidden = partes.length === 0;
+function skillsBridge() {
+  return {
+    getSnapshot: function () {
+      const abiertaIns = instruccionAbierta();
+      const abiertaVersion = abiertaIns ? versionAbierta(abiertaIns) : null;
+      return {
+        ready: state.ready,
+        indexError: state.indexError,
+        instrucciones: state.instrucciones,
+        historialId: state.historialSkillId,
+        abierta: abiertaIns ? {
+          id: abiertaIns.id,
+          version: abiertaVersion
+        } : null
+      };
+    },
+    añadirSkill: function () { abrirDialogoNuevo(); },
+    abrirSkill: function (id, numero) {
+      state.historialSkillId = null;
+      abrirInstruccion(id, numero == null ? null : numero);
+    },
+    alternarHistorial: function (id) {
+      state.historialSkillId = state.historialSkillId === id ? null : id;
+      pintarSkills();
+    },
+    eliminarSkill: function (id) { abrirDialogoEliminar(id); },
+    subirVersion: function (id) { abrirDialogoVersion(id); }
+  };
 }
 
-function bloqueDe(ins) {
-  const actual = versionActual(ins);
-  const abierto = ins.id === state.abiertaId;
-  const li = el('li', 'bloque' + (abierto ? ' is-open' : ''));
-  if (abierto) li.setAttribute('aria-current', 'true');
-  const ojo = el('span', 'ojo');
-  ojo.setAttribute('aria-hidden', 'true');
-  ojo.innerHTML = abierto ? OJO_ABIERTO : OJO_CERRADO;
-  const abrir = el('button', 'bloque-abrir');
-  abrir.type = 'button';
-  abrir.dataset.accion = 'abrir';
-  abrir.dataset.id = ins.id;
-  abrir.append(el('h4', 'bloque-nombre', ins.nombre));
-  abrir.append(el('p', 'bloque-ver', formatVersion(actual.numero, actual.fecha)));
-  if (actual.origen === 'local') abrir.append(el('p', 'en-navegador', 'En este navegador'));
-  const eliminar = el('button', 'btn eliminar', 'Eliminar');
-  eliminar.type = 'button';
-  eliminar.dataset.accion = 'eliminar';
-  eliminar.dataset.id = ins.id;
-  eliminar.setAttribute('aria-label', 'Eliminar ' + ins.nombre);
-  const subir = el('button', 'btn version', 'Subir versión');
-  subir.type = 'button';
-  subir.dataset.accion = 'subir-version';
-  subir.dataset.id = ins.id;
-  li.append(ojo, abrir, eliminar, subir);
-  return li;
-}
-
-function renderBloques() {
-  const ul = document.getElementById('bloques');
-  if (!ul) return;
-  ul.replaceChildren.apply(ul, state.instrucciones.map(bloqueDe));
+function pintarSkills() {
+  if (window.SkillsUI && typeof window.SkillsUI.refrescar === 'function') {
+    window.SkillsUI.refrescar(skillsBridge());
+  }
 }
 
 function esMarkdownVersion(v) {
@@ -617,13 +658,12 @@ function render() {
   if (typeof document === 'undefined') return;
   const focoEnHistorial = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#historial, #btnHistorial'));
   refrescar();
-  renderEstado();
-  renderBloques();
+  pintarSkills();
   renderReader();
   if (state.pendingFocus) {
     const id = state.pendingFocus;
     state.pendingFocus = null;
-    const btn = document.querySelector('#bloques [data-accion="abrir"][data-id="' + CSS.escape(id) + '"]');
+    const btn = document.querySelector('#skills-root [data-accion="abrir"][data-id="' + CSS.escape(id) + '"]');
     if (btn) btn.focus();
   } else if (state.historial && focoEnHistorial) {
     const current = document.querySelector('#historialLista [aria-current="true"]');
@@ -729,13 +769,17 @@ async function contenidoDelFormulario(form) {
   return { markdown: pasted };
 }
 
-function guardarInstruccionNueva(nombre, contenido) {
+function guardarInstruccionNueva(nombre, contenido, meta) {
   const store = leerStore();
   const version = { numero: 1, fecha: todayISO() };
   if (contenido.markdown != null) version.markdown = contenido.markdown;
   if (contenido.datos) version.datos = contenido.datos;
   if (contenido.nombreArchivo) version.nombreArchivo = contenido.nombreArchivo;
   const ins = { id: slugId(nombre), nombre: nombre, versiones: [version] };
+  if (meta && meta.descripcion) ins.descripcion = meta.descripcion;
+  let anclas = meta && meta.anclas ? normalizarAnclas(meta.anclas) : [];
+  if (!anclas.length && contenido.markdown) anclas = anclasDeMarkdown(contenido.markdown);
+  if (anclas.length) ins.anclas = anclas;
   store.instrucciones.push(ins);
   guardarLocal(store);
   return ins;
@@ -744,7 +788,7 @@ function guardarInstruccionNueva(nombre, contenido) {
 function guardarVersion(id, contenido) {
   refrescar();
   const actual = state.instrucciones.find(function (ins) { return ins.id === id; });
-  if (!actual) throw new Error('No está ese bloque.');
+  if (!actual) throw new Error('No está esa skill.');
   const store = leerStore();
   let entrada = store.instrucciones.find(function (ins) { return ins && ins.id === id; });
   if (!entrada) {
@@ -765,6 +809,7 @@ function abrirInstruccion(id, numero) {
   state.abiertaId = id;
   state.abiertaNumero = numero == null ? null : numero;
   state.historial = false;
+  state.historialSkillId = null;
   render();
   if (window.matchMedia('(max-width: 800px)').matches) {
     const reader = document.getElementById('reader');
@@ -839,10 +884,18 @@ async function onSubmitNueva(e) {
     error.textContent = 'El nombre es demasiado largo.';
     return;
   }
+  const descripcion = form.descripcion ? form.descripcion.value.trim().slice(0, 280) : '';
+  const anclasRaw = form.anclas ? form.anclas.value : '';
+  const anclas = anclasRaw
+    ? anclasRaw.split(/[\n,]+/).map(function (s) { return s.trim(); }).filter(Boolean)
+    : [];
   submit.disabled = true;
   try {
     const contenido = await contenidoDelFormulario(form);
-    const ins = guardarInstruccionNueva(nombre, contenido);
+    const ins = guardarInstruccionNueva(nombre, contenido, {
+      descripcion: descripcion,
+      anclas: anclas
+    });
     document.getElementById('dlgNueva').close();
     state.pendingFocus = ins.id;
     abrirInstruccion(ins.id, 1);
@@ -1705,7 +1758,8 @@ function iniciar() {
       teclasPestana(e, '#docTabs [role="tab"]', 'doc', seleccionarDoc);
     });
   }
-  document.getElementById('btnNueva').addEventListener('click', abrirDialogoNuevo);
+  const btnNueva = document.getElementById('btnNueva');
+  if (btnNueva) btnNueva.addEventListener('click', abrirDialogoNuevo);
   document.getElementById('nuevaCancelar').addEventListener('click', function () {
     document.getElementById('dlgNueva').close();
   });
@@ -1726,9 +1780,10 @@ function iniciar() {
   document.getElementById('versionArchivo').addEventListener('change', function (e) {
     nombreDeArchivo(e.target, 'versionArchivoNombre');
   });
-  document.getElementById('bloques').addEventListener('click', onClickBloques);
-  document.getElementById('btnHistorial').addEventListener('click', alternarHistorial);
-  document.getElementById('historialLista').addEventListener('click', onClickHistorial);
+  const btnHistorial = document.getElementById('btnHistorial');
+  if (btnHistorial) btnHistorial.addEventListener('click', alternarHistorial);
+  const historialLista = document.getElementById('historialLista');
+  if (historialLista) historialLista.addEventListener('click', onClickHistorial);
   const btnEdicion = document.getElementById('btnEdicion');
   if (btnEdicion) btnEdicion.addEventListener('click', abrirEdicionMapa);
   const formMapa = document.getElementById('formMapa');
@@ -1792,6 +1847,10 @@ function iniciar() {
   });
   document.addEventListener('click', function (e) {
     if (state.historial && !e.target.closest('#historial') && !e.target.closest('#btnHistorial')) cerrarHistorial();
+    if (state.historialSkillId && !e.target.closest('.skill-historial') && !e.target.closest('.historial-ancla')) {
+      state.historialSkillId = null;
+      pintarSkills();
+    }
     if (state.mapa.historial && !e.target.closest('#mapaHistorial') && !e.target.closest('#btnHistMapa')) {
       state.mapa.historial = false;
       pintarMapaChrome();
@@ -1803,6 +1862,12 @@ function iniciar() {
   });
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
+    if (state.historialSkillId) {
+      e.preventDefault();
+      state.historialSkillId = null;
+      pintarSkills();
+      return;
+    }
     if (state.historial) {
       e.preventDefault();
       state.historial = false;
@@ -1828,7 +1893,7 @@ function iniciar() {
     }
   });
   render();
-  fetch('catalogo/microoperaciones/index.json', { cache: 'no-store' })
+  fetch('catalogo/skills/index.json', { cache: 'no-store' })
     .then(function (res) {
       if (!res.ok) throw new Error('http');
       return res.json();
@@ -1871,6 +1936,6 @@ const api = {
 
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 
-if (typeof document !== 'undefined' && document.getElementById && document.getElementById('bloques')) {
+if (typeof document !== 'undefined' && document.getElementById && document.getElementById('skills-root')) {
   iniciar();
 }

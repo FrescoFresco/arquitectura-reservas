@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Arquitectura de acoplamiento a reservas web</title>
-<meta name="description" content="Mapa del sistema de reservas, catálogo Bloques y el contrato para publicarlo.">
+<meta name="description" content="Mapa del sistema de reservas, catálogo Skills y el contrato para publicarlo.">
 <script>
 (function () {
   try {
@@ -162,6 +162,28 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .tabla-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .dlg select{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;background:white;color:#17212f}
 
+.skills-toolbar{display:flex;justify-content:flex-end;margin:0 0 4px}
+.skills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
+.skill-card{position:relative;border:1px solid #e5eaf1;border-radius:14px;background:white;padding:0;overflow:visible}
+.skill-card.is-open{border-color:#9db7ea;box-shadow:0 0 0 3px #e7efff}
+.skill-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:14px 14px 0}
+.skill-card-abrir{flex:1;min-width:0;margin:0;padding:0;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.skill-card-abrir:focus-visible{outline:2px solid #1c63d5;outline-offset:2px;border-radius:8px}
+.skill-nombre{margin:0;font-size:16px;letter-spacing:-.02em;overflow-wrap:anywhere;padding-right:8px}
+.skill-desc{margin:8px 0 0;color:#5f6f84;font-size:13px;line-height:1.5}
+.skill-card-acciones{display:flex;align-items:flex-start;gap:6px;flex:none;position:relative}
+.skill-card .ojo{position:static;width:28px;height:28px;border-radius:999px;display:grid;place-items:center;pointer-events:none}
+.skill-card.is-open .ojo{color:#1c63d5;background:#e7efff}
+.skill-card:not(.is-open) .ojo{color:#8b98ab}
+.skill-card .btn.eliminar{position:static;padding:4px 8px;font-size:12px;line-height:1.2;white-space:nowrap;background:white;color:#9f1239;border:1px solid #f0c4ce}
+.skill-card .btn.version{width:calc(100% - 28px);margin:10px 14px 14px}
+.skill-anclas{padding:10px 14px 0}
+.skill-anclas-titulo{margin:0 0 8px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#677488}
+.skill-anclas-list{display:flex;flex-wrap:wrap;gap:6px}
+.ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.3;padding:4px 8px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
+.skill-historial{position:absolute;top:calc(100% + 6px);right:0;width:min(280px,70vw);z-index:5}
+@media(max-width:800px){.skills-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -205,14 +227,11 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <section class="main catalogos" id="catalogos" hidden aria-labelledby="catalogos-titulo">
 <div class="top"><span class="eyebrow">Catálogos</span></div>
 <h2 id="catalogos-titulo">Catálogos</h2>
-<p class="desc">Bloques y tabla-activación. Cada catálogo ocupa una pestaña.</p>
+<p class="desc">Skills y tabla-activación. Cada catálogo ocupa una pestaña.</p>
 <div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
-<div role="tabpanel" id="panel-microoperaciones" data-catalogo="microoperaciones">
-<button type="button" class="btn primary" id="btnNueva">Subir instrucción nueva</button>
-<p class="limite">La subida y Eliminar se quedan en este navegador, encima del índice publicado. No se envían a GitHub. Para publicarlos, el contrato está en Documentación → API.</p>
-<p class="estado" id="catalogoEstado" role="status">Cargando el índice…</p>
+<div role="tabpanel" id="panel-skills" data-catalogo="skills">
 <div class="split" id="catalogoSplit">
-<ul class="bloques" id="bloques"></ul>
+<div id="skills-root"></div>
 <article class="reader" id="reader" hidden>
 <div class="reader-top">
 <div>
@@ -266,7 +285,7 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <h3 id="conectar-titulo">Conectar un agente</h3>
 <p>Empieza leyendo Documentación → API (<a href="https://frescofresco.github.io/arquitectura-reservas/">https://frescofresco.github.io/arquitectura-reservas/</a>) y el contrato que ya está en el repo. No inventes rutas.</p>
 <p>El token se obtiene con el botón <strong>Generar token</strong>. La primera vez confirmas en GitHub con la cuenta que puede escribir en <code>FrescoFresco/arquitectura-reservas</code>. En este navegador, los clics siguientes emiten otro token sin volver a GitHub. El token dura 1 hora. Pégalo solo en el agente.</p>
-<p>Puede modificar tres cosas. Cada cambio es una versión nueva y no pisa la anterior: Bloques (documento o versión), el flujo del mapa, y una tabla de tabla-activación (reglas o pasos, solo esa tabla). También puede eliminar un bloque. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
+<p>Puede modificar tres cosas. Cada cambio es una versión nueva y no pisa la anterior: Skills (documento o versión), el flujo del mapa, y una tabla de tabla-activación (reglas o pasos, solo esa tabla). También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
 <p>El cliente de referencia es <code>scripts/subir.js</code>. Lee el índice antes de escribir.</p>
 <div class="token-box">
 <div class="token-acciones">
@@ -290,11 +309,11 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <div class="doc" role="tabpanel" id="panel-api" data-doc="api">
 <p>Un agente publica con la API de contenidos de GitHub. El token se obtiene con Generar token, en Conectar un agente, dura 1 hora y va en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No se guarda en esta página.</p>
 <p>Repositorio <code>FrescoFresco/arquitectura-reservas</code>. Rama <code>main</code>. Cada publicación son dos escrituras: primero el archivo y después el índice, con el <code>sha</code> que devolvió el GET.</p>
-<h3>Subir un documento a Bloques</h3>
-<p>El catálogo se llama Bloques. El id interno sigue siendo <code>microoperaciones</code> y la carpeta no cambia: <code>catalogo/microoperaciones/</code>. No hay otro catálogo al lado.</p>
-<p>Ejemplo: un bloque nuevo, «Abrir ficha», id <code>abrir-ficha</code>, archivo <code>nota.md</code>.</p>
+<h3>Subir un documento a Skills</h3>
+<p>El catálogo se llama Skills. El id interno es <code>skills</code> y la carpeta es <code>catalogo/skills/</code>. No hay otro catálogo de instrucciones al lado.</p>
+<p>Ejemplo: una skill nueva, «Mapear recorrido», id <code>mapear-recorrido</code>, archivo <code>mapear-recorrido.md</code>.</p>
 <p>1. Crear el archivo. Un archivo nuevo no lleva <code>sha</code>. Si la ruta ya existe, el cuerpo incluye el <code>sha</code> del GET de esa misma ruta.</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/abrir-ficha/v1.md</code></pre>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/mapear-recorrido/v1.md</code></pre>
 <p>Cabeceras:</p>
 <ul>
 <li><code>Authorization: Bearer TOKEN</code></li>
@@ -302,57 +321,59 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <li><code>X-GitHub-Api-Version: 2022-11-28</code></li>
 </ul>
 <pre><code>{
-  "message": "Añade abrir-ficha v1 a Bloques",
+  "message": "Añade mapear-recorrido v1 a Skills",
   "content": "BASE64_DEL_ARCHIVO",
   "branch": "main"
 }</code></pre>
 <p>2. Leer el índice. La respuesta trae <code>sha</code> y el JSON en <code>content</code> (base64).</p>
-<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/index.json?ref=main</code></pre>
+<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json?ref=main</code></pre>
 <p>3. Añadir la versión y volver a escribir el índice con ese <code>sha</code>.</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/index.json</code></pre>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json</code></pre>
 <pre><code>{
-  "message": "Actualiza el índice de Bloques",
+  "message": "Actualiza el índice de Skills",
   "content": "BASE64_DEL_JSON",
   "branch": "main",
   "sha": "SHA_DEL_GET"
 }</code></pre>
-<p>El JSON queda así. El bloque nuevo entra en <code>instrucciones</code>. Una versión nueva se añade al array <code>versiones</code> de ese bloque. <code>numero</code> es el máximo actual más uno. <code>fecha</code> es <code>YYYY-MM-DD</code>. <code>ruta</code> es relativa a la raíz del sitio.</p>
+<p>El JSON queda así. La skill nueva entra en <code>instrucciones</code>. Una versión nueva se añade al array <code>versiones</code> de esa skill. <code>numero</code> es el máximo actual más uno. <code>fecha</code> es <code>YYYY-MM-DD</code>. <code>ruta</code> es relativa a la raíz del sitio. Opcional: <code>descripcion</code> (texto corto) y <code>anclas</code> (lista de nombres completos como <code>_negocio.nombre_</code>).</p>
 <pre><code>{
-  "id": "microoperaciones",
-  "nombre": "Bloques",
+  "id": "skills",
+  "nombre": "Skills",
   "instrucciones": [
     {
-      "id": "abrir-ficha",
-      "nombre": "Abrir ficha",
+      "id": "mapear-recorrido",
+      "nombre": "Mapear recorrido",
+      "descripcion": "Recorre la web de reserva desde A hasta B.",
+      "anclas": ["_negocio.nombre_", "_proceso.url_inicio_"],
       "versiones": [
         {
           "numero": 1,
-          "fecha": "2026-10-19",
-          "ruta": "catalogo/microoperaciones/abrir-ficha/v1.md",
-          "nombreArchivo": "nota.md"
+          "fecha": "2026-10-20",
+          "ruta": "catalogo/skills/mapear-recorrido/v1.md",
+          "nombreArchivo": "mapear-recorrido.md"
         }
       ]
     }
   ]
 }</code></pre>
 <p>Vale cualquier tipo de archivo. La página pinta markdown (<code>.md</code>, <code>.markdown</code>, <code>.txt</code>). El resto se descarga.</p>
-<p>Otra versión del mismo bloque, por ejemplo un PDF:</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/abrir-ficha/v2.pdf</code></pre>
+<p>Otra versión de la misma skill, por ejemplo un PDF:</p>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/mapear-recorrido/v2.pdf</code></pre>
 <pre><code>{
   "numero": 2,
-  "fecha": "2026-10-19",
-  "ruta": "catalogo/microoperaciones/abrir-ficha/v2.pdf",
-  "nombreArchivo": "nota.pdf"
+  "fecha": "2026-10-20",
+  "ruta": "catalogo/skills/mapear-recorrido/v2.pdf",
+  "nombreArchivo": "mapear-recorrido.pdf"
 }</code></pre>
 <p>El id solo usa minúsculas, números y guiones: <code>^[a-z0-9][a-z0-9-]{0,60}$</code>.</p>
-<h3>Eliminar un bloque</h3>
-<p>En la página, <strong>Eliminar</strong> está al lado del ojo. Pregunta «¿Estás seguro de eliminar el bloque?» con <strong>Confirmar</strong> y <strong>Cancelar</strong>. Cancelar cierra. Confirmar quita ese bloque y sus versiones de la lista de este navegador. La API no pregunta: cuando el agente lo pide, borra el bloque del índice. No se añade una versión ni se escribe otro archivo.</p>
+<h3>Eliminar una skill</h3>
+<p>En la página, <strong>Eliminar</strong> está en la tarjeta. Pregunta «¿Estás seguro de eliminar la skill?» con <strong>Confirmar</strong> y <strong>Cancelar</strong>. Cancelar cierra. Confirmar quita esa skill y sus versiones de la lista de este navegador. La API no pregunta: cuando el agente lo pide, borra la skill del índice. No se añade una versión ni se escribe otro archivo.</p>
 <p>1. Leer el índice. La respuesta trae <code>sha</code> y el JSON en <code>content</code> (base64).</p>
-<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/index.json?ref=main</code></pre>
+<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json?ref=main</code></pre>
 <p>2. Quitar ese objeto de <code>instrucciones</code> y volver a escribir el índice con ese <code>sha</code>.</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/microoperaciones/index.json</code></pre>
+<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json</code></pre>
 <pre><code>{
-  "message": "Elimina abrir-ficha de Bloques",
+  "message": "Elimina mapear-recorrido de Skills",
   "content": "BASE64_DEL_JSON",
   "branch": "main",
   "sha": "SHA_DEL_GET"
@@ -369,7 +390,7 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <p>Después, GET y PUT de <code>mapa/index.json</code> con su <code>sha</code>, añadiendo la versión:</p>
 <pre><code>{ "numero": 2, "fecha": "2026-10-19", "ruta": "mapa/v2.mmd" }</code></pre>
 <h3>Publicar una versión de tabla-activación</h3>
-<p>El catálogo tabla-activación tiene dos tablas, cada una con su versión. <strong>Tabla de reglas</strong> vive en <code>catalogo/tabla-activacion/reglas/</code>. <strong>Tabla de pasos</strong> vive en <code>catalogo/tabla-activacion/pasos/</code>. Publicar una no toca el índice de la otra ni el de Bloques.</p>
+<p>El catálogo tabla-activación tiene dos tablas, cada una con su versión. <strong>Tabla de reglas</strong> vive en <code>catalogo/tabla-activacion/reglas/</code>. <strong>Tabla de pasos</strong> vive en <code>catalogo/tabla-activacion/pasos/</code>. Publicar una no toca el índice de la otra ni el de Skills.</p>
 <p>El archivo de una versión es el JSON completo de esa tabla: <code>columnas</code> y <code>filas</code>. La versión 1 de reglas ya está en <code>catalogo/tabla-activacion/reglas/v1.json</code>. La siguiente es la 2.</p>
 <pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/tabla-activacion/reglas/v2.json</code></pre>
 <pre><code>{
@@ -388,25 +409,31 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <pre><code>{ "numero": 2, "fecha": "2026-10-19", "ruta": "catalogo/tabla-activacion/reglas/v2.json" }</code></pre>
 <p>Para pasos, la ruta del archivo es <code>catalogo/tabla-activacion/pasos/v2.json</code> y el índice es <code>catalogo/tabla-activacion/pasos/index.json</code>. Sus columnas son Bloque, Se activa por y Lo usan.</p>
 <h3>Cliente de referencia</h3>
-<p><code>scripts/subir.js</code> hace esas escrituras. El token sale del entorno. <code>bloques</code> escribe en la carpeta de Bloques; no abre otro catálogo. Con <code>--eliminar</code> solo vuelve a escribir el índice: quita el bloque y no deja una versión nueva.</p>
-<pre><code>GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --nueva --nombre "Abrir ficha" --archivo ./nota.md
-GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --id abrir-ficha --archivo ./nota.pdf
-GITHUB_TOKEN=TOKEN node scripts/subir.js bloques --eliminar --id abrir-ficha
+<p><code>scripts/subir.js</code> hace esas escrituras. El token sale del entorno. <code>skills</code> escribe en la carpeta de Skills; no abre otro catálogo. Con <code>--eliminar</code> solo vuelve a escribir el índice: quita la skill y no deja una versión nueva.</p>
+<pre><code>GITHUB_TOKEN=TOKEN node scripts/subir.js skills --nueva --nombre "Mapear recorrido" --archivo ./mapear-recorrido.md
+GITHUB_TOKEN=TOKEN node scripts/subir.js skills --id mapear-recorrido --archivo ./mapear-recorrido.md
+GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd
 GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla reglas --archivo ./reglas.json
 GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archivo ./pasos.json</code></pre>
 <p><code>--ensayo</code> muestra la ruta y el índice sin llamar a GitHub. <code>GITHUB_REPOSITORIO</code> (por defecto <code>FrescoFresco/arquitectura-reservas</code>) y <code>GITHUB_RAMA</code> (por defecto <code>main</code>) cambian el destino.</p>
-<p>La subida del navegador sigue en este navegador y no usa este contrato: <strong>Subir instrucción nueva</strong>, <strong>Subir versión</strong>, <strong>Eliminar</strong>, el lápiz del mapa y <strong>Añadir columna</strong> o <strong>Añadir valor</strong>.</p>
+<p>La subida del navegador sigue en este navegador y no usa este contrato: <strong>+ Añadir skill</strong>, <strong>Subir versión</strong>, <strong>Eliminar</strong>, el lápiz del mapa y <strong>Añadir columna</strong> o <strong>Añadir valor</strong>.</p>
 </div>
 </section>
 </div>
 <dialog id="dlgNueva" aria-labelledby="dlgNuevaTitulo">
 <form class="dlg" id="formNueva">
-<h3 id="dlgNuevaTitulo">Subir instrucción nueva</h3>
-<p class="nota">Crea un bloque nuevo. Se guarda en este navegador, encima del índice. No se publica en GitHub. Markdown se lee aquí; otro tipo queda para descargar.</p>
+<h3 id="dlgNuevaTitulo">Añadir skill</h3>
+<p class="nota">Crea una skill nueva. Se guarda en este navegador, encima del índice. No se publica en GitHub. Markdown se lee aquí; otro tipo queda para descargar.</p>
 <p class="form-error" id="nuevaError" role="alert"></p>
 <label>Nombre
-<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre de la instrucción">
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre de la skill">
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off" placeholder="Texto corto para la tarjeta">
+</label>
+<label>Anclas
+<textarea name="anclas" placeholder="Una por línea o separadas por comas, p. ej. _negocio.nombre_"></textarea>
 </label>
 <label>Archivo
 <input type="file" name="archivo" id="nuevaArchivo">
@@ -417,7 +444,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
 </label>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="nuevaCancelar">Cancelar</button>
-<button type="submit" class="btn primary">Subir instrucción nueva</button>
+<button type="submit" class="btn primary">Añadir skill</button>
 </div>
 </form>
 </dialog>
@@ -425,7 +452,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
 <form class="dlg" id="formVersion">
 <h3 id="dlgVersionTitulo">Subir versión</h3>
 <p class="destino" id="versionDestino"></p>
-<p class="nota">Añade una versión a este bloque. Se guarda en este navegador, encima del índice. No se publica en GitHub. Markdown se lee aquí; otro tipo queda para descargar.</p>
+<p class="nota">Añade una versión a esta skill. Se guarda en este navegador, encima del índice. No se publica en GitHub. Markdown se lee aquí; otro tipo queda para descargar.</p>
 <p class="form-error" id="versionError" role="alert"></p>
 <label>Archivo
 <input type="file" name="archivo" id="versionArchivo">
@@ -484,7 +511,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
 </dialog>
 <dialog id="dlgEliminar" aria-labelledby="dlgEliminarTitulo">
 <form class="dlg" id="formEliminar">
-<h3 id="dlgEliminarTitulo">¿Estás seguro de eliminar el bloque?</h3>
+<h3 id="dlgEliminarTitulo">¿Estás seguro de eliminar la skill?</h3>
 <p class="form-error" id="eliminarError" role="alert"></p>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="eliminarCancelar">Cancelar</button>
@@ -492,6 +519,8 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
 </div>
 </form>
 </dialog>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
 (function () {
@@ -528,7 +557,8 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
   abrir(desdeHash());
 })();
 </script>
-<script src="catalogo-ui.js?v=20261019e"></script>
+<script src="skills-ui.js?v=20261020a"></script>
+<script src="catalogo-ui.js?v=20261020a"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>

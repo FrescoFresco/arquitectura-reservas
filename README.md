@@ -17,40 +17,42 @@ Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualqui
 
 El sitio se sirve desde la rama `main`, carpeta raíz (`/`). Tras un push a `main`, Pages se actualiza solo (suele tardar uno o dos minutos).
 
-El menú principal tiene tres destinos: **Mapa**, **Catálogos** y **Documentación**. En pantalla estrecha esa barra queda fija abajo. Dentro de Catálogos hay dos pestañas: **Bloques** (el id interno y la carpeta siguen siendo `microoperaciones`) y **tabla-activación**. Dentro de Documentación hay una pestaña, **API**.
+El menú principal tiene tres destinos: **Mapa**, **Catálogos** y **Documentación**. En pantalla estrecha esa barra queda fija abajo. Dentro de Catálogos hay dos pestañas: **Skills** (`catalogo/skills/`) y **tabla-activación**. Dentro de Documentación hay una pestaña, **API**.
 
-El índice de Bloques está en [`catalogo/microoperaciones/index.json`](./catalogo/microoperaciones/index.json). Si `instrucciones` está vacío, el catálogo se muestra vacío. Cada bloque lleva `id`, `nombre` y `versiones`. Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga.
+El índice de Skills está en [`catalogo/skills/index.json`](./catalogo/skills/index.json). Cada skill lleva `id`, `nombre`, `versiones` y, si hace falta, `descripcion` y `anclas` (nombres completos como `_negocio.nombre_`). Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga. La cuadrícula de Skills se renderiza con React (CDN).
 
 El mapa también está versionado en [`mapa/index.json`](./mapa/index.json). La versión 1 es el diagrama actual, [`mapa/v1.mmd`](./mapa/v1.mmd). El lápiz abre ese fuente. Cancelar no cambia nada. Guardar crea la versión siguiente en ese navegador y el mapa pasa a mostrarla.
 
 tabla-activación tiene dos tablas, cada una con su versión: [`reglas`](./catalogo/tabla-activacion/reglas/index.json) y [`pasos`](./catalogo/tabla-activacion/pasos/index.json). Añadir columna y Añadir valor solo cambian la tabla abierta, en ese navegador.
 
-Para publicar un bloque, una versión del mapa o una de esas tablas, un agente usa la API de contenidos de GitHub. El token se obtiene con **Generar token**, en Documentación → Conectar un agente. Dura 1 hora y no se guarda en la página. El contrato está en Documentación → API. El cliente de referencia es [`scripts/subir.js`](./scripts/subir.js):
+Para publicar una skill, una versión del mapa o una de esas tablas, un agente usa la API de contenidos de GitHub. El token se obtiene con **Generar token**, en Documentación → Conectar un agente. Dura 1 hora y no se guarda en la página. El contrato está en Documentación → API. El cliente de referencia es [`scripts/subir.js`](./scripts/subir.js):
 
 ```bash
-GITHUB_TOKEN=… node scripts/subir.js bloques --nueva --nombre "Abrir ficha" --archivo ./nota.md
-GITHUB_TOKEN=… node scripts/subir.js bloques --id abrir-ficha --archivo ./nota.pdf
-GITHUB_TOKEN=… node scripts/subir.js bloques --eliminar --id abrir-ficha
+GITHUB_TOKEN=… node scripts/subir.js skills --nueva --nombre "Mapear recorrido" --archivo ./mapear-recorrido.md
+GITHUB_TOKEN=… node scripts/subir.js skills --id mapear-recorrido --archivo ./mapear-recorrido.md
+GITHUB_TOKEN=… node scripts/subir.js skills --eliminar --id mapear-recorrido
 GITHUB_TOKEN=… node scripts/subir.js mapa --archivo ./flujo.mmd
 GITHUB_TOKEN=… node scripts/subir.js tabla-activacion --tabla reglas --archivo ./reglas.json
 GITHUB_TOKEN=… node scripts/subir.js tabla-activacion --tabla pasos --archivo ./pasos.json
 ```
 
-`--ensayo` no llama a GitHub. En el navegador, **Subir instrucción nueva** y **Subir versión** siguen guardándose solo en ese navegador.
+`--ensayo` no llama a GitHub. En el navegador, **+ Añadir skill** y **Subir versión** siguen guardándose solo en ese navegador.
 
-Ejemplo de bloque en el índice:
+Ejemplo de skill en el índice:
 
 ```json
 {
-  "id": "id-estable",
-  "nombre": "Nombre visible",
+  "id": "mapear-recorrido",
+  "nombre": "Mapear recorrido",
+  "descripcion": "Recorre la web de reserva desde A hasta B.",
+  "anclas": ["_negocio.nombre_", "_proceso.url_inicio_"],
   "versiones": [
-    { "numero": 1, "fecha": "2026-10-19", "ruta": "catalogo/microoperaciones/id-estable/v1.md" }
+    { "numero": 1, "fecha": "2026-10-20", "ruta": "catalogo/skills/mapear-recorrido/v1.md" }
   ]
 }
 ```
 
-**Subir instrucción nueva** crea otro bloque. **Subir versión** añade una versión a ese bloque. Las dos guardan el archivo en el `localStorage` de ese navegador, encima del índice. No hacen commit ni actualizan GitHub.
+**+ Añadir skill** crea otra skill. **Subir versión** añade una versión a esa skill. Las dos guardan el archivo en el `localStorage` de ese navegador, encima del índice. No hacen commit ni actualizan GitHub.
 
 ## Cómo editar
 
