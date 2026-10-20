@@ -5,6 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Arquitectura de acoplamiento a reservas web</title>
 <meta name="description" content="Mapa del sistema de reservas, catálogo Bloques y el contrato para publicarlo.">
+<script>
+(function () {
+  try {
+    var params = new URLSearchParams(location.search);
+    if (!params.has('code') && !params.has('error')) return;
+    sessionStorage.setItem('arquitectura-reservas.oauth.vuelta', JSON.stringify({
+      code: params.get('code') || '',
+      state: params.get('state') || '',
+      error: params.get('error') || ''
+    }));
+    history.replaceState(null, '', location.pathname + location.hash);
+  } catch (e) {}
+})();
+</script>
 <style>
 :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17212f;background:#f6f8fb}*{box-sizing:border-box}body{margin:0}header{background:white;border-bottom:1px solid #e5eaf1;padding:20px clamp(16px,4vw,54px)}.brand{max-width:1180px;margin:auto;display:flex;align-items:center;gap:13px}.brandmark{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:12px;background:#eaf1ff;color:#1c63d5;font-size:22px}h1{font-size:21px;margin:0}header p{margin:0;color:#677488;font-size:13px}.layout{max-width:1180px;margin:24px auto;padding:0 16px}.main{background:white;border:1px solid #e7ebf2;border-radius:18px;box-shadow:0 8px 30px #24334a08;min-height:570px;padding:clamp(22px,4vw,45px)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.1em;color:#4579dc}.pill{font-size:11px;background:#edf3ff;color:#315eb6;border-radius:40px;padding:8px 11px;font-weight:700}h2{font-size:28px;letter-spacing:-.035em;margin:12px 0}p.desc{font-size:15px;color:#5f6f84;line-height:1.65;max-width:750px;margin:0 0 22px}.map-panel{border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;overflow:hidden}.map-panel>summary{list-style:none;display:flex;gap:12px;align-items:center;cursor:pointer;padding:17px 20px;font-size:14px;font-weight:800;color:#245bb2}.map-panel>summary::-webkit-details-marker{display:none}.map-body{padding:0 16px 20px}.mermaid{overflow:auto;text-align:center;min-height:110px;max-width:100%;border-radius:12px}.mermaid svg{display:block;width:100%!important;max-width:100%!important;height:auto!important;min-width:0!important;margin:auto}.map-fallback{white-space:pre-wrap;overflow:auto;max-height:360px;padding:16px;background:#f3f6fc;border-radius:10px;font-size:11px;color:#334155}.mapstatus{color:#75859a;font-size:12px;margin:10px 0 0}.ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}@media(max-width:760px){.layout{margin:12px auto}.main{min-height:520px}h2{font-size:24px}.brand{flex-wrap:wrap}}
 </style>
@@ -128,6 +142,12 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .conectar p:last-child{margin-bottom:0}
 .conectar a{color:#1c63d5}
 .conectar code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;background:#f3f6fc;padding:1px 5px;border-radius:5px}
+.token-box{margin-top:14px}
+.token-box .aviso{margin:10px 0 0;color:#5f6f84;font-size:13px;line-height:1.5;max-width:78ch;overflow-wrap:anywhere}
+.token-box label{display:block;font-size:13px;font-weight:700;margin:10px 0 0}
+.token-box input{display:block;width:100%;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white}
+.token-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.token-box .pegar{margin:8px 0 0;font-size:14px;line-height:1.55;color:#243246}
 
 .tabla-wrap{overflow:auto;border:1px solid #e5eaf1;border-radius:14px;background:white}
 .tabla-wrap table{width:100%;border-collapse:collapse;font-size:14px}
@@ -240,13 +260,26 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 <section class="conectar" aria-labelledby="conectar-titulo">
 <h3 id="conectar-titulo">Conectar un agente</h3>
 <p>Empieza leyendo Documentación → API (<a href="https://frescofresco.github.io/arquitectura-reservas/">https://frescofresco.github.io/arquitectura-reservas/</a>) y el contrato que ya está en el repo. No inventes rutas.</p>
-<p>Hace falta un token de GitHub con escritura (el de quien invita al agente). No va en el HTML ni en el repo.</p>
+<p>El token se obtiene con el botón <strong>Generar token</strong>. La persona confirma con la cuenta de GitHub que puede escribir en <code>FrescoFresco/arquitectura-reservas</code>. El token pertenece a esa cuenta; pégalo solo en el agente.</p>
 <p>Puede modificar tres cosas. Cada cambio es una versión nueva y no pisa la anterior: Bloques (documento o versión), el flujo del mapa, y una tabla de tabla-activación (reglas o pasos, solo esa tabla). También puede eliminar un bloque. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
 <p>El cliente de referencia es <code>scripts/subir.js</code>. Lee el índice antes de escribir.</p>
+<div class="token-box">
+<button type="button" class="btn primary" id="btnGenerarToken" aria-describedby="tokenAviso">Generar token</button>
+<p class="aviso" id="tokenAviso" role="status" tabindex="-1">Este botón todavía no puede emitir el token. Falta registrar la aplicación OAuth en <a href="https://github.com/settings/applications/new" rel="noopener noreferrer">https://github.com/settings/applications/new</a>. Application name: Arquitectura de reservas. Homepage URL: https://frescofresco.github.io/arquitectura-reservas/. Authorization callback URL: https://frescofresco.github.io/arquitectura-reservas/. El client secret no va en esta página.</p>
+<div id="tokenResultado" hidden>
+<label for="tokenValor">Token
+<input type="text" id="tokenValor" readonly autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off">
+</label>
+<div class="token-acciones">
+<button type="button" class="btn version compact" id="btnCopiarToken">Copiar</button>
+</div>
+<p class="pegar" id="tokenPegar">Pégalo en el agente, en GITHUB_TOKEN, y pulsa Enviar.</p>
+</div>
+</div>
 </section>
 <div class="catalogo-tabs" id="docTabs" role="tablist" aria-label="Documentación"></div>
 <div class="doc" role="tabpanel" id="panel-api" data-doc="api">
-<p>Un agente publica con la API de contenidos de GitHub. El token de escritura va en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No va en esta página.</p>
+<p>Un agente publica con la API de contenidos de GitHub. El token se obtiene con Generar token, en Conectar un agente, y va en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No se guarda en esta página.</p>
 <p>Repositorio <code>FrescoFresco/arquitectura-reservas</code>. Rama <code>main</code>. Cada publicación son dos escrituras: primero el archivo y después el índice, con el <code>sha</code> que devolvió el GET.</p>
 <h3>Subir un documento a Bloques</h3>
 <p>El catálogo se llama Bloques. El id interno sigue siendo <code>microoperaciones</code> y la carpeta no cambia: <code>catalogo/microoperaciones/</code>. No hay otro catálogo al lado.</p>
@@ -487,6 +520,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js tabla-activacion --tabla pasos --archiv
 })();
 </script>
 <script src="catalogo-ui.js?v=20261019e"></script>
+<script src="token-ui.js?v=20261020a"></script>
 
 </body>
 </html>

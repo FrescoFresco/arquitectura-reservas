@@ -17,7 +17,7 @@ El mapa también está versionado en [`mapa/index.json`](./mapa/index.json). La 
 
 tabla-activación tiene dos tablas, cada una con su versión: [`reglas`](./catalogo/tabla-activacion/reglas/index.json) y [`pasos`](./catalogo/tabla-activacion/pasos/index.json). Añadir columna y Añadir valor solo cambian la tabla abierta, en ese navegador.
 
-Para publicar un bloque, una versión del mapa o una de esas tablas, un agente usa la API de contenidos de GitHub (el token no está en la página). El contrato está en Documentación → API. El cliente de referencia es [`scripts/subir.js`](./scripts/subir.js):
+Para publicar un bloque, una versión del mapa o una de esas tablas, un agente usa la API de contenidos de GitHub. El token se obtiene con **Generar token**, en Documentación → Conectar un agente, y no se guarda en la página. El contrato está en Documentación → API. El cliente de referencia es [`scripts/subir.js`](./scripts/subir.js):
 
 ```bash
 GITHUB_TOKEN=… node scripts/subir.js bloques --nueva --nombre "Abrir ficha" --archivo ./nota.md

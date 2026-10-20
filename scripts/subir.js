@@ -293,7 +293,7 @@ async function main() {
     if (fs.existsSync(local)) indice = JSON.parse(fs.readFileSync(local, 'utf8'));
   } else {
     const token = tokenDeEntorno();
-    if (!token) throw new Error('Falta GITHUB_TOKEN o GH_TOKEN en el entorno. No va en la página.');
+    if (!token) throw new Error('Falta GITHUB_TOKEN o GH_TOKEN en el entorno. Se obtiene en la página con Generar token. No va en el HTML ni en el repo.');
     const leido = await leerIndice(repo, rama, token, indiceRuta);
     indice = leido.json;
   }
