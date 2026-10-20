@@ -163,16 +163,18 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .dlg select{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;background:white;color:#17212f}
 
 .skills-toolbar{display:flex;justify-content:flex-end;margin:0 0 4px}
-.skills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+.skills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;align-items:start}
 .skill-card{position:relative;border:1px solid #e5eaf1;border-radius:14px;background:white;padding:0 0 14px;overflow:visible}
 .skill-card.is-open{border-color:#9db7ea;box-shadow:0 0 0 3px #e7efff}
-.skill-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:14px 14px 0}
-.skill-card-abrir{flex:1;min-width:0;margin:0;padding:0;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.skill-card-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 14px 0}
+.skill-card-ver{margin:0;flex:1;min-width:0}
+.skill-card-abrir{display:block;width:calc(100% - 28px);margin:10px 14px 0;padding:0;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}
 .skill-card-abrir:focus-visible{outline:2px solid #1c63d5;outline-offset:2px;border-radius:8px}
-.skill-nombre{margin:0;font-size:16px;letter-spacing:-.02em;overflow-wrap:anywhere;padding-right:8px}
-.skill-desc{margin:8px 0 0;color:#5f6f84;font-size:13px;line-height:1.5}
-.skill-card-acciones{display:flex;align-items:flex-start;gap:4px;flex:none;position:relative;flex-wrap:wrap;justify-content:flex-end;max-width:200px}
-.skill-card-acciones .icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2}
+.skill-nombre{margin:0;font-size:16px;letter-spacing:-.02em;overflow-wrap:anywhere}
+.skill-desc{margin:8px 14px 0;color:#5f6f84;font-size:13px;line-height:1.5}
+.skill-card-local{margin:6px 14px 0}
+.skill-card-acciones{display:flex;align-items:center;gap:4px;flex:none;position:relative;flex-wrap:nowrap}
+.skill-card-acciones .icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2;flex:none}
 .skill-card-acciones .icon-btn.is-on,.skill-card-acciones .icon-btn[aria-expanded="true"],.skill-card-acciones .icon-btn[aria-pressed="true"]{background:#edf3ff;border-color:#9db7ea;color:#1c63d5}
 .skill-card-acciones .icon-btn svg{width:16px;height:16px;display:block}
 .skill-anclas-box{margin:12px 14px 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc}
@@ -210,7 +212,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .ancla-pill-btn:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
 .icon-btn.is-on{background:#edf3ff}
 .ancla-ficha-vacio{margin:8px 0 0;color:#5f6f84;font-size:14px;line-height:1.5}
-@media(max-width:800px){.skills-grid{grid-template-columns:1fr}.skill-card-acciones{max-width:none}.ancla-ficha-fila{grid-template-columns:1fr}}
+@media(max-width:800px){.skills-grid{grid-template-columns:1fr}.ancla-ficha-fila{grid-template-columns:1fr}}
 
 </style>
 </head>
@@ -652,7 +654,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020e"></script>
+<script src="skills-ui.js?v=20261020f"></script>
 <script src="campos-ancla-ui.js?v=20261020c"></script>
 <script src="campos-mongodb-ui.js?v=20261020a"></script>
 <script src="catalogo-ui.js?v=20261020g"></script>

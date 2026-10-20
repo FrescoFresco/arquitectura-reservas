@@ -121,19 +121,8 @@
       className: 'skill-card' + (isOpen ? ' is-open' : ''),
       'aria-current': isOpen ? 'true' : undefined
     },
-      e('div', { className: 'skill-card-top' },
-        e('button', {
-          type: 'button',
-          className: 'skill-card-abrir',
-          'data-accion': 'abrir',
-          'data-id': ins.id,
-          onClick: function () { onAbrir(ins.id); }
-        },
-          e('h4', { className: 'skill-nombre' }, ins.nombre),
-          e('p', { className: 'bloque-ver' }, formatVersion(actual.numero, actual.fecha)),
-          actual.origen === 'local' ? e('p', { className: 'en-navegador' }, 'En este navegador') : null,
-          ins.descripcion ? e('p', { className: 'skill-desc' }, ins.descripcion) : null
-        ),
+      e('div', { className: 'skill-card-meta' },
+        e('p', { className: 'bloque-ver skill-card-ver' }, formatVersion(actual.numero, actual.fecha)),
         e('div', { className: 'skill-card-acciones' },
           e(IconBtn, {
             label: isOpen ? 'Cerrar vista' : 'Ver skill',
@@ -188,6 +177,17 @@
           }, ICONO_TRASH)
         )
       ),
+      e('button', {
+        type: 'button',
+        className: 'skill-card-abrir',
+        'data-accion': 'abrir',
+        'data-id': ins.id,
+        onClick: function () { onAbrir(ins.id); }
+      },
+        e('h4', { className: 'skill-nombre' }, ins.nombre)
+      ),
+      actual.origen === 'local' ? e('p', { className: 'en-navegador skill-card-local' }, 'En este navegador') : null,
+      ins.descripcion ? e('p', { className: 'skill-desc' }, ins.descripcion) : null,
       anclas.length ? e('div', { className: 'skill-anclas-box' },
         e('p', { className: 'skill-anclas-titulo' }, 'Anclas'),
         e('div', { className: 'skill-anclas-list' },
