@@ -54,6 +54,12 @@
 .btn-anadir{display:inline-flex;align-items:center;gap:8px}
 .btn-anadir-plus{font-weight:800;line-height:1;font-size:15px}
 .btn-anadir-svg{width:16px;height:16px;display:block;flex:none}
+.proy-skills-picker{display:flex;flex-direction:column;gap:8px;margin:0}
+.proy-skills-picker label{display:flex;align-items:flex-start;gap:10px;margin:0;padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;cursor:pointer;font-weight:600}
+.proy-skills-picker label:hover{background:#f5f8fc;border-color:#c9d5e8}
+.proy-skills-picker input{margin:3px 0 0;flex:none}
+.proy-skills-picker .proy-skill-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.proy-skills-picker .proy-skill-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6}
 .btn.version,.btn.ghost{background:white;color:#1c63d5;border:1px solid #c5d4ef}
 .btn.version{display:block;width:100%;margin-top:12px}
 .btn.ver{display:inline-block;margin-top:10px}
@@ -242,6 +248,9 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div role="tabpanel" id="panel-campos-mongodb" data-catalogo="campos-mongodb" hidden>
 <div id="campos-mongodb-root"></div>
 </div>
+<div role="tabpanel" id="panel-proyectos" data-catalogo="proyectos" hidden>
+<div id="proyectos-root"></div>
+</div>
 </section>
 <dialog id="dlgSkill" class="dlg-wide" aria-labelledby="readerNombre">
 <article class="reader dlg-reader" id="reader">
@@ -304,12 +313,120 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgMongoFicha" class="dlg-wide" aria-label="Ficha del campo MongoDB">
 <div id="mongo-ficha-mount"></div>
 </dialog>
+<dialog id="dlgProyecto" class="dlg-wide" aria-labelledby="proyReaderNombre">
+<article class="reader dlg-reader" id="proyReader">
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9l-.81-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
+<div>
+<h3 id="proyReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="proyReaderVersion" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<button type="button" class="icon-btn" id="btnEditarProyecto" aria-label="Editar proyecto" title="Editar (guarda como versión nueva)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnCerrarProyecto" aria-label="Cerrar">×</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones del proyecto">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabDoc" data-proy-tab="documento" aria-selected="true" aria-controls="proyPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabInterno" data-proy-tab="interno" aria-selected="false" aria-controls="proyPanelInterno">Interno</button>
+</div>
+<div class="reader-panel" id="proyPanelDoc" role="tabpanel" aria-labelledby="proyTabDoc">
+<div class="md-wrap"><div class="md" id="proyMd"></div></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelSkills" role="tabpanel" aria-labelledby="proyTabSkills" hidden>
+<div class="editar-anclas-top">
+<button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills del proyecto" title="Editar skills">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+</div>
+<div class="ancla-ficha-skills" id="proySkillsLista"></div>
+<p class="ancla-ficha-vacio" id="proySkillsVacio" hidden>Ninguna skill asociada.</p>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelInterno" role="tabpanel" aria-labelledby="proyTabInterno" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="proyReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
+</dl>
+</div>
+</article>
+</dialog>
+<dialog id="dlgNuevoProyecto" aria-labelledby="dlgNuevoProyectoTitulo">
+<form class="dlg" id="formNuevoProyecto">
+<h3 id="dlgNuevoProyectoTitulo">Añadir proyecto</h3>
+<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="form-error" id="nuevoProyectoError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre del proyecto">
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off" placeholder="Texto corto">
+</label>
+<label>Skills (ids, una por línea)
+<textarea name="skills" placeholder="mapear-recorrido&#10;generar-script"></textarea>
+</label>
+<label>O pega el markdown
+<textarea name="markdown" placeholder="Documento del proyecto (markdown)." required></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevoProyectoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir proyecto</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarProyecto" class="dlg-wide" aria-labelledby="dlgEditarProyectoTitulo">
+<form class="dlg" id="formEditarProyecto">
+<h3 id="dlgEditarProyectoTitulo">Editar proyecto</h3>
+<p class="nota">Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
+<p class="form-error" id="editarProyectoError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required>
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off">
+</label>
+<div class="ancla-ficha-tabs reader-tabs" id="editarProyTabs" role="tablist" aria-label="Secciones de edición">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="editarProyTabDoc" data-editar-proy-tab="documento" aria-selected="true" aria-controls="editarProyPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="editarProyTabSkills" data-editar-proy-tab="skills" aria-selected="false" aria-controls="editarProyPanelSkills">Skills</button>
+</div>
+<div class="reader-panel" id="editarProyPanelDoc" role="tabpanel" aria-labelledby="editarProyTabDoc">
+<label>Contenido (markdown)
+<textarea name="markdown" rows="12" placeholder="Contenido del proyecto"></textarea>
+</label>
+</div>
+<div class="reader-panel ancla-ficha-body" id="editarProyPanelSkills" role="tabpanel" aria-labelledby="editarProyTabSkills" hidden>
+<div id="editarProySkillsPicker" class="proy-skills-picker"></div>
+<input type="hidden" name="skills" value="">
+</div>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarProyectoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar versión</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarProyectoSkills" aria-labelledby="dlgEditarProyectoSkillsTitulo">
+<form class="dlg" id="formEditarProyectoSkills">
+<h3 id="dlgEditarProyectoSkillsTitulo">Skills del proyecto</h3>
+<p class="nota">Marca las skills del catálogo asociadas a este proyecto. Guardar actualiza la lista; no crea una versión del documento.</p>
+<p class="form-error" id="editarProyectoSkillsError" role="alert"></p>
+<div id="editarProyectoSkillsPicker" class="proy-skills-picker"></div>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarProyectoSkillsCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
 <section class="main catalogos" id="documentacion" hidden aria-label="Documentación">
 <section class="conectar" aria-labelledby="conectar-titulo">
 <h3 id="conectar-titulo">Conectar un agente</h3>
 <p>Empieza leyendo Documentación → API (<a href="https://frescofresco.github.io/arquitectura-reservas/">https://frescofresco.github.io/arquitectura-reservas/</a>) y el contrato que ya está en el repo. No inventes rutas.</p>
 <p>El token se obtiene con el botón <strong>Generar token</strong>. La primera vez confirmas en GitHub con la cuenta que puede escribir en <code>FrescoFresco/arquitectura-reservas</code>. En este navegador, los clics siguientes emiten otro token sin volver a GitHub. El token dura 1 hora. Pégalo solo en el agente.</p>
-<p>Puede modificar: Skills (documento o versión), Campos ancla y Campos MongoDB. Cada publicación es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
+<p>Puede modificar: Skills (documento o versión), Campos ancla, Campos MongoDB y Proyectos. Cada publicación es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
 <p>En Skills: <strong>Editar</strong> modifica el contenido y guarda una versión nueva; <strong>Subir versión</strong> carga un documento completo como versión nueva.</p>
 <p>El cliente de referencia es <code>scripts/subir.js</code>. Lee el índice antes de escribir.</p>
 <div class="token-box">
@@ -653,10 +770,11 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020t"></script>
-<script src="campos-ancla-ui.js?v=20261020t"></script>
-<script src="campos-mongodb-ui.js?v=20261020t"></script>
-<script src="catalogo-ui.js?v=20261020t"></script>
+<script src="skills-ui.js?v=20261020u"></script>
+<script src="campos-ancla-ui.js?v=20261020u"></script>
+<script src="campos-mongodb-ui.js?v=20261020u"></script>
+<script src="proyectos-ui.js?v=20261020u"></script>
+<script src="catalogo-ui.js?v=20261020u"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>

@@ -3,7 +3,8 @@
 const CATALOGOS = [
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
-  { id: 'campos-mongodb', nombre: 'Campos MongoDB', icono: 'mongo' }
+  { id: 'campos-mongodb', nombre: 'Campos MongoDB', icono: 'mongo' },
+  { id: 'proyectos', nombre: 'Proyectos', icono: 'proyecto' }
 ];
 const TABLAS = [];
 const DOCUMENTOS = [
@@ -12,6 +13,7 @@ const DOCUMENTOS = [
 const LS_KEY = 'arquitectura-reservas.catalogo.skills';
 const LS_CAMPOS = 'arquitectura-reservas.catalogo.campos-ancla';
 const LS_MONGO = 'arquitectura-reservas.catalogo.campos-mongodb';
+const LS_PROYECTOS = 'arquitectura-reservas.catalogo.proyectos';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -95,6 +97,17 @@ const state = {
     remotos: [],
     lista: [],
     abiertoId: null
+  },
+  proyectos: {
+    ready: false,
+    indexError: false,
+    remotos: [],
+    lista: [],
+    abiertoId: null,
+    abiertaNumero: null,
+    fetchToken: 0,
+    inflightRuta: null,
+    reabrirTrasSkill: null
   },
   tablaId: 'reglas',
   tablaHistorial: false,
@@ -609,6 +622,11 @@ function svgPestanaCatalogo(tipo) {
       svgPath('M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6'),
       svgPath('M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6')
     );
+  } else if (tipo === 'proyecto') {
+    // Lucide: folder
+    svg.append(
+      svgPath('M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9l-.81-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z')
+    );
   }
   return svg;
 }
@@ -828,6 +846,7 @@ function cerrarSkillModal() {
   state.historial = false;
   render();
   reabrirAnclaTrasSkillSiProcede();
+  reabrirProyectoTrasSkillSiProcede();
 }
 
 function pintarCampos() {
@@ -1204,13 +1223,23 @@ function extrasFichaAncla() {
   };
 }
 
-/** Vista de skill (dlgSkill). Cierra la ficha ancla si hace falta (no hay dos modales a la vez). */
+/** Vista de skill (dlgSkill). Cierra la ficha ancla/proyecto si hace falta (no hay dos modales a la vez). */
 function abrirVistaSkill(id, numero) {
   const anclaId = state.campos && state.campos.abiertoId;
   const dlgCampo = document.getElementById('dlgCampoFicha');
   if (dlgCampo && dlgCampo.open && anclaId) {
     state.reabrirAnclaTrasSkill = anclaId;
     cerrarFichaCampo();
+    setTimeout(function () {
+      abrirInstruccion(id, numero == null ? null : numero);
+    }, 0);
+    return;
+  }
+  const proyId = state.proyectos && state.proyectos.abiertoId;
+  const dlgProy = document.getElementById('dlgProyecto');
+  if (dlgProy && dlgProy.open && proyId) {
+    state.proyectos.reabrirTrasSkill = proyId;
+    cerrarProyectoModal();
     setTimeout(function () {
       abrirInstruccion(id, numero == null ? null : numero);
     }, 0);
@@ -1224,6 +1253,13 @@ function reabrirAnclaTrasSkillSiProcede() {
   state.reabrirAnclaTrasSkill = null;
   if (!reabrir) return;
   setTimeout(function () { abrirFichaCampo(reabrir); }, 0);
+}
+
+function reabrirProyectoTrasSkillSiProcede() {
+  const reabrir = state.proyectos && state.proyectos.reabrirTrasSkill;
+  if (state.proyectos) state.proyectos.reabrirTrasSkill = null;
+  if (!reabrir) return;
+  setTimeout(function () { abrirProyecto(reabrir); }, 0);
 }
 
 function mongoParaAncla(campo) {
@@ -1908,6 +1944,10 @@ function seleccionarCatalogo(id) {
   if (id === 'campos-mongodb') {
     refrescarMongo();
     pintarMongo();
+  }
+  if (id === 'proyectos') {
+    refrescarProyectos();
+    pintarProyectos();
   }
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
@@ -2797,6 +2837,7 @@ function iniciar() {
     state.historial = false;
     pintarSkills();
     reabrirAnclaTrasSkillSiProcede();
+    reabrirProyectoTrasSkillSiProcede();
   });
   const dlgCampoFicha = document.getElementById('dlgCampoFicha');
   if (dlgCampoFicha) dlgCampoFicha.addEventListener('close', function () {
@@ -2882,6 +2923,734 @@ function iniciar() {
     });
   cargarCampos();
   cargarMongo();
+  cargarProyectos();
+  wireProyectosUi();
+}
+
+function normalizarSkillsProyecto(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (raw) {
+    const id = String(raw || '').trim();
+    if (!id || !/^[a-z0-9][a-z0-9-]{0,60}$/i.test(id)) return;
+    const key = id.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(id);
+  });
+  return out;
+}
+
+function normalizeProyecto(item, versionFn) {
+  if (!item || typeof item !== 'object') return null;
+  if (typeof item.id !== 'string' || !item.id.trim()) return null;
+  if (typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
+  if (!Array.isArray(item.versiones)) return null;
+  const versiones = versionesUnicas(item.versiones.map(versionFn).filter(Boolean));
+  if (!versiones.length) return null;
+  const out = {
+    id: item.id.trim(),
+    nombre: item.nombre.trim(),
+    versiones: versiones,
+    skills: normalizarSkillsProyecto(item.skills)
+  };
+  if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
+    out.descripcion = item.descripcion.trim().slice(0, 280);
+  }
+  return out;
+}
+
+function normalizeProyectosIndice(data) {
+  const list = Array.isArray(data) ? data : (data && Array.isArray(data.proyectos) ? data.proyectos : []);
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    const proy = normalizeProyecto(item, normalizeVersionIndice);
+    if (!proy || seen.has(proy.id)) return;
+    seen.add(proy.id);
+    proy.origen = 'indice';
+    out.push(proy);
+  });
+  return out;
+}
+
+function normalizeProyectosLocales(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    const proy = normalizeProyecto(item, normalizeVersionLocal);
+    if (!proy || seen.has(proy.id)) return;
+    seen.add(proy.id);
+    proy.origen = 'local';
+    out.push(proy);
+  });
+  return out;
+}
+
+function conMetaProyecto(destino, fuente) {
+  if (fuente.descripcion) destino.descripcion = fuente.descripcion;
+  destino.skills = Array.isArray(fuente.skills) ? fuente.skills.slice() : [];
+  return destino;
+}
+
+function mergeProyectos(remotas, locales, eliminados) {
+  const ban = new Set(Array.isArray(eliminados) ? eliminados : []);
+  const map = new Map();
+  remotas.forEach(function (proy) {
+    if (ban.has(proy.id)) return;
+    map.set(proy.id, conMetaProyecto({
+      id: proy.id,
+      nombre: proy.nombre,
+      origen: 'indice',
+      versiones: proy.versiones.map(copiaVersion)
+    }, proy));
+  });
+  locales.forEach(function (proy) {
+    if (ban.has(proy.id)) return;
+    const prev = map.get(proy.id);
+    if (!prev) {
+      map.set(proy.id, conMetaProyecto({
+        id: proy.id,
+        nombre: proy.nombre,
+        origen: 'local',
+        versiones: proy.versiones.map(copiaVersion)
+      }, proy));
+      return;
+    }
+    prev.nombre = proy.nombre || prev.nombre;
+    conMetaProyecto(prev, proy);
+    const nums = new Map();
+    prev.versiones.forEach(function (v) { nums.set(v.numero, v); });
+    proy.versiones.forEach(function (v) { nums.set(v.numero, copiaVersion(v)); });
+    prev.versiones = Array.from(nums.values()).sort(function (a, b) { return a.numero - b.numero; });
+  });
+  return Array.from(map.values()).sort(function (a, b) {
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+}
+
+function leerProyectosStore() {
+  try {
+    const raw = localStorage.getItem(LS_PROYECTOS);
+    if (!raw) return { proyectos: [], eliminados: [] };
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.proyectos)) return { proyectos: [], eliminados: [] };
+    return { proyectos: data.proyectos, eliminados: idsEliminados(data.eliminados) };
+  } catch (e) {
+    return { proyectos: [], eliminados: [] };
+  }
+}
+
+function guardarProyectosLocal(store) {
+  const json = JSON.stringify(store);
+  if (json.length > 4500000) throw new Error('No cabe en el almacenamiento de este navegador.');
+  try {
+    localStorage.setItem(LS_PROYECTOS, json);
+  } catch (e) {
+    throw new Error('No cabe en el almacenamiento de este navegador.');
+  }
+}
+
+function refrescarProyectos() {
+  const store = leerProyectosStore();
+  state.proyectos.lista = mergeProyectos(
+    state.proyectos.remotos,
+    normalizeProyectosLocales(store.proyectos),
+    store.eliminados
+  );
+}
+
+function proyectosBridge() {
+  return {
+    getSnapshot: function () {
+      const abierta = state.proyectos.abiertoId
+        ? state.proyectos.lista.find(function (p) { return p.id === state.proyectos.abiertoId; }) || null
+        : null;
+      const abiertaVersion = abierta
+        ? (abierta.versiones.find(function (v) { return v.numero === state.proyectos.abiertaNumero; }) || versionActual(abierta))
+        : null;
+      return {
+        ready: state.proyectos.ready,
+        indexError: state.proyectos.indexError,
+        proyectos: state.proyectos.lista,
+        abierta: abierta ? { id: abierta.id, version: abiertaVersion } : null
+      };
+    },
+    añadirProyecto: function () { abrirDialogoNuevoProyecto(); },
+    abrirProyecto: function (id) {
+      if (state.proyectos.abiertoId === id) {
+        const dlg = document.getElementById('dlgProyecto');
+        if (dlg && dlg.open) {
+          cerrarProyectoModal();
+          return;
+        }
+      }
+      abrirProyecto(id);
+    }
+  };
+}
+
+function pintarProyectos() {
+  if (window.ProyectosUI && typeof window.ProyectosUI.refrescar === 'function') {
+    window.ProyectosUI.refrescar(proyectosBridge());
+  }
+}
+
+function proyectoAbierto() {
+  if (!state.proyectos.abiertoId) return null;
+  return state.proyectos.lista.find(function (p) { return p.id === state.proyectos.abiertoId; }) || null;
+}
+
+function versionProyectoAbierta(proy) {
+  return proy.versiones.find(function (v) { return v.numero === state.proyectos.abiertaNumero; }) || versionActual(proy);
+}
+
+function cerrarProyectoModal() {
+  const dlg = document.getElementById('dlgProyecto');
+  if (dlg && dlg.open) {
+    dlg.close();
+    return;
+  }
+  state.proyectos.abiertoId = null;
+  state.proyectos.abiertaNumero = null;
+  pintarProyectos();
+}
+
+function seleccionarProyReaderTab(id) {
+  const tabs = document.querySelectorAll('#proyReaderTabs [data-proy-tab]');
+  const panelDoc = document.getElementById('proyPanelDoc');
+  const panelSkills = document.getElementById('proyPanelSkills');
+  const panelInterno = document.getElementById('proyPanelInterno');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-proy-tab') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  if (panelDoc) panelDoc.hidden = id !== 'documento';
+  if (panelSkills) panelSkills.hidden = id !== 'skills';
+  if (panelInterno) panelInterno.hidden = id !== 'interno';
+}
+
+function seleccionarEditarProyTab(id) {
+  const tabs = document.querySelectorAll('#editarProyTabs [data-editar-proy-tab]');
+  const panelDoc = document.getElementById('editarProyPanelDoc');
+  const panelSkills = document.getElementById('editarProyPanelSkills');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-editar-proy-tab') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  if (panelDoc) panelDoc.hidden = id !== 'documento';
+  if (panelSkills) panelSkills.hidden = id !== 'skills';
+}
+
+function pintarProyectoSkillsLista(proy) {
+  const lista = document.getElementById('proySkillsLista');
+  const vacio = document.getElementById('proySkillsVacio');
+  if (!lista) return;
+  lista.replaceChildren();
+  const ids = Array.isArray(proy && proy.skills) ? proy.skills : [];
+  if (!ids.length) {
+    if (vacio) vacio.hidden = false;
+    return;
+  }
+  if (vacio) vacio.hidden = true;
+  ids.forEach(function (sid) {
+    const skill = state.instrucciones.find(function (ins) { return ins.id === sid; });
+    const nombre = skill ? skill.nombre : sid;
+    const btn = el('button', 'ancla-skill-card', null);
+    btn.type = 'button';
+    btn.title = 'Ver skill';
+    btn.setAttribute('aria-label', 'Ver skill ' + nombre);
+    const main = el('span', 'ancla-skill-main', null);
+    main.append(el('span', 'ancla-skill-nombre', nombre));
+    main.append(el('code', 'ancla-skill-id', sid));
+    btn.append(main);
+    const enlace = el('span', 'ancla-skill-enlace', null);
+    enlace.setAttribute('aria-hidden', 'true');
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.append(svgPath('M15 3h6v6'), svgPath('M10 14L21 3'), svgPath('M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'));
+    enlace.append(svg);
+    btn.append(enlace);
+    btn.addEventListener('click', function () { abrirVistaSkill(sid); });
+    lista.append(btn);
+  });
+}
+
+function pintarVersionProyecto(v) {
+  const md = document.getElementById('proyMd');
+  if (!md) return;
+  if (typeof v.markdown === 'string') {
+    md.innerHTML = htmlDeMarkdown(v.markdown);
+    return;
+  }
+  if (!v.ruta) {
+    md.textContent = 'No hay documento para esta versión.';
+    return;
+  }
+  if (mdCache.has(v.ruta)) {
+    md.innerHTML = htmlDeMarkdown(mdCache.get(v.ruta));
+    return;
+  }
+  if (state.proyectos.inflightRuta === v.ruta) {
+    md.textContent = 'Cargando…';
+    return;
+  }
+  state.proyectos.inflightRuta = v.ruta;
+  const token = ++state.proyectos.fetchToken;
+  const ruta = v.ruta;
+  md.textContent = 'Cargando…';
+  let url;
+  try { url = hrefRuta(ruta); } catch (e) {
+    state.proyectos.inflightRuta = null;
+    md.textContent = 'No se pudo leer el markdown de esta versión.';
+    return;
+  }
+  fetch(url, { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.text();
+    })
+    .then(function (text) {
+      if (token !== state.proyectos.fetchToken) return;
+      mdCache.set(ruta, text);
+      if (state.proyectos.inflightRuta === ruta) state.proyectos.inflightRuta = null;
+      const actual = proyectoAbierto();
+      if (!actual) return;
+      const abierta = versionProyectoAbierta(actual);
+      if (!abierta || abierta.ruta !== ruta) return;
+      const box = document.getElementById('proyMd');
+      if (box) box.innerHTML = htmlDeMarkdown(text);
+    })
+    .catch(function () {
+      if (token !== state.proyectos.fetchToken) return;
+      if (state.proyectos.inflightRuta === ruta) state.proyectos.inflightRuta = null;
+      const box = document.getElementById('proyMd');
+      if (box) box.textContent = 'No se pudo leer el markdown de esta versión.';
+    });
+}
+
+function renderProyectoReader() {
+  const dlg = document.getElementById('dlgProyecto');
+  const proy = proyectoAbierto();
+  if (!proy) {
+    state.proyectos.abiertoId = null;
+    state.proyectos.abiertaNumero = null;
+    const lista = document.getElementById('proySkillsLista');
+    if (lista) lista.replaceChildren();
+    if (dlg && dlg.open) dlg.close();
+    return;
+  }
+  const v = versionProyectoAbierta(proy);
+  state.proyectos.abiertaNumero = v.numero;
+  document.getElementById('proyReaderNombre').textContent = proy.nombre;
+  document.getElementById('proyReaderVersion').textContent = formatVersion(v.numero, v.fecha);
+  const proyId = document.getElementById('proyReaderId');
+  if (proyId) proyId.textContent = proy.id || '—';
+  const proyVer = document.getElementById('proyInternoVersion');
+  if (proyVer) proyVer.textContent = formatVersion(v.numero, v.fecha);
+  const full = normalizarHash(v.hash) || hashFnvHex(proy.id + '|' + v.numero + '|' + (v.ruta || v.fecha || ''));
+  const hashBtn = document.getElementById('proyHashBtn');
+  const hashFull = document.getElementById('proyHashFull');
+  const hashVacio = document.getElementById('proyHashVacio');
+  if (hashBtn && hashFull && hashVacio) {
+    if (full) {
+      hashFull.textContent = full;
+      hashBtn.hidden = false;
+      hashBtn.dataset.hash = full;
+      hashVacio.hidden = true;
+    } else {
+      hashBtn.hidden = true;
+      hashBtn.dataset.hash = '';
+      hashVacio.hidden = false;
+    }
+  }
+  seleccionarProyReaderTab('documento');
+  pintarVersionProyecto(v);
+  pintarProyectoSkillsLista(proy);
+  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  const nombre = document.getElementById('proyReaderNombre');
+  if (nombre) nombre.focus();
+}
+
+function abrirProyecto(id, numero) {
+  refrescarProyectos();
+  const proy = state.proyectos.lista.find(function (p) { return p.id === id; });
+  if (!proy) return;
+  state.proyectos.abiertoId = id;
+  state.proyectos.abiertaNumero = numero == null ? versionActual(proy).numero : numero;
+  renderProyectoReader();
+  pintarProyectos();
+}
+
+function pintarSkillsPicker(containerId, selectedIds) {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  box.replaceChildren();
+  const selected = new Set((selectedIds || []).map(function (s) { return String(s).toLowerCase(); }));
+  refrescar();
+  const skills = state.instrucciones.slice().sort(function (a, b) {
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+  if (!skills.length) {
+    box.append(el('p', 'ancla-ficha-vacio', 'No hay skills en el catálogo.'));
+    return;
+  }
+  skills.forEach(function (ins) {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.name = 'skill';
+    input.value = ins.id;
+    input.checked = selected.has(ins.id.toLowerCase());
+    const meta = el('span', 'proy-skill-meta', null);
+    meta.append(el('span', null, ins.nombre));
+    meta.append(el('span', 'proy-skill-id', ins.id));
+    label.append(input);
+    label.append(meta);
+    box.append(label);
+  });
+}
+
+function skillsDesdePicker(containerId) {
+  const box = document.getElementById(containerId);
+  if (!box) return [];
+  return Array.from(box.querySelectorAll('input[type="checkbox"][name="skill"]:checked')).map(function (el) {
+    return el.value;
+  });
+}
+
+function textoVersionProyectoActual(v) {
+  if (!v) return Promise.resolve('');
+  if (typeof v.markdown === 'string') return Promise.resolve(v.markdown);
+  if (v.ruta && mdCache.has(v.ruta)) return Promise.resolve(mdCache.get(v.ruta));
+  if (!v.ruta) return Promise.resolve('');
+  try {
+    return fetch(hrefRuta(v.ruta), { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('http');
+        return res.text();
+      })
+      .then(function (text) {
+        mdCache.set(v.ruta, text);
+        return text;
+      })
+      .catch(function () { return ''; });
+  } catch (e) {
+    return Promise.resolve('');
+  }
+}
+
+function abrirDialogoNuevoProyecto() {
+  const dlg = document.getElementById('dlgNuevoProyecto');
+  const form = document.getElementById('formNuevoProyecto');
+  if (!dlg || !form) return;
+  form.reset();
+  const err = document.getElementById('nuevoProyectoError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  if (form.nombre) form.nombre.focus();
+}
+
+async function onSubmitNuevoProyecto(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('nuevoProyectoError');
+  if (error) error.textContent = '';
+  const nombre = form.nombre.value.trim();
+  if (!nombre) {
+    if (error) error.textContent = 'Escribe un nombre.';
+    return;
+  }
+  const markdown = String(form.markdown.value || '');
+  if (!markdown.trim()) {
+    if (error) error.textContent = 'El contenido no puede estar vacío.';
+    return;
+  }
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
+    const idBase = String(nombre || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'proyecto';
+    let id = idBase;
+    refrescarProyectos();
+    let n = 2;
+    while (state.proyectos.lista.some(function (p) { return p.id === id; })) {
+      id = idBase + '-' + n;
+      n += 1;
+    }
+    const hash = await sha256Hex(markdown);
+    const store = leerProyectosStore();
+    store.proyectos.push({
+      id: id,
+      nombre: nombre,
+      descripcion: form.descripcion.value.trim().slice(0, 280),
+      skills: normalizarSkillsProyecto(String(form.skills.value || '').split(/[\n,]+/)),
+      versiones: [{
+        numero: 1,
+        fecha: todayISO(),
+        markdown: markdown,
+        hash: hash,
+        nombreArchivo: id + '.md'
+      }]
+    });
+    guardarProyectosLocal(store);
+    document.getElementById('dlgNuevoProyecto').close();
+    refrescarProyectos();
+    pintarProyectos();
+    abrirProyecto(id, 1);
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function abrirDialogoEditarProyecto(id) {
+  const proy = state.proyectos.lista.find(function (p) { return p.id === id; });
+  if (!proy) return;
+  const dlg = document.getElementById('dlgEditarProyecto');
+  const form = document.getElementById('formEditarProyecto');
+  if (!dlg || !form) return;
+  form.reset();
+  form.dataset.id = id;
+  delete form.dataset.snapMarkdown;
+  delete form.dataset.snapSkills;
+  const err = document.getElementById('editarProyectoError');
+  if (err) err.textContent = '';
+  form.nombre.value = proy.nombre;
+  form.descripcion.value = proy.descripcion || '';
+  form.skills.value = (proy.skills || []).join('\n');
+  pintarSkillsPicker('editarProySkillsPicker', proy.skills || []);
+  form.markdown.value = 'Cargando…';
+  seleccionarEditarProyTab('documento');
+  dlg.showModal();
+  const v = versionActual(proy);
+  textoVersionProyectoActual(v).then(function (text) {
+    if (form.dataset.id !== id) return;
+    const md = text || '';
+    form.markdown.value = md;
+    form.dataset.snapMarkdown = md;
+    form.dataset.snapSkills = (proy.skills || []).join('\n');
+    form.nombre.focus();
+  });
+}
+
+async function onSubmitEditarProyecto(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('editarProyectoError');
+  if (error) error.textContent = '';
+  const id = form.dataset.id;
+  const nombre = form.nombre.value.trim();
+  if (!nombre) {
+    if (error) error.textContent = 'Escribe un nombre.';
+    return;
+  }
+  const markdown = form.markdown.value;
+  if (!String(markdown || '').trim()) {
+    if (error) error.textContent = 'El contenido no puede estar vacío.';
+    return;
+  }
+  const skills = normalizarSkillsProyecto(skillsDesdePicker('editarProySkillsPicker'));
+  form.skills.value = skills.join('\n');
+  const snapMd = form.dataset.snapMarkdown;
+  const snapSkills = form.dataset.snapSkills;
+  refrescarProyectos();
+  const actual = state.proyectos.lista.find(function (p) { return p.id === id; });
+  if (!actual) {
+    if (error) error.textContent = 'No está ese proyecto.';
+    return;
+  }
+  const desc = form.descripcion.value.trim().slice(0, 280);
+  if (
+    typeof snapMd === 'string' &&
+    typeof snapSkills === 'string' &&
+    markdown === snapMd &&
+    skills.join('\n') === snapSkills &&
+    nombre === actual.nombre &&
+    desc === (actual.descripcion || '')
+  ) {
+    if (error) error.textContent = 'Sin cambios';
+    return;
+  }
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
+    const hash = await sha256Hex(markdown);
+    const store = leerProyectosStore();
+    let entrada = store.proyectos.find(function (p) { return p && p.id === id; });
+    if (!entrada) {
+      entrada = { id: id, nombre: actual.nombre, skills: [], versiones: [] };
+      store.proyectos.push(entrada);
+    }
+    entrada.nombre = nombre;
+    entrada.descripcion = desc;
+    entrada.skills = skills;
+    if (!Array.isArray(entrada.versiones)) entrada.versiones = [];
+    const creada = {
+      numero: siguienteNumero(actual.versiones),
+      fecha: todayISO(),
+      markdown: markdown,
+      hash: hash,
+      nombreArchivo: id + '.md'
+    };
+    entrada.versiones.push(creada);
+    guardarProyectosLocal(store);
+    document.getElementById('dlgEditarProyecto').close();
+    refrescarProyectos();
+    pintarProyectos();
+    abrirProyecto(id, creada.numero);
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function abrirDialogoEditarProyectoSkills() {
+  const proy = proyectoAbierto();
+  if (!proy) return;
+  const dlg = document.getElementById('dlgEditarProyectoSkills');
+  const form = document.getElementById('formEditarProyectoSkills');
+  if (!dlg || !form) return;
+  const err = document.getElementById('editarProyectoSkillsError');
+  if (err) err.textContent = '';
+  form.dataset.id = proy.id;
+  pintarSkillsPicker('editarProyectoSkillsPicker', proy.skills || []);
+  dlg.showModal();
+}
+
+function onSubmitEditarProyectoSkills(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('editarProyectoSkillsError');
+  if (error) error.textContent = '';
+  const id = form.dataset.id;
+  const skills = normalizarSkillsProyecto(skillsDesdePicker('editarProyectoSkillsPicker'));
+  refrescarProyectos();
+  const actual = state.proyectos.lista.find(function (p) { return p.id === id; });
+  if (!actual) {
+    if (error) error.textContent = 'No está ese proyecto.';
+    return;
+  }
+  try {
+    const store = leerProyectosStore();
+    let entrada = store.proyectos.find(function (p) { return p && p.id === id; });
+    if (!entrada) {
+      entrada = {
+        id: id,
+        nombre: actual.nombre,
+        descripcion: actual.descripcion || '',
+        skills: [],
+        versiones: []
+      };
+      store.proyectos.push(entrada);
+    }
+    entrada.nombre = actual.nombre;
+    if (actual.descripcion) entrada.descripcion = actual.descripcion;
+    entrada.skills = skills;
+    guardarProyectosLocal(store);
+    document.getElementById('dlgEditarProyectoSkills').close();
+    refrescarProyectos();
+    pintarProyectos();
+    if (state.proyectos.abiertoId === id) {
+      pintarProyectoSkillsLista(proyectoAbierto());
+    }
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  }
+}
+
+function cargarProyectos() {
+  fetch('catalogo/proyectos/index.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.json();
+    })
+    .then(function (data) {
+      state.proyectos.remotos = normalizeProyectosIndice(data);
+      state.proyectos.indexError = false;
+    })
+    .catch(function () {
+      state.proyectos.remotos = [];
+      state.proyectos.indexError = true;
+    })
+    .then(function () {
+      state.proyectos.ready = true;
+      refrescarProyectos();
+      pintarProyectos();
+    });
+}
+
+function wireProyectosUi() {
+  const btnCerrar = document.getElementById('btnCerrarProyecto');
+  if (btnCerrar) btnCerrar.addEventListener('click', cerrarProyectoModal);
+  const btnEditar = document.getElementById('btnEditarProyecto');
+  if (btnEditar) btnEditar.addEventListener('click', function () {
+    if (!state.proyectos.abiertoId) return;
+    abrirDialogoEditarProyecto(state.proyectos.abiertoId);
+  });
+  const btnEditSkills = document.getElementById('btnEditarProyectoSkills');
+  if (btnEditSkills) btnEditSkills.addEventListener('click', abrirDialogoEditarProyectoSkills);
+  const proyTabs = document.getElementById('proyReaderTabs');
+  if (proyTabs) proyTabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-proy-tab]');
+    if (!btn) return;
+    seleccionarProyReaderTab(btn.getAttribute('data-proy-tab'));
+  });
+  const editarProyTabs = document.getElementById('editarProyTabs');
+  if (editarProyTabs) editarProyTabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-editar-proy-tab]');
+    if (!btn) return;
+    seleccionarEditarProyTab(btn.getAttribute('data-editar-proy-tab'));
+  });
+  const formNuevo = document.getElementById('formNuevoProyecto');
+  if (formNuevo) formNuevo.addEventListener('submit', onSubmitNuevoProyecto);
+  const nuevoCancel = document.getElementById('nuevoProyectoCancelar');
+  if (nuevoCancel) nuevoCancel.addEventListener('click', function () {
+    document.getElementById('dlgNuevoProyecto').close();
+  });
+  const formEditar = document.getElementById('formEditarProyecto');
+  if (formEditar) formEditar.addEventListener('submit', onSubmitEditarProyecto);
+  const editarCancel = document.getElementById('editarProyectoCancelar');
+  if (editarCancel) editarCancel.addEventListener('click', function () {
+    document.getElementById('dlgEditarProyecto').close();
+  });
+  const formSkills = document.getElementById('formEditarProyectoSkills');
+  if (formSkills) formSkills.addEventListener('submit', onSubmitEditarProyectoSkills);
+  const skillsCancel = document.getElementById('editarProyectoSkillsCancelar');
+  if (skillsCancel) skillsCancel.addEventListener('click', function () {
+    document.getElementById('dlgEditarProyectoSkills').close();
+  });
+  const proyHashBtn = document.getElementById('proyHashBtn');
+  if (proyHashBtn) proyHashBtn.addEventListener('click', function () {
+    const full = proyHashBtn.dataset.hash || '';
+    if (!full) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(full).catch(function () {});
+    }
+  });
+  const dlgProyecto = document.getElementById('dlgProyecto');
+  if (dlgProyecto) dlgProyecto.addEventListener('close', function () {
+    state.proyectos.abiertoId = null;
+    state.proyectos.abiertaNumero = null;
+    pintarProyectos();
+  });
 }
 
 const api = {

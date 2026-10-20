@@ -4,7 +4,7 @@ Empieza leyendo Documentación → API (https://frescofresco.github.io/arquitect
 
 El token se obtiene en la página, Documentación → Conectar un agente, con el botón Generar token. La primera vez la persona confirma en GitHub. instálala solo en FrescoFresco/arquitectura-reservas. En ese navegador, los clics siguientes emiten otro token sin volver a GitHub. El token dura 1 hora. Pégalo en el agente, en GITHUB_TOKEN. No va en el HTML ni en el repo.
 
-Puede modificar: Skills (documento o versión en `catalogo/skills/`), Campos ancla (`catalogo/campos-ancla/`) y Campos MongoDB (`catalogo/campos-mongodb/`). Cada cambio es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.
+Puede modificar: Skills (documento o versión en `catalogo/skills/`), Campos ancla (`catalogo/campos-ancla/`), Campos MongoDB (`catalogo/campos-mongodb/`) y Proyectos (`catalogo/proyectos/`). Cada cambio es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide. Un proyecto guarda las skills asociadas por id en `skills` (many-to-many).
 
 La página ya no edita el mapa: los archivos en `mapa/` pueden seguir en el repo, pero no hay hub ni contrato de edición del mapa en la UI.
 

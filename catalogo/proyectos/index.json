@@ -1,0 +1,26 @@
+{
+  "id": "proyectos",
+  "nombre": "Proyectos",
+  "proyectos": [
+    {
+      "id": "la-mesa-norte",
+      "nombre": "La Mesa Norte",
+      "descripcion": "Acoplamiento a la web de reservas de La Mesa Norte: descubrimiento, recorrido, script y diagnóstico.",
+      "skills": [
+        "descubrir-negocio",
+        "mapear-recorrido",
+        "generar-script",
+        "diagnosticar-alerta"
+      ],
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-20",
+          "ruta": "catalogo/proyectos/la-mesa-norte/v1.md",
+          "nombreArchivo": "la-mesa-norte.md",
+          "hash": "c17c81a1c86383495e0690f0ddd79f6fcfb42304df5ed5a2e03f155cebceb687"
+        }
+      ]
+    }
+  ]
+}

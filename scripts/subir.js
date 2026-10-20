@@ -109,7 +109,57 @@ function planificarSubida(opts) {
       indice: indice
     };
   }
-  if (tipo !== 'skills') throw new Error('El destino tiene que ser skills, mapa o tabla-activacion.');
+  if (tipo === 'proyectos') {
+    const indice = clonar(opts.indice && typeof opts.indice === 'object' ? opts.indice : {});
+    if (!Array.isArray(indice.proyectos)) indice.proyectos = [];
+    indice.id = 'proyectos';
+    indice.nombre = indice.nombre || 'Proyectos';
+    const nombreArchivo = path.basename(String(opts.nombreArchivo || ''));
+    if (!nombreArchivo || nombreArchivo === '.' || nombreArchivo === '..') {
+      throw new Error('Falta el archivo.');
+    }
+    const ext = extensionDe(nombreArchivo);
+    if (opts.nueva) {
+      const id = opts.id ? String(opts.id) : slugId(opts.nombre);
+      if (!ID_RE.test(id)) throw new Error('El id no es válido.');
+      if (indice.proyectos.some(function (item) { return item && item.id === id; })) {
+        throw new Error('Ya existe un proyecto con el id ' + id + '.');
+      }
+      const nombre = String(opts.nombre || '').trim();
+      if (!nombre) throw new Error('Falta el nombre del proyecto.');
+      const ruta = 'catalogo/proyectos/' + id + '/v1' + ext;
+      const entrada = {
+        id: id,
+        nombre: nombre,
+        skills: Array.isArray(opts.skills) ? opts.skills : [],
+        versiones: [{ numero: 1, fecha: fecha, ruta: ruta, nombreArchivo: nombreArchivo }]
+      };
+      if (opts.descripcion) entrada.descripcion = String(opts.descripcion).trim().slice(0, 280);
+      indice.proyectos.push(entrada);
+      return {
+        archivo: { ruta: ruta, mensaje: 'Añade ' + id + ' v1 a Proyectos' },
+        indiceRuta: 'catalogo/proyectos/index.json',
+        indiceMensaje: 'Actualiza el índice de Proyectos',
+        indice: indice
+      };
+    }
+    const id = String(opts.id || '');
+    if (!ID_RE.test(id)) throw new Error('El id no es válido.');
+    const proy = indice.proyectos.find(function (item) { return item && item.id === id; });
+    if (!proy) throw new Error('No está ese proyecto: ' + id + '.');
+    if (!Array.isArray(proy.versiones)) proy.versiones = [];
+    if (Array.isArray(opts.skills)) proy.skills = opts.skills;
+    const numero = siguienteNumero(proy.versiones);
+    const ruta = 'catalogo/proyectos/' + id + '/v' + numero + ext;
+    proy.versiones.push({ numero: numero, fecha: fecha, ruta: ruta, nombreArchivo: nombreArchivo });
+    return {
+      archivo: { ruta: ruta, mensaje: 'Añade ' + id + ' v' + numero + ' a Proyectos' },
+      indiceRuta: 'catalogo/proyectos/index.json',
+      indiceMensaje: 'Actualiza el índice de Proyectos',
+      indice: indice
+    };
+  }
+  if (tipo !== 'skills') throw new Error('El destino tiene que ser skills, mapa, tabla-activacion o proyectos.');
   const indice = clonar(opts.indice && typeof opts.indice === 'object' ? opts.indice : {});
   if (!Array.isArray(indice.instrucciones)) indice.instrucciones = [];
   indice.id = 'skills';
@@ -258,11 +308,11 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const destino = args._[0];
   if (!destino || args._.length !== 1) {
-    throw new Error('Uso: node scripts/subir.js skills|mapa|tabla-activacion --archivo ./fichero [--tabla reglas|pasos] [--nueva --nombre "Nombre"] [--id id] [--eliminar --id id] [--ensayo]');
+    throw new Error('Uso: node scripts/subir.js skills|mapa|tabla-activacion|proyectos --archivo ./fichero [--tabla reglas|pasos] [--nueva --nombre "Nombre"] [--id id] [--eliminar --id id] [--ensayo]');
   }
   const tipo = (destino === 'microoperaciones' || destino === 'bloques') ? 'skills' : destino;
-  if (tipo !== 'skills' && tipo !== 'mapa' && tipo !== 'tabla-activacion') {
-    throw new Error('El destino tiene que ser skills, mapa o tabla-activacion.');
+  if (tipo !== 'skills' && tipo !== 'mapa' && tipo !== 'tabla-activacion' && tipo !== 'proyectos') {
+    throw new Error('El destino tiene que ser skills, mapa, tabla-activacion o proyectos.');
   }
   if (args.eliminar) {
     if (tipo !== 'skills') throw new Error('Eliminar solo vale para una skill.');
@@ -285,14 +335,16 @@ async function main() {
     ? 'mapa/index.json'
     : (tipo === 'tabla-activacion'
       ? 'catalogo/tabla-activacion/' + String(args.tabla || '') + '/index.json'
-      : 'catalogo/skills/index.json');
+      : (tipo === 'proyectos' ? 'catalogo/proyectos/index.json' : 'catalogo/skills/index.json'));
   let indice = null;
   if (args.ensayo) {
     const local = tipo === 'mapa'
       ? path.join(process.cwd(), 'mapa', 'index.json')
       : (tipo === 'tabla-activacion'
         ? path.join(process.cwd(), 'catalogo', 'tabla-activacion', String(args.tabla || ''), 'index.json')
-        : path.join(process.cwd(), 'catalogo', 'skills', 'index.json'));
+        : (tipo === 'proyectos'
+          ? path.join(process.cwd(), 'catalogo', 'proyectos', 'index.json')
+          : path.join(process.cwd(), 'catalogo', 'skills', 'index.json')));
     if (fs.existsSync(local)) indice = JSON.parse(fs.readFileSync(local, 'utf8'));
   } else {
     const token = tokenDeEntorno();
