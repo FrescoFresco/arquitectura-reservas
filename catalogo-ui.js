@@ -988,6 +988,23 @@ function textoDeVersionActual(v) {
   return Promise.resolve('');
 }
 
+function pintarEditarAnclasCapsulas(texto) {
+  const lista = document.getElementById('editarAnclasLista');
+  if (!lista) return;
+  const anclas = normalizarAnclas(String(texto || '').split(/[\n,]+/));
+  lista.replaceChildren();
+  anclas.forEach(function (a) {
+    const btn = el('button', 'ancla-pill ancla-pill-btn', a);
+    btn.type = 'button';
+    btn.title = 'Ver campo ancla';
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      abrirFichaAncla(a);
+    });
+    lista.append(btn);
+  });
+}
+
 function abrirDialogoEditar(id) {
   const ins = state.instrucciones.find(function (item) { return item.id === id; });
   if (!ins) return;
@@ -1000,6 +1017,7 @@ function abrirDialogoEditar(id) {
   form.nombre.value = ins.nombre;
   form.descripcion.value = ins.descripcion || '';
   form.anclas.value = (ins.anclas || []).join('\n');
+  pintarEditarAnclasCapsulas(form.anclas.value);
   form.markdown.value = 'Cargando…';
   dlg.showModal();
   const v = versionActual(ins);
@@ -1203,6 +1221,26 @@ function renderHistorial(ins, abierta) {
   });
 }
 
+function pintarReaderAnclas(ins) {
+  const box = document.getElementById('readerAnclas');
+  const lista = document.getElementById('readerAnclasLista');
+  if (!box || !lista) return;
+  const anclas = Array.isArray(ins && ins.anclas) ? ins.anclas : [];
+  lista.replaceChildren();
+  if (!anclas.length) {
+    box.hidden = true;
+    return;
+  }
+  anclas.forEach(function (a) {
+    const btn = el('button', 'ancla-pill ancla-pill-btn', a);
+    btn.type = 'button';
+    btn.title = 'Ver campo ancla';
+    btn.addEventListener('click', function () { abrirFichaAncla(a); });
+    lista.append(btn);
+  });
+  box.hidden = false;
+}
+
 function renderReader() {
   const dlg = document.getElementById('dlgSkill');
   const reader = document.getElementById('reader');
@@ -1212,6 +1250,8 @@ function renderReader() {
     state.abiertaId = null;
     state.abiertaNumero = null;
     state.historial = false;
+    const box = document.getElementById('readerAnclas');
+    if (box) box.hidden = true;
     if (dlg && dlg.open) dlg.close();
     return;
   }
@@ -1229,6 +1269,7 @@ function renderReader() {
   }
   renderHistorial(ins, v);
   pintarVersion(v);
+  pintarReaderAnclas(ins);
   if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
   const nombre = document.getElementById('readerNombre');
   if (nombre) nombre.focus();
@@ -2365,7 +2406,14 @@ function iniciar() {
   const formVersion = document.getElementById('formVersion');
   if (formVersion) formVersion.addEventListener('submit', onSubmitVersion);
   const formEditar = document.getElementById('formEditar');
-  if (formEditar) formEditar.addEventListener('submit', onSubmitEditar);
+  if (formEditar) {
+    formEditar.addEventListener('submit', onSubmitEditar);
+    if (formEditar.anclas) {
+      formEditar.anclas.addEventListener('input', function () {
+        pintarEditarAnclasCapsulas(formEditar.anclas.value);
+      });
+    }
+  }
   const formEliminar = document.getElementById('formEliminar');
   if (formEliminar) formEliminar.addEventListener('submit', onSubmitEliminar);
   const formCampo = document.getElementById('formCampo');

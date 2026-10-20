@@ -191,6 +191,10 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .dlg-reader{border:0;border-radius:16px;min-height:0;background:#fbfdff}
 .dlg-reader .reader-top{padding:16px 16px 0}
 .reader-top-acciones{display:flex;align-items:flex-start;gap:6px;flex:none}
+.reader-anclas{margin:0 16px 16px}
+.editar-anclas{margin:14px 0 0}
+.editar-anclas-campo{display:block;margin-top:12px}
+.editar-anclas-campo textarea{margin-top:6px}
 .ancla-ficha{padding:16px 18px 18px;min-width:0;background:#fbfdff}
 .ancla-ficha-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}
 .ancla-ficha-titulo{margin:0;font-size:18px;letter-spacing:-.02em}
@@ -285,6 +289,10 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 </div>
 <div class="md-wrap"><div class="md" id="md"></div></div>
+<div class="skill-anclas-box reader-anclas" id="readerAnclas" hidden>
+<p class="skill-anclas-titulo">Anclas</p>
+<div class="skill-anclas-list" id="readerAnclasLista"></div>
+</div>
 </article>
 </dialog>
 <dialog id="dlgCampoFicha" class="dlg-wide" aria-label="Ficha del campo ancla">
@@ -483,7 +491,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
 </div>
 </form>
 </dialog>
-<dialog id="dlgEditar" aria-labelledby="dlgEditarTitulo">
+<dialog id="dlgEditar" class="dlg-wide" aria-labelledby="dlgEditarTitulo">
 <form class="dlg" id="formEditar">
 <h3 id="dlgEditarTitulo">Editar skill</h3>
 <p class="nota">Modifica el contenido actual. Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
@@ -494,12 +502,16 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
 <label>Descripción
 <input type="text" name="descripcion" maxlength="280" autocomplete="off">
 </label>
-<label>Anclas
-<textarea name="anclas" placeholder="_negocio.nombre_&#10;_proceso.url_inicio_"></textarea>
-</label>
 <label>Contenido (markdown)
 <textarea name="markdown" rows="12" placeholder="Contenido de la skill"></textarea>
 </label>
+<div class="skill-anclas-box editar-anclas" id="editarAnclasBox">
+<p class="skill-anclas-titulo">Anclas</p>
+<div class="skill-anclas-list" id="editarAnclasLista"></div>
+<label class="editar-anclas-campo">Editar lista
+<textarea name="anclas" placeholder="_negocio.nombre_&#10;_proceso.url_inicio_"></textarea>
+</label>
+</div>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="editarCancelar">Cancelar</button>
 <button type="submit" class="btn primary">Guardar versión</button>
@@ -643,7 +655,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
 <script src="skills-ui.js?v=20261020e"></script>
 <script src="campos-ancla-ui.js?v=20261020c"></script>
 <script src="campos-mongodb-ui.js?v=20261020a"></script>
-<script src="catalogo-ui.js?v=20261020e"></script>
+<script src="catalogo-ui.js?v=20261020g"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>
