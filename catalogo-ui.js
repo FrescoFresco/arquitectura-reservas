@@ -4284,7 +4284,10 @@ function apiBaseUrl() {
     const ls = localStorage.getItem('API_BASE') || localStorage.getItem('ARQ_API_BASE');
     if (ls) return String(ls).replace(/\/$/, '');
   } catch (e) {}
-  return 'http://127.0.0.1:8787';
+  if (typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || '')) {
+    return 'http://127.0.0.1:8787';
+  }
+  return 'https://campos-ancla-api.web-legal-es.workers.dev';
 }
 
 function textoInstruccionesInvite(clave) {
@@ -4295,7 +4298,7 @@ function textoInstruccionesInvite(clave) {
   const apiDoc = base + 'documentacion/api.md';
   const apiUi = base + '#documentacion';
   return [
-    '# Acceso al catálogo (Arquitectura reservas)',
+    '# Acceso al catálogo (Campos ancla)',
     '',
     'Te han concedido acceso. Conserva esta clave.',
     '',

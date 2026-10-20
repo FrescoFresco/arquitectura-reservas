@@ -2,7 +2,7 @@
 
 ## API viva (Cloudflare Worker + D1)
 
-La fuente de verdad para agentes es el Worker **`arquitectura-reservas-api`** con D1 **`arquitectura-reservas`**. Guía: [`CLOUDFLARE.md`](./CLOUDFLARE.md). Contrato: [`documentacion/api.md`](./documentacion/api.md).
+La fuente de verdad para agentes es el Worker **`campos-ancla-api`** con D1 **`campos-ancla-db`**: `https://campos-ancla-api.web-legal-es.workers.dev`. Guía: [`CLOUDFLARE.md`](./CLOUDFLARE.md). Contrato: [`documentacion/api.md`](./documentacion/api.md).
 
 ```bash
 npm install

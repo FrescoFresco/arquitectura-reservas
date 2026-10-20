@@ -52,7 +52,7 @@ app.use('*', async (c, next) => {
   return mw(c, next);
 });
 
-app.get('/health', (c) => c.json({ ok: true, service: 'arquitectura-reservas-api' }));
+app.get('/health', (c) => c.json({ ok: true, service: 'campos-ancla-api' }));
 
 /** Public catalog reads — no auth. */
 app.get('/v1/skills', async (c) => {
