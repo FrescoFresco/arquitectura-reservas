@@ -4278,10 +4278,20 @@ function pintarAgentes() {
   }
 }
 
+function apiBaseUrl() {
+  if (typeof window !== 'undefined' && window.ARQ_API_BASE) return String(window.ARQ_API_BASE).replace(/\/$/, '');
+  try {
+    const ls = localStorage.getItem('API_BASE') || localStorage.getItem('ARQ_API_BASE');
+    if (ls) return String(ls).replace(/\/$/, '');
+  } catch (e) {}
+  return 'http://127.0.0.1:8787';
+}
+
 function textoInstruccionesInvite(clave) {
   const base = (typeof location !== 'undefined' && location.origin)
     ? location.origin + (location.pathname.replace(/\/[^/]*$/, '/') || '/')
     : 'https://frescofresco.github.io/arquitectura-reservas/';
+  const apiBase = apiBaseUrl();
   const apiDoc = base + 'documentacion/api.md';
   const apiUi = base + '#documentacion';
   return [
@@ -4290,21 +4300,28 @@ function textoInstruccionesInvite(clave) {
     'Te han concedido acceso. Conserva esta clave.',
     '',
     'AGENTE_CLAVE=' + clave,
-    'CATALOGO_BASE=' + base,
+    'API_BASE=' + apiBase,
+    'CATALOGO_UI=' + base,
     '',
     '## Clave',
     'Sin caducidad. Solo deja de valer si alguien la revoca a mano.',
     '',
     '## Contrato API (léelo entero)',
-    'Documentación → API en la página, o:',
+    'Documentación → API, o:',
     apiUi,
     apiDoc,
     '',
-    '## Registro rápido (prueba en el navegador del catálogo)',
+    '## Registro + latido (API viva / D1)',
+    'curl -s -X POST \"$API_BASE/v1/agentes/registro\" -H \"Content-Type: application/json\" \\',
+    '  -d \'{\"clave\":\"' + clave + '\",\"nombre\":\"Mi agente\",\"foto\":\"\"}\'',
+    'curl -s -X POST \"$API_BASE/v1/agentes/latido\" -H \"Content-Type: application/json\" \\',
+    '  -d \'{\"id\":\"<id>\",\"clave\":\"' + clave + '\"}\'',
+    '',
+    '## Prueba en el navegador del catálogo (fallback local)',
     'const r = window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
     'window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
     '',
-    'El resto (GitHub Contents, catálogos, publicar, latido persistente) está en el documento API.'
+    'CRUD de catálogos: GET públicos; escrituras con Authorization: Bearer $AGENTE_CLAVE.'
   ].join('\n');
 }
 

@@ -1,0 +1,21 @@
+{
+  "name": "arquitectura-reservas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply arquitectura-reservas --local",
+    "db:migrate:remote": "wrangler d1 migrations apply arquitectura-reservas --remote",
+    "db:seed:local": "node scripts/seed-d1.mjs --local",
+    "db:seed:remote": "node scripts/seed-d1.mjs --remote",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "^4.9.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261019.1",
+    "wrangler": "^4.151.3"
+  }
+}

@@ -1,8 +1,10 @@
 # Agente y catálogos
 
-Empieza leyendo Documentación → API y el contrato que ya está en el repo. No inventes rutas.
+Empieza leyendo Documentación → API (`documentacion/api.md`) y el Worker Cloudflare + D1 (`CLOUDFLARE.md`). No inventes rutas.
 
-El acceso de un agente de trabajo se concede en Catálogos → Agentes → **+ Agente** (instrucciones + clave `inv_…`). La clave **no caduca**. El agente se registra solo y late para aparecer En línea. No uses un flujo de «Generar token» en Documentación: ya no está en la página.
+La fuente de verdad viva es `{API_BASE}/v1/…` (D1). Los JSON de `catalogo/` son semilla/espejo estático.
+
+El acceso de un agente se concede en Catálogos → Agentes → **+ Agente** (clave `inv_…` sin caducidad). Registro/latido: `POST /v1/agentes/registro` y `POST /v1/agentes/latido`. Escrituras de catálogo llevan `Authorization: Bearer inv_…`.
 
 Puede modificar: Skills (documento o versión en `catalogo/skills/`), Campos ancla (`catalogo/campos-ancla/`), Campos MongoDB (`catalogo/campos-mongodb/`), Proyectos (`catalogo/proyectos/`) y Fundamentos (`catalogo/fundamentos/`). Cada cambio es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide. Un proyecto guarda las skills asociadas por id en `skills` (many-to-many).
 

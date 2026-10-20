@@ -1,5 +1,19 @@
 # Arquitectura de reservas
 
+## API viva (Cloudflare Worker + D1)
+
+La fuente de verdad para agentes es el Worker **`arquitectura-reservas-api`** con D1 **`arquitectura-reservas`**. Guía: [`CLOUDFLARE.md`](./CLOUDFLARE.md). Contrato: [`documentacion/api.md`](./documentacion/api.md).
+
+```bash
+npm install
+npm run db:migrate:local && npm run db:seed:local
+npm run dev
+```
+
+Despliegue: `npx wrangler login` → crear D1 → pegar `database_id` en `wrangler.jsonc` → `npm run db:migrate:remote && npm run db:seed:remote && npm run deploy`.
+
+Los JSON en `catalogo/` siguen como semilla/espejo para GitHub Pages; si la API está offline, la UI hace fallback a ellos.
+
 ## Arquitectura nueva: `reservas-v3/`
 
 La primera fase del sistema nuevo está en [`reservas-v3/`](./reservas-v3/): el catálogo de campos ancla, el gestor, las plantillas de agente y el ejecutor que rellena la web del restaurante hasta B, sin confirmar nunca. Para repetir la prueba hasta B con Rincón del Amazonas, sigue [reservas-v3/README.md](./reservas-v3/README.md#repetir-la-prueba). El plan y sus principios están en [reservas-v3/CLAUDE.md](./reservas-v3/CLAUDE.md).

@@ -2,12 +2,19 @@
 
 Documento canónico. Vive en Documentación → API y en el repo: `documentacion/api.md`.
 
-Sitio: `https://frescofresco.github.io/arquitectura-reservas/`  
-Hash: `#documentacion` (pestaña API).  
-Raw Pages: `https://frescofresco.github.io/arquitectura-reservas/documentacion/api.md`  
-GitHub Contents: `GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/documentacion/api.md?ref=main`
+Sitio UI: `https://frescofresco.github.io/arquitectura-reservas/`  
+Hash: `#documentacion` (pestaña API).
 
-Un humano te da acceso en Catálogos → Agentes → **+ Agente**. Tú lees esta API y trabajas solo por HTTP / consola. No uses la UI para darte de alta.
+**Base viva (Cloudflare Worker + D1):**
+
+```
+API_BASE=https://arquitectura-reservas-api.<cuenta>.workers.dev
+```
+
+Sustituye por la URL real tras `wrangler deploy`. En local: `http://127.0.0.1:8787`.  
+La UI puede apuntar con `localStorage.API_BASE` o `window.ARQ_API_BASE`. Si la API no responde, la página sigue con los JSON estáticos de `catalogo/` (fallback).
+
+Los índices GitHub (`catalogo/**/index.json`) son semilla / espejo estático. **La fuente de verdad para agentes es esta API + D1.**
 
 ---
 
@@ -17,204 +24,125 @@ Un humano te da acceso en Catálogos → Agentes → **+ Agente**. Tú lees esta
 AGENTE_CLAVE=inv_…
 ```
 
-- Te la dan al copiar las instrucciones de **+ Agente**.
-- **No caduca** (sin límite de 1 hora). Solo deja de valer si alguien la revoca a mano.
-- Guárdala. Va en `inviteUsada` al registrarte.
+- Te la dan en Catálogos → Agentes → **+ Agente**, o `POST /v1/invites`.
+- **No caduca**. Solo deja de valer si se revoca (`invites.revocada`).
+- Escrituras de catálogo: cabecera `Authorization: Bearer inv_…` o `X-Agente-Clave: inv_…`.
+- Lecturas (`GET`) son públicas.
 
 ---
 
-## 2. Registro
+## 2. Salud
 
-Elige **nombre** visible y un **id** slug: `^[a-z0-9][a-z0-9-]{0,60}$`. Guarda el id: es tu identidad.
-
-### 2.1 Modo prueba (navegador del catálogo)
-
-Con la página abierta:
-
-```js
-const r = window.AgentesCatalogo.registrar({
-  clave: 'inv_…',
-  nombre: 'Mi agente',
-  foto: '' // URL opcional
-})
-// r.id → id permanente
 ```
-
-### 2.2 Persistencia en GitHub
-
-Repo `FrescoFresco/arquitectura-reservas`, rama `main`. Índice: `catalogo/agentes/index.json`.
-
-Cabeceras típicas:
-
-- `Authorization: Bearer $GITHUB_TOKEN` (token de escritura en el repo; distinto de AGENTE_CLAVE)
-- `Accept: application/vnd.github+json`
-- `X-GitHub-Api-Version: 2022-11-28`
-
-1. `GET …/contents/catalogo/agentes/index.json?ref=main`
-2. Decodifica `content` (base64) → JSON.
-3. Comprueba que `AGENTE_CLAVE` no esté ya en `inviteUsada` de otro agente.
-4. Añade a `agentes[]`:
-
-```json
-{
-  "id": "eco-mesa",
-  "nombre": "Eco Mesa",
-  "foto": "",
-  "lastSeen": "2026-10-20T21:00:00.000Z",
-  "inviteUsada": "inv_…"
-}
-```
-
-5. `PUT` el mismo archivo con el JSON, `message` «Registra agente &lt;id&gt;», `branch: main` y el `sha` del GET.
-
-Contrato mínimo del índice:
-
-```json
-{
-  "id": "agentes",
-  "nombre": "Agentes",
-  "agentes": [
-    { "id": "…", "nombre": "…", "foto": "", "lastSeen": "…", "inviteUsada": "inv_…" }
-  ]
-}
+GET {API_BASE}/health
+→ { "ok": true, "service": "arquitectura-reservas-api" }
 ```
 
 ---
 
-## 3. Latido (en línea)
+## 3. Registro y latido
 
-Cada ~30 s actualiza `lastSeen` (ISO UTC).
+### Registro
 
-```js
-window.AgentesCatalogo.latido({ id: 'eco-mesa', clave: 'inv_…' })
+```
+POST {API_BASE}/v1/agentes/registro
+Content-Type: application/json
+
+{ "clave": "inv_…", "nombre": "Eco Mesa", "foto": "", "id": "eco-mesa" }
 ```
 
-O en GitHub: GET índice → edita tu entrada `lastSeen` → PUT con `sha`.
+`id` opcional (slug). Respuesta: `{ ok, id, lastSeen }`.
 
-Si dejas de latir más de ~2 min, la UI muestra **Desconectado**. Eso **no** invalida `AGENTE_CLAVE`.
+### Latido
+
+```
+POST {API_BASE}/v1/agentes/latido
+{ "id": "eco-mesa", "clave": "inv_…" }
+```
+
+Cada ~30 s. Si no late > ~2 min, la UI muestra Desconectado (no invalida la clave).
+
+### Listar / editar / borrar agente
+
+```
+GET    /v1/agentes
+PUT    /v1/agentes/:id     (auth invite)  { nombre?, foto?, descripcion? }
+DELETE /v1/agentes/:id     (auth invite)
+```
+
+### Crear invite (UI / humano)
+
+```
+POST /v1/invites
+→ { ok, invite: { clave, creada } }
+```
 
 ---
 
-## 4. Leer catálogos
+## 4. Catálogos (CRUD)
 
-Los índices son JSON públicos en Pages (o vía Contents API).
+Forma general: lecturas públicas; escrituras con invite.
 
-| Catálogo | Ruta |
-|---|---|
-| Skills | `catalogo/skills/index.json` |
-| Campos ancla | `catalogo/campos-ancla/index.json` |
-| Campos MongoDB | `catalogo/campos-mongodb/index.json` |
-| Proyectos | `catalogo/proyectos/index.json` |
-| Agentes | `catalogo/agentes/index.json` |
-| Fundamentos | `catalogo/fundamentos/index.json` |
+| Recurso | Listar | Uno | Crear | Actualizar | Borrar |
+|---|---|---|---|---|---|
+| Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
+| Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
+| Mongo | `GET /v1/mongo` | `GET /v1/mongo/:id` | `POST /v1/mongo` | `PUT /v1/mongo/:id` | `DELETE /v1/mongo/:id` |
+| Proyectos | `GET /v1/proyectos` | `GET /v1/proyectos/:id` | `POST /v1/proyectos` | `PUT /v1/proyectos/:id` | `DELETE /v1/proyectos/:id` |
+| Fundamentos | `GET /v1/fundamentos` | `GET /v1/fundamentos/:id` | `POST /v1/fundamentos` | `PUT /v1/fundamentos/:id` | `DELETE /v1/fundamentos/:id` |
 
-Ejemplo Pages:
+Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
 
-```
-GET https://frescofresco.github.io/arquitectura-reservas/catalogo/skills/index.json
-```
-
-Ejemplo GitHub:
+### Skill (ejemplo)
 
 ```
-GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json?ref=main
+POST /v1/skills
+Authorization: Bearer inv_…
+{ "nombre": "Mapear recorrido", "descripcion": "…", "markdown": "# …", "anclas": ["_negocio.nombre_"] }
 ```
 
-Documentos markdown: la `ruta` de cada versión es relativa a la raíz del sitio (p. ej. `catalogo/skills/mapear-recorrido/v2.md`).
+`PUT` crea **versión nueva** (no pisa). `DELETE` quita la skill y limpia `proyecto_skills` / `ancla_skills`.
 
-### Skills (`instrucciones[]`)
+### Proyecto ↔ skills (N:M)
 
-```json
-{
-  "id": "skills",
-  "nombre": "Skills",
-  "instrucciones": [
-    {
-      "id": "mapear-recorrido",
-      "nombre": "Mapear recorrido",
-      "descripcion": "…",
-      "anclas": ["_negocio.nombre_"],
-      "versiones": [
-        {
-          "numero": 1,
-          "fecha": "2026-10-20",
-          "ruta": "catalogo/skills/mapear-recorrido/v1.md",
-          "nombreArchivo": "mapear-recorrido.md",
-          "hash": "…"
-        }
-      ]
-    }
-  ]
-}
-```
+En el cuerpo: `"skills": ["mapear-recorrido", "generar-script"]`. Borrar un proyecto no borra skills.
 
-### Proyectos (`proyectos[]`)
+### Ancla ↔ Mongo (0..1)
 
-Skills asociadas por id en `skills` (N:M).
-
-### Campos ancla / Mongo
-
-Ancla puede llevar `skills[]` (ids) y enlace Mongo (`claveMongo`, `coleccion`, `baseDatos`). Mongo puede llevar `ancla` (0..1).
-
-### Fundamentos
-
-Bloques conceptuales versionados en `catalogo/fundamentos/` (misma forma id / nombre / versiones).
+Campo Mongo lleva `ancla` opcional (`_negocio.nombre_`). Ancla lleva `skills[]` de ids.
 
 ---
 
-## 5. Publicar en el repo (Contents API)
+## 5. Despliegue (humano)
 
-Cada publicación son **dos** escrituras: primero el archivo, después el índice, con el `sha` del GET.
-
-### Subir una skill
-
-1. Crear archivo (sin `sha` si es nuevo):
-
-```
-PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/mapear-recorrido/v1.md
-```
-
-```json
-{
-  "message": "Añade mapear-recorrido v1 a Skills",
-  "content": "BASE64_DEL_ARCHIVO",
-  "branch": "main"
-}
+```bash
+npm install
+npx wrangler login
+npx wrangler d1 create arquitectura-reservas
+# Pegar database_id real en wrangler.jsonc
+npm run db:migrate:remote
+npm run db:seed:remote
+npm run deploy
 ```
 
-2. Leer índice → añadir versión → PUT índice con `sha`.
+Local:
 
+```bash
+npm run db:migrate:local
+npm run db:seed:local
+npm run dev   # http://127.0.0.1:8787
 ```
-GET …/contents/catalogo/skills/index.json?ref=main
-PUT …/contents/catalogo/skills/index.json
-```
 
-`numero` = máximo actual + 1. `fecha` = `YYYY-MM-DD`. Id solo `^[a-z0-9][a-z0-9-]{0,60}$`.
-
-### Eliminar una skill
-
-GET índice → quitar el objeto de `instrucciones` → PUT índice. No se escribe versión nueva ni otro archivo.
-
-### Campos ancla / Mongo / Proyectos / Fundamentos / Agentes
-
-Misma idea: GET índice → editar → PUT con `sha`.
+Invite de semilla local: `inv_local_demo`.
 
 ---
 
-## 6. Cliente de referencia
+## 6. Cliente de referencia (GitHub espejo, opcional)
 
-`scripts/subir.js` (lee el índice antes de escribir):
-
-```
-GITHUB_TOKEN=TOKEN node scripts/subir.js skills --nueva --nombre "Mapear recorrido" --archivo ./mapear-recorrido.md
-GITHUB_TOKEN=TOKEN node scripts/subir.js skills --id mapear-recorrido --archivo ./mapear-recorrido.md
-GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
-```
-
-`--ensayo` no llama a GitHub. `GITHUB_REPOSITORIO` / `GITHUB_RAMA` cambian el destino.
+`scripts/subir.js` sigue escribiendo el espejo estático en GitHub Contents si tienes `GITHUB_TOKEN`. No sustituye D1. Preferir esta API para el estado vivo.
 
 ---
 
 ## 7. Fuera de alcance ahora
 
-Cola de comentarios y Metricool: no forman parte de este contrato todavía. Acceso actual = registro + latido + lectura (y publicación Contents si tienes `GITHUB_TOKEN`).
+Cola de comentarios / Metricool: no forma parte de este contrato.
