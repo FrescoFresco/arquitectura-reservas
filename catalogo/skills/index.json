@@ -22,13 +22,15 @@
           "numero": 1,
           "fecha": "2026-10-18",
           "ruta": "catalogo/skills/mapear-recorrido/v1.md",
-          "nombreArchivo": "mapear-recorrido.md"
+          "nombreArchivo": "mapear-recorrido.md",
+          "hash": "eb1d96c6880b0a08a67ce5895fba1dc67a25646a96c537fef51fcf8a0aeb1a77"
         },
         {
           "numero": 2,
           "fecha": "2026-10-20",
           "ruta": "catalogo/skills/mapear-recorrido/v2.md",
-          "nombreArchivo": "mapear-recorrido.md"
+          "nombreArchivo": "mapear-recorrido.md",
+          "hash": "8512403733885189039b954bd984a2c454dadb36b9973fb0ff2ae0842a6d3436"
         }
       ]
     },
@@ -50,7 +52,8 @@
           "numero": 1,
           "fecha": "2026-10-19",
           "ruta": "catalogo/skills/generar-script/v1.md",
-          "nombreArchivo": "generar-script.md"
+          "nombreArchivo": "generar-script.md",
+          "hash": "aa2f2d631b885823cd00e13114499fc29dd16a13cb644fa395ca9578e83255f2"
         }
       ]
     },
@@ -70,7 +73,8 @@
           "numero": 1,
           "fecha": "2026-10-20",
           "ruta": "catalogo/skills/descubrir-negocio/v1.md",
-          "nombreArchivo": "descubrir-negocio.md"
+          "nombreArchivo": "descubrir-negocio.md",
+          "hash": "67dd041300839c2d2dfd26d2210e64db1a2b4dc1f4a5a70432d3ec737ea4143d"
         }
       ]
     },
@@ -91,7 +95,8 @@
           "numero": 1,
           "fecha": "2026-10-20",
           "ruta": "catalogo/skills/diagnosticar-alerta/v1.md",
-          "nombreArchivo": "diagnosticar-alerta.md"
+          "nombreArchivo": "diagnosticar-alerta.md",
+          "hash": "a6008875da4f23011c331895b9e2a05cb7344e952f041c5b85ea63da378566dc"
         }
       ]
     }

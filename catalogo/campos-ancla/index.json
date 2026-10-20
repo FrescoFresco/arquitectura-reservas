@@ -15,7 +15,11 @@
       "formato": "",
       "descripcion": "Nombre comercial del local, tal como lo ve el cliente.",
       "ejemplo": "Rincón del Amazonas",
-      "skills": ["mapear-recorrido", "descubrir-negocio"]
+      "skills": [
+        "mapear-recorrido",
+        "descubrir-negocio"
+      ],
+      "hash": "701c7446ec3f25fddc68a35dd4c7e6ac5fbdc3c69339f4f13ca0c8d10540f655"
     },
     {
       "id": "negocio.url",
@@ -29,7 +33,11 @@
       "formato": "uri",
       "descripcion": "Web principal del local.",
       "ejemplo": "https://restaurantmogan.com/",
-      "skills": ["mapear-recorrido", "descubrir-negocio"]
+      "skills": [
+        "mapear-recorrido",
+        "descubrir-negocio"
+      ],
+      "hash": "8089a5654e5af9cbaf6bc7690a041941cdab30ee089e49d69c0996aa8772ae3b"
     },
     {
       "id": "negocio.zona_horaria",
@@ -43,7 +51,12 @@
       "formato": "iana-timezone",
       "descripcion": "Zona horaria IANA del local; todas las horas de reserva se interpretan en ella.",
       "ejemplo": "Atlantic/Canary",
-      "skills": ["mapear-recorrido", "generar-script", "descubrir-negocio"]
+      "skills": [
+        "mapear-recorrido",
+        "generar-script",
+        "descubrir-negocio"
+      ],
+      "hash": "a88ebbe780096628f4e4c54371579e8e8ae6a9fbcbd5e1e0c14c8242c449f1df"
     },
     {
       "id": "negocio.telefono",
@@ -57,7 +70,10 @@
       "formato": "e164",
       "descripcion": "Teléfono público del local, con prefijo internacional.",
       "ejemplo": "+34 928 000 000",
-      "skills": ["descubrir-negocio"]
+      "skills": [
+        "descubrir-negocio"
+      ],
+      "hash": "14bd8ff0d0fafa096030629cab84a11b96ab663fce7df47b9e8400152a28426d"
     },
     {
       "id": "proceso.url_inicio",
@@ -71,7 +87,13 @@
       "formato": "uri",
       "descripcion": "Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script.",
       "ejemplo": "https://restaurantmogan.com/reservation/",
-      "skills": ["mapear-recorrido", "generar-script", "descubrir-negocio", "diagnosticar-alerta"]
+      "skills": [
+        "mapear-recorrido",
+        "generar-script",
+        "descubrir-negocio",
+        "diagnosticar-alerta"
+      ],
+      "hash": "2ce1ef10b6c9ff0a5a85fc1aa1152d0b86879b7f53aa98f0a4b3cef4e2fca987"
     },
     {
       "id": "version.recorrido.sistema.nombre",
@@ -85,7 +107,11 @@
       "formato": "",
       "descripcion": "Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, plugin WordPress, formulario propio…).",
       "ejemplo": "CoverManager",
-      "skills": ["mapear-recorrido", "generar-script"]
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "hash": "fbd8c6ce894c34dce6480c3358eaaa3279161315d00dc1a88c5e2df5532e5133"
     },
     {
       "id": "version.recorrido.llega_a_b",
@@ -99,7 +125,11 @@
       "formato": "",
       "descripcion": "true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista.",
       "ejemplo": "true",
-      "skills": ["mapear-recorrido", "diagnosticar-alerta"]
+      "skills": [
+        "mapear-recorrido",
+        "diagnosticar-alerta"
+      ],
+      "hash": "b9a35af2c6c2a7ddfd83536010499e84070c8ce2dc670b05a77cf550a83fa706"
     },
     {
       "id": "version.recorrido.pasos.N.accion",
@@ -113,7 +143,10 @@
       "formato": "",
       "descripcion": "Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…).",
       "ejemplo": "Pulsar Continuar",
-      "skills": ["mapear-recorrido"]
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "hash": "cd1bc38d018249389c6ac17edb2529f7db04f80e616f880e716c7523905ee28e"
     },
     {
       "id": "version.recorrido.campos.N.selector",
@@ -127,7 +160,11 @@
       "formato": "playwright-locator",
       "descripcion": "Selector de Playwright que encuentra el campo de forma única.",
       "ejemplo": "getByLabel('Email')",
-      "skills": ["mapear-recorrido", "generar-script"]
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "hash": "0516b8222d3004f6703688a50aac9f182b7629397629867d74e4c39ada15c364"
     },
     {
       "id": "version.recorrido.boton_confirmar.selector",
@@ -141,7 +178,11 @@
       "formato": "playwright-locator",
       "descripcion": "Selector de Playwright del botón que envía la reserva. Nunca se pulsa hasta B.",
       "ejemplo": "getByRole('button', { name: 'Confirm reservation' })",
-      "skills": ["mapear-recorrido", "generar-script"]
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "hash": "fee1fab87a2751d5a1be63f8f808c39648cfdf7ed6b728961e5a7ff5cd10cc99"
     },
     {
       "id": "version.script",
@@ -155,7 +196,10 @@
       "formato": "javascript-module",
       "descripcion": "Módulo JavaScript con las funciones hastaB(page, params, registrar) y confirmar(page).",
       "ejemplo": "export async function hastaB(page, params, registrar) { … }",
-      "skills": ["generar-script"]
+      "skills": [
+        "generar-script"
+      ],
+      "hash": "309141fef72422f4596eb0a491f7e3268461e60205cb0e3e60d031a7c469a809"
     },
     {
       "id": "version.funcion.nombre",
@@ -169,7 +213,10 @@
       "formato": "snake_case",
       "descripcion": "Nombre de la función que expondrá el agente de voz.",
       "ejemplo": "reservar_mesa",
-      "skills": ["generar-script"]
+      "skills": [
+        "generar-script"
+      ],
+      "hash": "fdcf239a357789efad9b03ac2adb3546f5754172fffebee882cc8b5dc49fd852"
     },
     {
       "id": "ejecucion.respuesta.estado",
@@ -183,7 +230,10 @@
       "formato": "enum:confirmada|pendiente_negocio|disponible|sin_hueco|error",
       "descripcion": "Resultado de la función. En modo hasta_B, disponible significa que se llegó a B.",
       "ejemplo": "disponible",
-      "skills": ["diagnosticar-alerta"]
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "hash": "d48a37579b43ec480b536e8fb3733d859f44e5226c1e46a15d4baa07599a2106"
     },
     {
       "id": "ejecucion.ultima_url",
@@ -197,7 +247,10 @@
       "formato": "uri",
       "descripcion": "URL en la que estaba el navegador al terminar.",
       "ejemplo": "https://restaurantmogan.com/reservation/confirm",
-      "skills": ["diagnosticar-alerta"]
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "hash": "00e4de7e642dd388922c6827ad0445075a313293d810de51f54c3dd7b0e72ba6"
     }
   ]
 }

@@ -17,21 +17,20 @@ Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualqui
 
 El sitio se sirve desde la rama `main`, carpeta raíz (`/`). Tras un push a `main`, Pages se actualiza solo (suele tardar uno o dos minutos).
 
-El menú principal tiene tres destinos: **Mapa**, **Catálogos** y **Documentación**. En pantalla estrecha esa barra queda fija abajo. Dentro de Catálogos hay tres pestañas: **Skills**, **Campos ancla** y **Campos MongoDB**. Dentro de Documentación hay una pestaña, **API**.
+El menú principal tiene dos destinos: **Catálogos** y **Documentación**. En escritorio es una barra lateral izquierda; en pantalla estrecha queda fija abajo. Dentro de Catálogos hay tres pestañas: **Skills**, **Campos ancla** y **Campos MongoDB**. Dentro de Documentación hay una pestaña, **API**.
 
-El índice de Skills está en [`catalogo/skills/index.json`](./catalogo/skills/index.json). Cada skill lleva `id`, `nombre`, `versiones` y, si hace falta, `descripcion` y `anclas` (nombres completos como `_negocio.nombre_`). Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga. La cuadrícula de Skills se renderiza con React (CDN). En cada tarjeta: ver (popup), historial, editar (versión nueva al guardar), subir versión (documento completo) y eliminar. Las cápsulas de anclas abren la ficha de Campos ancla.
+El índice de Skills está en [`catalogo/skills/index.json`](./catalogo/skills/index.json). Cada skill lleva `id`, `nombre`, `versiones` y, si hace falta, `descripcion` y `anclas` (nombres completos como `_negocio.nombre_`). Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio, `hash` (SHA-256 del contenido cuando aplica) y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga. La cuadrícula de Skills se renderiza con React (CDN). En cada tarjeta: historial, editar (versión nueva al guardar si hubo cambios), subir versión (documento completo) y eliminar; el título abre la skill en popup. Las cápsulas de anclas abren la ficha de Campos ancla.
 
-El índice de Campos ancla está en [`catalogo/campos-ancla/index.json`](./catalogo/campos-ancla/index.json). Cada celda muestra el ancla completo; al pulsarla se abre un popup con la ficha. Campos MongoDB está en [`catalogo/campos-mongodb/index.json`](./catalogo/campos-mongodb/index.json): celdas `colección.clave` y ficha con bsonType y ancla enlazada.
+El índice de Campos ancla está en [`catalogo/campos-ancla/index.json`](./catalogo/campos-ancla/index.json). Cada celda muestra el ancla completo; al pulsarla se abre un popup con pestañas Definición / Mongo / Skills. Campos MongoDB está en [`catalogo/campos-mongodb/index.json`](./catalogo/campos-mongodb/index.json): celdas `colección.clave` y ficha con bsonType y ancla enlazada. Ambos índices incluyen `hash` estable por campo.
 
-El mapa también está versionado en [`mapa/index.json`](./mapa/index.json). La versión 1 es el diagrama actual, [`mapa/v1.mmd`](./mapa/v1.mmd). El lápiz abre ese fuente. Cancelar no cambia nada. Guardar crea la versión siguiente en ese navegador y el mapa pasa a mostrarla.
+Los archivos del mapa pueden seguir en [`mapa/`](./mapa/), pero la página ya no tiene hub ni editor del mapa.
 
-Para publicar una skill, una versión del mapa o una de esas tablas, un agente usa la API de contenidos de GitHub. El token se obtiene con **Generar token**, en Documentación → Conectar un agente. Dura 1 hora y no se guarda en la página. El contrato está en Documentación → API. El cliente de referencia es [`scripts/subir.js`](./scripts/subir.js):
+Para publicar una skill o esos catálogos, un agente usa la API de contenidos de GitHub. El token se obtiene con **Generar token**, en Documentación → Conectar un agente. Dura 1 hora y no se guarda en la página. El contrato está en Documentación → API. El cliente de referencia es [`scripts/subir.js`](./scripts/subir.js):
 
 ```bash
 GITHUB_TOKEN=… node scripts/subir.js skills --nueva --nombre "Mapear recorrido" --archivo ./mapear-recorrido.md
 GITHUB_TOKEN=… node scripts/subir.js skills --id mapear-recorrido --archivo ./mapear-recorrido.md
 GITHUB_TOKEN=… node scripts/subir.js skills --eliminar --id mapear-recorrido
-GITHUB_TOKEN=… node scripts/subir.js mapa --archivo ./flujo.mmd
 ```
 
 `--ensayo` no llama a GitHub. En el navegador, **+ Añadir skill**, **Editar**, **Subir versión** y **+ Añadir ancla** siguen guardándose solo en ese navegador.

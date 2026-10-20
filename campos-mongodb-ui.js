@@ -12,36 +12,62 @@
     );
   }
 
+  function HashChip(props) {
+    var full = typeof props.hash === 'string' ? props.hash.trim().toLowerCase() : '';
+    if (!full || full.length < 8) return null;
+    var corto = full.slice(0, 10);
+    return e('button', {
+      type: 'button',
+      className: 'hash-chip',
+      title: 'Hash completo: ' + full + ' (clic para copiar)',
+      'aria-label': 'Copiar hash ' + full,
+      onClick: function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(full).catch(function () {});
+        }
+      }
+    }, '#' + corto);
+  }
+
   function Ficha(props) {
     var c = props.campo;
     if (!c) {
       return e('div', { className: 'ancla-ficha' },
-        e('div', { className: 'ancla-ficha-top' },
-          e('h3', { className: 'ancla-ficha-titulo' }, 'Campo MongoDB'),
+        e('div', { className: 'ancla-ficha-header' },
+          e('div', { className: 'ancla-ficha-header-text' },
+            e('h3', { className: 'ancla-ficha-etiqueta' }, 'Campo MongoDB')
+          ),
           e('button', { type: 'button', className: 'icon-btn', 'aria-label': 'Cerrar', onClick: props.onCerrar }, '×')
         ),
-        e('p', { className: 'ancla-ficha-vacio' }, props.mensaje || 'No está en el catálogo Campos MongoDB.')
+        e('p', { className: 'ancla-ficha-vacio', style: { padding: '12px 18px' } }, props.mensaje || 'No está en el catálogo Campos MongoDB.')
       );
     }
+    var label = c.campo || (c.coleccion + '.' + c.clave);
     return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo MongoDB' },
-      e('div', { className: 'ancla-ficha-top' },
-        e('h3', { className: 'ancla-ficha-titulo' }, 'Campo MongoDB'),
+      e('div', { className: 'ancla-ficha-header' },
+        e('div', { className: 'ancla-ficha-header-text' },
+          e('code', { className: 'ancla-ficha-ancla' }, label),
+          e(HashChip, { hash: c.hash })
+        ),
         e('button', { type: 'button', className: 'icon-btn', 'aria-label': 'Cerrar', onClick: props.onCerrar }, '×')
       ),
-      e('dl', { className: 'ancla-ficha-dl' },
-        e(Fila, { label: 'Campo' }, e('code', { className: 'ancla-code' }, c.campo || (c.coleccion + '.' + c.clave))),
-        e(Fila, { label: 'Base' }, e('code', null, c.baseDatos || '—')),
-        e(Fila, { label: 'Colección' }, e('code', null, c.coleccion || '—')),
-        e(Fila, { label: 'Clave' }, e('code', null, c.clave || '—')),
-        e(Fila, { label: 'bsonType' }, e('code', null, c.bsonType || '—')),
-        e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
-        e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
-        e(Fila, { label: 'Enlazado a ancla' },
-          c.ancla ? e('code', { className: 'ancla-code' }, c.ancla) : '—'
+      e('div', { className: 'ancla-ficha-body' },
+        e('dl', { className: 'ancla-ficha-dl' },
+          e(Fila, { label: 'Base' }, e('code', null, c.baseDatos || '—')),
+          e(Fila, { label: 'Colección' }, e('code', null, c.coleccion || '—')),
+          e(Fila, { label: 'Clave' }, e('code', null, c.clave || '—')),
+          e(Fila, { label: 'bsonType' }, e('code', null, c.bsonType || '—')),
+          e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
+          e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
+          e(Fila, { label: 'Enlazado a ancla' },
+            c.ancla ? e('code', { className: 'ancla-code' }, c.ancla) : '—'
+          )
         )
       ),
       c.origen === 'local'
-        ? e('p', { className: 'origen' }, 'En este navegador. No está en GitHub.')
+        ? e('p', { className: 'origen ancla-ficha-local' }, 'En este navegador. No está en GitHub.')
         : null
     );
   }
@@ -50,13 +76,18 @@
     var c = props.campo;
     var abierta = props.abierta;
     var label = c.campo || (c.coleccion + '.' + c.clave);
+    var hash = typeof c.hash === 'string' ? c.hash.trim().toLowerCase() : '';
+    var corto = hash ? hash.slice(0, 10) : '';
     return e('button', {
       type: 'button',
       className: 'ancla-celda' + (abierta ? ' is-open' : ''),
       'aria-pressed': abierta ? 'true' : 'false',
-      title: c.descripcion || label,
+      title: (c.descripcion || label) + (hash ? ' · #' + hash : ''),
       onClick: function () { props.onAbrir(c.id); }
-    }, e('code', null, label));
+    },
+      e('code', null, label),
+      corto ? e('span', { className: 'hash-chip hash-chip-inline', 'aria-hidden': 'true' }, '#' + corto) : null
+    );
   }
 
   function MongoApp(props) {

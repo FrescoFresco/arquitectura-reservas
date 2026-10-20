@@ -14,8 +14,62 @@ const LS_CAMPOS = 'arquitectura-reservas.catalogo.campos-ancla';
 const LS_MONGO = 'arquitectura-reservas.catalogo.campos-mongodb';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const OJO_ABIERTO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
-const OJO_CERRADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>';
+
+function esHashHex(h) {
+  return typeof h === 'string' && /^[a-f0-9]{16,64}$/i.test(h.trim());
+}
+
+function normalizarHash(h) {
+  return esHashHex(h) ? h.trim().toLowerCase() : '';
+}
+
+function hashFnvHex(str) {
+  let h1 = 2166136261 >>> 0;
+  let h2 = 2166136261 >>> 0;
+  const s = String(str || '');
+  for (let i = 0; i < s.length; i++) {
+    h1 ^= s.charCodeAt(i);
+    h1 = Math.imul(h1, 16777619) >>> 0;
+  }
+  for (let j = s.length - 1; j >= 0; j--) {
+    h2 ^= s.charCodeAt(j);
+    h2 = Math.imul(h2, 16777619) >>> 0;
+  }
+  return ('00000000' + h1.toString(16)).slice(-8) + ('00000000' + h2.toString(16)).slice(-8);
+}
+
+async function sha256Hex(texto) {
+  const raw = String(texto || '');
+  if (window.crypto && crypto.subtle) {
+    const data = new TextEncoder().encode(raw);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(function (b) {
+      return b.toString(16).padStart(2, '0');
+    }).join('');
+  }
+  return hashFnvHex(raw);
+}
+
+function payloadHashAncla(c) {
+  return [
+    c.ancla || '', c.etiqueta || '', c.claveMongo || '', c.coleccion || '',
+    c.baseDatos || '', c.tipo || '', c.obligatorio ? '1' : '0',
+    c.formato || '', c.descripcion || '', c.ejemplo || '',
+    (c.skills || []).join(',')
+  ].join('|');
+}
+
+function payloadHashMongo(c) {
+  return [
+    c.campo || '', c.baseDatos || '', c.coleccion || '', c.clave || '',
+    c.bsonType || '', c.obligatorio ? '1' : '0',
+    c.descripcion || '', c.ancla || ''
+  ].join('|');
+}
+
+function anclasCanonicasTexto(list) {
+  return normalizarAnclas(list).join('\n');
+}
 
 const state = {
   catalogoId: CATALOGOS[0].id,
@@ -149,6 +203,8 @@ function normalizeVersionIndice(v) {
   };
   const nombre = nombreArchivoDe(v);
   if (nombre) out.nombreArchivo = nombre;
+  const hash = normalizarHash(v.hash);
+  out.hash = hash || hashFnvHex(out.ruta + '|' + out.numero + '|' + out.fecha);
   return out;
 }
 
@@ -170,6 +226,10 @@ function normalizeVersionLocal(v) {
   if (tieneDatos) out.datos = v.datos;
   const nombre = nombreArchivoDe(v);
   if (nombre) out.nombreArchivo = nombre;
+  const hash = normalizarHash(v.hash);
+  if (hash) out.hash = hash;
+  else if (tieneMd) out.hash = hashFnvHex(v.markdown);
+  else out.hash = hashFnvHex(String(numero) + '|' + fecha.slice(0, 10) + '|' + (nombre || ''));
   return out;
 }
 
@@ -262,6 +322,7 @@ function copiaVersion(v) {
   if (typeof v.markdown === 'string') o.markdown = v.markdown;
   if (v.datos) o.datos = v.datos;
   if (v.nombreArchivo) o.nombreArchivo = v.nombreArchivo;
+  if (v.hash) o.hash = v.hash;
   return o;
 }
 
@@ -538,6 +599,8 @@ function normalizeCampo(item) {
       ? item.skills.map(function (s) { return String(s || '').trim(); }).filter(Boolean)
       : []
   };
+  const hash = normalizarHash(item.hash);
+  out.hash = hash || hashFnvHex(payloadHashAncla(out));
   return out;
 }
 
@@ -632,8 +695,10 @@ function abrirFichaCampo(id) {
   }
   state.campos.abiertoId = campo.id;
   const dlg = document.getElementById('dlgCampoFicha');
+  const extras = extrasFichaAncla();
+  extras.mongo = mongoParaAncla(campo);
   if (window.CamposAnclaUI && window.CamposAnclaUI.mostrarFicha) {
-    window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo);
+    window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo, null, extras);
   }
   if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
   pintarCampos();
@@ -643,15 +708,17 @@ function abrirFichaAncla(texto) {
   refrescarCampos();
   const campo = buscarCampoPorAncla(texto);
   const dlg = document.getElementById('dlgCampoFicha');
+  const extras = extrasFichaAncla();
   if (campo) {
     state.campos.abiertoId = campo.id;
+    extras.mongo = mongoParaAncla(campo);
     if (window.CamposAnclaUI && window.CamposAnclaUI.mostrarFicha) {
-      window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo);
+      window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo, null, extras);
     }
   } else {
     state.campos.abiertoId = null;
     if (window.CamposAnclaUI && window.CamposAnclaUI.mostrarFicha) {
-      window.CamposAnclaUI.mostrarFicha(null, cerrarFichaCampo, 'Este ancla no está en el catálogo Campos ancla.');
+      window.CamposAnclaUI.mostrarFicha(null, cerrarFichaCampo, 'Este ancla no está en el catálogo Campos ancla.', extras);
     }
   }
   if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
@@ -696,7 +763,7 @@ function normalizeMongoCampo(item) {
   let ancla = typeof item.ancla === 'string' ? item.ancla.trim() : '';
   if (ancla && ancla.charAt(0) !== '_') ancla = '_' + ancla;
   if (ancla && ancla.charAt(ancla.length - 1) !== '_') ancla = ancla + '_';
-  return {
+  const out = {
     id: id,
     campo: campo,
     baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : 'arquitectura_reservas',
@@ -707,6 +774,9 @@ function normalizeMongoCampo(item) {
     descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim() : '',
     ancla: ancla
   };
+  const hash = normalizarHash(item.hash);
+  out.hash = hash || hashFnvHex(payloadHashMongo(out));
+  return out;
 }
 
 function normalizeMongoIndice(data) {
@@ -947,6 +1017,7 @@ function onSubmitCampo(e) {
     if (error) error.textContent = 'No se pudo crear el campo.';
     return;
   }
+  campo.hash = hashFnvHex(payloadHashAncla(campo));
   const store = leerCamposStore();
   store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
   store.campos.push(campo);
@@ -1005,6 +1076,61 @@ function pintarEditarAnclasCapsulas(texto) {
   });
 }
 
+function valorAnclasEdicion() {
+  const form = document.getElementById('formEditar');
+  if (!form || !form.anclas) return '';
+  return form.anclas.value || '';
+}
+
+function abrirDialogoEditarAnclas() {
+  const form = document.getElementById('formEditar');
+  const dlg = document.getElementById('dlgEditarAnclas');
+  const formAnclas = document.getElementById('formEditarAnclas');
+  if (!form || !dlg || !formAnclas) return;
+  const err = document.getElementById('editarAnclasError');
+  if (err) err.textContent = '';
+  formAnclas.anclas.value = valorAnclasEdicion();
+  dlg.showModal();
+  formAnclas.anclas.focus();
+}
+
+function onSubmitEditarAnclas(e) {
+  e.preventDefault();
+  const form = document.getElementById('formEditar');
+  const formAnclas = e.currentTarget;
+  const dlg = document.getElementById('dlgEditarAnclas');
+  if (!form || !form.anclas) return;
+  const anclas = normalizarAnclas(String(formAnclas.anclas.value || '').split(/[\n,]+/));
+  form.anclas.value = anclas.join('\n');
+  pintarEditarAnclasCapsulas(form.anclas.value);
+  if (dlg && dlg.open) dlg.close();
+}
+
+function extrasFichaAncla() {
+  const nombres = {};
+  state.instrucciones.forEach(function (ins) {
+    nombres[ins.id] = ins.nombre;
+  });
+  return {
+    nombresSkill: nombres,
+    mongo: null
+  };
+}
+
+function mongoParaAncla(campo) {
+  if (!campo) return null;
+  refrescarMongo();
+  const porAncla = state.mongo.lista.find(function (m) { return m.ancla && m.ancla === campo.ancla; });
+  if (porAncla) return porAncla;
+  if (campo.coleccion && campo.claveMongo) {
+    const campoKey = campo.coleccion + '.' + campo.claveMongo;
+    return state.mongo.lista.find(function (m) {
+      return m.campo === campoKey || (m.coleccion === campo.coleccion && m.clave === campo.claveMongo);
+    }) || null;
+  }
+  return null;
+}
+
 function abrirDialogoEditar(id) {
   const ins = state.instrucciones.find(function (item) { return item.id === id; });
   if (!ins) return;
@@ -1013,6 +1139,8 @@ function abrirDialogoEditar(id) {
   if (!dlg || !form) return;
   form.reset();
   form.dataset.id = id;
+  delete form.dataset.snapMarkdown;
+  delete form.dataset.snapAnclas;
   limpiarError('editarError');
   form.nombre.value = ins.nombre;
   form.descripcion.value = ins.descripcion || '';
@@ -1023,12 +1151,15 @@ function abrirDialogoEditar(id) {
   const v = versionActual(ins);
   textoDeVersionActual(v).then(function (text) {
     if (form.dataset.id !== id) return;
-    form.markdown.value = text || '';
+    const md = text || '';
+    form.markdown.value = md;
+    form.dataset.snapMarkdown = md;
+    form.dataset.snapAnclas = anclasCanonicasTexto(ins.anclas || []);
     form.nombre.focus();
   });
 }
 
-function guardarEdicionSkill(id, meta, markdown) {
+async function guardarEdicionSkill(id, meta, markdown, hash) {
   refrescar();
   const actual = state.instrucciones.find(function (ins) { return ins.id === id; });
   if (!actual) throw new Error('No está esa skill.');
@@ -1045,7 +1176,8 @@ function guardarEdicionSkill(id, meta, markdown) {
   const creada = {
     numero: siguienteNumero(actual.versiones),
     fecha: todayISO(),
-    markdown: markdown
+    markdown: markdown,
+    hash: hash
   };
   entrada.versiones.push(creada);
   guardarLocal(store);
@@ -1070,17 +1202,26 @@ async function onSubmitEditar(e) {
     return;
   }
   const descripcion = form.descripcion.value.trim().slice(0, 280);
-  const anclas = form.anclas.value
-    .split(/[\n,]+/)
-    .map(function (s) { return s.trim(); })
-    .filter(Boolean);
+  const anclasNorm = normalizarAnclas(
+    form.anclas.value.split(/[\n,]+/).map(function (s) { return s.trim(); }).filter(Boolean)
+  );
+  const anclasFinal = anclasNorm.length ? anclasNorm : anclasDeMarkdown(markdown);
+  const snapMd = form.dataset.snapMarkdown;
+  const snapAnclas = form.dataset.snapAnclas;
+  if (typeof snapMd === 'string' && typeof snapAnclas === 'string') {
+    if (markdown === snapMd && anclasCanonicasTexto(anclasFinal) === snapAnclas) {
+      if (error) error.textContent = 'Sin cambios';
+      return;
+    }
+  }
   submit.disabled = true;
   try {
-    const creada = guardarEdicionSkill(id, {
+    const hash = await sha256Hex(markdown);
+    const creada = await guardarEdicionSkill(id, {
       nombre: nombre,
       descripcion: descripcion,
-      anclas: normalizarAnclas(anclas.length ? anclas : anclasDeMarkdown(markdown))
-    }, markdown);
+      anclas: anclasFinal
+    }, markdown, hash);
     document.getElementById('dlgEditar').close();
     state.pendingFocus = id;
     abrirInstruccion(id, creada.numero);
@@ -1259,6 +1400,14 @@ function renderReader() {
   state.abiertaNumero = v.numero;
   document.getElementById('readerNombre').textContent = ins.nombre;
   document.getElementById('readerVersion').textContent = formatVersion(v.numero, v.fecha);
+  const hashEl = document.getElementById('readerHash');
+  if (hashEl) {
+    const full = normalizarHash(v.hash) || hashFnvHex(ins.id + '|' + v.numero + '|' + (v.ruta || v.fecha || ''));
+    hashEl.hidden = !full;
+    hashEl.textContent = full ? '#' + full.slice(0, 10) : '';
+    hashEl.title = full ? 'Hash completo: ' + full + ' (clic para copiar)' : '';
+    hashEl.dataset.hash = full || '';
+  }
   const origen = document.getElementById('readerOrigen');
   if (v.origen === 'local') {
     origen.hidden = false;
@@ -1390,12 +1539,15 @@ async function contenidoDelFormulario(form) {
   return { markdown: pasted };
 }
 
-function guardarInstruccionNueva(nombre, contenido, meta) {
+async function guardarInstruccionNueva(nombre, contenido, meta) {
   const store = leerStore();
   const version = { numero: 1, fecha: todayISO() };
   if (contenido.markdown != null) version.markdown = contenido.markdown;
   if (contenido.datos) version.datos = contenido.datos;
   if (contenido.nombreArchivo) version.nombreArchivo = contenido.nombreArchivo;
+  version.hash = await sha256Hex(
+    contenido.markdown != null ? contenido.markdown : (contenido.datos || (nombre + '|1'))
+  );
   const ins = { id: slugId(nombre), nombre: nombre, versiones: [version] };
   if (meta && meta.descripcion) ins.descripcion = meta.descripcion;
   let anclas = meta && meta.anclas ? normalizarAnclas(meta.anclas) : [];
@@ -1406,7 +1558,7 @@ function guardarInstruccionNueva(nombre, contenido, meta) {
   return ins;
 }
 
-function guardarVersion(id, contenido) {
+async function guardarVersion(id, contenido) {
   refrescar();
   const actual = state.instrucciones.find(function (ins) { return ins.id === id; });
   if (!actual) throw new Error('No está esa skill.');
@@ -1421,6 +1573,9 @@ function guardarVersion(id, contenido) {
   if (contenido.markdown != null) creada.markdown = contenido.markdown;
   if (contenido.datos) creada.datos = contenido.datos;
   if (contenido.nombreArchivo) creada.nombreArchivo = contenido.nombreArchivo;
+  creada.hash = await sha256Hex(
+    contenido.markdown != null ? contenido.markdown : (contenido.datos || (id + '|' + creada.numero))
+  );
   entrada.versiones.push(creada);
   guardarLocal(store);
   return creada;
@@ -1509,7 +1664,7 @@ async function onSubmitNueva(e) {
   submit.disabled = true;
   try {
     const contenido = await contenidoDelFormulario(form);
-    const ins = guardarInstruccionNueva(nombre, contenido, {
+    const ins = await guardarInstruccionNueva(nombre, contenido, {
       descripcion: descripcion,
       anclas: anclas
     });
@@ -1548,7 +1703,7 @@ async function onSubmitVersion(e) {
   submit.disabled = true;
   try {
     const contenido = await contenidoDelFormulario(form);
-    const creada = guardarVersion(id, contenido);
+    const creada = await guardarVersion(id, contenido);
     document.getElementById('dlgVersion').close();
     state.pendingFocus = id;
     abrirInstruccion(id, creada.numero);
@@ -2406,14 +2561,16 @@ function iniciar() {
   const formVersion = document.getElementById('formVersion');
   if (formVersion) formVersion.addEventListener('submit', onSubmitVersion);
   const formEditar = document.getElementById('formEditar');
-  if (formEditar) {
-    formEditar.addEventListener('submit', onSubmitEditar);
-    if (formEditar.anclas) {
-      formEditar.anclas.addEventListener('input', function () {
-        pintarEditarAnclasCapsulas(formEditar.anclas.value);
-      });
-    }
-  }
+  if (formEditar) formEditar.addEventListener('submit', onSubmitEditar);
+  const btnEditarAnclas = document.getElementById('btnEditarAnclas');
+  if (btnEditarAnclas) btnEditarAnclas.addEventListener('click', abrirDialogoEditarAnclas);
+  const formEditarAnclas = document.getElementById('formEditarAnclas');
+  if (formEditarAnclas) formEditarAnclas.addEventListener('submit', onSubmitEditarAnclas);
+  const editarAnclasCancelar = document.getElementById('editarAnclasCancelar');
+  if (editarAnclasCancelar) editarAnclasCancelar.addEventListener('click', function () {
+    const dlg = document.getElementById('dlgEditarAnclas');
+    if (dlg && dlg.open) dlg.close();
+  });
   const formEliminar = document.getElementById('formEliminar');
   if (formEliminar) formEliminar.addEventListener('submit', onSubmitEliminar);
   const formCampo = document.getElementById('formCampo');
@@ -2448,6 +2605,14 @@ function iniciar() {
   if (historialLista) historialLista.addEventListener('click', onClickHistorial);
   const btnCerrarSkill = document.getElementById('btnCerrarSkill');
   if (btnCerrarSkill) btnCerrarSkill.addEventListener('click', cerrarSkillModal);
+  const readerHash = document.getElementById('readerHash');
+  if (readerHash) readerHash.addEventListener('click', function () {
+    const full = readerHash.dataset.hash || '';
+    if (!full) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(full).catch(function () {});
+    }
+  });
   const dlgSkill = document.getElementById('dlgSkill');
   if (dlgSkill) dlgSkill.addEventListener('close', function () {
     if (state.abiertaId) {
@@ -2539,7 +2704,6 @@ function iniciar() {
       state.ready = true;
       render();
     });
-  cargarMapa();
   cargarCampos();
   cargarMongo();
 }

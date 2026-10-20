@@ -4,6 +4,7 @@
   if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') return;
 
   var e = React.createElement;
+  var useState = React.useState;
   var NOMBRES_SKILL = {
     'mapear-recorrido': 'Mapear recorrido',
     'generar-script': 'Generar script',
@@ -11,8 +12,40 @@
     'diagnosticar-alerta': 'Diagnosticar alerta'
   };
 
-  function nombreSkill(id) {
+  function nombreSkill(id, mapa) {
+    if (mapa && mapa[id]) return mapa[id];
     return NOMBRES_SKILL[id] || id;
+  }
+
+  function bsonDesdeTipo(tipo) {
+    var t = String(tipo || '').toLowerCase();
+    if (t === 'bool' || t === 'boolean') return 'bool';
+    if (t === 'int' || t === 'integer' || t === 'long') return 'int';
+    if (t === 'double' || t === 'number' || t === 'decimal') return 'double';
+    if (t === 'date' || t === 'datetime') return 'date';
+    if (t === 'object' || t === 'document') return 'object';
+    if (t === 'array') return 'array';
+    if (t === 'objectid') return 'objectId';
+    return t || 'string';
+  }
+
+  function HashChip(props) {
+    var full = typeof props.hash === 'string' ? props.hash.trim().toLowerCase() : '';
+    if (!full || full.length < 8) return null;
+    var corto = full.slice(0, 10);
+    return e('button', {
+      type: 'button',
+      className: 'hash-chip',
+      title: 'Hash completo: ' + full + ' (clic para copiar)',
+      'aria-label': 'Copiar hash ' + full,
+      onClick: function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(full).catch(function () {});
+        }
+      }
+    }, '#' + corto);
   }
 
   function Fila(props) {
@@ -22,12 +55,88 @@
     );
   }
 
+  function Pestanas(props) {
+    var tab = props.tab;
+    var setTab = props.setTab;
+    var items = [
+      { id: 'definicion', label: 'Definición' },
+      { id: 'mongo', label: 'Mongo' },
+      { id: 'skills', label: 'Skills' }
+    ];
+    return e('div', { className: 'ancla-ficha-tabs', role: 'tablist', 'aria-label': 'Secciones del ancla' },
+      items.map(function (item) {
+        var selected = tab === item.id;
+        return e('button', {
+          type: 'button',
+          key: item.id,
+          role: 'tab',
+          id: 'ancla-tab-' + item.id,
+          className: 'ancla-ficha-tab' + (selected ? ' is-on' : ''),
+          'aria-selected': selected ? 'true' : 'false',
+          'aria-controls': 'ancla-panel-' + item.id,
+          onClick: function () { setTab(item.id); }
+        }, item.label);
+      })
+    );
+  }
+
+  function PanelDefinicion(props) {
+    var c = props.campo;
+    return e('dl', { className: 'ancla-ficha-dl', id: 'ancla-panel-definicion', role: 'tabpanel' },
+      e(Fila, { label: 'Tipo' }, c.tipo ? e('code', null, c.tipo) : '—'),
+      e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
+      e(Fila, { label: 'Formato' }, c.formato ? e('code', null, c.formato) : '—'),
+      e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
+      e(Fila, { label: 'Ejemplo' }, c.ejemplo ? e('code', null, c.ejemplo) : '—')
+    );
+  }
+
+  function PanelMongo(props) {
+    var c = props.campo;
+    var mongo = props.mongo || null;
+    var coleccion = (mongo && mongo.coleccion) || c.coleccion || '';
+    var clave = (mongo && mongo.clave) || c.claveMongo || '';
+    var base = (mongo && mongo.baseDatos) || c.baseDatos || '';
+    var bson = (mongo && mongo.bsonType) || bsonDesdeTipo(c.tipo);
+    var completo = coleccion && clave ? coleccion + '.' + clave : (mongo && mongo.campo) || '—';
+    return e('dl', { className: 'ancla-ficha-dl', id: 'ancla-panel-mongo', role: 'tabpanel' },
+      e(Fila, { label: 'Base' }, base ? e('code', null, base) : '—'),
+      e(Fila, { label: 'Colección' }, coleccion ? e('code', null, coleccion) : '—'),
+      e(Fila, { label: 'Clave' }, clave ? e('code', null, clave) : '—'),
+      e(Fila, { label: 'bsonType' }, bson ? e('code', null, bson) : '—'),
+      e(Fila, { label: 'Campo completo' }, completo !== '—' ? e('code', { className: 'ancla-code' }, completo) : '—')
+    );
+  }
+
+  function PanelSkills(props) {
+    var skills = props.skills || [];
+    var nombres = props.nombres || {};
+    if (!skills.length) {
+      return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-skills', role: 'tabpanel' },
+        'Ninguna skill usa este ancla todavía.'
+      );
+    }
+    return e('div', { className: 'ancla-ficha-skills', id: 'ancla-panel-skills', role: 'tabpanel' },
+      skills.map(function (id) {
+        return e('div', { className: 'ancla-skill-card', key: id },
+          e('span', { className: 'ancla-skill-nombre' }, nombreSkill(id, nombres)),
+          e('code', { className: 'ancla-skill-id' }, id)
+        );
+      })
+    );
+  }
+
   function Ficha(props) {
     var c = props.campo;
+    var tabState = useState('definicion');
+    var tab = tabState[0];
+    var setTab = tabState[1];
     if (!c) {
       return e('div', { className: 'ancla-ficha' },
-        e('div', { className: 'ancla-ficha-top' },
-          e('h3', { className: 'ancla-ficha-titulo' }, 'Campo ancla'),
+        e('div', { className: 'ancla-ficha-header' },
+          e('div', { className: 'ancla-ficha-header-text' },
+            e('h3', { className: 'ancla-ficha-ancla' }, 'Campo ancla')
+          ),
           e('button', {
             type: 'button',
             className: 'icon-btn',
@@ -40,8 +149,12 @@
     }
     var skills = Array.isArray(c.skills) ? c.skills : [];
     return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo ancla' },
-      e('div', { className: 'ancla-ficha-top' },
-        e('h3', { className: 'ancla-ficha-titulo' }, 'Campo ancla'),
+      e('div', { className: 'ancla-ficha-header' },
+        e('div', { className: 'ancla-ficha-header-text' },
+          e('code', { className: 'ancla-ficha-ancla' }, c.ancla),
+          e('p', { className: 'ancla-ficha-etiqueta' }, c.etiqueta || 'Sin etiqueta'),
+          e(HashChip, { hash: c.hash })
+        ),
         e('button', {
           type: 'button',
           className: 'icon-btn',
@@ -49,29 +162,14 @@
           onClick: props.onCerrar
         }, '×')
       ),
-      e('dl', { className: 'ancla-ficha-dl' },
-        e(Fila, { label: 'Ancla' }, e('code', { className: 'ancla-code' }, c.ancla)),
-        e(Fila, { label: 'Etiqueta' }, c.etiqueta || '—'),
-        e(Fila, { label: 'Clave Mongo' }, e('code', null, c.claveMongo || '—')),
-        e(Fila, { label: 'Colección' }, e('code', null, c.coleccion || '—')),
-        e(Fila, { label: 'Base de datos' }, e('code', null, c.baseDatos || '—')),
-        e(Fila, { label: 'Tipo' }, c.tipo || '—'),
-        e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
-        e(Fila, { label: 'Formato' }, c.formato ? e('code', null, c.formato) : '—'),
-        e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
-        e(Fila, { label: 'Ejemplo' }, c.ejemplo ? e('code', null, c.ejemplo) : '—'),
-        e(Fila, { label: 'Usado en skills' },
-          skills.length
-            ? e('div', { className: 'skill-anclas-list' },
-              skills.map(function (id) {
-                return e('span', { className: 'ancla-pill skill-pill', key: id }, nombreSkill(id));
-              })
-            )
-            : '—'
-        )
+      e(Pestanas, { tab: tab, setTab: setTab }),
+      e('div', { className: 'ancla-ficha-body' },
+        tab === 'definicion' ? e(PanelDefinicion, { campo: c }) : null,
+        tab === 'mongo' ? e(PanelMongo, { campo: c, mongo: props.mongo }) : null,
+        tab === 'skills' ? e(PanelSkills, { skills: skills, nombres: props.nombresSkill }) : null
       ),
       c.origen === 'local'
-        ? e('p', { className: 'origen' }, 'En este navegador. No está en GitHub.')
+        ? e('p', { className: 'origen ancla-ficha-local' }, 'En este navegador. No está en GitHub.')
         : null
     );
   }
@@ -79,14 +177,17 @@
   function Celda(props) {
     var c = props.campo;
     var abierta = props.abierta;
+    var hash = typeof c.hash === 'string' ? c.hash.trim().toLowerCase() : '';
+    var corto = hash ? hash.slice(0, 10) : '';
     return e('button', {
       type: 'button',
       className: 'ancla-celda' + (abierta ? ' is-open' : ''),
       'aria-pressed': abierta ? 'true' : 'false',
-      title: c.etiqueta || c.ancla,
+      title: (c.etiqueta || c.ancla) + (hash ? ' · #' + hash : ''),
       onClick: function () { props.onAbrir(c.id); }
     },
-      e('code', null, c.ancla)
+      e('code', null, c.ancla),
+      corto ? e('span', { className: 'hash-chip hash-chip-inline', 'aria-hidden': 'true' }, '#' + corto) : null
     );
   }
 
@@ -139,14 +240,17 @@
     gridRoot.render(e(CamposApp, { bridge: bridge }));
   }
 
-  function mostrarFicha(campo, onCerrar, mensaje) {
+  function mostrarFicha(campo, onCerrar, mensaje, extras) {
     var mount = document.getElementById('campo-ficha-mount');
     if (!mount) return;
     if (!fichaRoot) fichaRoot = ReactDOM.createRoot(mount);
+    var opts = extras || {};
     fichaRoot.render(e(Ficha, {
       campo: campo || null,
       mensaje: mensaje,
-      onCerrar: onCerrar
+      onCerrar: onCerrar,
+      mongo: opts.mongo || null,
+      nombresSkill: opts.nombresSkill || {}
     }));
   }
 

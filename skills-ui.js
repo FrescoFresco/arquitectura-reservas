@@ -18,16 +18,6 @@
     }, children);
   }
 
-  var OJO_ABIERTO = svgIcon([
-    e('path', { key: 'a', d: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z' }),
-    e('circle', { key: 'b', cx: '12', cy: '12', r: '3' })
-  ]);
-  var OJO_CERRADO = svgIcon([
-    e('path', { key: 'a', d: 'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94' }),
-    e('path', { key: 'b', d: 'M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19' }),
-    e('path', { key: 'c', d: 'M1 1l22 22' }),
-    e('path', { key: 'd', d: 'M14.12 14.12a3 3 0 1 1-4.24-4.24' })
-  ]);
   var ICONO_HIST = svgIcon([
     e('circle', { key: 'a', cx: '12', cy: '12', r: '8' }),
     e('path', { key: 'b', d: 'M12 8v4l3 2' })
@@ -59,6 +49,25 @@
 
   function versionActual(ins) {
     return ins.versiones[ins.versiones.length - 1];
+  }
+
+  function HashChip(props) {
+    var full = typeof props.hash === 'string' ? props.hash.trim().toLowerCase() : '';
+    if (!full || full.length < 8) return null;
+    var corto = full.slice(0, 10);
+    return e('button', {
+      type: 'button',
+      className: 'hash-chip' + (props.inline ? ' hash-chip-inline' : ''),
+      title: 'Hash completo: ' + full + ' (clic para copiar)',
+      'aria-label': 'Copiar hash ' + full,
+      onClick: function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(full).catch(function () {});
+        }
+      }
+    }, '#' + corto);
   }
 
   function HistorialPopup(props) {
@@ -116,24 +125,14 @@
     var isOpen = abierta && abierta.id === ins.id;
     var showHist = historialId === ins.id;
     var anclas = Array.isArray(ins.anclas) ? ins.anclas : [];
+    var hash = actual && actual.hash ? actual.hash : '';
 
     return e('article', {
-      className: 'skill-card' + (isOpen ? ' is-open' : ''),
-      'aria-current': isOpen ? 'true' : undefined
+      className: 'skill-card'
     },
       e('div', { className: 'skill-card-meta' },
         e('p', { className: 'bloque-ver skill-card-ver' }, formatVersion(actual.numero, actual.fecha)),
         e('div', { className: 'skill-card-acciones' },
-          e(IconBtn, {
-            label: isOpen ? 'Cerrar vista' : 'Ver skill',
-            title: 'Ver',
-            pressed: isOpen ? 'true' : 'false',
-            active: isOpen,
-            onClick: function (ev) {
-              ev.stopPropagation();
-              onAbrir(ins.id);
-            }
-          }, isOpen ? OJO_ABIERTO : OJO_CERRADO),
           e('div', { className: 'historial-ancla' },
             e(IconBtn, {
               label: 'Historial de versiones',
@@ -186,6 +185,7 @@
       },
         e('h4', { className: 'skill-nombre' }, ins.nombre)
       ),
+      e(HashChip, { hash: hash, inline: true }),
       actual.origen === 'local' ? e('p', { className: 'en-navegador skill-card-local' }, 'En este navegador') : null,
       ins.descripcion ? e('p', { className: 'skill-desc' }, ins.descripcion) : null,
       anclas.length ? e('div', { className: 'skill-anclas-box' },

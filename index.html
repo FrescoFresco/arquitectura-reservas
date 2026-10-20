@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Arquitectura de acoplamiento a reservas web</title>
-<meta name="description" content="Mapa del sistema de reservas, catálogo Skills y el contrato para publicarlo.">
+<meta name="description" content="Catálogos Skills, Campos ancla y Campos MongoDB, y el contrato para publicarlos.">
 <script>
 (function () {
   try {
@@ -25,17 +25,10 @@
 })();
 </script>
 <style>
-:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17212f;background:#f6f8fb}*{box-sizing:border-box}body{margin:0}header{background:white;border-bottom:1px solid #e5eaf1;padding:20px clamp(16px,4vw,54px)}.brand{max-width:1180px;margin:auto;display:flex;align-items:center;gap:13px}.brandmark{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:12px;background:#eaf1ff;color:#1c63d5;font-size:22px}h1{font-size:21px;margin:0}header p{margin:0;color:#677488;font-size:13px}.layout{max-width:1180px;margin:24px auto;padding:0 16px}.main{background:white;border:1px solid #e7ebf2;border-radius:18px;box-shadow:0 8px 30px #24334a08;min-height:570px;padding:clamp(22px,4vw,45px)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.1em;color:#4579dc}.pill{font-size:11px;background:#edf3ff;color:#315eb6;border-radius:40px;padding:8px 11px;font-weight:700}h2{font-size:28px;letter-spacing:-.035em;margin:12px 0}p.desc{font-size:15px;color:#5f6f84;line-height:1.65;max-width:750px;margin:0 0 22px}.map-panel{border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;overflow:hidden}.map-panel>summary{list-style:none;display:flex;gap:12px;align-items:center;cursor:pointer;padding:17px 20px;font-size:14px;font-weight:800;color:#245bb2}.map-panel>summary::-webkit-details-marker{display:none}.map-body{padding:0 16px 20px}.mermaid{overflow:auto;text-align:center;min-height:110px;max-width:100%;border-radius:12px}.mermaid svg{display:block;width:100%!important;max-width:100%!important;height:auto!important;min-width:0!important;margin:auto}.map-fallback{white-space:pre-wrap;overflow:auto;max-height:360px;padding:16px;background:#f3f6fc;border-radius:10px;font-size:11px;color:#334155}.mapstatus{color:#75859a;font-size:12px;margin:10px 0 0}.ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}@media(max-width:760px){.layout{margin:12px auto}.main{min-height:520px}h2{font-size:24px}.brand{flex-wrap:wrap}}
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17212f;background:#eef2f7}*{box-sizing:border-box}body{margin:0;min-height:100vh}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}h1{font-size:21px;margin:0}.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}.hub{background:#fff;border-right:1px solid #e5eaf1;position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;padding:20px 14px;z-index:30}.hub-brand{margin:0 0 18px;padding:0 8px 16px;border-bottom:1px solid #eef2f7}.hub-brand-label{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#4579dc}.hub-inner{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;max-width:none}.hub a{display:inline-flex;align-items:center;gap:10px;background:transparent;border:0;border-radius:12px;color:#677488;font:inherit;font-size:14px;font-weight:800;padding:11px 12px;cursor:pointer;text-decoration:none;touch-action:manipulation}.hub a svg{width:18px;height:18px;display:block;flex:none}.hub a span{white-space:nowrap}.hub a:hover{color:#1c63d5;background:#f5f8fd}.hub a[aria-current="page"]{color:#1c63d5;background:#edf3ff}.app-main{min-width:0;background:linear-gradient(180deg,#f3f6fb 0%,#eef2f7 120px,#eef2f7 100%)}.layout{max-width:1180px;margin:0 auto;padding:24px clamp(16px,3vw,28px) 40px;display:flex;flex-direction:column;gap:18px}.main{background:white;border:1px solid #e7ebf2;border-radius:18px;box-shadow:0 8px 30px #24334a08;min-height:570px;padding:clamp(22px,4vw,45px)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.1em;color:#4579dc}.pill{font-size:11px;background:#edf3ff;color:#315eb6;border-radius:40px;padding:8px 11px;font-weight:700}h2{font-size:28px;letter-spacing:-.035em;margin:12px 0}p.desc{font-size:15px;color:#5f6f84;line-height:1.65;max-width:750px;margin:0 0 22px}.ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}@media(max-width:800px){.app{grid-template-columns:1fr;min-height:100vh}.hub{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;width:100%;border-right:0;border-top:1px solid #e5eaf1;padding:0 0 env(safe-area-inset-bottom);box-shadow:0 -8px 24px #24334a12;z-index:40}.hub-brand{display:none}.hub-inner{flex-direction:row;gap:0;width:100%}.hub a{flex:1;flex-direction:column;justify-content:center;gap:3px;min-height:56px;padding:8px 4px 6px;border-radius:0;font-size:11px;font-weight:700}.hub a svg{width:22px;height:22px}.hub a[aria-current="page"]{background:#f3f7ff}.app-main{padding-bottom:calc(57px + env(safe-area-inset-bottom))}.layout{margin:0 auto;padding:12px 12px 24px}.main{min-height:520px}h2{font-size:24px}}
 </style>
 <style>
 
-.layout{display:flex;flex-direction:column;gap:18px}
-.hub{background:#fff;border-bottom:1px solid #e5eaf1}
-.hub-inner{max-width:1180px;margin:0 auto;display:flex;gap:4px;padding:0 16px}
-.hub a{display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;border-bottom:2px solid transparent;color:#677488;font:inherit;font-size:14px;font-weight:800;padding:12px 14px;cursor:pointer}
-.hub a svg{width:18px;height:18px;display:block}
-.hub a[aria-current="page"]{color:#1c63d5;border-bottom-color:#1c63d5}
-.hub a:hover{color:#1c63d5}
 .catalogos.main{min-height:0}
 .catalogo-tabs{display:flex;gap:0;margin:0 0 16px;border-bottom:1px solid #e5eaf1;overflow-x:auto;scrollbar-width:none}
 .catalogo-tabs::-webkit-scrollbar{display:none}
@@ -108,17 +101,6 @@ dialog::backdrop{background:#17212f66}
 .form-error{color:#9f1239;font-size:13px;min-height:1.2em;margin:0 0 8px}
 @media(max-width:800px){.split.is-open{grid-template-columns:1fr}.reader{position:static}}
 @media(min-width:801px){.split.is-open .reader{position:sticky;top:12px}}
-@media(max-width:800px){
-.hub{position:fixed;left:0;right:0;bottom:0;z-index:40;border-bottom:0;border-top:1px solid #e5eaf1;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -8px 24px #24334a12}
-.hub-inner{max-width:none;padding:0;gap:0}
-.hub a{flex:1;flex-direction:column;justify-content:center;gap:3px;min-height:56px;padding:8px 4px 6px;border-bottom:0;font-size:11px;font-weight:700}
-.hub a svg{width:22px;height:22px}
-.hub a[aria-current="page"]{background:#f3f7ff}
-body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
-}
-
-.hub a{text-decoration:none;touch-action:manipulation}
-.hub a span{white-space:nowrap}
 .bloque{position:relative;padding:0}
 .ojo{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:999px;display:grid;place-items:center;pointer-events:none}
 .ojo svg{width:18px;height:18px;display:block}
@@ -128,8 +110,6 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .btn.eliminar{position:absolute;top:12px;right:48px;z-index:2;padding:4px 8px;font-size:12px;line-height:1.2;white-space:nowrap;background:white;color:#9f1239;border:1px solid #f0c4ce}
 .bloque .btn.version{width:calc(100% - 28px);margin:8px 14px 14px}
 .bloque-abrir:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
-.mapa-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px}
-.mapa-acciones{display:flex;align-items:center;gap:8px}
 .btn.compact{width:auto;margin-top:0;display:inline-flex;align-items:center}
 .edicion{margin:0 0 14px}
 .edicion textarea{display:block;width:100%;min-height:200px;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white;resize:vertical}
@@ -165,7 +145,6 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .skills-toolbar{display:flex;justify-content:flex-end;margin:0 0 4px}
 .skills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;align-items:start}
 .skill-card{position:relative;border:1px solid #e5eaf1;border-radius:14px;background:white;padding:0 0 14px;overflow:visible}
-.skill-card.is-open{border-color:#9db7ea;box-shadow:0 0 0 3px #e7efff}
 .skill-card-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 14px 0}
 .skill-card-ver{margin:0;flex:1;min-width:0}
 .skill-card-abrir{display:block;width:calc(100% - 28px);margin:10px 14px 0;padding:0;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}
@@ -178,9 +157,32 @@ body{padding-bottom:calc(57px + env(safe-area-inset-bottom))}
 .skill-card-acciones .icon-btn.is-on,.skill-card-acciones .icon-btn[aria-expanded="true"],.skill-card-acciones .icon-btn[aria-pressed="true"]{background:#edf3ff;border-color:#9db7ea;color:#1c63d5}
 .skill-card-acciones .icon-btn svg{width:16px;height:16px;display:block}
 .skill-anclas-box{margin:12px 14px 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc}
-.skill-anclas-titulo{margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#677488}
-.skill-anclas-list{display:flex;flex-wrap:wrap;gap:6px}
+.skill-anclas-titulo{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#677488}
+.skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.3;padding:5px 9px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
+.skill-card .ancla-pill{font-size:9.5px;line-height:1.25;padding:2px 6px}
+.hash-chip{appearance:none;display:inline-flex;align-items:center;margin:0;padding:2px 7px;border:1px solid #d5e2f7;border-radius:8px;background:#f4f7fb;color:#4a5d78;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.3;cursor:pointer}
+.hash-chip:hover{background:#edf3ff;color:#1c4fae}
+.hash-chip-inline{margin:6px 14px 0}
+.editar-anclas-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 2px}
+.editar-anclas-top .icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2;flex:none}
+.editar-anclas-top .icon-btn svg{width:16px;height:16px;display:block}
+.ancla-ficha{padding:0;min-width:0;background:#fbfdff}
+.ancla-ficha-header{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 18px 12px;background:#fbfdff;border-bottom:1px solid #e8eef6}
+.ancla-ficha-header-text{min-width:0;flex:1;display:flex;flex-direction:column;gap:6px}
+.ancla-ficha-ancla{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px;font-weight:700;color:#1c4fae;background:#edf3ff;padding:4px 8px;border-radius:8px;overflow-wrap:anywhere;max-width:100%}
+.ancla-ficha-etiqueta{margin:0;font-size:15px;font-weight:700;letter-spacing:-.01em;color:#17212f}
+.ancla-ficha-tabs{display:flex;gap:0;padding:0 18px;border-bottom:1px solid #e5eaf1;background:#fff}
+.ancla-ficha-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 14px;font:inherit;font-size:13px;font-weight:800;color:#677488;cursor:pointer}
+.ancla-ficha-tab.is-on{color:#1c63d5;border-bottom-color:#1c63d5}
+.ancla-ficha-tab:hover{color:#1c63d5}
+.ancla-ficha-body{padding:8px 18px 18px}
+.ancla-ficha-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px}
+.ancla-skill-card{padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff}
+.ancla-skill-nombre{display:block;font-size:13px;font-weight:700;color:#17212f}
+.ancla-skill-id{display:block;margin-top:4px;font-size:11px;color:#677488}
+.ancla-ficha-local{margin:0 18px 16px}
+.ancla-celda .hash-chip-inline{display:block;margin:6px 0 0;width:fit-content}
 .skill-historial{position:absolute;top:calc(100% + 6px);right:0;width:min(280px,70vw);z-index:5}
 .ancla-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0;border:1px solid #dce5f2;border-radius:14px;overflow:hidden;background:#fff}
 .ancla-grid-item{margin:0;min-width:0}
@@ -195,11 +197,6 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .reader-top-acciones{display:flex;align-items:flex-start;gap:6px;flex:none}
 .reader-anclas{margin:0 16px 16px}
 .editar-anclas{margin:14px 0 0}
-.editar-anclas-campo{display:block;margin-top:12px}
-.editar-anclas-campo textarea{margin-top:6px}
-.ancla-ficha{padding:16px 18px 18px;min-width:0;background:#fbfdff}
-.ancla-ficha-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}
-.ancla-ficha-titulo{margin:0;font-size:18px;letter-spacing:-.02em}
 .ancla-ficha-dl{margin:0}
 .ancla-ficha-fila{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px 12px;padding:8px 0;border-bottom:1px solid #eef2f7}
 .ancla-ficha-fila:last-child{border-bottom:0}
@@ -217,44 +214,18 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </style>
 </head>
 <body>
-<header><div class="brand"><span class="brandmark" aria-hidden="true">▣</span><div><h1>Arquitectura de acoplamiento a reservas web</h1></div></div></header>
+<h1 class="sr-only">Arquitectura de acoplamiento a reservas web</h1>
+<div class="app">
 <nav class="hub" id="hub" aria-label="Menú principal">
+<p class="hub-brand"><span class="hub-brand-label">Reservas</span></p>
 <div class="hub-inner">
-<a href="#mapa" data-destino="mapa" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="21" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg><span>Mapa</span></a>
-<a href="#catalogos" data-destino="catalogos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></a>
+<a href="#catalogos" data-destino="catalogos" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></a>
 <a href="#documentacion" data-destino="documentacion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Documentación</span></a>
 </div>
 </nav>
+<div class="app-main">
 <div class="layout">
-<main class="main" id="mapa">
-<div class="top"><span class="eyebrow">Vista general</span><span class="pill">Diagrama</span></div>
-<h2>Mapa</h2>
-<p class="desc">Diagrama operativo del sistema.</p>
-<details class="map-panel" open>
-<summary><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="21" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg></span> <span>Mapa del sistema</span></summary>
-<div class="map-body">
-<div class="mapa-bar">
-<p class="bloque-ver" id="mapaVersion" aria-live="polite"></p>
-<div class="mapa-acciones">
-<button type="button" class="icon-btn" id="btnEdicion" aria-label="Editar el diagrama" title="Editar el diagrama"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
-<div class="historial-ancla">
-<button type="button" class="icon-btn" id="btnHistMapa" aria-label="Historial de versiones del mapa" title="Historial de versiones" aria-expanded="false" aria-controls="mapaHistorial">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
-</button>
-<div class="historial" id="mapaHistorial" hidden role="dialog" aria-label="Versiones del mapa">
-<p class="historial-titulo">Versiones</p>
-<ul id="mapaHistorialLista"></ul>
-</div>
-</div>
-</div>
-</div>
-<p class="origen" id="mapaOrigen" hidden></p>
-<div class="mermaid" id="flowMermaid"></div>
-<p class="mapstatus" id="mapStatus" role="status">Cargando diagrama…</p>
-</div>
-</details>
-</main>
-<section class="main catalogos" id="catalogos" hidden aria-labelledby="catalogos-titulo">
+<section class="main catalogos" id="catalogos" aria-labelledby="catalogos-titulo">
 <div class="top"><span class="eyebrow">Catálogos</span></div>
 <h2 id="catalogos-titulo">Catálogos</h2>
 <p class="desc">Skills, Campos ancla y Campos MongoDB. Cada catálogo ocupa una pestaña.</p>
@@ -275,6 +246,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div>
 <h3 id="readerNombre" tabindex="-1"></h3>
 <p class="bloque-ver" id="readerVersion" aria-live="polite"></p>
+<button type="button" class="hash-chip" id="readerHash" hidden></button>
 <p class="origen" id="readerOrigen" hidden></p>
 </div>
 <div class="reader-top-acciones">
@@ -311,7 +283,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <h3 id="conectar-titulo">Conectar un agente</h3>
 <p>Empieza leyendo Documentación → API (<a href="https://frescofresco.github.io/arquitectura-reservas/">https://frescofresco.github.io/arquitectura-reservas/</a>) y el contrato que ya está en el repo. No inventes rutas.</p>
 <p>El token se obtiene con el botón <strong>Generar token</strong>. La primera vez confirmas en GitHub con la cuenta que puede escribir en <code>FrescoFresco/arquitectura-reservas</code>. En este navegador, los clics siguientes emiten otro token sin volver a GitHub. El token dura 1 hora. Pégalo solo en el agente.</p>
-<p>Puede modificar: Skills (documento o versión), Campos ancla, Campos MongoDB y el flujo del mapa. Cada publicación es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
+<p>Puede modificar: Skills (documento o versión), Campos ancla y Campos MongoDB. Cada publicación es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
 <p>En Skills: <strong>Editar</strong> modifica el contenido y guarda una versión nueva; <strong>Subir versión</strong> carga un documento completo como versión nueva.</p>
 <p>El cliente de referencia es <code>scripts/subir.js</code>. Lee el índice antes de escribir.</p>
 <div class="token-box">
@@ -405,17 +377,6 @@ dialog.dlg-wide::backdrop{background:#17212f66}
   "branch": "main",
   "sha": "SHA_DEL_GET"
 }</code></pre>
-<h3>Publicar una edición del mapa</h3>
-<p>El lápiz abre un popup con el fuente de la versión que se está viendo. Cancelar cierra sin cambiar nada. Guardar crea la versión siguiente en este navegador y el mapa pasa a mostrarla. Para dejar esa versión en el repositorio, un agente usa el mismo mecanismo. El contenido es el fuente Mermaid de ese diagrama.</p>
-<p>La versión 1 ya está en <code>mapa/v1.mmd</code>. La siguiente es la 2.</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/mapa/v2.mmd</code></pre>
-<pre><code>{
-  "message": "Publica el mapa v2",
-  "content": "BASE64_DEL_DIAGRAMA_UTF8",
-  "branch": "main"
-}</code></pre>
-<p>Después, GET y PUT de <code>mapa/index.json</code> con su <code>sha</code>, añadiendo la versión:</p>
-<pre><code>{ "numero": 2, "fecha": "2026-10-19", "ruta": "mapa/v2.mmd" }</code></pre>
 <h3>Publicar el índice de Campos ancla</h3>
 <p>El catálogo Campos ancla vive en <code>catalogo/campos-ancla/index.json</code>. Cada campo lleva <code>ancla</code> (p. ej. <code>_negocio.nombre_</code>), <code>etiqueta</code>, enlace Mongo (<code>claveMongo</code>, <code>coleccion</code>, <code>baseDatos</code>), <code>tipo</code>, <code>obligatorio</code>, <code>formato</code>, <code>descripcion</code>, <code>ejemplo</code> y <code>skills</code> (ids de skills que lo usan).</p>
 <pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/campos-ancla/index.json?ref=main</code></pre>
@@ -440,12 +401,13 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <p><code>scripts/subir.js</code> hace esas escrituras. El token sale del entorno. <code>skills</code> escribe en la carpeta de Skills. Con <code>--eliminar</code> solo vuelve a escribir el índice: quita la skill y no deja una versión nueva.</p>
 <pre><code>GITHUB_TOKEN=TOKEN node scripts/subir.js skills --nueva --nombre "Mapear recorrido" --archivo ./mapear-recorrido.md
 GITHUB_TOKEN=TOKEN node scripts/subir.js skills --id mapear-recorrido --archivo ./mapear-recorrido.md
-GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
-GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
+GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido</code></pre>
 <p><code>--ensayo</code> muestra la ruta y el índice sin llamar a GitHub. <code>GITHUB_REPOSITORIO</code> (por defecto <code>FrescoFresco/arquitectura-reservas</code>) y <code>GITHUB_RAMA</code> (por defecto <code>main</code>) cambian el destino.</p>
-<p>En el navegador: <strong>+ Añadir skill</strong>, <strong>Editar</strong> (versión nueva al guardar), <strong>Subir versión</strong> (documento completo), <strong>Eliminar</strong>, <strong>+ Añadir ancla</strong> y el lápiz del mapa se quedan en este navegador.</p>
+<p>En el navegador: <strong>+ Añadir skill</strong>, <strong>Editar</strong> (versión nueva al guardar), <strong>Subir versión</strong> (documento completo), <strong>Eliminar</strong> y <strong>+ Añadir ancla</strong> se quedan en este navegador.</p>
 </div>
 </section>
+</div>
+</div>
 </div>
 <dialog id="dlgNueva" aria-labelledby="dlgNuevaTitulo">
 <form class="dlg" id="formNueva">
@@ -508,15 +470,32 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
 <textarea name="markdown" rows="12" placeholder="Contenido de la skill"></textarea>
 </label>
 <div class="skill-anclas-box editar-anclas" id="editarAnclasBox">
+<div class="editar-anclas-top">
 <p class="skill-anclas-titulo">Anclas</p>
+<button type="button" class="icon-btn" id="btnEditarAnclas" aria-label="Editar anclas" title="Editar anclas">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+</div>
 <div class="skill-anclas-list" id="editarAnclasLista"></div>
-<label class="editar-anclas-campo">Editar lista
-<textarea name="anclas" placeholder="_negocio.nombre_&#10;_proceso.url_inicio_"></textarea>
-</label>
+<input type="hidden" name="anclas" value="">
 </div>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="editarCancelar">Cancelar</button>
 <button type="submit" class="btn primary">Guardar versión</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarAnclas" aria-labelledby="dlgEditarAnclasTitulo">
+<form class="dlg" id="formEditarAnclas">
+<h3 id="dlgEditarAnclasTitulo">Editar anclas</h3>
+<p class="nota">Una por línea o separadas por comas. Guardar actualiza la lista de la skill; aún no crea una versión.</p>
+<p class="form-error" id="editarAnclasError" role="alert"></p>
+<label>Anclas
+<textarea name="anclas" rows="8" placeholder="_negocio.nombre_&#10;_proceso.url_inicio_"></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarAnclasCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
 </div>
 </form>
 </dialog>
@@ -593,19 +572,6 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
 </form>
 </dialog>
 
-<dialog id="dlgMapa" aria-labelledby="dlgMapaTitulo">
-<form class="dlg" id="formMapa">
-<h3 id="dlgMapaTitulo">Editar el diagrama</h3>
-<p class="destino" id="mapaEditVersion"></p>
-<p class="form-error" id="mapaError" role="alert"></p>
-<textarea id="mapaFuente" spellcheck="false" aria-label="Fuente del diagrama"></textarea>
-<p class="nota">Guardar crea la versión siguiente y el mapa pasa a mostrarla. Cancelar no cambia nada. En este navegador no se envía a GitHub.</p>
-<div class="dlg-actions">
-<button type="button" class="btn ghost" id="mapaCancelar">Cancelar</button>
-<button type="submit" class="btn primary">Guardar</button>
-</div>
-</form>
-</dialog>
 <dialog id="dlgEliminar" aria-labelledby="dlgEliminarTitulo">
 <form class="dlg" id="formEliminar">
 <h3 id="dlgEliminarTitulo">¿Estás seguro de eliminar la skill?</h3>
@@ -618,12 +584,11 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
 </dialog>
 <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
 (function () {
-  var IDS = ['mapa', 'catalogos', 'documentacion'];
+  var IDS = ['catalogos', 'documentacion'];
   function abrir(id) {
-    if (IDS.indexOf(id) < 0) id = 'mapa';
+    if (IDS.indexOf(id) < 0) id = 'catalogos';
     for (var i = 0; i < IDS.length; i++) {
       var nodo = document.getElementById(IDS[i]);
       if (nodo) nodo.hidden = IDS[i] !== id;
@@ -636,7 +601,8 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
   }
   function desdeHash() {
     var h = (location.hash || '').replace(/^#/, '');
-    return IDS.indexOf(h) < 0 ? 'mapa' : h;
+    if (h === 'mapa') return 'catalogos';
+    return IDS.indexOf(h) < 0 ? 'catalogos' : h;
   }
   window.abrirDestino = abrir;
   window.addEventListener('hashchange', function () { abrir(desdeHash()); });
@@ -654,10 +620,10 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js mapa --archivo ./flujo.mmd</code></pre>
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020f"></script>
-<script src="campos-ancla-ui.js?v=20261020c"></script>
-<script src="campos-mongodb-ui.js?v=20261020a"></script>
-<script src="catalogo-ui.js?v=20261020g"></script>
+<script src="skills-ui.js?v=20261020i"></script>
+<script src="campos-ancla-ui.js?v=20261020i"></script>
+<script src="campos-mongodb-ui.js?v=20261020i"></script>
+<script src="catalogo-ui.js?v=20261020i"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>
