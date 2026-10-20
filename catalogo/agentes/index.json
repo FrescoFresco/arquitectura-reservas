@@ -1,0 +1,26 @@
+{
+  "id": "agentes",
+  "nombre": "Agentes",
+  "agentes": [
+    {
+      "id": "eco-mesa",
+      "nombre": "Eco Mesa",
+      "foto": "",
+      "descripcion": "Agente de prueba para el circuito de reservas (seed).",
+      "inviteUsada": "inv_seed_eco_mesa",
+      "lastSeen": "2026-10-20T20:00:00.000Z",
+      "demoEnLinea": true,
+      "hash": "a1b2c3d4e5f60718a1b2c3d4e5f60718"
+    },
+    {
+      "id": "centinela-script",
+      "nombre": "Centinela Script",
+      "foto": "",
+      "descripcion": "Vigilancia de scripts Playwright (seed, desconectado).",
+      "inviteUsada": "inv_seed_centinela",
+      "lastSeen": "2026-10-18T12:00:00.000Z",
+      "demoEnLinea": false,
+      "hash": "b2c3d4e5f6071890b2c3d4e5f6071890"
+    }
+  ]
+}

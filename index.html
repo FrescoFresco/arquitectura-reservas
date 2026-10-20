@@ -60,6 +60,17 @@
 .proy-skills-picker input{margin:3px 0 0;flex:none}
 .proy-skills-picker .proy-skill-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
 .proy-skills-picker .proy-skill-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6}
+.agente-avatar{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#edf3ff;color:#1c63d5;font-size:14px;font-weight:800;overflow:hidden}
+.agente-avatar-img{width:100%;height:100%;object-fit:cover;display:block}
+.agente-ficha-avatar{font-size:16px;font-weight:800;overflow:hidden}
+.agente-fila-meta{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.agente-fila-sep{opacity:.55}
+.agente-estado{font-weight:700}
+.agente-estado.is-on{color:#0f7a45}
+.agente-estado.is-off{color:#8a6a2b}
+.agente-instrucciones{margin:0;width:100%;min-height:280px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;border:1px solid #d5deec;border-radius:10px;padding:12px;background:#f8fafc;color:#17212f;resize:vertical;white-space:pre-wrap}
+.agente-clave-box{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 0}
+.agente-clave-box code{font-size:12px;background:#edf3ff;color:#315eb6;padding:6px 10px;border-radius:8px;overflow-wrap:anywhere}
 .btn.version,.btn.ghost{background:white;color:#1c63d5;border:1px solid #c5d4ef}
 .btn.version{display:block;width:100%;margin-top:12px}
 .btn.ver{display:inline-block;margin-top:10px}
@@ -241,6 +252,9 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
 <div role="tabpanel" id="panel-proyectos" data-catalogo="proyectos">
 <div id="proyectos-root"></div>
+</div>
+<div role="tabpanel" id="panel-agentes" data-catalogo="agentes" hidden>
+<div id="agentes-root"></div>
 </div>
 <div role="tabpanel" id="panel-skills" data-catalogo="skills" hidden>
 <div id="skills-root"></div>
@@ -722,6 +736,49 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 </form>
 </dialog>
 
+<dialog id="dlgAgenteFicha" class="dlg-wide" aria-labelledby="agenteReaderNombre">
+<article class="reader dlg-reader" id="agenteReader">
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon agente-ficha-avatar" id="agenteFichaAvatar" aria-hidden="true"></span>
+<div>
+<h3 id="agenteReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="agenteReaderEstado" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<button type="button" class="icon-btn" id="btnCerrarAgente" aria-label="Cerrar">×</button>
+</div>
+</div>
+<div class="ancla-ficha-body">
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="agenteReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Estado</dt><dd id="agenteReaderEstadoDetalle">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Último latido</dt><dd id="agenteReaderLastSeen">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Invite</dt><dd><code id="agenteReaderInvite">—</code></dd></div>
+</dl>
+<p class="origen" id="agenteReaderDesc" hidden></p>
+</div>
+</article>
+</dialog>
+<dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
+<div class="dlg" id="panelDarAcceso">
+<h3 id="dlgDarAccesoTitulo">Dar acceso a un agente</h3>
+<p class="nota">Copia estas instrucciones y pégalas en el sistema / prompt del otro agente. No creas el agente a mano: él se registra solo con la clave.</p>
+<p class="form-error" id="darAccesoError" role="alert"></p>
+<div class="agente-clave-box">
+<span>Clave API</span>
+<code id="darAccesoClave"></code>
+</div>
+<label for="darAccesoTexto">Instrucciones (copiar todo)
+<textarea id="darAccesoTexto" class="agente-instrucciones" readonly spellcheck="false"></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="darAccesoCerrar">Cerrar</button>
+<button type="button" class="btn primary" id="darAccesoCopiar">Copiar todo</button>
+</div>
+</div>
+</dialog>
 <dialog id="dlgEliminar" aria-labelledby="dlgEliminarTitulo">
 <form class="dlg" id="formEliminar">
 <h3 id="dlgEliminarTitulo">¿Estás seguro de eliminar la skill?</h3>
@@ -770,11 +827,12 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020v"></script>
-<script src="campos-ancla-ui.js?v=20261020v"></script>
-<script src="campos-mongodb-ui.js?v=20261020v"></script>
-<script src="proyectos-ui.js?v=20261020v"></script>
-<script src="catalogo-ui.js?v=20261020v"></script>
+<script src="skills-ui.js?v=20261020w"></script>
+<script src="campos-ancla-ui.js?v=20261020w"></script>
+<script src="campos-mongodb-ui.js?v=20261020w"></script>
+<script src="proyectos-ui.js?v=20261020w"></script>
+<script src="agentes-ui.js?v=20261020w"></script>
+<script src="catalogo-ui.js?v=20261020w"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>

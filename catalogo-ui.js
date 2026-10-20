@@ -2,6 +2,7 @@
 
 const CATALOGOS = [
   { id: 'proyectos', nombre: 'Proyectos', icono: 'proyecto' },
+  { id: 'agentes', nombre: 'Agentes', icono: 'agente' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
   { id: 'campos-mongodb', nombre: 'Campos MongoDB', icono: 'mongo' }
@@ -14,7 +15,9 @@ const LS_KEY = 'arquitectura-reservas.catalogo.skills';
 const LS_CAMPOS = 'arquitectura-reservas.catalogo.campos-ancla';
 const LS_MONGO = 'arquitectura-reservas.catalogo.campos-mongodb';
 const LS_PROYECTOS = 'arquitectura-reservas.catalogo.proyectos';
+const LS_AGENTES = 'arquitectura-reservas.catalogo.agentes';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
+const AGENTE_LATIDO_MS = 120000;
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function esHashHex(h) {
@@ -108,6 +111,14 @@ const state = {
     fetchToken: 0,
     inflightRuta: null,
     reabrirTrasSkill: null
+  },
+  agentes: {
+    ready: false,
+    indexError: false,
+    remotos: [],
+    lista: [],
+    abiertoId: null,
+    inviteActual: null
   },
   tablaId: 'reglas',
   tablaHistorial: false,
@@ -626,6 +637,25 @@ function svgPestanaCatalogo(tipo) {
     // Lucide: folder
     svg.append(
       svgPath('M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9l-.81-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z')
+    );
+  } else if (tipo === 'agente') {
+    // Lucide: bot
+    svg.append(
+      svgPath('M12 8V4H8'),
+      (function () {
+        const ns2 = 'http://www.w3.org/2000/svg';
+        const r = document.createElementNS(ns2, 'rect');
+        r.setAttribute('width', '16');
+        r.setAttribute('height', '12');
+        r.setAttribute('x', '4');
+        r.setAttribute('y', '8');
+        r.setAttribute('rx', '2');
+        return r;
+      })(),
+      svgPath('M2 14h2'),
+      svgPath('M20 14h2'),
+      svgPath('M15 13v2'),
+      svgPath('M9 13v2')
     );
   }
   return svg;
@@ -1949,6 +1979,10 @@ function seleccionarCatalogo(id) {
     refrescarProyectos();
     pintarProyectos();
   }
+  if (id === 'agentes') {
+    refrescarAgentes();
+    pintarAgentes();
+  }
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
 }
@@ -2925,6 +2959,8 @@ function iniciar() {
   cargarMongo();
   cargarProyectos();
   wireProyectosUi();
+  cargarAgentes();
+  wireAgentesUi();
 }
 
 function normalizarSkillsProyecto(list) {
@@ -3651,6 +3687,454 @@ function wireProyectosUi() {
     state.proyectos.abiertaNumero = null;
     pintarProyectos();
   });
+}
+
+function generarClaveInvite() {
+  const bytes = new Uint8Array(18);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  return 'inv_' + Array.from(bytes).map(function (b) {
+    return b.toString(16).padStart(2, '0');
+  }).join('');
+}
+
+function agenteEnLinea(ag) {
+  if (!ag) return false;
+  if (ag.demoEnLinea) return true;
+  if (!ag.lastSeen) return false;
+  const t = Date.parse(ag.lastSeen);
+  if (!Number.isFinite(t)) return false;
+  return (Date.now() - t) <= AGENTE_LATIDO_MS;
+}
+
+function normalizeAgente(item) {
+  if (!item || typeof item !== 'object') return null;
+  if (typeof item.id !== 'string' || !item.id.trim()) return null;
+  if (typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
+  const out = {
+    id: item.id.trim(),
+    nombre: item.nombre.trim(),
+    foto: typeof item.foto === 'string' ? item.foto.trim() : '',
+    lastSeen: typeof item.lastSeen === 'string' ? item.lastSeen : '',
+    inviteUsada: typeof item.inviteUsada === 'string' ? item.inviteUsada.trim() : '',
+    demoEnLinea: !!item.demoEnLinea
+  };
+  if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
+    out.descripcion = item.descripcion.trim().slice(0, 280);
+  }
+  const hash = normalizarHash(item.hash);
+  out.hash = hash || hashFnvHex(out.id + '|' + out.nombre + '|' + out.inviteUsada);
+  return out;
+}
+
+function normalizeAgentesIndice(data) {
+  const list = Array.isArray(data) ? data : (data && Array.isArray(data.agentes) ? data.agentes : []);
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    const ag = normalizeAgente(item);
+    if (!ag || seen.has(ag.id)) return;
+    seen.add(ag.id);
+    ag.origen = 'indice';
+    out.push(ag);
+  });
+  return out;
+}
+
+function leerAgentesStore() {
+  try {
+    const raw = localStorage.getItem(LS_AGENTES);
+    if (!raw) return { agentes: [], invites: [], eliminados: [] };
+    const data = JSON.parse(raw);
+    return {
+      agentes: Array.isArray(data.agentes) ? data.agentes : [],
+      invites: Array.isArray(data.invites) ? data.invites : [],
+      eliminados: idsEliminados(data.eliminados)
+    };
+  } catch (e) {
+    return { agentes: [], invites: [], eliminados: [] };
+  }
+}
+
+function guardarAgentesLocal(store) {
+  const json = JSON.stringify(store);
+  if (json.length > 4500000) throw new Error('No cabe en el almacenamiento de este navegador.');
+  try {
+    localStorage.setItem(LS_AGENTES, json);
+  } catch (e) {
+    throw new Error('No cabe en el almacenamiento de este navegador.');
+  }
+}
+
+function mergeAgentes(remotas, locales, eliminados) {
+  const ban = new Set(Array.isArray(eliminados) ? eliminados : []);
+  const map = new Map();
+  remotas.forEach(function (ag) {
+    if (ban.has(ag.id)) return;
+    map.set(ag.id, Object.assign({}, ag));
+  });
+  locales.forEach(function (raw) {
+    const ag = normalizeAgente(raw);
+    if (!ag || ban.has(ag.id)) return;
+    ag.origen = 'local';
+    const prev = map.get(ag.id);
+    if (!prev) {
+      map.set(ag.id, ag);
+      return;
+    }
+    map.set(ag.id, Object.assign({}, prev, ag, {
+      origen: prev.origen === 'indice' ? 'indice' : 'local',
+      demoEnLinea: !!(prev.demoEnLinea || ag.demoEnLinea)
+    }));
+  });
+  return Array.from(map.values()).map(function (ag) {
+    ag.enLinea = agenteEnLinea(ag);
+    return ag;
+  }).sort(function (a, b) {
+    if (a.enLinea !== b.enLinea) return a.enLinea ? -1 : 1;
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+}
+
+function refrescarAgentes() {
+  const store = leerAgentesStore();
+  state.agentes.lista = mergeAgentes(state.agentes.remotos, store.agentes, store.eliminados);
+}
+
+function agentesBridge() {
+  return {
+    getSnapshot: function () {
+      const abierta = state.agentes.abiertoId
+        ? state.agentes.lista.find(function (a) { return a.id === state.agentes.abiertoId; }) || null
+        : null;
+      return {
+        ready: state.agentes.ready,
+        indexError: state.agentes.indexError,
+        agentes: state.agentes.lista,
+        abierta: abierta ? { id: abierta.id } : null
+      };
+    },
+    darAcceso: function () { abrirDialogoDarAcceso(); },
+    abrirAgente: function (id) {
+      if (state.agentes.abiertoId === id) {
+        const dlg = document.getElementById('dlgAgenteFicha');
+        if (dlg && dlg.open) {
+          cerrarAgenteModal();
+          return;
+        }
+      }
+      abrirAgente(id);
+    }
+  };
+}
+
+function pintarAgentes() {
+  if (window.AgentesUI && typeof window.AgentesUI.refrescar === 'function') {
+    window.AgentesUI.refrescar(agentesBridge());
+  }
+}
+
+function textoInstruccionesInvite(clave) {
+  const base = (typeof location !== 'undefined' && location.origin)
+    ? location.origin + (location.pathname.replace(/\/[^/]*$/, '/') || '/')
+    : 'https://frescofresco.github.io/arquitectura-reservas/';
+  const repoApi = 'https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/agentes/index.json';
+  return [
+    '# Acceso al catálogo de agentes (Arquitectura reservas)',
+    '',
+    'Eres un agente que trabaja por API. No uses la pantalla de Catálogos.',
+    'Te han concedido acceso. Conserva esta clave; es tu credencial de invitación.',
+    '',
+    'AGENTE_CLAVE=' + clave,
+    'CATALOGO_BASE=' + base,
+    'INDICE_AGENTES=catalogo/agentes/index.json',
+    '',
+    '## 1. Token de GitHub (escritura)',
+    'Un humano genera el token en Documentación → Conectar un agente → Generar token.',
+    'Dura 1 hora. Pégalo en tu entorno como GITHUB_TOKEN (o GH_TOKEN).',
+    'Cabeceras: Authorization: Bearer $GITHUB_TOKEN ; Accept: application/vnd.github+json ; X-GitHub-Api-Version: 2022-11-28',
+    '',
+    '## 2. Registro (tú eliges el nombre; el id lo decides como slug y lo guardas)',
+    '1. Elige un nombre visible (ej. «Eco Mesa»).',
+    '2. Elige un id slug: minúsculas, números y guiones (ej. eco-mesa). Si ya existe, añade un sufijo.',
+    '3. GET ' + repoApi + '?ref=main',
+    '4. Decodifica content (base64) → JSON del índice.',
+    '5. Comprueba que AGENTE_CLAVE no esté ya en inviteUsada de otro agente.',
+    '6. Añade a agentes[]: { id, nombre, foto (url opcional o \"\"), lastSeen: ahora ISO, inviteUsada: AGENTE_CLAVE }.',
+    '7. PUT el mismo archivo con el JSON actualizado, message «Registra agente <id>», branch main y el sha leído.',
+    '8. Guarda el id que escribiste: es tu identidad permanente.',
+    '',
+    '## 3. Latido (en línea)',
+    'Cada ~30 s actualiza tu lastSeen a la hora UTC ISO (mismo GET → editar tu entrada → PUT).',
+    'Si dejas de latir más de ~2 min, la UI te muestra Desconectado.',
+    '',
+    '## 4. Modo prueba en este navegador (sin GitHub)',
+    'Si estás probando en la página abierta del catálogo, registra y late así:',
+    '  const r = window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
+    '  // r.id es tu id',
+    '  window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
+    '',
+    '## 5. Fuera de alcance ahora',
+    'No hay cola de comentarios ni Metricool en este acceso. Solo registro + latido + lectura del catálogo.',
+    '',
+    '## Contrato mínimo del índice',
+    '{ \"id\": \"agentes\", \"nombre\": \"Agentes\", \"agentes\": [ { \"id\", \"nombre\", \"foto\", \"lastSeen\", \"inviteUsada\" } ] }'
+  ].join('\n');
+}
+
+function abrirDialogoDarAcceso() {
+  const dlg = document.getElementById('dlgDarAcceso');
+  const err = document.getElementById('darAccesoError');
+  const claveNodo = document.getElementById('darAccesoClave');
+  const texto = document.getElementById('darAccesoTexto');
+  if (!dlg || !claveNodo || !texto) return;
+  if (err) err.textContent = '';
+  const clave = generarClaveInvite();
+  const store = leerAgentesStore();
+  store.invites.push({ clave: clave, creada: new Date().toISOString(), usadaPor: null });
+  try {
+    guardarAgentesLocal(store);
+  } catch (e) {
+    if (err) err.textContent = e.message;
+    return;
+  }
+  state.agentes.inviteActual = clave;
+  claveNodo.textContent = clave;
+  texto.value = textoInstruccionesInvite(clave);
+  dlg.showModal();
+  texto.focus();
+  texto.select();
+}
+
+function copiarInstruccionesAcceso() {
+  const texto = document.getElementById('darAccesoTexto');
+  const err = document.getElementById('darAccesoError');
+  if (!texto) return;
+  const body = texto.value || '';
+  const done = function () {
+    const btn = document.getElementById('darAccesoCopiar');
+    if (btn) {
+      const prev = btn.textContent;
+      btn.textContent = 'Copiado';
+      setTimeout(function () { btn.textContent = prev; }, 1400);
+    }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(body).then(done).catch(function () {
+      texto.focus();
+      texto.select();
+      try {
+        document.execCommand('copy');
+        done();
+      } catch (e) {
+        if (err) err.textContent = 'No se pudo copiar. Selecciona el texto a mano.';
+      }
+    });
+    return;
+  }
+  texto.focus();
+  texto.select();
+  try {
+    document.execCommand('copy');
+    done();
+  } catch (e) {
+    if (err) err.textContent = 'No se pudo copiar. Selecciona el texto a mano.';
+  }
+}
+
+function slugAgenteDesdeNombre(nombre) {
+  const base = String(nombre || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'agente';
+  refrescarAgentes();
+  let id = base;
+  let n = 2;
+  while (state.agentes.lista.some(function (a) { return a.id === id; })) {
+    id = base + '-' + n;
+    n += 1;
+  }
+  return id;
+}
+
+function registrarAgenteApi(opts) {
+  const clave = String(opts && opts.clave || '').trim();
+  const nombre = String(opts && opts.nombre || '').trim();
+  const foto = typeof (opts && opts.foto) === 'string' ? opts.foto.trim() : '';
+  if (!clave || clave.indexOf('inv_') !== 0) throw new Error('Falta una clave de invitación válida.');
+  if (!nombre) throw new Error('Elige un nombre.');
+  const store = leerAgentesStore();
+  const invite = store.invites.find(function (i) { return i && i.clave === clave; });
+  if (!invite) throw new Error('Esa clave no está en este navegador. Genera acceso con + Agente aquí.');
+  if (invite.usadaPor) throw new Error('Esa clave ya la usó el agente ' + invite.usadaPor + '.');
+  const id = opts.id && /^[a-z0-9][a-z0-9-]{0,60}$/i.test(String(opts.id).trim())
+    ? String(opts.id).trim()
+    : slugAgenteDesdeNombre(nombre);
+  if (state.agentes.lista.some(function (a) { return a.id === id; }) ||
+      store.agentes.some(function (a) { return a && a.id === id; })) {
+    throw new Error('Ya existe un agente con el id ' + id + '.');
+  }
+  const ahora = new Date().toISOString();
+  const entrada = {
+    id: id,
+    nombre: nombre,
+    foto: foto,
+    lastSeen: ahora,
+    inviteUsada: clave,
+    demoEnLinea: false,
+    hash: hashFnvHex(id + '|' + nombre + '|' + clave + '|' + ahora)
+  };
+  store.agentes.push(entrada);
+  invite.usadaPor = id;
+  guardarAgentesLocal(store);
+  refrescarAgentes();
+  pintarAgentes();
+  return { id: id, nombre: nombre, lastSeen: ahora };
+}
+
+function latidoAgenteApi(opts) {
+  const id = String(opts && opts.id || '').trim();
+  const clave = String(opts && opts.clave || '').trim();
+  if (!id || !clave) throw new Error('Faltan id y clave.');
+  const store = leerAgentesStore();
+  let entrada = store.agentes.find(function (a) { return a && a.id === id; });
+  if (!entrada) {
+    refrescarAgentes();
+    const remoto = state.agentes.lista.find(function (a) { return a.id === id; });
+    if (!remoto) throw new Error('No está ese agente.');
+    if (remoto.inviteUsada && remoto.inviteUsada !== clave) throw new Error('Clave incorrecta.');
+    entrada = {
+      id: remoto.id,
+      nombre: remoto.nombre,
+      foto: remoto.foto || '',
+      lastSeen: remoto.lastSeen || '',
+      inviteUsada: remoto.inviteUsada || clave,
+      demoEnLinea: false
+    };
+    store.agentes.push(entrada);
+  }
+  if (entrada.inviteUsada && entrada.inviteUsada !== clave) throw new Error('Clave incorrecta.');
+  entrada.lastSeen = new Date().toISOString();
+  entrada.demoEnLinea = false;
+  guardarAgentesLocal(store);
+  refrescarAgentes();
+  pintarAgentes();
+  if (state.agentes.abiertoId === id) renderAgenteReader();
+  return { id: id, lastSeen: entrada.lastSeen, enLinea: true };
+}
+
+function cerrarAgenteModal() {
+  const dlg = document.getElementById('dlgAgenteFicha');
+  if (dlg && dlg.open) {
+    dlg.close();
+    return;
+  }
+  state.agentes.abiertoId = null;
+  pintarAgentes();
+}
+
+function renderAgenteReader() {
+  const dlg = document.getElementById('dlgAgenteFicha');
+  const ag = state.agentes.lista.find(function (a) { return a.id === state.agentes.abiertoId; });
+  if (!ag) {
+    state.agentes.abiertoId = null;
+    if (dlg && dlg.open) dlg.close();
+    return;
+  }
+  document.getElementById('agenteReaderNombre').textContent = ag.nombre;
+  const enLinea = agenteEnLinea(ag);
+  document.getElementById('agenteReaderEstado').textContent = enLinea ? 'En línea' : 'Desconectado';
+  document.getElementById('agenteReaderId').textContent = ag.id;
+  document.getElementById('agenteReaderEstadoDetalle').textContent = enLinea ? 'En línea' : 'Desconectado';
+  document.getElementById('agenteReaderLastSeen').textContent = ag.lastSeen || '—';
+  document.getElementById('agenteReaderInvite').textContent = ag.inviteUsada || '—';
+  const desc = document.getElementById('agenteReaderDesc');
+  if (desc) {
+    if (ag.descripcion) {
+      desc.hidden = false;
+      desc.textContent = ag.descripcion;
+    } else {
+      desc.hidden = true;
+      desc.textContent = '';
+    }
+  }
+  const avatar = document.getElementById('agenteFichaAvatar');
+  if (avatar) {
+    avatar.replaceChildren();
+    avatar.className = 'ficha-titulo-icon agente-ficha-avatar';
+    if (ag.foto) {
+      const img = document.createElement('img');
+      img.src = ag.foto;
+      img.alt = '';
+      img.className = 'agente-avatar-img';
+      avatar.append(img);
+    } else {
+      avatar.textContent = String(ag.nombre).trim().charAt(0).toUpperCase() || '?';
+    }
+  }
+  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  const nombre = document.getElementById('agenteReaderNombre');
+  if (nombre) nombre.focus();
+}
+
+function abrirAgente(id) {
+  refrescarAgentes();
+  const ag = state.agentes.lista.find(function (a) { return a.id === id; });
+  if (!ag) return;
+  state.agentes.abiertoId = id;
+  renderAgenteReader();
+  pintarAgentes();
+}
+
+function cargarAgentes() {
+  fetch('catalogo/agentes/index.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.json();
+    })
+    .then(function (data) {
+      state.agentes.remotos = normalizeAgentesIndice(data);
+      state.agentes.indexError = false;
+    })
+    .catch(function () {
+      state.agentes.remotos = [];
+      state.agentes.indexError = true;
+    })
+    .then(function () {
+      state.agentes.ready = true;
+      refrescarAgentes();
+      pintarAgentes();
+    });
+}
+
+function wireAgentesUi() {
+  const btnCerrar = document.getElementById('btnCerrarAgente');
+  if (btnCerrar) btnCerrar.addEventListener('click', cerrarAgenteModal);
+  const dlg = document.getElementById('dlgAgenteFicha');
+  if (dlg) dlg.addEventListener('close', function () {
+    state.agentes.abiertoId = null;
+    pintarAgentes();
+  });
+  const cerrarAcceso = document.getElementById('darAccesoCerrar');
+  if (cerrarAcceso) cerrarAcceso.addEventListener('click', function () {
+    const d = document.getElementById('dlgDarAcceso');
+    if (d && d.open) d.close();
+  });
+  const copiar = document.getElementById('darAccesoCopiar');
+  if (copiar) copiar.addEventListener('click', copiarInstruccionesAcceso);
+  window.AgentesCatalogo = {
+    registrar: registrarAgenteApi,
+    latido: latidoAgenteApi,
+    listar: function () {
+      refrescarAgentes();
+      return state.agentes.lista.map(function (a) {
+        return { id: a.id, nombre: a.nombre, enLinea: a.enLinea, lastSeen: a.lastSeen };
+      });
+    }
+  };
 }
 
 const api = {
