@@ -2,17 +2,14 @@
 
 const CATALOGOS = [
   { id: 'skills', nombre: 'Skills' },
-  { id: 'tabla-activacion', nombre: 'tabla-activación' }
+  { id: 'campos-ancla', nombre: 'Campos ancla' }
 ];
-const TABLAS = [
-  { id: 'reglas', nombre: 'Tabla de reglas' },
-  { id: 'pasos', nombre: 'Tabla de pasos' }
-];
+const TABLAS = [];
 const DOCUMENTOS = [
   { id: 'api', nombre: 'API' }
 ];
 const LS_KEY = 'arquitectura-reservas.catalogo.skills';
-const LS_TABLA = 'arquitectura-reservas.catalogo.tabla-activacion';
+const LS_CAMPOS = 'arquitectura-reservas.catalogo.campos-ancla';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const OJO_ABIERTO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -21,12 +18,6 @@ const OJO_CERRADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 const state = {
   catalogoId: CATALOGOS[0].id,
   docId: DOCUMENTOS[0].id,
-  tablaId: TABLAS[0].id,
-  tablaHistorial: false,
-  tablas: {
-    reglas: { remotas: [], versiones: [], abiertaNumero: null, ready: false, error: false },
-    pasos: { remotas: [], versiones: [], abiertaNumero: null, ready: false, error: false }
-  },
   ready: false,
   indexError: false,
   remotas: [],
@@ -35,6 +26,19 @@ const state = {
   abiertaNumero: null,
   historial: false,
   historialSkillId: null,
+  campos: {
+    ready: false,
+    indexError: false,
+    remotos: [],
+    lista: [],
+    abiertoId: null
+  },
+  tablaId: 'reglas',
+  tablaHistorial: false,
+  tablas: {
+    reglas: { remotas: [], versiones: [], abiertaNumero: null, ready: false, error: false },
+    pasos: { remotas: [], versiones: [], abiertaNumero: null, ready: false, error: false }
+  },
   fetchToken: 0,
   inflightRuta: null,
   pendingFocus: null,
@@ -476,12 +480,20 @@ function skillsBridge() {
     añadirSkill: function () { abrirDialogoNuevo(); },
     abrirSkill: function (id, numero) {
       state.historialSkillId = null;
+      if (state.abiertaId === id && numero == null) {
+        state.abiertaId = null;
+        state.abiertaNumero = null;
+        state.historial = false;
+        render();
+        return;
+      }
       abrirInstruccion(id, numero == null ? null : numero);
     },
     alternarHistorial: function (id) {
       state.historialSkillId = state.historialSkillId === id ? null : id;
       pintarSkills();
     },
+    editarSkill: function (id) { abrirDialogoEditar(id); },
     eliminarSkill: function (id) { abrirDialogoEliminar(id); },
     subirVersion: function (id) { abrirDialogoVersion(id); }
   };
@@ -490,6 +502,309 @@ function skillsBridge() {
 function pintarSkills() {
   if (window.SkillsUI && typeof window.SkillsUI.refrescar === 'function') {
     window.SkillsUI.refrescar(skillsBridge());
+  }
+}
+
+function normalizeCampo(item) {
+  if (!item || typeof item !== 'object') return null;
+  if (typeof item.id !== 'string' || !item.id.trim()) return null;
+  let ancla = typeof item.ancla === 'string' ? item.ancla.trim() : '';
+  if (!ancla && item.id) ancla = '_' + item.id.trim() + '_';
+  if (ancla.charAt(0) !== '_') ancla = '_' + ancla;
+  if (ancla.charAt(ancla.length - 1) !== '_') ancla = ancla + '_';
+  const out = {
+    id: item.id.trim(),
+    ancla: ancla,
+    etiqueta: typeof item.etiqueta === 'string' ? item.etiqueta.trim() : '',
+    claveMongo: typeof item.claveMongo === 'string' ? item.claveMongo.trim() : '',
+    coleccion: typeof item.coleccion === 'string' ? item.coleccion.trim() : '',
+    baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : 'arquitectura_reservas',
+    tipo: typeof item.tipo === 'string' ? item.tipo.trim() : 'string',
+    obligatorio: !!item.obligatorio,
+    formato: typeof item.formato === 'string' ? item.formato.trim() : '',
+    descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim() : '',
+    ejemplo: typeof item.ejemplo === 'string' ? item.ejemplo.trim() : '',
+    skills: Array.isArray(item.skills)
+      ? item.skills.map(function (s) { return String(s || '').trim(); }).filter(Boolean)
+      : []
+  };
+  return out;
+}
+
+function normalizeCamposIndice(data) {
+  const list = data && Array.isArray(data.campos) ? data.campos : (Array.isArray(data) ? data : []);
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    const c = normalizeCampo(item);
+    if (!c || seen.has(c.id)) return;
+    seen.add(c.id);
+    c.origen = 'indice';
+    out.push(c);
+  });
+  return out;
+}
+
+function leerCamposStore() {
+  try {
+    const raw = localStorage.getItem(LS_CAMPOS);
+    if (!raw) return { campos: [], eliminados: [] };
+    const data = JSON.parse(raw);
+    return {
+      campos: Array.isArray(data.campos) ? data.campos : [],
+      eliminados: Array.isArray(data.eliminados) ? data.eliminados : []
+    };
+  } catch (e) {
+    return { campos: [], eliminados: [] };
+  }
+}
+
+function guardarCamposStore(store) {
+  localStorage.setItem(LS_CAMPOS, JSON.stringify(store));
+}
+
+function mergeCampos(remotos, locales, eliminados) {
+  const map = new Map();
+  remotos.forEach(function (c) {
+    map.set(c.id, Object.assign({}, c));
+  });
+  (locales || []).forEach(function (raw) {
+    const c = normalizeCampo(raw);
+    if (!c) return;
+    c.origen = 'local';
+    map.set(c.id, c);
+  });
+  const ocultos = new Set(eliminados || []);
+  return Array.from(map.values()).filter(function (c) { return !ocultos.has(c.id); });
+}
+
+function refrescarCampos() {
+  const store = leerCamposStore();
+  state.campos.lista = mergeCampos(state.campos.remotos, store.campos, store.eliminados);
+}
+
+function camposBridge() {
+  return {
+    getSnapshot: function () {
+      const abierta = state.campos.abiertoId
+        ? state.campos.lista.find(function (c) { return c.id === state.campos.abiertoId; }) || null
+        : null;
+      return {
+        ready: state.campos.ready,
+        indexError: state.campos.indexError,
+        campos: state.campos.lista,
+        abierta: abierta
+      };
+    },
+    abrirCampo: function (id) {
+      state.campos.abiertoId = state.campos.abiertoId === id ? null : id;
+      pintarCampos();
+    },
+    cerrarCampo: function () {
+      state.campos.abiertoId = null;
+      pintarCampos();
+    },
+    añadirCampo: function () { abrirDialogoCampo(); }
+  };
+}
+
+function pintarCampos() {
+  if (window.CamposAnclaUI && typeof window.CamposAnclaUI.refrescar === 'function') {
+    window.CamposAnclaUI.refrescar(camposBridge());
+  }
+}
+
+function cargarCampos() {
+  fetch('catalogo/campos-ancla/index.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.json();
+    })
+    .then(function (data) {
+      state.campos.remotos = normalizeCamposIndice(data);
+      state.campos.indexError = false;
+    })
+    .catch(function () {
+      state.campos.remotos = [];
+      state.campos.indexError = true;
+    })
+    .then(function () {
+      state.campos.ready = true;
+      refrescarCampos();
+      pintarCampos();
+    });
+}
+
+function abrirDialogoCampo() {
+  const dlg = document.getElementById('dlgCampo');
+  const form = document.getElementById('formCampo');
+  if (!dlg || !form) return;
+  form.reset();
+  const err = document.getElementById('campoError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  if (form.ancla) form.ancla.focus();
+}
+
+function onSubmitCampo(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('campoError');
+  if (error) error.textContent = '';
+  let ancla = form.ancla.value.trim();
+  if (!ancla) {
+    if (error) error.textContent = 'Escribe el ancla.';
+    return;
+  }
+  if (ancla.charAt(0) !== '_') ancla = '_' + ancla;
+  if (ancla.charAt(ancla.length - 1) !== '_') ancla = ancla + '_';
+  const idBase = ancla.replace(/^_|_$/g, '');
+  if (!idBase) {
+    if (error) error.textContent = 'El ancla no es válida.';
+    return;
+  }
+  const campo = normalizeCampo({
+    id: idBase,
+    ancla: ancla,
+    etiqueta: form.etiqueta.value.trim(),
+    claveMongo: form.claveMongo.value.trim() || idBase.split('.').pop(),
+    coleccion: form.coleccion.value.trim() || 'negocios',
+    baseDatos: form.baseDatos.value.trim() || 'arquitectura_reservas',
+    tipo: form.tipo.value.trim() || 'string',
+    obligatorio: !!form.obligatorio.checked,
+    formato: form.formato.value.trim(),
+    descripcion: form.descripcion.value.trim(),
+    ejemplo: form.ejemplo.value.trim(),
+    skills: form.skills.value.split(/[\n,]+/).map(function (s) { return s.trim(); }).filter(Boolean)
+  });
+  if (!campo) {
+    if (error) error.textContent = 'No se pudo crear el campo.';
+    return;
+  }
+  const store = leerCamposStore();
+  store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
+  store.campos.push(campo);
+  store.eliminados = (store.eliminados || []).filter(function (id) { return id !== campo.id; });
+  try {
+    guardarCamposStore(store);
+  } catch (err) {
+    if (error) error.textContent = err.message || 'No se pudo guardar.';
+    return;
+  }
+  document.getElementById('dlgCampo').close();
+  refrescarCampos();
+  state.campos.abiertoId = campo.id;
+  pintarCampos();
+}
+
+function textoDeVersionActual(v) {
+  if (!v) return Promise.resolve('');
+  if (typeof v.markdown === 'string') return Promise.resolve(v.markdown);
+  if (v.datos && esMarkdownNombre(v.nombreArchivo || '')) {
+    try { return Promise.resolve(textoDeDatos(v.datos)); } catch (e) { return Promise.resolve(''); }
+  }
+  if (v.ruta && esMarkdownNombre(v.ruta)) {
+    if (mdCache.has(v.ruta)) return Promise.resolve(mdCache.get(v.ruta));
+    try {
+      return fetch(hrefRuta(v.ruta), { cache: 'no-store' })
+        .then(function (res) {
+          if (!res.ok) throw new Error('http');
+          return res.text();
+        })
+        .then(function (text) {
+          mdCache.set(v.ruta, text);
+          return text;
+        })
+        .catch(function () { return ''; });
+    } catch (e) {
+      return Promise.resolve('');
+    }
+  }
+  return Promise.resolve('');
+}
+
+function abrirDialogoEditar(id) {
+  const ins = state.instrucciones.find(function (item) { return item.id === id; });
+  if (!ins) return;
+  const dlg = document.getElementById('dlgEditar');
+  const form = document.getElementById('formEditar');
+  if (!dlg || !form) return;
+  form.reset();
+  form.dataset.id = id;
+  limpiarError('editarError');
+  form.nombre.value = ins.nombre;
+  form.descripcion.value = ins.descripcion || '';
+  form.anclas.value = (ins.anclas || []).join('\n');
+  form.markdown.value = 'Cargando…';
+  dlg.showModal();
+  const v = versionActual(ins);
+  textoDeVersionActual(v).then(function (text) {
+    if (form.dataset.id !== id) return;
+    form.markdown.value = text || '';
+    form.nombre.focus();
+  });
+}
+
+function guardarEdicionSkill(id, meta, markdown) {
+  refrescar();
+  const actual = state.instrucciones.find(function (ins) { return ins.id === id; });
+  if (!actual) throw new Error('No está esa skill.');
+  const store = leerStore();
+  let entrada = store.instrucciones.find(function (ins) { return ins && ins.id === id; });
+  if (!entrada) {
+    entrada = { id: id, nombre: actual.nombre, versiones: [] };
+    store.instrucciones.push(entrada);
+  }
+  if (meta.nombre) entrada.nombre = meta.nombre;
+  if (meta.descripcion != null) entrada.descripcion = meta.descripcion;
+  if (meta.anclas) entrada.anclas = meta.anclas;
+  if (!Array.isArray(entrada.versiones)) entrada.versiones = [];
+  const creada = {
+    numero: siguienteNumero(actual.versiones),
+    fecha: todayISO(),
+    markdown: markdown
+  };
+  entrada.versiones.push(creada);
+  guardarLocal(store);
+  return creada;
+}
+
+async function onSubmitEditar(e) {
+  e.preventDefault();
+  const error = document.getElementById('editarError');
+  if (error) error.textContent = '';
+  const form = e.currentTarget;
+  const submit = form.querySelector('[type="submit"]');
+  const id = form.dataset.id;
+  const nombre = form.nombre.value.trim();
+  if (!nombre) {
+    if (error) error.textContent = 'Escribe un nombre.';
+    return;
+  }
+  const markdown = form.markdown.value;
+  if (!String(markdown || '').trim()) {
+    if (error) error.textContent = 'El contenido no puede estar vacío.';
+    return;
+  }
+  const descripcion = form.descripcion.value.trim().slice(0, 280);
+  const anclas = form.anclas.value
+    .split(/[\n,]+/)
+    .map(function (s) { return s.trim(); })
+    .filter(Boolean);
+  submit.disabled = true;
+  try {
+    const creada = guardarEdicionSkill(id, {
+      nombre: nombre,
+      descripcion: descripcion,
+      anclas: normalizarAnclas(anclas.length ? anclas : anclasDeMarkdown(markdown))
+    }, markdown);
+    document.getElementById('dlgEditar').close();
+    state.pendingFocus = id;
+    abrirInstruccion(id, creada.numero);
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  } finally {
+    submit.disabled = false;
   }
 }
 
@@ -978,6 +1293,11 @@ function seleccionarCatalogo(id) {
   if (!existe) return;
   state.catalogoId = id;
   renderPestanasCatalogo();
+  if (id === 'skills') pintarSkills();
+  if (id === 'campos-ancla') {
+    refrescarCampos();
+    pintarCampos();
+  }
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
 }
@@ -1735,7 +2055,6 @@ function cargarTablas() {
 function iniciar() {
   renderPestanasCatalogo();
   renderDocPestanas();
-  renderTablaPestanas();
   const tabs = document.getElementById('catalogoTabs');
   if (tabs) {
     tabs.addEventListener('click', function (e) {
@@ -1760,24 +2079,42 @@ function iniciar() {
   }
   const btnNueva = document.getElementById('btnNueva');
   if (btnNueva) btnNueva.addEventListener('click', abrirDialogoNuevo);
-  document.getElementById('nuevaCancelar').addEventListener('click', function () {
+  const nuevaCancelar = document.getElementById('nuevaCancelar');
+  if (nuevaCancelar) nuevaCancelar.addEventListener('click', function () {
     document.getElementById('dlgNueva').close();
   });
-  document.getElementById('versionCancelar').addEventListener('click', function () {
+  const versionCancelar = document.getElementById('versionCancelar');
+  if (versionCancelar) versionCancelar.addEventListener('click', function () {
     document.getElementById('dlgVersion').close();
+  });
+  const editarCancelar = document.getElementById('editarCancelar');
+  if (editarCancelar) editarCancelar.addEventListener('click', function () {
+    document.getElementById('dlgEditar').close();
   });
   const eliminarCancelar = document.getElementById('eliminarCancelar');
   if (eliminarCancelar) eliminarCancelar.addEventListener('click', function () {
     document.getElementById('dlgEliminar').close();
   });
-  document.getElementById('formNueva').addEventListener('submit', onSubmitNueva);
-  document.getElementById('formVersion').addEventListener('submit', onSubmitVersion);
+  const formNueva = document.getElementById('formNueva');
+  if (formNueva) formNueva.addEventListener('submit', onSubmitNueva);
+  const formVersion = document.getElementById('formVersion');
+  if (formVersion) formVersion.addEventListener('submit', onSubmitVersion);
+  const formEditar = document.getElementById('formEditar');
+  if (formEditar) formEditar.addEventListener('submit', onSubmitEditar);
   const formEliminar = document.getElementById('formEliminar');
   if (formEliminar) formEliminar.addEventListener('submit', onSubmitEliminar);
-  document.getElementById('nuevaArchivo').addEventListener('change', function (e) {
+  const formCampo = document.getElementById('formCampo');
+  if (formCampo) formCampo.addEventListener('submit', onSubmitCampo);
+  const campoCancelar = document.getElementById('campoCancelar');
+  if (campoCancelar) campoCancelar.addEventListener('click', function () {
+    document.getElementById('dlgCampo').close();
+  });
+  const nuevaArchivo = document.getElementById('nuevaArchivo');
+  if (nuevaArchivo) nuevaArchivo.addEventListener('change', function (e) {
     nombreDeArchivo(e.target, 'nuevaArchivoNombre');
   });
-  document.getElementById('versionArchivo').addEventListener('change', function (e) {
+  const versionArchivo = document.getElementById('versionArchivo');
+  if (versionArchivo) versionArchivo.addEventListener('change', function (e) {
     nombreDeArchivo(e.target, 'versionArchivoNombre');
   });
   const btnHistorial = document.getElementById('btnHistorial');
@@ -1791,51 +2128,6 @@ function iniciar() {
   const mapaCancelar = document.getElementById('mapaCancelar');
   if (mapaCancelar) mapaCancelar.addEventListener('click', function () {
     document.getElementById('dlgMapa').close();
-  });
-  const tablaTabs = document.getElementById('tablaTabs');
-  if (tablaTabs) {
-    tablaTabs.addEventListener('click', function (e) {
-      const tab = e.target.closest('[data-tabla]');
-      if (!tab) return;
-      seleccionarTabla(tab.dataset.tabla);
-    });
-    tablaTabs.addEventListener('keydown', function (e) {
-      teclasPestana(e, '#tablaTabs [role="tab"]', 'tabla', seleccionarTabla);
-    });
-  }
-  const btnColumna = document.getElementById('btnColumna');
-  if (btnColumna) btnColumna.addEventListener('click', abrirDialogoColumna);
-  const btnValor = document.getElementById('btnValor');
-  if (btnValor) btnValor.addEventListener('click', abrirDialogoValor);
-  const columnaCancelar = document.getElementById('columnaCancelar');
-  if (columnaCancelar) columnaCancelar.addEventListener('click', function () {
-    document.getElementById('dlgColumna').close();
-  });
-  const valorCancelar = document.getElementById('valorCancelar');
-  if (valorCancelar) valorCancelar.addEventListener('click', function () {
-    document.getElementById('dlgValor').close();
-  });
-  const formColumna = document.getElementById('formColumna');
-  if (formColumna) formColumna.addEventListener('submit', onSubmitColumna);
-  const formValor = document.getElementById('formValor');
-  if (formValor) formValor.addEventListener('submit', onSubmitValor);
-  const btnHistTabla = document.getElementById('btnHistTabla');
-  if (btnHistTabla) btnHistTabla.addEventListener('click', function () {
-    const bolsa = state.tablas[state.tablaId];
-    if (!bolsa || !bolsa.versiones.length) return;
-    state.tablaHistorial = !state.tablaHistorial;
-    const venia = document.activeElement && document.activeElement.id === 'btnHistTabla';
-    pintarHistTabla();
-    if (state.tablaHistorial) {
-      const current = document.querySelector('#tablaHistorialLista [aria-current="true"]');
-      if (current) current.focus();
-    } else if (venia && btnHistTabla) btnHistTabla.focus();
-  });
-  const listaTabla = document.getElementById('tablaHistorialLista');
-  if (listaTabla) listaTabla.addEventListener('click', function (e) {
-    const btn = e.target.closest('[data-tabla-version]');
-    if (!btn) return;
-    elegirVersionTabla(Number(btn.dataset.tablaVersion));
   });
   const btnHistMapa = document.getElementById('btnHistMapa');
   if (btnHistMapa) btnHistMapa.addEventListener('click', alternarHistMapa);
@@ -1855,10 +2147,6 @@ function iniciar() {
       state.mapa.historial = false;
       pintarMapaChrome();
     }
-    if (state.tablaHistorial && !e.target.closest('#tablaHistorial') && !e.target.closest('#btnHistTabla')) {
-      state.tablaHistorial = false;
-      pintarHistTabla();
-    }
   });
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
@@ -1866,6 +2154,12 @@ function iniciar() {
       e.preventDefault();
       state.historialSkillId = null;
       pintarSkills();
+      return;
+    }
+    if (state.campos.abiertoId && state.catalogoId === 'campos-ancla') {
+      e.preventDefault();
+      state.campos.abiertoId = null;
+      pintarCampos();
       return;
     }
     if (state.historial) {
@@ -1881,14 +2175,6 @@ function iniciar() {
       state.mapa.historial = false;
       pintarMapaChrome();
       const boton = document.getElementById('btnHistMapa');
-      if (boton) boton.focus();
-      return;
-    }
-    if (state.tablaHistorial) {
-      e.preventDefault();
-      state.tablaHistorial = false;
-      pintarHistTabla();
-      const boton = document.getElementById('btnHistTabla');
       if (boton) boton.focus();
     }
   });
@@ -1911,7 +2197,7 @@ function iniciar() {
       render();
     });
   cargarMapa();
-  cargarTablas();
+  cargarCampos();
 }
 
 const api = {

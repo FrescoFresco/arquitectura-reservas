@@ -6,20 +6,48 @@
   var e = React.createElement;
   var MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-  var OJO_ABIERTO = e('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
-    e('path', { d: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z' }),
-    e('circle', { cx: '12', cy: '12', r: '3' })
-  );
-  var OJO_CERRADO = e('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
-    e('path', { d: 'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94' }),
-    e('path', { d: 'M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19' }),
-    e('path', { d: 'M1 1l22 22' }),
-    e('path', { d: 'M14.12 14.12a3 3 0 1 1-4.24-4.24' })
-  );
-  var ICONO_HIST = e('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
-    e('circle', { cx: '12', cy: '12', r: '8' }),
-    e('path', { d: 'M12 8v4l3 2' })
-  );
+  function svgIcon(children) {
+    return e('svg', {
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    }, children);
+  }
+
+  var OJO_ABIERTO = svgIcon([
+    e('path', { key: 'a', d: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z' }),
+    e('circle', { key: 'b', cx: '12', cy: '12', r: '3' })
+  ]);
+  var OJO_CERRADO = svgIcon([
+    e('path', { key: 'a', d: 'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94' }),
+    e('path', { key: 'b', d: 'M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19' }),
+    e('path', { key: 'c', d: 'M1 1l22 22' }),
+    e('path', { key: 'd', d: 'M14.12 14.12a3 3 0 1 1-4.24-4.24' })
+  ]);
+  var ICONO_HIST = svgIcon([
+    e('circle', { key: 'a', cx: '12', cy: '12', r: '8' }),
+    e('path', { key: 'b', d: 'M12 8v4l3 2' })
+  ]);
+  var ICONO_EDIT = svgIcon([
+    e('path', { key: 'a', d: 'M12 20h9' }),
+    e('path', { key: 'b', d: 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z' })
+  ]);
+  var ICONO_UPLOAD = svgIcon([
+    e('path', { key: 'a', d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+    e('polyline', { key: 'b', points: '17 8 12 3 7 8' }),
+    e('line', { key: 'c', x1: '12', y1: '3', x2: '12', y2: '15' })
+  ]);
+  var ICONO_TRASH = svgIcon([
+    e('polyline', { key: 'a', points: '3 6 5 6 21 6' }),
+    e('path', { key: 'b', d: 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6' }),
+    e('path', { key: 'c', d: 'M10 11v6' }),
+    e('path', { key: 'd', d: 'M14 11v6' }),
+    e('path', { key: 'e', d: 'M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2' })
+  ]);
 
   function formatVersion(numero, fecha) {
     var match = /^(\d{4})-(\d{2})-(\d{2})/.exec(fecha || '');
@@ -61,6 +89,18 @@
     );
   }
 
+  function IconBtn(props) {
+    return e('button', {
+      type: 'button',
+      className: 'icon-btn' + (props.active ? ' is-on' : ''),
+      'aria-label': props.label,
+      title: props.title || props.label,
+      'aria-expanded': props.expanded,
+      'aria-pressed': props.pressed,
+      onClick: props.onClick
+    }, props.children);
+  }
+
   function SkillCard(props) {
     var ins = props.ins;
     var abierta = props.abierta;
@@ -68,8 +108,9 @@
     var onAbrir = props.onAbrir;
     var onHistorial = props.onHistorial;
     var onElegirVersion = props.onElegirVersion;
-    var onEliminar = props.onEliminar;
+    var onEditar = props.onEditar;
     var onSubir = props.onSubir;
+    var onEliminar = props.onEliminar;
     var actual = versionActual(ins);
     var isOpen = abierta && abierta.id === ins.id;
     var showHist = historialId === ins.id;
@@ -93,26 +134,22 @@
           ins.descripcion ? e('p', { className: 'skill-desc' }, ins.descripcion) : null
         ),
         e('div', { className: 'skill-card-acciones' },
-          e('span', {
-            className: 'ojo',
-            'aria-hidden': 'true'
-          }, isOpen ? OJO_ABIERTO : OJO_CERRADO),
-          e('button', {
-            type: 'button',
-            className: 'btn eliminar',
-            'aria-label': 'Eliminar ' + ins.nombre,
+          e(IconBtn, {
+            label: isOpen ? 'Cerrar vista' : 'Ver skill',
+            title: 'Ver',
+            pressed: isOpen ? 'true' : 'false',
+            active: isOpen,
             onClick: function (ev) {
               ev.stopPropagation();
-              onEliminar(ins.id);
+              onAbrir(ins.id);
             }
-          }, 'Eliminar'),
+          }, isOpen ? OJO_ABIERTO : OJO_CERRADO),
           e('div', { className: 'historial-ancla' },
-            e('button', {
-              type: 'button',
-              className: 'icon-btn',
-              'aria-label': 'Historial de versiones',
-              title: 'Historial de versiones',
-              'aria-expanded': showHist ? 'true' : 'false',
+            e(IconBtn, {
+              label: 'Historial de versiones',
+              title: 'Historial',
+              expanded: showHist ? 'true' : 'false',
+              active: showHist,
               onClick: function (ev) {
                 ev.stopPropagation();
                 onHistorial(ins.id);
@@ -123,25 +160,41 @@
               abierta: isOpen ? abierta.version : actual,
               onElegir: function (numero) { onElegirVersion(ins.id, numero); }
             }) : null
-          )
+          ),
+          e(IconBtn, {
+            label: 'Editar skill',
+            title: 'Editar (guarda como versión nueva)',
+            onClick: function (ev) {
+              ev.stopPropagation();
+              onEditar(ins.id);
+            }
+          }, ICONO_EDIT),
+          e(IconBtn, {
+            label: 'Subir versión',
+            title: 'Subir versión (documento completo)',
+            onClick: function (ev) {
+              ev.stopPropagation();
+              onSubir(ins.id);
+            }
+          }, ICONO_UPLOAD),
+          e(IconBtn, {
+            label: 'Eliminar ' + ins.nombre,
+            title: 'Eliminar',
+            onClick: function (ev) {
+              ev.stopPropagation();
+              onEliminar(ins.id);
+            }
+          }, ICONO_TRASH)
         )
       ),
-      anclas.length ? e('div', { className: 'skill-anclas' },
+      anclas.length ? e('div', { className: 'skill-anclas-box' },
         e('p', { className: 'skill-anclas-titulo' }, 'Anclas'),
         e('div', { className: 'skill-anclas-list' },
           anclas.map(function (a) {
             return e('span', { className: 'ancla-pill', key: a }, a);
           })
         )
-      ) : null,
-      e('button', {
-        type: 'button',
-        className: 'btn version',
-        onClick: function (ev) {
-          ev.stopPropagation();
-          onSubir(ins.id);
-        }
-      }, 'Subir versión')
+      ) : null
     );
   }
 
@@ -168,7 +221,7 @@
         }, '+ Añadir skill')
       ),
       e('p', { className: 'limite' },
-        'La subida y Eliminar se quedan en este navegador, encima del índice publicado. No se envían a GitHub. Para publicarlos, el contrato está en Documentación → API.'
+        'Editar modifica el contenido y guarda una versión nueva. Subir versión carga un documento completo como versión nueva. Los cambios de este navegador no se envían a GitHub; el contrato está en Documentación → API.'
       ),
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
       e('div', { className: 'skills-grid' },
@@ -181,6 +234,7 @@
             onAbrir: function (id) { bridge.abrirSkill(id); },
             onHistorial: function (id) { bridge.alternarHistorial(id); },
             onElegirVersion: function (id, n) { bridge.abrirSkill(id, n); },
+            onEditar: function (id) { bridge.editarSkill(id); },
             onEliminar: function (id) { bridge.eliminarSkill(id); },
             onSubir: function (id) { bridge.subirVersion(id); }
           });
@@ -189,11 +243,10 @@
     );
   }
 
-  var root = null;
   var reactRoot = null;
 
   function montar(bridge) {
-    root = document.getElementById('skills-root');
+    var root = document.getElementById('skills-root');
     if (!root || !bridge) return;
     if (!reactRoot) reactRoot = ReactDOM.createRoot(root);
     reactRoot.render(e(SkillsApp, { bridge: bridge }));
