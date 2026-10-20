@@ -146,9 +146,11 @@ dialog::backdrop{background:#17212f66}
 .tabla-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .dlg select{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;background:white;color:#17212f}
 
-.catalogo-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;margin:0 0 16px}
-.catalogo-toolbar .limite{margin:0;flex:1;min-width:0;max-width:none;white-space:nowrap}
+.catalogo-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:nowrap;margin:0 0 16px}
 .catalogo-toolbar .btn{flex:none}
+.reader-anclas{margin:0}
+.editar-anclas{margin:0}
+.dlg .reader-tabs{margin:12px 0 0}
 .skill-anclas-box{margin:12px 14px 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc}
 .skill-anclas-titulo{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#677488}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
@@ -200,9 +202,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .dlg-reader{border:0;border-radius:16px;min-height:0;background:#fbfdff}
 .dlg-reader .reader-top{padding:18px 18px 8px}
 .reader-top-acciones{display:flex;align-items:flex-start;gap:6px;flex:none}
-.reader-anclas{margin:0 16px 16px}
 .dlg-reader .md-wrap{padding-top:4px}
-.editar-anclas{margin:14px 0 0}
 .ancla-ficha-dl{margin:0}
 .ancla-ficha-fila{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px 12px;padding:8px 0;border-bottom:1px solid #eef2f7}
 .ancla-ficha-fila:last-child{border-bottom:0}
@@ -275,13 +275,16 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="readerTabDoc" data-reader-tab="documento" aria-selected="true" aria-controls="readerPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabAnclas" data-reader-tab="anclas" aria-selected="false" aria-controls="readerPanelAnclas">Anclas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabInterno" data-reader-tab="interno" aria-selected="false" aria-controls="readerPanelInterno">Interno</button>
 </div>
 <div class="reader-panel" id="readerPanelDoc" role="tabpanel" aria-labelledby="readerTabDoc">
 <div class="md-wrap"><div class="md" id="md"></div></div>
-<div class="skill-anclas-box reader-anclas" id="readerAnclas" hidden>
-<p class="skill-anclas-titulo">Anclas</p>
+</div>
+<div class="reader-panel ancla-ficha-body" id="readerPanelAnclas" role="tabpanel" aria-labelledby="readerTabAnclas" hidden>
+<div class="skill-anclas-box reader-anclas" id="readerAnclas">
 <div class="skill-anclas-list" id="readerAnclasLista"></div>
+<p class="ancla-ficha-vacio" id="readerAnclasVacio" hidden>Ninguna ancla asociada.</p>
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelInterno" role="tabpanel" aria-labelledby="readerTabInterno" hidden>
@@ -487,9 +490,16 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 <label>Descripción
 <input type="text" name="descripcion" maxlength="280" autocomplete="off">
 </label>
+<div class="ancla-ficha-tabs reader-tabs" id="editarTabs" role="tablist" aria-label="Secciones de edición">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="editarTabDoc" data-editar-tab="documento" aria-selected="true" aria-controls="editarPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="editarTabAnclas" data-editar-tab="anclas" aria-selected="false" aria-controls="editarPanelAnclas">Anclas</button>
+</div>
+<div class="reader-panel" id="editarPanelDoc" role="tabpanel" aria-labelledby="editarTabDoc">
 <label>Contenido (markdown)
 <textarea name="markdown" rows="12" placeholder="Contenido de la skill"></textarea>
 </label>
+</div>
+<div class="reader-panel ancla-ficha-body" id="editarPanelAnclas" role="tabpanel" aria-labelledby="editarTabAnclas" hidden>
 <div class="skill-anclas-box editar-anclas" id="editarAnclasBox">
 <div class="editar-anclas-top">
 <p class="skill-anclas-titulo">Anclas</p>
@@ -499,6 +509,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 </div>
 <div class="skill-anclas-list" id="editarAnclasLista"></div>
 <input type="hidden" name="anclas" value="">
+</div>
 </div>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="editarCancelar">Cancelar</button>
@@ -641,10 +652,10 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020q"></script>
-<script src="campos-ancla-ui.js?v=20261020q"></script>
-<script src="campos-mongodb-ui.js?v=20261020q"></script>
-<script src="catalogo-ui.js?v=20261020q"></script>
+<script src="skills-ui.js?v=20261020r"></script>
+<script src="campos-ancla-ui.js?v=20261020r"></script>
+<script src="campos-mongodb-ui.js?v=20261020r"></script>
+<script src="catalogo-ui.js?v=20261020r"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>

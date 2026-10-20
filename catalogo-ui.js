@@ -1256,6 +1256,7 @@ function abrirDialogoEditar(id) {
   form.anclas.value = (ins.anclas || []).join('\n');
   pintarEditarAnclasCapsulas(form.anclas.value);
   form.markdown.value = 'Cargando…';
+  seleccionarEditarTab('documento');
   dlg.showModal();
   const v = versionActual(ins);
   textoDeVersionActual(v).then(function (text) {
@@ -1474,13 +1475,15 @@ function renderHistorial(ins, abierta) {
 function pintarReaderAnclas(ins) {
   const box = document.getElementById('readerAnclas');
   const lista = document.getElementById('readerAnclasLista');
+  const vacio = document.getElementById('readerAnclasVacio');
   if (!box || !lista) return;
   const anclas = Array.isArray(ins && ins.anclas) ? ins.anclas : [];
   lista.replaceChildren();
   if (!anclas.length) {
-    box.hidden = true;
+    if (vacio) vacio.hidden = false;
     return;
   }
+  if (vacio) vacio.hidden = true;
   anclas.forEach(function (a) {
     const btn = el('button', 'ancla-pill ancla-pill-btn', a);
     btn.type = 'button';
@@ -1488,7 +1491,6 @@ function pintarReaderAnclas(ins) {
     btn.addEventListener('click', function () { abrirFichaAncla(a); });
     lista.append(btn);
   });
-  box.hidden = false;
 }
 
 function renderReader() {
@@ -1500,8 +1502,10 @@ function renderReader() {
     state.abiertaId = null;
     state.abiertaNumero = null;
     state.historial = false;
-    const box = document.getElementById('readerAnclas');
-    if (box) box.hidden = true;
+    const vacio = document.getElementById('readerAnclasVacio');
+    const lista = document.getElementById('readerAnclasLista');
+    if (lista) lista.replaceChildren();
+    if (vacio) vacio.hidden = false;
     if (dlg && dlg.open) dlg.close();
     return;
   }
@@ -1549,6 +1553,7 @@ function renderReader() {
 function seleccionarReaderTab(id) {
   const tabs = document.querySelectorAll('#readerTabs [data-reader-tab]');
   const panelDoc = document.getElementById('readerPanelDoc');
+  const panelAnclas = document.getElementById('readerPanelAnclas');
   const panelInterno = document.getElementById('readerPanelInterno');
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-reader-tab') === id;
@@ -1556,7 +1561,21 @@ function seleccionarReaderTab(id) {
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
   if (panelDoc) panelDoc.hidden = id !== 'documento';
+  if (panelAnclas) panelAnclas.hidden = id !== 'anclas';
   if (panelInterno) panelInterno.hidden = id !== 'interno';
+}
+
+function seleccionarEditarTab(id) {
+  const tabs = document.querySelectorAll('#editarTabs [data-editar-tab]');
+  const panelDoc = document.getElementById('editarPanelDoc');
+  const panelAnclas = document.getElementById('editarPanelAnclas');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-editar-tab') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  if (panelDoc) panelDoc.hidden = id !== 'documento';
+  if (panelAnclas) panelAnclas.hidden = id !== 'anclas';
 }
 
 function render() {
@@ -2764,6 +2783,12 @@ function iniciar() {
     const btn = e.target.closest('[data-reader-tab]');
     if (!btn) return;
     seleccionarReaderTab(btn.getAttribute('data-reader-tab'));
+  });
+  const editarTabs = document.getElementById('editarTabs');
+  if (editarTabs) editarTabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-editar-tab]');
+    if (!btn) return;
+    seleccionarEditarTab(btn.getAttribute('data-editar-tab'));
   });
   const readerHashBtn = document.getElementById('readerHashBtn');
   if (readerHashBtn) readerHashBtn.addEventListener('click', function () {

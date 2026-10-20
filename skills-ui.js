@@ -98,9 +98,6 @@
 
     return e('div', { className: 'skills-app' },
       e('div', { className: 'catalogo-toolbar' },
-        e('p', { className: 'limite' },
-          'Abrir muestra la skill. Editar y subir se quedan en este navegador.'
-        ),
         e('button', {
           type: 'button',
           className: 'btn primary btn-anadir',

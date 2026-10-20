@@ -187,9 +187,6 @@
 
     return e('div', { className: 'campos-app' },
       e('div', { className: 'catalogo-toolbar' },
-        e('p', { className: 'limite' },
-          'Abrir muestra la ficha. Añadir se queda en este navegador.'
-        ),
         e('button', {
           type: 'button',
           className: 'btn primary btn-anadir',
