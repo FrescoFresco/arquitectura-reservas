@@ -186,15 +186,15 @@
     else if (!campos.length) estado = 'No hay campos MongoDB.';
 
     return e('div', { className: 'campos-app' },
-      e('div', { className: 'skills-toolbar' },
+      e('div', { className: 'catalogo-toolbar' },
+        e('p', { className: 'limite' },
+          'Abrir muestra la ficha. Añadir se queda en este navegador.'
+        ),
         e('button', {
           type: 'button',
           className: 'btn primary',
           onClick: function () { bridge.añadirCampo(); }
         }, '+ Añadir campo')
-      ),
-      e('p', { className: 'limite' },
-        'Cada fila es un campo MongoDB. Abrir muestra la ficha en un popup. Añadir campo se queda en este navegador.'
       ),
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
       e('div', { className: 'catalogo-lista', role: 'list' },
