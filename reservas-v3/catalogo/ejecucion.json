@@ -1,0 +1,125 @@
+[
+  {
+    "id": "ejecucion.id_version",
+    "tipo": "id",
+    "nivel": "blindado",
+    "descripcion": "Versión cuyo script se ejecutó.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.modo",
+    "tipo": "enum",
+    "valores": ["hasta_B", "completo"],
+    "nivel": "blindado",
+    "descripcion": "hasta_B nunca pulsa confirmar; completo solo con la compuerta abierta.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.parametros",
+    "tipo": "json",
+    "nivel": "flexible",
+    "descripcion": "Parámetros con los que se llamó a la función (datos del cliente).",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": true,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.inicio",
+    "tipo": "fecha",
+    "nivel": "blindado",
+    "descripcion": "Momento en que empezó la ejecución.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.fin",
+    "tipo": "fecha",
+    "nivel": "estable",
+    "descripcion": "Momento en que terminó la ejecución.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.ultima_url",
+    "tipo": "url",
+    "nivel": "estable",
+    "descripcion": "URL en la que estaba el navegador al terminar.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.traza.N.hora",
+    "tipo": "fecha",
+    "nivel": "blindado",
+    "descripcion": "Momento de esta línea de la traza.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.traza.N.mensaje",
+    "tipo": "texto",
+    "nivel": "blindado",
+    "descripcion": "Qué hizo o vio el script en ese momento.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.respuesta.estado",
+    "tipo": "enum",
+    "valores": ["confirmada", "pendiente_negocio", "disponible", "sin_hueco", "error"],
+    "nivel": "blindado",
+    "descripcion": "Resultado de la función. En modo hasta_B, disponible significa que se llegó a B.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.respuesta.referencia",
+    "tipo": "texto",
+    "nivel": "estable",
+    "descripcion": "Localizador de la reserva que da la web; null si no hay.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.respuesta.alternativas.N",
+    "tipo": "texto",
+    "nivel": "estable",
+    "descripcion": "Hueco alternativo que ofrece la web cuando no hay sitio.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "ejecucion.respuesta.motivo",
+    "tipo": "enum",
+    "valores": ["fallo_recorrido", "obstaculo", "resultado_no_verificable"],
+    "nivel": "estable",
+    "descripcion": "Por qué no salió bien; null si salió bien.",
+    "escribe": ["ejecutor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  }
+]

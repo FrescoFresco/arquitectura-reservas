@@ -1,5 +1,13 @@
 # Arquitectura de reservas
 
+## Arquitectura nueva: `reservas-v3/`
+
+La primera fase del sistema nuevo está en [`reservas-v3/`](./reservas-v3/): el catálogo de campos ancla, el gestor, las plantillas de agente y el ejecutor que rellena la web del restaurante hasta B, sin confirmar nunca. Para repetir la prueba hasta B con Rincón del Amazonas, sigue [reservas-v3/README.md](./reservas-v3/README.md#repetir-la-prueba). El plan y sus principios están en [reservas-v3/CLAUDE.md](./reservas-v3/CLAUDE.md).
+
+Lo que sigue describe la página publicada en la raíz, que no cambia.
+
+---
+
 Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualquier persona con acceso de escritura al repositorio puede clonarlo, editar `index.html` y publicar los cambios con un push a `main`.
 
 ## Sitio publicado

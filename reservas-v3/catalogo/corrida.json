@@ -1,0 +1,153 @@
+[
+  {
+    "id": "corrida.plantilla",
+    "tipo": "texto",
+    "nivel": "blindado",
+    "descripcion": "Plantilla que siguió el agente.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.version_plantilla",
+    "tipo": "entero",
+    "nivel": "blindado",
+    "descripcion": "Versión de la plantilla.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.version_catalogo",
+    "tipo": "texto",
+    "nivel": "blindado",
+    "descripcion": "Huella del catálogo con el que se validó la respuesta.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.fecha",
+    "tipo": "fecha",
+    "nivel": "blindado",
+    "descripcion": "Momento en que el gestor guardó la corrida.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.id_negocio",
+    "tipo": "id",
+    "nivel": "estable",
+    "descripcion": "Negocio sobre el que trabajó el agente.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.id_proceso",
+    "tipo": "id",
+    "nivel": "estable",
+    "descripcion": "Proceso sobre el que trabajó el agente.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.id_version",
+    "tipo": "id",
+    "nivel": "estable",
+    "descripcion": "Versión que creó o completó el agente.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.entrada",
+    "tipo": "texto_largo",
+    "nivel": "blindado",
+    "descripcion": "Plantilla con la Entrada rellena, tal como la recibió el agente.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.respuesta",
+    "tipo": "texto_largo",
+    "nivel": "blindado",
+    "descripcion": "Respuesta del agente, tal cual.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.guardada",
+    "tipo": "booleano",
+    "nivel": "blindado",
+    "descripcion": "true si los valores se escribieron en su colección; false si el gestor encontró errores y no escribió nada.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.entendido",
+    "tipo": "json",
+    "nivel": "flexible",
+    "descripcion": "Lo que entendió el gestor: los valores válidos ya convertidos y anidados por colección.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.errores.N",
+    "tipo": "texto",
+    "nivel": "estable",
+    "descripcion": "Problema que encontró el gestor al leer la respuesta.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.propuestas.N.ruta",
+    "tipo": "texto",
+    "nivel": "blindado",
+    "descripcion": "Ruta del campo que propone el agente, sin el prefijo propuesta.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.propuestas.N.valor",
+    "tipo": "texto_largo",
+    "nivel": "estable",
+    "descripcion": "Valor que el agente dio al campo propuesto, tal cual.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "corrida.propuestas.N.estado",
+    "tipo": "enum",
+    "valores": ["pendiente", "aceptada", "alias", "rechazada"],
+    "nivel": "blindado",
+    "descripcion": "Decisión de la revisión humana; pendiente hasta entonces.",
+    "escribe": ["gestor"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  }
+]

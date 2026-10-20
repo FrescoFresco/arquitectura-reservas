@@ -1,0 +1,42 @@
+[
+  {
+    "id": "negocio.nombre",
+    "tipo": "texto",
+    "nivel": "blindado",
+    "descripcion": "Nombre comercial del local, tal como lo ve el cliente.",
+    "escribe": ["manual"],
+    "lee": ["mapear-recorrido"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "negocio.url",
+    "tipo": "url",
+    "nivel": "blindado",
+    "descripcion": "Web principal del local.",
+    "escribe": ["manual"],
+    "lee": ["mapear-recorrido"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "negocio.zona_horaria",
+    "tipo": "zona_horaria",
+    "nivel": "blindado",
+    "descripcion": "Zona horaria IANA del local; todas las horas de reserva se interpretan en ella.",
+    "escribe": ["manual"],
+    "lee": ["mapear-recorrido", "generar-script", "ejecutor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "negocio.telefono",
+    "tipo": "telefono",
+    "nivel": "estable",
+    "descripcion": "Teléfono público del local, con prefijo internacional.",
+    "escribe": ["manual"],
+    "lee": ["mapear-recorrido"],
+    "sensible": false,
+    "estado": "activo"
+  }
+]
