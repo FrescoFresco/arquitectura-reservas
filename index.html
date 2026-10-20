@@ -187,6 +187,15 @@ dialog::backdrop{background:#17212f66}
 .reader-top-titulo{display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1}
 .ancla-ficha-header{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 14px;background:#fbfdff;border-bottom:1px solid #e8eef6}
 .ancla-ficha-header-text{min-width:0;flex:1;display:flex;flex-direction:column;gap:8px}
+.ancla-ficha-acciones{display:flex;align-items:flex-start;gap:6px;flex:none}
+.api-doc{padding:4px 2px 28px;max-width:720px}
+.api-doc h1{margin:0 0 12px;font-size:22px;letter-spacing:-.02em;color:#17212f}
+.api-doc h2{margin:28px 0 10px;font-size:17px;color:#17212f}
+.api-doc h3{margin:20px 0 8px;font-size:15px;color:#24334a}
+.api-doc p,.api-doc li{font-size:14px;line-height:1.55;color:#24334a}
+.api-doc pre{overflow:auto;background:#f4f7fb;border:1px solid #e5eaf1;border-radius:10px;padding:12px;font-size:12px}
+.api-doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.api-doc hr{border:0;border-top:1px solid #e5eaf1;margin:20px 0}
 .ancla-ficha-titulo{margin:0;font-size:18px;letter-spacing:-.02em;font-weight:700;color:#17212f;overflow-wrap:anywhere}
 .ancla-ficha-codigo{display:inline-block;width:fit-content;max-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6;background:#edf3ff;padding:3px 8px;border-radius:8px;overflow-wrap:anywhere}
 .ancla-ficha-tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid #e5eaf1;background:#fff;overflow-x:auto;scrollbar-width:none}
@@ -344,8 +353,20 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 </div>
 <div class="reader-top-acciones">
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistorialProyecto" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialProyecto">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="historialProyecto" hidden role="dialog" aria-label="Versiones">
+<p class="historial-titulo">Versiones</p>
+<ul id="historialProyectoLista"></ul>
+</div>
+</div>
 <button type="button" class="icon-btn" id="btnEditarProyecto" aria-label="Editar proyecto" title="Editar (guarda como versión nueva)">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarProyecto" aria-label="Eliminar proyecto" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
 <button type="button" class="icon-btn" id="btnCerrarProyecto" aria-label="Cerrar">×</button>
 </div>
@@ -481,104 +502,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </ul>
 </div>
 <div class="doc" role="tabpanel" id="panel-api" data-doc="api" hidden>
-<p>Un agente de trabajo obtiene acceso en Catálogos → Agentes → <strong>+ Agente</strong> (clave <code>inv_…</code> sin caducidad). Para publicar en el repo usa la API de contenidos de GitHub con un token de escritura en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No se guarda en esta página.</p>
-<p>Repositorio <code>FrescoFresco/arquitectura-reservas</code>. Rama <code>main</code>. Cada publicación son dos escrituras: primero el archivo y después el índice, con el <code>sha</code> que devolvió el GET.</p>
-<h3>Subir un documento a Skills</h3>
-<p>El catálogo se llama Skills. El id interno es <code>skills</code> y la carpeta es <code>catalogo/skills/</code>. No hay otro catálogo de instrucciones al lado.</p>
-<p>Ejemplo: una skill nueva, «Mapear recorrido», id <code>mapear-recorrido</code>, archivo <code>mapear-recorrido.md</code>.</p>
-<p>1. Crear el archivo. Un archivo nuevo no lleva <code>sha</code>. Si la ruta ya existe, el cuerpo incluye el <code>sha</code> del GET de esa misma ruta.</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/mapear-recorrido/v1.md</code></pre>
-<p>Cabeceras:</p>
-<ul>
-<li><code>Authorization: Bearer TOKEN</code></li>
-<li><code>Accept: application/vnd.github+json</code></li>
-<li><code>X-GitHub-Api-Version: 2022-11-28</code></li>
-</ul>
-<pre><code>{
-  "message": "Añade mapear-recorrido v1 a Skills",
-  "content": "BASE64_DEL_ARCHIVO",
-  "branch": "main"
-}</code></pre>
-<p>2. Leer el índice. La respuesta trae <code>sha</code> y el JSON en <code>content</code> (base64).</p>
-<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json?ref=main</code></pre>
-<p>3. Añadir la versión y volver a escribir el índice con ese <code>sha</code>.</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json</code></pre>
-<pre><code>{
-  "message": "Actualiza el índice de Skills",
-  "content": "BASE64_DEL_JSON",
-  "branch": "main",
-  "sha": "SHA_DEL_GET"
-}</code></pre>
-<p>El JSON queda así. La skill nueva entra en <code>instrucciones</code>. Una versión nueva se añade al array <code>versiones</code> de esa skill. <code>numero</code> es el máximo actual más uno. <code>fecha</code> es <code>YYYY-MM-DD</code>. <code>ruta</code> es relativa a la raíz del sitio. Opcional: <code>descripcion</code> (texto corto) y <code>anclas</code> (lista de nombres completos como <code>_negocio.nombre_</code>).</p>
-<pre><code>{
-  "id": "skills",
-  "nombre": "Skills",
-  "instrucciones": [
-    {
-      "id": "mapear-recorrido",
-      "nombre": "Mapear recorrido",
-      "descripcion": "Recorre la web de reserva desde A hasta B.",
-      "anclas": ["_negocio.nombre_", "_proceso.url_inicio_"],
-      "versiones": [
-        {
-          "numero": 1,
-          "fecha": "2026-10-20",
-          "ruta": "catalogo/skills/mapear-recorrido/v1.md",
-          "nombreArchivo": "mapear-recorrido.md"
-        }
-      ]
-    }
-  ]
-}</code></pre>
-<p>Vale cualquier tipo de archivo. La página pinta markdown (<code>.md</code>, <code>.markdown</code>, <code>.txt</code>). El resto se descarga.</p>
-<p>Otra versión de la misma skill, por ejemplo un PDF:</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/mapear-recorrido/v2.pdf</code></pre>
-<pre><code>{
-  "numero": 2,
-  "fecha": "2026-10-20",
-  "ruta": "catalogo/skills/mapear-recorrido/v2.pdf",
-  "nombreArchivo": "mapear-recorrido.pdf"
-}</code></pre>
-<p>El id solo usa minúsculas, números y guiones: <code>^[a-z0-9][a-z0-9-]{0,60}$</code>.</p>
-<h3>Eliminar una skill</h3>
-<p>En la página, <strong>Eliminar</strong> está en la tarjeta. Pregunta «¿Estás seguro de eliminar la skill?» con <strong>Confirmar</strong> y <strong>Cancelar</strong>. Cancelar cierra. Confirmar quita esa skill y sus versiones de la lista de este navegador. La API no pregunta: cuando el agente lo pide, borra la skill del índice. No se añade una versión ni se escribe otro archivo.</p>
-<p>1. Leer el índice. La respuesta trae <code>sha</code> y el JSON en <code>content</code> (base64).</p>
-<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json?ref=main</code></pre>
-<p>2. Quitar ese objeto de <code>instrucciones</code> y volver a escribir el índice con ese <code>sha</code>.</p>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/skills/index.json</code></pre>
-<pre><code>{
-  "message": "Elimina mapear-recorrido de Skills",
-  "content": "BASE64_DEL_JSON",
-  "branch": "main",
-  "sha": "SHA_DEL_GET"
-}</code></pre>
-<h3>Publicar el índice de Campos ancla</h3>
-<p>El catálogo Campos ancla vive en <code>catalogo/campos-ancla/index.json</code>. Cada campo lleva <code>ancla</code> (p. ej. <code>_negocio.nombre_</code>), <code>etiqueta</code>, enlace Mongo (<code>claveMongo</code>, <code>coleccion</code>, <code>baseDatos</code>), <code>tipo</code>, <code>obligatorio</code>, <code>formato</code>, <code>descripcion</code>, <code>ejemplo</code> y <code>skills</code> (ids de skills que lo usan).</p>
-<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/campos-ancla/index.json?ref=main</code></pre>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/campos-ancla/index.json</code></pre>
-<pre><code>{
-  "message": "Actualiza Campos ancla",
-  "content": "BASE64_DEL_JSON",
-  "branch": "main",
-  "sha": "SHA_DEL_GET"
-}</code></pre>
-<h3>Publicar el índice de Campos MongoDB</h3>
-<p>El catálogo Campos MongoDB vive en <code>catalogo/campos-mongodb/index.json</code>. Cada campo lleva <code>campo</code> (p. ej. <code>negocios.nombre</code>), <code>baseDatos</code>, <code>coleccion</code>, <code>clave</code>, <code>bsonType</code>, <code>obligatorio</code>, <code>descripcion</code> y <code>ancla</code> (enlace al catálogo Campos ancla).</p>
-<pre><code>GET https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/campos-mongodb/index.json?ref=main</code></pre>
-<pre><code>PUT https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/campos-mongodb/index.json</code></pre>
-<pre><code>{
-  "message": "Actualiza Campos MongoDB",
-  "content": "BASE64_DEL_JSON",
-  "branch": "main",
-  "sha": "SHA_DEL_GET"
-}</code></pre>
-<h3>Cliente de referencia</h3>
-<p><code>scripts/subir.js</code> hace esas escrituras. El token sale del entorno. <code>skills</code> escribe en la carpeta de Skills. Con <code>--eliminar</code> solo vuelve a escribir el índice: quita la skill y no deja una versión nueva.</p>
-<pre><code>GITHUB_TOKEN=TOKEN node scripts/subir.js skills --nueva --nombre "Mapear recorrido" --archivo ./mapear-recorrido.md
-GITHUB_TOKEN=TOKEN node scripts/subir.js skills --id mapear-recorrido --archivo ./mapear-recorrido.md
-GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido</code></pre>
-<p><code>--ensayo</code> muestra la ruta y el índice sin llamar a GitHub. <code>GITHUB_REPOSITORIO</code> (por defecto <code>FrescoFresco/arquitectura-reservas</code>) y <code>GITHUB_RAMA</code> (por defecto <code>main</code>) cambian el destino.</p>
-<p>En el navegador: <strong>+ Añadir skill</strong>, <strong>Editar</strong> (versión nueva al guardar), <strong>Subir versión</strong> (documento completo), <strong>Eliminar</strong> y <strong>+ Añadir ancla</strong> se quedan en este navegador.</p>
+<div id="apiDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando el contrato API…</p></div>
 </div>
 </section>
 </div>
@@ -765,6 +689,12 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 </div>
 </div>
 <div class="reader-top-acciones">
+<button type="button" class="icon-btn" id="btnEditarAgente" aria-label="Editar agente" title="Editar nombre y foto">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarAgente" aria-label="Eliminar agente" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+</button>
 <button type="button" class="icon-btn" id="btnCerrarAgente" aria-label="Cerrar">×</button>
 </div>
 </div>
@@ -801,6 +731,9 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 </div>
 <button type="button" class="icon-btn" id="btnEditarFundamento" aria-label="Editar fundamento" title="Editar (guarda como versión nueva)">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarFundamento" aria-label="Eliminar fundamento" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
 <button type="button" class="icon-btn" id="btnCerrarFundamento" aria-label="Cerrar">×</button>
 </div>
@@ -880,9 +813,27 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 </div>
 </div>
 </dialog>
+<dialog id="dlgEditarAgente" aria-labelledby="dlgEditarAgenteTitulo">
+<form class="dlg" id="formEditarAgente">
+<h3 id="dlgEditarAgenteTitulo">Editar agente</h3>
+<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="form-error" id="editarAgenteError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required>
+</label>
+<label>Foto (URL)
+<input type="url" name="foto" maxlength="500" autocomplete="off" placeholder="https://…">
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarAgenteCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
 <dialog id="dlgEliminar" aria-labelledby="dlgEliminarTitulo">
 <form class="dlg" id="formEliminar">
-<h3 id="dlgEliminarTitulo">¿Estás seguro de eliminar la skill?</h3>
+<h3 id="dlgEliminarTitulo">¿Estás seguro de eliminar?</h3>
+<p class="nota" id="eliminarAviso" hidden></p>
 <p class="form-error" id="eliminarError" role="alert"></p>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="eliminarCancelar">Cancelar</button>
@@ -929,12 +880,12 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 })();
 </script>
 <script src="skills-ui.js?v=20261020y"></script>
-<script src="campos-ancla-ui.js?v=20261020y"></script>
-<script src="campos-mongodb-ui.js?v=20261020y"></script>
-<script src="proyectos-ui.js?v=20261020y"></script>
-<script src="agentes-ui.js?v=20261020y"></script>
-<script src="fundamentos-ui.js?v=20261020y"></script>
-<script src="catalogo-ui.js?v=20261020y"></script>
+<script src="campos-ancla-ui.js?v=20261020z"></script>
+<script src="campos-mongodb-ui.js?v=20261020z"></script>
+<script src="proyectos-ui.js?v=20261020z"></script>
+<script src="agentes-ui.js?v=20261020z"></script>
+<script src="fundamentos-ui.js?v=20261020z"></script>
+<script src="catalogo-ui.js?v=20261020z"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>

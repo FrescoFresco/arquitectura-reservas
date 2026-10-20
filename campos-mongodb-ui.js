@@ -54,6 +54,61 @@
     );
   }
 
+  function IconoLapiz() {
+    return e('svg', {
+      viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2',
+      strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true'
+    },
+      e('path', { d: 'M12 20h9' }),
+      e('path', { d: 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z' })
+    );
+  }
+
+  function IconoPapelera() {
+    return e('svg', {
+      viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2',
+      strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true'
+    },
+      e('polyline', { points: '3 6 5 6 21 6' }),
+      e('path', { d: 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6' }),
+      e('path', { d: 'M10 11v6' }),
+      e('path', { d: 'M14 11v6' }),
+      e('path', { d: 'M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2' })
+    );
+  }
+
+  function AccionesFicha(props) {
+    var nodos = [];
+    if (props.onEditar) {
+      nodos.push(e('button', {
+        key: 'editar',
+        type: 'button',
+        className: 'icon-btn',
+        'aria-label': 'Editar campo MongoDB',
+        title: 'Editar',
+        onClick: props.onEditar
+      }, e(IconoLapiz)));
+    }
+    if (props.onEliminar) {
+      nodos.push(e('button', {
+        key: 'eliminar',
+        type: 'button',
+        className: 'icon-btn',
+        'aria-label': 'Eliminar campo MongoDB',
+        title: 'Eliminar',
+        onClick: props.onEliminar
+      }, e(IconoPapelera)));
+    }
+    nodos.push(e('button', {
+      key: 'cerrar',
+      type: 'button',
+      className: 'icon-btn',
+      'aria-label': 'Cerrar',
+      onClick: props.onCerrar
+    }, '×'));
+    return e('div', { className: 'ancla-ficha-acciones' }, nodos);
+  }
+
   function Ficha(props) {
     var c = props.campo;
     var tabState = useState('definicion');
@@ -66,7 +121,7 @@
           e('div', { className: 'ancla-ficha-header-text' },
             e('h3', { className: 'ancla-ficha-titulo' }, 'Campo MongoDB')
           ),
-          e('button', { type: 'button', className: 'icon-btn', 'aria-label': 'Cerrar', onClick: props.onCerrar }, '×')
+          e(AccionesFicha, { onCerrar: props.onCerrar })
         ),
         e('p', { className: 'ancla-ficha-vacio ancla-ficha-body' }, props.mensaje || 'No está en el catálogo Campos MongoDB.')
       );
@@ -79,7 +134,11 @@
           e('h3', { className: 'ancla-ficha-titulo' }, label),
           c.ancla ? e('code', { className: 'ancla-ficha-codigo' }, c.ancla) : null
         ),
-        e('button', { type: 'button', className: 'icon-btn', 'aria-label': 'Cerrar', onClick: props.onCerrar }, '×')
+        e(AccionesFicha, {
+          onCerrar: props.onCerrar,
+          onEditar: props.onEditar,
+          onEliminar: props.onEliminar
+        })
       ),
       e(Pestanas, { tab: tab, setTab: setTab }),
       e('div', { className: 'ancla-ficha-body' },
@@ -236,11 +295,18 @@
     gridRoot.render(e(MongoApp, { bridge: bridge }));
   }
 
-  function mostrarFicha(campo, onCerrar, mensaje) {
+  function mostrarFicha(campo, onCerrar, mensaje, extras) {
     var mount = document.getElementById('mongo-ficha-mount');
     if (!mount) return;
     if (!fichaRoot) fichaRoot = ReactDOM.createRoot(mount);
-    fichaRoot.render(e(Ficha, { campo: campo || null, mensaje: mensaje, onCerrar: onCerrar }));
+    var opts = extras || {};
+    fichaRoot.render(e(Ficha, {
+      campo: campo || null,
+      mensaje: mensaje,
+      onCerrar: onCerrar,
+      onEditar: opts.onEditar || null,
+      onEliminar: opts.onEliminar || null
+    }));
   }
 
   function limpiarFicha() {

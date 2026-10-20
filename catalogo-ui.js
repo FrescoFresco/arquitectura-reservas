@@ -111,10 +111,12 @@ const state = {
     lista: [],
     abiertoId: null,
     abiertaNumero: null,
+    historial: false,
     fetchToken: 0,
     inflightRuta: null,
     reabrirTrasSkill: null
   },
+  apiDoc: { loaded: false, loading: false, error: false },
   agentes: {
     ready: false,
     indexError: false,
@@ -860,7 +862,7 @@ function abrirFichaCampo(id) {
   }
   state.campos.abiertoId = campo.id;
   const dlg = document.getElementById('dlgCampoFicha');
-  const extras = extrasFichaAncla();
+  const extras = extrasFichaAncla(campo);
   extras.mongo = mongoParaAncla(campo);
   if (window.CamposAnclaUI && window.CamposAnclaUI.mostrarFicha) {
     window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo, null, extras);
@@ -873,7 +875,7 @@ function abrirFichaAncla(texto) {
   refrescarCampos();
   const campo = buscarCampoPorAncla(texto);
   const dlg = document.getElementById('dlgCampoFicha');
-  const extras = extrasFichaAncla();
+  const extras = extrasFichaAncla(campo);
   if (campo) {
     state.campos.abiertoId = campo.id;
     extras.mongo = mongoParaAncla(campo);
@@ -1024,6 +1026,22 @@ function pintarMongo() {
   }
 }
 
+function extrasFichaMongo(campo) {
+  const extras = {};
+  if (campo && campo.id) {
+    extras.onEditar = function () { abrirDialogoEditarMongo(campo.id); };
+    extras.onEliminar = function () {
+      abrirDialogoEliminar({
+        tipo: 'mongo',
+        id: campo.id,
+        titulo: '¿Estás seguro de eliminar el campo MongoDB?',
+        aviso: 'Se quita de la lista de este navegador. El índice de GitHub no cambia.'
+      });
+    };
+  }
+  return extras;
+}
+
 function abrirFichaMongo(id) {
   refrescarMongo();
   const campo = state.mongo.lista.find(function (c) { return c.id === id; }) || null;
@@ -1033,7 +1051,8 @@ function abrirFichaMongo(id) {
     window.CamposMongoUI.mostrarFicha(
       campo,
       cerrarFichaMongo,
-      campo ? null : 'Este campo no está en el catálogo Campos MongoDB.'
+      campo ? null : 'Este campo no está en el catálogo Campos MongoDB.',
+      extrasFichaMongo(campo)
     );
   }
   if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
@@ -1069,15 +1088,70 @@ function cargarMongo() {
     });
 }
 
+function resetFormMongoMode(form, modo) {
+  delete form.dataset.mode;
+  delete form.dataset.id;
+  if (form.coleccion) form.coleccion.readOnly = false;
+  if (form.clave) form.clave.readOnly = false;
+  const titulo = document.getElementById('dlgMongoTitulo');
+  const submit = form.querySelector('[type="submit"]');
+  if (modo === 'edit') {
+    if (titulo) titulo.textContent = 'Editar campo MongoDB';
+    if (submit) submit.textContent = 'Guardar';
+  } else {
+    if (titulo) titulo.textContent = 'Añadir campo MongoDB';
+    if (submit) submit.textContent = 'Añadir campo';
+  }
+}
+
 function abrirDialogoMongo() {
   const dlg = document.getElementById('dlgMongo');
   const form = document.getElementById('formMongo');
   if (!dlg || !form) return;
   form.reset();
+  resetFormMongoMode(form, 'add');
   const err = document.getElementById('mongoError');
   if (err) err.textContent = '';
   dlg.showModal();
   if (form.coleccion) form.coleccion.focus();
+}
+
+function abrirDialogoEditarMongo(id) {
+  refrescarMongo();
+  const campo = state.mongo.lista.find(function (c) { return c.id === id; });
+  if (!campo) return;
+  const dlg = document.getElementById('dlgMongo');
+  const form = document.getElementById('formMongo');
+  if (!dlg || !form) return;
+  form.reset();
+  resetFormMongoMode(form, 'edit');
+  form.dataset.mode = 'edit';
+  form.dataset.id = campo.id;
+  form.coleccion.value = campo.coleccion || '';
+  form.clave.value = campo.clave || '';
+  form.coleccion.readOnly = true;
+  form.clave.readOnly = true;
+  form.baseDatos.value = campo.baseDatos || '';
+  form.bsonType.value = campo.bsonType || '';
+  form.obligatorio.checked = !!campo.obligatorio;
+  form.descripcion.value = campo.descripcion || '';
+  form.ancla.value = campo.ancla || '';
+  const err = document.getElementById('mongoError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  if (form.baseDatos) form.baseDatos.focus();
+}
+
+function eliminarCampoMongo(id) {
+  const store = leerMongoStore();
+  store.campos = (store.campos || []).filter(function (c) { return !(c && c.id === id); });
+  if ((store.eliminados || []).indexOf(id) < 0) {
+    store.eliminados = (store.eliminados || []).concat([id]);
+  }
+  guardarMongoStore(store);
+  if (state.mongo.abiertoId === id) cerrarFichaMongo();
+  refrescarMongo();
+  pintarMongo();
 }
 
 function onSubmitMongo(e) {
@@ -1092,6 +1166,7 @@ function onSubmitMongo(e) {
     return;
   }
   const campo = normalizeMongoCampo({
+    id: form.dataset.mode === 'edit' && form.dataset.id ? form.dataset.id : undefined,
     campo: coleccion + '.' + clave,
     baseDatos: form.baseDatos.value.trim() || 'arquitectura_reservas',
     coleccion: coleccion,
@@ -1108,7 +1183,7 @@ function onSubmitMongo(e) {
   const store = leerMongoStore();
   store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
   store.campos.push(campo);
-  store.eliminados = (store.eliminados || []).filter(function (id) { return id !== campo.id; });
+  store.eliminados = (store.eliminados || []).filter(function (xid) { return xid !== campo.id; });
   try {
     guardarMongoStore(store);
   } catch (err) {
@@ -1116,6 +1191,7 @@ function onSubmitMongo(e) {
     return;
   }
   document.getElementById('dlgMongo').close();
+  resetFormMongoMode(form, 'add');
   refrescarMongo();
   abrirFichaMongo(campo.id);
 }
@@ -1141,15 +1217,72 @@ function cargarCampos() {
     });
 }
 
+function resetFormCampoMode(form, modo) {
+  delete form.dataset.mode;
+  delete form.dataset.id;
+  if (form.ancla) form.ancla.readOnly = false;
+  const titulo = document.getElementById('dlgCampoTitulo');
+  const submit = form.querySelector('[type="submit"]');
+  if (modo === 'edit') {
+    if (titulo) titulo.textContent = 'Editar ancla';
+    if (submit) submit.textContent = 'Guardar';
+  } else {
+    if (titulo) titulo.textContent = 'Añadir ancla';
+    if (submit) submit.textContent = 'Añadir ancla';
+  }
+}
+
 function abrirDialogoCampo() {
   const dlg = document.getElementById('dlgCampo');
   const form = document.getElementById('formCampo');
   if (!dlg || !form) return;
   form.reset();
+  resetFormCampoMode(form, 'add');
   const err = document.getElementById('campoError');
   if (err) err.textContent = '';
   dlg.showModal();
   if (form.ancla) form.ancla.focus();
+}
+
+function abrirDialogoEditarCampo(id) {
+  refrescarCampos();
+  const campo = state.campos.lista.find(function (c) { return c.id === id; });
+  if (!campo) return;
+  const dlg = document.getElementById('dlgCampo');
+  const form = document.getElementById('formCampo');
+  if (!dlg || !form) return;
+  form.reset();
+  resetFormCampoMode(form, 'edit');
+  form.dataset.mode = 'edit';
+  form.dataset.id = campo.id;
+  form.ancla.value = campo.ancla || '';
+  form.ancla.readOnly = true;
+  form.etiqueta.value = campo.etiqueta || '';
+  form.claveMongo.value = campo.claveMongo || '';
+  form.coleccion.value = campo.coleccion || '';
+  form.baseDatos.value = campo.baseDatos || '';
+  form.tipo.value = campo.tipo || '';
+  form.obligatorio.checked = !!campo.obligatorio;
+  form.formato.value = campo.formato || '';
+  form.descripcion.value = campo.descripcion || '';
+  form.ejemplo.value = campo.ejemplo || '';
+  form.skills.value = Array.isArray(campo.skills) ? campo.skills.join('\n') : '';
+  const err = document.getElementById('campoError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  if (form.etiqueta) form.etiqueta.focus();
+}
+
+function eliminarCampoAncla(id) {
+  const store = leerCamposStore();
+  store.campos = (store.campos || []).filter(function (c) { return !(c && c.id === id); });
+  if ((store.eliminados || []).indexOf(id) < 0) {
+    store.eliminados = (store.eliminados || []).concat([id]);
+  }
+  guardarCamposStore(store);
+  if (state.campos.abiertoId === id) cerrarFichaCampo();
+  refrescarCampos();
+  pintarCampos();
 }
 
 function onSubmitCampo(e) {
@@ -1157,6 +1290,7 @@ function onSubmitCampo(e) {
   const form = e.currentTarget;
   const error = document.getElementById('campoError');
   if (error) error.textContent = '';
+  const editando = form.dataset.mode === 'edit';
   let ancla = form.ancla.value.trim();
   if (!ancla) {
     if (error) error.textContent = 'Escribe el ancla.';
@@ -1164,7 +1298,7 @@ function onSubmitCampo(e) {
   }
   if (ancla.charAt(0) !== '_') ancla = '_' + ancla;
   if (ancla.charAt(ancla.length - 1) !== '_') ancla = ancla + '_';
-  const idBase = ancla.replace(/^_|_$/g, '');
+  const idBase = editando && form.dataset.id ? form.dataset.id : ancla.replace(/^_|_$/g, '');
   if (!idBase) {
     if (error) error.textContent = 'El ancla no es válida.';
     return;
@@ -1191,7 +1325,7 @@ function onSubmitCampo(e) {
   const store = leerCamposStore();
   store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
   store.campos.push(campo);
-  store.eliminados = (store.eliminados || []).filter(function (id) { return id !== campo.id; });
+  store.eliminados = (store.eliminados || []).filter(function (xid) { return xid !== campo.id; });
   try {
     guardarCamposStore(store);
   } catch (err) {
@@ -1199,6 +1333,7 @@ function onSubmitCampo(e) {
     return;
   }
   document.getElementById('dlgCampo').close();
+  resetFormCampoMode(form, 'add');
   refrescarCampos();
   abrirFichaCampo(campo.id);
 }
@@ -1276,16 +1411,28 @@ function onSubmitEditarAnclas(e) {
   if (dlg && dlg.open) dlg.close();
 }
 
-function extrasFichaAncla() {
+function extrasFichaAncla(campo) {
   const nombres = {};
   state.instrucciones.forEach(function (ins) {
     nombres[ins.id] = ins.nombre;
   });
-  return {
+  const extras = {
     nombresSkill: nombres,
     mongo: null,
     onAbrirSkill: function (id) { abrirVistaSkill(id); }
   };
+  if (campo && campo.id) {
+    extras.onEditar = function () { abrirDialogoEditarCampo(campo.id); };
+    extras.onEliminar = function () {
+      abrirDialogoEliminar({
+        tipo: 'ancla',
+        id: campo.id,
+        titulo: '¿Estás seguro de eliminar el ancla?',
+        aviso: 'Se quita de la lista de este navegador. El índice de GitHub no cambia.'
+      });
+    };
+  }
+  return extras;
 }
 
 /** Vista de skill (dlgSkill). Cierra la ficha ancla/proyecto si hace falta (no hay dos modales a la vez). */
@@ -1703,6 +1850,37 @@ function abrirDialogoNuevo() {
   form.nombre.focus();
 }
 
+function proyectosQueUsanSkill(skillId) {
+  refrescarProyectos();
+  return state.proyectos.lista.filter(function (p) {
+    return Array.isArray(p.skills) && p.skills.indexOf(skillId) >= 0;
+  });
+}
+
+function quitarSkillDeProyectos(skillId) {
+  refrescarProyectos();
+  const afectados = proyectosQueUsanSkill(skillId);
+  if (!afectados.length) return;
+  const store = leerProyectosStore();
+  afectados.forEach(function (proy) {
+    let entrada = store.proyectos.find(function (p) { return p && p.id === proy.id; });
+    if (!entrada) {
+      entrada = {
+        id: proy.id,
+        nombre: proy.nombre,
+        descripcion: proy.descripcion || '',
+        skills: (proy.skills || []).slice(),
+        versiones: Array.isArray(proy.versiones) ? proy.versiones.slice() : []
+      };
+      store.proyectos.push(entrada);
+    }
+    entrada.skills = (entrada.skills || []).filter(function (s) { return s !== skillId; });
+  });
+  guardarProyectosLocal(store);
+  refrescarProyectos();
+  pintarProyectos();
+}
+
 function eliminarBloque(id) {
   const store = leerStore();
   store.instrucciones = store.instrucciones.filter(function (ins) {
@@ -1710,21 +1888,122 @@ function eliminarBloque(id) {
   });
   if (store.eliminados.indexOf(id) < 0) store.eliminados.push(id);
   guardarLocal(store);
+  quitarSkillDeProyectos(id);
   if (state.abiertaId === id) {
     state.abiertaId = null;
     state.abiertaNumero = null;
     state.historial = false;
+    const dlg = document.getElementById('dlgSkill');
+    if (dlg && dlg.open) dlg.close();
   }
   render();
 }
 
-function abrirDialogoEliminar(id) {
-  const ins = state.instrucciones.find(function (item) { return item.id === id; });
-  if (!ins) return;
+function eliminarProyecto(id) {
+  const store = leerProyectosStore();
+  store.proyectos = (store.proyectos || []).filter(function (p) { return !(p && p.id === id); });
+  if ((store.eliminados || []).indexOf(id) < 0) {
+    store.eliminados = (store.eliminados || []).concat([id]);
+  }
+  guardarProyectosLocal(store);
+  if (state.proyectos.abiertoId === id) {
+    state.proyectos.abiertoId = null;
+    state.proyectos.abiertaNumero = null;
+    state.proyectos.historial = false;
+    const dlg = document.getElementById('dlgProyecto');
+    if (dlg && dlg.open) dlg.close();
+  }
+  refrescarProyectos();
+  pintarProyectos();
+}
+
+function eliminarAgente(id) {
+  const store = leerAgentesStore();
+  store.agentes = (store.agentes || []).filter(function (a) { return !(a && a.id === id); });
+  if ((store.eliminados || []).indexOf(id) < 0) {
+    store.eliminados = (store.eliminados || []).concat([id]);
+  }
+  guardarAgentesLocal(store);
+  if (state.agentes.abiertoId === id) {
+    state.agentes.abiertoId = null;
+    const dlg = document.getElementById('dlgAgenteFicha');
+    if (dlg && dlg.open) dlg.close();
+  }
+  refrescarAgentes();
+  pintarAgentes();
+}
+
+function eliminarFundamento(id) {
+  const store = leerFundamentosStore();
+  store.fundamentos = (store.fundamentos || []).filter(function (f) { return !(f && f.id === id); });
+  if ((store.eliminados || []).indexOf(id) < 0) {
+    store.eliminados = (store.eliminados || []).concat([id]);
+  }
+  guardarFundamentosLocal(store);
+  if (state.fundamentos.abiertoId === id) {
+    state.fundamentos.abiertoId = null;
+    state.fundamentos.abiertaNumero = null;
+    state.fundamentos.historial = false;
+    const dlg = document.getElementById('dlgFundamento');
+    if (dlg && dlg.open) dlg.close();
+  }
+  refrescarFundamentos();
+  pintarFundamentos();
+}
+
+function abrirDialogoEliminar(opts) {
+  if (typeof opts === 'string') {
+    opts = { tipo: 'skill', id: opts };
+  }
+  if (!opts || !opts.tipo || !opts.id) return;
+  if (opts.tipo === 'skill') {
+    const ins = state.instrucciones.find(function (item) { return item.id === opts.id; });
+    if (!ins) return;
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar la skill?';
+    if (opts.aviso == null) {
+      const usados = proyectosQueUsanSkill(opts.id);
+      if (usados.length) {
+        opts.aviso = 'Está en ' + usados.length + ' proyecto' + (usados.length === 1 ? '' : 's')
+          + ' (' + usados.map(function (p) { return p.nombre; }).join(', ')
+          + '). Al confirmar se quita también de esas asociaciones.';
+      }
+    }
+  }
+  if (opts.tipo === 'proyecto') {
+    const proy = state.proyectos.lista.find(function (p) { return p.id === opts.id; });
+    if (!proy) return;
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el proyecto?';
+    if (opts.aviso == null) {
+      opts.aviso = 'Se quita el proyecto de este navegador. Las skills no se borran; solo dejan de estar asociadas a él.';
+    }
+  }
+  if (opts.tipo === 'agente') {
+    const ag = state.agentes.lista.find(function (a) { return a.id === opts.id; });
+    if (!ag) return;
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el agente?';
+  }
+  if (opts.tipo === 'fundamento') {
+    const f = state.fundamentos.lista.find(function (x) { return x.id === opts.id; });
+    if (!f) return;
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el fundamento?';
+  }
   const dlg = document.getElementById('dlgEliminar');
   const form = document.getElementById('formEliminar');
   if (!dlg || !form) return;
-  form.dataset.id = id;
+  form.dataset.tipo = opts.tipo;
+  form.dataset.id = opts.id;
+  const titulo = document.getElementById('dlgEliminarTitulo');
+  if (titulo) titulo.textContent = opts.titulo || '¿Estás seguro de eliminar?';
+  const aviso = document.getElementById('eliminarAviso');
+  if (aviso) {
+    if (opts.aviso) {
+      aviso.hidden = false;
+      aviso.textContent = opts.aviso;
+    } else {
+      aviso.hidden = true;
+      aviso.textContent = '';
+    }
+  }
   const error = document.getElementById('eliminarError');
   if (error) error.textContent = '';
   dlg.showModal();
@@ -1931,9 +2210,16 @@ function onSubmitEliminar(e) {
   const error = document.getElementById('eliminarError');
   if (error) error.textContent = '';
   const id = form.dataset.id;
+  const tipo = form.dataset.tipo || 'skill';
   if (!id) return;
   try {
-    eliminarBloque(id);
+    if (tipo === 'skill') eliminarBloque(id);
+    else if (tipo === 'ancla') eliminarCampoAncla(id);
+    else if (tipo === 'mongo') eliminarCampoMongo(id);
+    else if (tipo === 'proyecto') eliminarProyecto(id);
+    else if (tipo === 'agente') eliminarAgente(id);
+    else if (tipo === 'fundamento') eliminarFundamento(id);
+    else throw new Error('Tipo desconocido.');
     document.getElementById('dlgEliminar').close();
   } catch (err) {
     if (error) error.textContent = err.message;
@@ -2031,6 +2317,7 @@ function seleccionarDoc(id) {
     refrescarFundamentos();
     pintarFundamentos();
   }
+  if (id === 'api') cargarDocumentoApi();
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
 }
@@ -2881,7 +3168,7 @@ function iniciar() {
   const btnEliminarSkill = document.getElementById('btnEliminarSkill');
   if (btnEliminarSkill) btnEliminarSkill.addEventListener('click', function () {
     if (!state.abiertaId) return;
-    abrirDialogoEliminar(state.abiertaId);
+    abrirDialogoEliminar({ tipo: 'skill', id: state.abiertaId });
   });
   const readerTabs = document.getElementById('readerTabs');
   if (readerTabs) readerTabs.addEventListener('click', function (e) {
@@ -3192,6 +3479,7 @@ function cerrarProyectoModal() {
   }
   state.proyectos.abiertoId = null;
   state.proyectos.abiertaNumero = null;
+  state.proyectos.historial = false;
   pintarProyectos();
 }
 
@@ -3316,12 +3604,36 @@ function pintarVersionProyecto(v) {
     });
 }
 
+function renderHistorialProyecto(proy, abierta) {
+  const pop = document.getElementById('historialProyecto');
+  const lista = document.getElementById('historialProyectoLista');
+  const btn = document.getElementById('btnHistorialProyecto');
+  if (!pop || !lista || !btn) return;
+  pop.hidden = !state.proyectos.historial;
+  btn.setAttribute('aria-expanded', state.proyectos.historial ? 'true' : 'false');
+  lista.replaceChildren();
+  const orden = (proy.versiones || []).slice().sort(function (a, b) { return b.numero - a.numero; });
+  orden.forEach(function (v) {
+    const li = document.createElement('li');
+    const b = el('button', null, '');
+    b.type = 'button';
+    b.dataset.numero = String(v.numero);
+    const marca = v.numero === abierta.numero;
+    if (marca) b.setAttribute('aria-current', 'true');
+    b.append(el('span', null, formatVersion(v.numero, v.fecha)));
+    if (marca) b.append(el('span', 'marca', 'Abierta'));
+    li.append(b);
+    lista.append(li);
+  });
+}
+
 function renderProyectoReader() {
   const dlg = document.getElementById('dlgProyecto');
   const proy = proyectoAbierto();
   if (!proy) {
     state.proyectos.abiertoId = null;
     state.proyectos.abiertaNumero = null;
+    state.proyectos.historial = false;
     const lista = document.getElementById('proySkillsLista');
     if (lista) lista.replaceChildren();
     if (dlg && dlg.open) dlg.close();
@@ -3354,6 +3666,7 @@ function renderProyectoReader() {
   seleccionarProyReaderTab('documento');
   pintarVersionProyecto(v);
   pintarProyectoSkillsLista(proy);
+  renderHistorialProyecto(proy, v);
   if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
   const nombre = document.getElementById('proyReaderNombre');
   if (nombre) nombre.focus();
@@ -3365,6 +3678,7 @@ function abrirProyecto(id, numero) {
   if (!proy) return;
   state.proyectos.abiertoId = id;
   state.proyectos.abiertaNumero = numero == null ? versionActual(proy).numero : numero;
+  state.proyectos.historial = false;
   renderProyectoReader();
   pintarProyectos();
 }
@@ -3682,6 +3996,25 @@ function wireProyectosUi() {
     if (!state.proyectos.abiertoId) return;
     abrirDialogoEditarProyecto(state.proyectos.abiertoId);
   });
+  const btnEliminarProy = document.getElementById('btnEliminarProyecto');
+  if (btnEliminarProy) btnEliminarProy.addEventListener('click', function () {
+    if (!state.proyectos.abiertoId) return;
+    abrirDialogoEliminar({ tipo: 'proyecto', id: state.proyectos.abiertoId });
+  });
+  const btnHistProy = document.getElementById('btnHistorialProyecto');
+  if (btnHistProy) btnHistProy.addEventListener('click', function () {
+    if (!state.proyectos.abiertoId) return;
+    state.proyectos.historial = !state.proyectos.historial;
+    const proy = proyectoAbierto();
+    if (proy) renderHistorialProyecto(proy, versionProyectoAbierta(proy));
+  });
+  const histProyLista = document.getElementById('historialProyectoLista');
+  if (histProyLista) histProyLista.addEventListener('click', function (e) {
+    const b = e.target.closest('[data-numero]');
+    if (!b || !state.proyectos.abiertoId) return;
+    state.proyectos.historial = false;
+    abrirProyecto(state.proyectos.abiertoId, Number(b.dataset.numero));
+  });
   const btnEditSkills = document.getElementById('btnEditarProyectoSkills');
   if (btnEditSkills) btnEditSkills.addEventListener('click', abrirDialogoEditarProyectoSkills);
   const proyTabs = document.getElementById('proyReaderTabs');
@@ -3726,8 +4059,78 @@ function wireProyectosUi() {
   if (dlgProyecto) dlgProyecto.addEventListener('close', function () {
     state.proyectos.abiertoId = null;
     state.proyectos.abiertaNumero = null;
+    state.proyectos.historial = false;
     pintarProyectos();
   });
+  document.addEventListener('click', function (e) {
+    if (state.proyectos.historial && !e.target.closest('#historialProyecto') && !e.target.closest('#btnHistorialProyecto')) {
+      state.proyectos.historial = false;
+      const proy = proyectoAbierto();
+      if (proy) renderHistorialProyecto(proy, versionProyectoAbierta(proy));
+    }
+  });
+}
+
+function abrirDialogoEditarAgente(id) {
+  refrescarAgentes();
+  const ag = state.agentes.lista.find(function (a) { return a.id === id; });
+  if (!ag) return;
+  const dlg = document.getElementById('dlgEditarAgente');
+  const form = document.getElementById('formEditarAgente');
+  if (!dlg || !form) return;
+  form.dataset.id = ag.id;
+  form.nombre.value = ag.nombre || '';
+  form.foto.value = ag.foto || '';
+  const err = document.getElementById('editarAgenteError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  form.nombre.focus();
+}
+
+function onSubmitEditarAgente(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('editarAgenteError');
+  if (error) error.textContent = '';
+  const id = form.dataset.id;
+  const nombre = form.nombre.value.trim();
+  if (!nombre) {
+    if (error) error.textContent = 'Escribe un nombre.';
+    return;
+  }
+  const foto = form.foto.value.trim();
+  refrescarAgentes();
+  const actual = state.agentes.lista.find(function (a) { return a.id === id; });
+  if (!actual) {
+    if (error) error.textContent = 'No está ese agente.';
+    return;
+  }
+  try {
+    const store = leerAgentesStore();
+    let entrada = store.agentes.find(function (a) { return a && a.id === id; });
+    if (!entrada) {
+      entrada = {
+        id: id,
+        nombre: nombre,
+        foto: foto,
+        lastSeen: actual.lastSeen || '',
+        inviteUsada: actual.inviteUsada || '',
+        demoEnLinea: !!actual.demoEnLinea
+      };
+      store.agentes.push(entrada);
+    } else {
+      entrada.nombre = nombre;
+      entrada.foto = foto;
+    }
+    if (actual.descripcion) entrada.descripcion = actual.descripcion;
+    guardarAgentesLocal(store);
+    document.getElementById('dlgEditarAgente').close();
+    refrescarAgentes();
+    pintarAgentes();
+    if (state.agentes.abiertoId === id) renderAgenteReader();
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  }
 }
 
 function generarClaveInvite() {
@@ -3879,46 +4282,54 @@ function textoInstruccionesInvite(clave) {
   const base = (typeof location !== 'undefined' && location.origin)
     ? location.origin + (location.pathname.replace(/\/[^/]*$/, '/') || '/')
     : 'https://frescofresco.github.io/arquitectura-reservas/';
-  const repoApi = 'https://api.github.com/repos/FrescoFresco/arquitectura-reservas/contents/catalogo/agentes/index.json';
+  const apiDoc = base + 'documentacion/api.md';
+  const apiUi = base + '#documentacion';
   return [
-    '# Acceso al catálogo de agentes (Arquitectura reservas)',
+    '# Acceso al catálogo (Arquitectura reservas)',
     '',
-    'Eres un agente que trabaja por API. No uses la pantalla de Catálogos para darte de alta.',
-    'Te han concedido acceso. Conserva esta clave; es tu credencial de invitación.',
+    'Te han concedido acceso. Conserva esta clave.',
     '',
     'AGENTE_CLAVE=' + clave,
     'CATALOGO_BASE=' + base,
-    'INDICE_AGENTES=catalogo/agentes/index.json',
     '',
-    '## Clave (sin caducidad)',
-    'AGENTE_CLAVE no caduca: no hay límite de 1 hora ni cuenta atrás. Úsala mientras el acceso no se revoque a mano.',
+    '## Clave',
+    'Sin caducidad. Solo deja de valer si alguien la revoca a mano.',
     '',
-    '## 1. Registro (tú eliges el nombre; el id lo decides como slug y lo guardas)',
-    'Opción A — modo prueba en el navegador del catálogo (recomendado para probar):',
-    '  const r = window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
-    '  // r.id es tu id permanente',
-    '  window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
+    '## Contrato API (léelo entero)',
+    'Documentación → API en la página, o:',
+    apiUi,
+    apiDoc,
     '',
-    'Opción B — persistir en GitHub (API de contenidos):',
-    '1. Elige un nombre visible (ej. «Eco Mesa»).',
-    '2. Elige un id slug: minúsculas, números y guiones (ej. eco-mesa). Si ya existe, añade un sufijo.',
-    '3. GET ' + repoApi + '?ref=main  (Authorization: Bearer $GITHUB_TOKEN si publicas en el repo).',
-    '4. Decodifica content (base64) → JSON del índice.',
-    '5. Comprueba que AGENTE_CLAVE no esté ya en inviteUsada de otro agente.',
-    '6. Añade a agentes[]: { id, nombre, foto (url opcional o \"\"), lastSeen: ahora ISO, inviteUsada: AGENTE_CLAVE }.',
-    '7. PUT el mismo archivo con el JSON actualizado, message «Registra agente <id>», branch main y el sha leído.',
-    '8. Guarda el id que escribiste: es tu identidad permanente.',
+    '## Registro rápido (prueba en el navegador del catálogo)',
+    'const r = window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
+    'window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
     '',
-    '## 2. Latido (en línea)',
-    'Cada ~30 s: AgentesCatalogo.latido({ id, clave }) o actualiza lastSeen en el índice (GET → editar tu entrada → PUT).',
-    'Si dejas de latir más de ~2 min, la UI te muestra Desconectado. Eso no invalida AGENTE_CLAVE.',
-    '',
-    '## 3. Fuera de alcance ahora',
-    'No hay cola de comentarios ni Metricool en este acceso. Solo registro + latido + lectura del catálogo.',
-    '',
-    '## Contrato mínimo del índice',
-    '{ \"id\": \"agentes\", \"nombre\": \"Agentes\", \"agentes\": [ { \"id\", \"nombre\", \"foto\", \"lastSeen\", \"inviteUsada\" } ] }'
+    'El resto (GitHub Contents, catálogos, publicar, latido persistente) está en el documento API.'
   ].join('\n');
+}
+
+function cargarDocumentoApi() {
+  const mount = document.getElementById('apiDocMount');
+  if (!mount) return;
+  if (state.apiDoc.loaded || state.apiDoc.loading) return;
+  state.apiDoc.loading = true;
+  mount.innerHTML = '<p class="estado">Cargando el contrato API…</p>';
+  fetch('documentacion/api.md', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.text();
+    })
+    .then(function (text) {
+      state.apiDoc.loaded = true;
+      state.apiDoc.loading = false;
+      state.apiDoc.error = false;
+      mount.innerHTML = htmlDeMarkdown(text);
+    })
+    .catch(function () {
+      state.apiDoc.loading = false;
+      state.apiDoc.error = true;
+      mount.innerHTML = '<p class="estado">No se pudo cargar <code>documentacion/api.md</code>.</p>';
+    });
 }
 
 function abrirDialogoDarAcceso() {
@@ -4152,6 +4563,26 @@ function cargarAgentes() {
 function wireAgentesUi() {
   const btnCerrar = document.getElementById('btnCerrarAgente');
   if (btnCerrar) btnCerrar.addEventListener('click', cerrarAgenteModal);
+  const btnEditarAg = document.getElementById('btnEditarAgente');
+  if (btnEditarAg) btnEditarAg.addEventListener('click', function () {
+    if (!state.agentes.abiertoId) return;
+    abrirDialogoEditarAgente(state.agentes.abiertoId);
+  });
+  const btnEliminarAg = document.getElementById('btnEliminarAgente');
+  if (btnEliminarAg) btnEliminarAg.addEventListener('click', function () {
+    if (!state.agentes.abiertoId) return;
+    abrirDialogoEliminar({
+      tipo: 'agente',
+      id: state.agentes.abiertoId,
+      aviso: 'Se quita del catálogo de este navegador. La clave de invite no se regenera aquí.'
+    });
+  });
+  const formEditarAg = document.getElementById('formEditarAgente');
+  if (formEditarAg) formEditarAg.addEventListener('submit', onSubmitEditarAgente);
+  const editarAgCancel = document.getElementById('editarAgenteCancelar');
+  if (editarAgCancel) editarAgCancel.addEventListener('click', function () {
+    document.getElementById('dlgEditarAgente').close();
+  });
   const dlg = document.getElementById('dlgAgenteFicha');
   if (dlg) dlg.addEventListener('close', function () {
     state.agentes.abiertoId = null;
@@ -4702,6 +5133,11 @@ function wireFundamentosUi() {
   if (btnEditar) btnEditar.addEventListener('click', function () {
     if (!state.fundamentos.abiertoId) return;
     abrirDialogoEditarFundamento(state.fundamentos.abiertoId);
+  });
+  const btnEliminarFund = document.getElementById('btnEliminarFundamento');
+  if (btnEliminarFund) btnEliminarFund.addEventListener('click', function () {
+    if (!state.fundamentos.abiertoId) return;
+    abrirDialogoEliminar({ tipo: 'fundamento', id: state.fundamentos.abiertoId });
   });
   const btnHist = document.getElementById('btnHistorialFund');
   if (btnHist) btnHist.addEventListener('click', function () {
