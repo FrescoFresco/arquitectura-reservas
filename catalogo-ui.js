@@ -9,13 +9,16 @@ const CATALOGOS = [
 ];
 const TABLAS = [];
 const DOCUMENTOS = [
-  { id: 'api', nombre: 'API' }
+  { id: 'fundamentos', nombre: 'Fundamentos', icono: 'fundamento' },
+  { id: 'arquitectura', nombre: 'Arquitectura', icono: 'arquitectura' },
+  { id: 'api', nombre: 'API', icono: 'api' }
 ];
 const LS_KEY = 'arquitectura-reservas.catalogo.skills';
 const LS_CAMPOS = 'arquitectura-reservas.catalogo.campos-ancla';
 const LS_MONGO = 'arquitectura-reservas.catalogo.campos-mongodb';
 const LS_PROYECTOS = 'arquitectura-reservas.catalogo.proyectos';
 const LS_AGENTES = 'arquitectura-reservas.catalogo.agentes';
+const LS_FUNDAMENTOS = 'arquitectura-reservas.catalogo.fundamentos';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const AGENTE_LATIDO_MS = 120000;
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -119,6 +122,17 @@ const state = {
     lista: [],
     abiertoId: null,
     inviteActual: null
+  },
+  fundamentos: {
+    ready: false,
+    indexError: false,
+    remotos: [],
+    lista: [],
+    abiertoId: null,
+    abiertaNumero: null,
+    historial: false,
+    fetchToken: 0,
+    inflightRuta: null
   },
   tablaId: 'reglas',
   tablaHistorial: false,
@@ -656,6 +670,27 @@ function svgPestanaCatalogo(tipo) {
       svgPath('M20 14h2'),
       svgPath('M15 13v2'),
       svgPath('M9 13v2')
+    );
+  } else if (tipo === 'fundamento') {
+    // Lucide: book-open
+    svg.append(
+      svgPath('M12 7v14'),
+      svgPath('M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z')
+    );
+  } else if (tipo === 'arquitectura') {
+    // Lucide: git-fork / network-ish
+    svg.append(
+      svgCircle('12', '18', '3'),
+      svgCircle('6', '6', '3'),
+      svgCircle('18', '6', '3'),
+      svgPath('M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9'),
+      svgPath('M12 12v3')
+    );
+  } else if (tipo === 'api') {
+    // Lucide: code
+    svg.append(
+      svgPath('m16 18 6-6-6-6'),
+      svgPath('m8 6-6 6 6 6')
     );
   }
   return svg;
@@ -1992,6 +2027,10 @@ function seleccionarDoc(id) {
   if (!existe) return;
   state.docId = id;
   renderDocPestanas();
+  if (id === 'fundamentos') {
+    refrescarFundamentos();
+    pintarFundamentos();
+  }
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
 }
@@ -2961,6 +3000,8 @@ function iniciar() {
   wireProyectosUi();
   cargarAgentes();
   wireAgentesUi();
+  cargarFundamentos();
+  wireFundamentosUi();
 }
 
 function normalizarSkillsProyecto(list) {
@@ -3842,39 +3883,37 @@ function textoInstruccionesInvite(clave) {
   return [
     '# Acceso al catálogo de agentes (Arquitectura reservas)',
     '',
-    'Eres un agente que trabaja por API. No uses la pantalla de Catálogos.',
+    'Eres un agente que trabaja por API. No uses la pantalla de Catálogos para darte de alta.',
     'Te han concedido acceso. Conserva esta clave; es tu credencial de invitación.',
     '',
     'AGENTE_CLAVE=' + clave,
     'CATALOGO_BASE=' + base,
     'INDICE_AGENTES=catalogo/agentes/index.json',
     '',
-    '## 1. Token de GitHub (escritura)',
-    'Un humano genera el token en Documentación → Conectar un agente → Generar token.',
-    'Dura 1 hora. Pégalo en tu entorno como GITHUB_TOKEN (o GH_TOKEN).',
-    'Cabeceras: Authorization: Bearer $GITHUB_TOKEN ; Accept: application/vnd.github+json ; X-GitHub-Api-Version: 2022-11-28',
+    '## Clave (sin caducidad)',
+    'AGENTE_CLAVE no caduca: no hay límite de 1 hora ni cuenta atrás. Úsala mientras el acceso no se revoque a mano.',
     '',
-    '## 2. Registro (tú eliges el nombre; el id lo decides como slug y lo guardas)',
+    '## 1. Registro (tú eliges el nombre; el id lo decides como slug y lo guardas)',
+    'Opción A — modo prueba en el navegador del catálogo (recomendado para probar):',
+    '  const r = window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
+    '  // r.id es tu id permanente',
+    '  window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
+    '',
+    'Opción B — persistir en GitHub (API de contenidos):',
     '1. Elige un nombre visible (ej. «Eco Mesa»).',
     '2. Elige un id slug: minúsculas, números y guiones (ej. eco-mesa). Si ya existe, añade un sufijo.',
-    '3. GET ' + repoApi + '?ref=main',
+    '3. GET ' + repoApi + '?ref=main  (Authorization: Bearer $GITHUB_TOKEN si publicas en el repo).',
     '4. Decodifica content (base64) → JSON del índice.',
     '5. Comprueba que AGENTE_CLAVE no esté ya en inviteUsada de otro agente.',
     '6. Añade a agentes[]: { id, nombre, foto (url opcional o \"\"), lastSeen: ahora ISO, inviteUsada: AGENTE_CLAVE }.',
     '7. PUT el mismo archivo con el JSON actualizado, message «Registra agente <id>», branch main y el sha leído.',
     '8. Guarda el id que escribiste: es tu identidad permanente.',
     '',
-    '## 3. Latido (en línea)',
-    'Cada ~30 s actualiza tu lastSeen a la hora UTC ISO (mismo GET → editar tu entrada → PUT).',
-    'Si dejas de latir más de ~2 min, la UI te muestra Desconectado.',
+    '## 2. Latido (en línea)',
+    'Cada ~30 s: AgentesCatalogo.latido({ id, clave }) o actualiza lastSeen en el índice (GET → editar tu entrada → PUT).',
+    'Si dejas de latir más de ~2 min, la UI te muestra Desconectado. Eso no invalida AGENTE_CLAVE.',
     '',
-    '## 4. Modo prueba en este navegador (sin GitHub)',
-    'Si estás probando en la página abierta del catálogo, registra y late así:',
-    '  const r = window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
-    '  // r.id es tu id',
-    '  window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
-    '',
-    '## 5. Fuera de alcance ahora',
+    '## 3. Fuera de alcance ahora',
     'No hay cola de comentarios ni Metricool en este acceso. Solo registro + latido + lectura del catálogo.',
     '',
     '## Contrato mínimo del índice',
@@ -4135,6 +4174,588 @@ function wireAgentesUi() {
       });
     }
   };
+}
+
+function normalizeFundamento(item, versionFn) {
+  if (!item || typeof item !== 'object') return null;
+  if (typeof item.id !== 'string' || !item.id.trim()) return null;
+  if (typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
+  if (!Array.isArray(item.versiones)) return null;
+  const versiones = versionesUnicas(item.versiones.map(versionFn).filter(Boolean));
+  if (!versiones.length) return null;
+  const out = {
+    id: item.id.trim(),
+    nombre: item.nombre.trim(),
+    versiones: versiones
+  };
+  if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
+    out.descripcion = item.descripcion.trim().slice(0, 280);
+  }
+  return out;
+}
+
+function normalizeFundamentosIndice(data) {
+  const list = Array.isArray(data) ? data : (data && Array.isArray(data.fundamentos) ? data.fundamentos : []);
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    const f = normalizeFundamento(item, normalizeVersionIndice);
+    if (!f || seen.has(f.id)) return;
+    seen.add(f.id);
+    f.origen = 'indice';
+    out.push(f);
+  });
+  return out;
+}
+
+function normalizeFundamentosLocales(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    const f = normalizeFundamento(item, normalizeVersionLocal);
+    if (!f || seen.has(f.id)) return;
+    seen.add(f.id);
+    f.origen = 'local';
+    out.push(f);
+  });
+  return out;
+}
+
+function conMetaFundamento(destino, fuente) {
+  if (fuente.descripcion) destino.descripcion = fuente.descripcion;
+  return destino;
+}
+
+function mergeFundamentos(remotas, locales, eliminados) {
+  const ban = new Set(Array.isArray(eliminados) ? eliminados : []);
+  const map = new Map();
+  remotas.forEach(function (f) {
+    if (ban.has(f.id)) return;
+    map.set(f.id, conMetaFundamento({
+      id: f.id,
+      nombre: f.nombre,
+      origen: 'indice',
+      versiones: f.versiones.map(copiaVersion)
+    }, f));
+  });
+  locales.forEach(function (f) {
+    if (ban.has(f.id)) return;
+    const prev = map.get(f.id);
+    if (!prev) {
+      map.set(f.id, conMetaFundamento({
+        id: f.id,
+        nombre: f.nombre,
+        origen: 'local',
+        versiones: f.versiones.map(copiaVersion)
+      }, f));
+      return;
+    }
+    prev.nombre = f.nombre || prev.nombre;
+    conMetaFundamento(prev, f);
+    const nums = new Map();
+    prev.versiones.forEach(function (v) { nums.set(v.numero, v); });
+    f.versiones.forEach(function (v) { nums.set(v.numero, copiaVersion(v)); });
+    prev.versiones = Array.from(nums.values()).sort(function (a, b) { return a.numero - b.numero; });
+  });
+  return Array.from(map.values()).sort(function (a, b) {
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+}
+
+function leerFundamentosStore() {
+  try {
+    const raw = localStorage.getItem(LS_FUNDAMENTOS);
+    if (!raw) return { fundamentos: [], eliminados: [] };
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.fundamentos)) return { fundamentos: [], eliminados: [] };
+    return { fundamentos: data.fundamentos, eliminados: idsEliminados(data.eliminados) };
+  } catch (e) {
+    return { fundamentos: [], eliminados: [] };
+  }
+}
+
+function guardarFundamentosLocal(store) {
+  const json = JSON.stringify(store);
+  if (json.length > 4500000) throw new Error('No cabe en el almacenamiento de este navegador.');
+  try {
+    localStorage.setItem(LS_FUNDAMENTOS, json);
+  } catch (e) {
+    throw new Error('No cabe en el almacenamiento de este navegador.');
+  }
+}
+
+function refrescarFundamentos() {
+  const store = leerFundamentosStore();
+  state.fundamentos.lista = mergeFundamentos(
+    state.fundamentos.remotos,
+    normalizeFundamentosLocales(store.fundamentos),
+    store.eliminados
+  );
+}
+
+function fundamentosBridge() {
+  return {
+    getSnapshot: function () {
+      const abierta = state.fundamentos.abiertoId
+        ? state.fundamentos.lista.find(function (f) { return f.id === state.fundamentos.abiertoId; }) || null
+        : null;
+      const abiertaVersion = abierta
+        ? (abierta.versiones.find(function (v) { return v.numero === state.fundamentos.abiertaNumero; }) || versionActual(abierta))
+        : null;
+      return {
+        ready: state.fundamentos.ready,
+        indexError: state.fundamentos.indexError,
+        fundamentos: state.fundamentos.lista,
+        abierta: abierta ? { id: abierta.id, version: abiertaVersion } : null
+      };
+    },
+    añadirFundamento: function () { abrirDialogoNuevoFundamento(); },
+    abrirFundamento: function (id) {
+      if (state.fundamentos.abiertoId === id) {
+        const dlg = document.getElementById('dlgFundamento');
+        if (dlg && dlg.open) {
+          cerrarFundamentoModal();
+          return;
+        }
+      }
+      abrirFundamento(id);
+    }
+  };
+}
+
+function pintarFundamentos() {
+  if (window.FundamentosUI && typeof window.FundamentosUI.refrescar === 'function') {
+    window.FundamentosUI.refrescar(fundamentosBridge());
+  }
+}
+
+function fundamentoAbierto() {
+  if (!state.fundamentos.abiertoId) return null;
+  return state.fundamentos.lista.find(function (f) { return f.id === state.fundamentos.abiertoId; }) || null;
+}
+
+function versionFundamentoAbierta(f) {
+  return f.versiones.find(function (v) { return v.numero === state.fundamentos.abiertaNumero; }) || versionActual(f);
+}
+
+function cerrarFundamentoModal() {
+  const dlg = document.getElementById('dlgFundamento');
+  if (dlg && dlg.open) {
+    dlg.close();
+    return;
+  }
+  state.fundamentos.abiertoId = null;
+  state.fundamentos.abiertaNumero = null;
+  state.fundamentos.historial = false;
+  pintarFundamentos();
+}
+
+function seleccionarFundReaderTab(id) {
+  const tabs = document.querySelectorAll('#fundReaderTabs [data-fund-tab]');
+  const panelDoc = document.getElementById('fundPanelDoc');
+  const panelInterno = document.getElementById('fundPanelInterno');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-fund-tab') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  if (panelDoc) panelDoc.hidden = id !== 'documento';
+  if (panelInterno) panelInterno.hidden = id !== 'interno';
+}
+
+function pintarVersionFundamento(v) {
+  const md = document.getElementById('fundMd');
+  if (!md) return;
+  if (typeof v.markdown === 'string') {
+    md.innerHTML = htmlDeMarkdown(v.markdown);
+    return;
+  }
+  if (!v.ruta) {
+    md.textContent = 'No hay documento para esta versión.';
+    return;
+  }
+  if (mdCache.has(v.ruta)) {
+    md.innerHTML = htmlDeMarkdown(mdCache.get(v.ruta));
+    return;
+  }
+  if (state.fundamentos.inflightRuta === v.ruta) {
+    md.textContent = 'Cargando…';
+    return;
+  }
+  state.fundamentos.inflightRuta = v.ruta;
+  const token = ++state.fundamentos.fetchToken;
+  const ruta = v.ruta;
+  md.textContent = 'Cargando…';
+  let url;
+  try { url = hrefRuta(ruta); } catch (e) {
+    state.fundamentos.inflightRuta = null;
+    md.textContent = 'No se pudo leer el markdown de esta versión.';
+    return;
+  }
+  fetch(url, { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.text();
+    })
+    .then(function (text) {
+      if (token !== state.fundamentos.fetchToken) return;
+      mdCache.set(ruta, text);
+      if (state.fundamentos.inflightRuta === ruta) state.fundamentos.inflightRuta = null;
+      const actual = fundamentoAbierto();
+      if (!actual) return;
+      const abierta = versionFundamentoAbierta(actual);
+      if (!abierta || abierta.ruta !== ruta) return;
+      const box = document.getElementById('fundMd');
+      if (box) box.innerHTML = htmlDeMarkdown(text);
+    })
+    .catch(function () {
+      if (token !== state.fundamentos.fetchToken) return;
+      if (state.fundamentos.inflightRuta === ruta) state.fundamentos.inflightRuta = null;
+      const box = document.getElementById('fundMd');
+      if (box) box.textContent = 'No se pudo leer el markdown de esta versión.';
+    });
+}
+
+function renderHistorialFund(f, abierta) {
+  const pop = document.getElementById('historialFund');
+  const lista = document.getElementById('historialFundLista');
+  const btn = document.getElementById('btnHistorialFund');
+  if (!pop || !lista || !btn) return;
+  pop.hidden = !state.fundamentos.historial;
+  btn.setAttribute('aria-expanded', state.fundamentos.historial ? 'true' : 'false');
+  lista.replaceChildren();
+  const orden = f.versiones.slice().sort(function (a, b) { return b.numero - a.numero; });
+  orden.forEach(function (v) {
+    const li = document.createElement('li');
+    const b = el('button', null, '');
+    b.type = 'button';
+    b.dataset.numero = String(v.numero);
+    const marca = v.numero === abierta.numero;
+    if (marca) b.setAttribute('aria-current', 'true');
+    b.append(el('span', null, formatVersion(v.numero, v.fecha)));
+    if (marca) b.append(el('span', 'marca', 'Abierta'));
+    li.append(b);
+    lista.append(li);
+  });
+}
+
+function renderFundamentoReader() {
+  const dlg = document.getElementById('dlgFundamento');
+  const f = fundamentoAbierto();
+  if (!f) {
+    state.fundamentos.abiertoId = null;
+    state.fundamentos.abiertaNumero = null;
+    state.fundamentos.historial = false;
+    if (dlg && dlg.open) dlg.close();
+    return;
+  }
+  const v = versionFundamentoAbierta(f);
+  state.fundamentos.abiertaNumero = v.numero;
+  document.getElementById('fundReaderNombre').textContent = f.nombre;
+  document.getElementById('fundReaderVersion').textContent = formatVersion(v.numero, v.fecha);
+  const idNodo = document.getElementById('fundReaderId');
+  if (idNodo) idNodo.textContent = f.id || '—';
+  const verNodo = document.getElementById('fundInternoVersion');
+  if (verNodo) verNodo.textContent = formatVersion(v.numero, v.fecha);
+  const full = normalizarHash(v.hash) || hashFnvHex(f.id + '|' + v.numero + '|' + (v.ruta || v.fecha || ''));
+  const hashBtn = document.getElementById('fundHashBtn');
+  const hashFull = document.getElementById('fundHashFull');
+  const hashVacio = document.getElementById('fundHashVacio');
+  if (hashBtn && hashFull && hashVacio) {
+    if (full) {
+      hashFull.textContent = full;
+      hashBtn.hidden = false;
+      hashBtn.dataset.hash = full;
+      hashVacio.hidden = true;
+    } else {
+      hashBtn.hidden = true;
+      hashBtn.dataset.hash = '';
+      hashVacio.hidden = false;
+    }
+  }
+  seleccionarFundReaderTab('documento');
+  renderHistorialFund(f, v);
+  pintarVersionFundamento(v);
+  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  const nombre = document.getElementById('fundReaderNombre');
+  if (nombre) nombre.focus();
+}
+
+function abrirFundamento(id, numero) {
+  refrescarFundamentos();
+  const f = state.fundamentos.lista.find(function (item) { return item.id === id; });
+  if (!f) return;
+  state.fundamentos.abiertoId = id;
+  state.fundamentos.abiertaNumero = numero == null ? versionActual(f).numero : numero;
+  state.fundamentos.historial = false;
+  renderFundamentoReader();
+  pintarFundamentos();
+}
+
+function textoVersionFundamentoActual(v) {
+  if (!v) return Promise.resolve('');
+  if (typeof v.markdown === 'string') return Promise.resolve(v.markdown);
+  if (v.ruta && mdCache.has(v.ruta)) return Promise.resolve(mdCache.get(v.ruta));
+  if (!v.ruta) return Promise.resolve('');
+  try {
+    return fetch(hrefRuta(v.ruta), { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('http');
+        return res.text();
+      })
+      .then(function (text) {
+        mdCache.set(v.ruta, text);
+        return text;
+      })
+      .catch(function () { return ''; });
+  } catch (e) {
+    return Promise.resolve('');
+  }
+}
+
+function abrirDialogoNuevoFundamento() {
+  const dlg = document.getElementById('dlgNuevoFundamento');
+  const form = document.getElementById('formNuevoFundamento');
+  if (!dlg || !form) return;
+  form.reset();
+  const err = document.getElementById('nuevoFundamentoError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  if (form.nombre) form.nombre.focus();
+}
+
+async function onSubmitNuevoFundamento(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('nuevoFundamentoError');
+  if (error) error.textContent = '';
+  const nombre = form.nombre.value.trim();
+  if (!nombre) {
+    if (error) error.textContent = 'Escribe un nombre.';
+    return;
+  }
+  const markdown = String(form.markdown.value || '');
+  if (!markdown.trim()) {
+    if (error) error.textContent = 'El contenido no puede estar vacío.';
+    return;
+  }
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
+    const idBase = String(nombre || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'fundamento';
+    let id = idBase;
+    refrescarFundamentos();
+    let n = 2;
+    while (state.fundamentos.lista.some(function (f) { return f.id === id; })) {
+      id = idBase + '-' + n;
+      n += 1;
+    }
+    const hash = await sha256Hex(markdown);
+    const store = leerFundamentosStore();
+    store.fundamentos.push({
+      id: id,
+      nombre: nombre,
+      descripcion: form.descripcion.value.trim().slice(0, 280),
+      versiones: [{
+        numero: 1,
+        fecha: todayISO(),
+        markdown: markdown,
+        hash: hash,
+        nombreArchivo: id + '.md'
+      }]
+    });
+    guardarFundamentosLocal(store);
+    document.getElementById('dlgNuevoFundamento').close();
+    refrescarFundamentos();
+    pintarFundamentos();
+    abrirFundamento(id, 1);
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function abrirDialogoEditarFundamento(id) {
+  const f = state.fundamentos.lista.find(function (item) { return item.id === id; });
+  if (!f) return;
+  const dlg = document.getElementById('dlgEditarFundamento');
+  const form = document.getElementById('formEditarFundamento');
+  if (!dlg || !form) return;
+  form.reset();
+  form.dataset.id = id;
+  delete form.dataset.snapMarkdown;
+  const err = document.getElementById('editarFundamentoError');
+  if (err) err.textContent = '';
+  form.nombre.value = f.nombre;
+  form.descripcion.value = f.descripcion || '';
+  form.markdown.value = 'Cargando…';
+  dlg.showModal();
+  const v = versionActual(f);
+  textoVersionFundamentoActual(v).then(function (text) {
+    if (form.dataset.id !== id) return;
+    const md = text || '';
+    form.markdown.value = md;
+    form.dataset.snapMarkdown = md;
+    form.nombre.focus();
+  });
+}
+
+async function onSubmitEditarFundamento(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('editarFundamentoError');
+  if (error) error.textContent = '';
+  const id = form.dataset.id;
+  const nombre = form.nombre.value.trim();
+  if (!nombre) {
+    if (error) error.textContent = 'Escribe un nombre.';
+    return;
+  }
+  const markdown = form.markdown.value;
+  if (!String(markdown || '').trim()) {
+    if (error) error.textContent = 'El contenido no puede estar vacío.';
+    return;
+  }
+  refrescarFundamentos();
+  const actual = state.fundamentos.lista.find(function (f) { return f.id === id; });
+  if (!actual) {
+    if (error) error.textContent = 'No está ese fundamento.';
+    return;
+  }
+  const desc = form.descripcion.value.trim().slice(0, 280);
+  const snapMd = form.dataset.snapMarkdown;
+  if (
+    typeof snapMd === 'string' &&
+    markdown === snapMd &&
+    nombre === actual.nombre &&
+    desc === (actual.descripcion || '')
+  ) {
+    if (error) error.textContent = 'Sin cambios';
+    return;
+  }
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
+    const hash = await sha256Hex(markdown);
+    const store = leerFundamentosStore();
+    let entrada = store.fundamentos.find(function (f) { return f && f.id === id; });
+    if (!entrada) {
+      entrada = { id: id, nombre: actual.nombre, versiones: [] };
+      store.fundamentos.push(entrada);
+    }
+    entrada.nombre = nombre;
+    entrada.descripcion = desc;
+    if (!Array.isArray(entrada.versiones)) entrada.versiones = [];
+    const creada = {
+      numero: siguienteNumero(actual.versiones),
+      fecha: todayISO(),
+      markdown: markdown,
+      hash: hash,
+      nombreArchivo: id + '.md'
+    };
+    entrada.versiones.push(creada);
+    guardarFundamentosLocal(store);
+    document.getElementById('dlgEditarFundamento').close();
+    refrescarFundamentos();
+    pintarFundamentos();
+    abrirFundamento(id, creada.numero);
+  } catch (err) {
+    if (error) error.textContent = err.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function cargarFundamentos() {
+  fetch('catalogo/fundamentos/index.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.json();
+    })
+    .then(function (data) {
+      state.fundamentos.remotos = normalizeFundamentosIndice(data);
+      state.fundamentos.indexError = false;
+    })
+    .catch(function () {
+      state.fundamentos.remotos = [];
+      state.fundamentos.indexError = true;
+    })
+    .then(function () {
+      state.fundamentos.ready = true;
+      refrescarFundamentos();
+      pintarFundamentos();
+    });
+}
+
+function wireFundamentosUi() {
+  const btnCerrar = document.getElementById('btnCerrarFundamento');
+  if (btnCerrar) btnCerrar.addEventListener('click', cerrarFundamentoModal);
+  const btnEditar = document.getElementById('btnEditarFundamento');
+  if (btnEditar) btnEditar.addEventListener('click', function () {
+    if (!state.fundamentos.abiertoId) return;
+    abrirDialogoEditarFundamento(state.fundamentos.abiertoId);
+  });
+  const btnHist = document.getElementById('btnHistorialFund');
+  if (btnHist) btnHist.addEventListener('click', function () {
+    state.fundamentos.historial = !state.fundamentos.historial;
+    const f = fundamentoAbierto();
+    if (f) renderHistorialFund(f, versionFundamentoAbierta(f));
+  });
+  const histLista = document.getElementById('historialFundLista');
+  if (histLista) histLista.addEventListener('click', function (e) {
+    const b = e.target.closest('[data-numero]');
+    if (!b || !state.fundamentos.abiertoId) return;
+    state.fundamentos.historial = false;
+    abrirFundamento(state.fundamentos.abiertoId, Number(b.dataset.numero));
+  });
+  const tabs = document.getElementById('fundReaderTabs');
+  if (tabs) tabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-fund-tab]');
+    if (!btn) return;
+    seleccionarFundReaderTab(btn.getAttribute('data-fund-tab'));
+  });
+  const formNuevo = document.getElementById('formNuevoFundamento');
+  if (formNuevo) formNuevo.addEventListener('submit', onSubmitNuevoFundamento);
+  const nuevoCancel = document.getElementById('nuevoFundamentoCancelar');
+  if (nuevoCancel) nuevoCancel.addEventListener('click', function () {
+    document.getElementById('dlgNuevoFundamento').close();
+  });
+  const formEditar = document.getElementById('formEditarFundamento');
+  if (formEditar) formEditar.addEventListener('submit', onSubmitEditarFundamento);
+  const editarCancel = document.getElementById('editarFundamentoCancelar');
+  if (editarCancel) editarCancel.addEventListener('click', function () {
+    document.getElementById('dlgEditarFundamento').close();
+  });
+  const hashBtn = document.getElementById('fundHashBtn');
+  if (hashBtn) hashBtn.addEventListener('click', function () {
+    const full = hashBtn.dataset.hash || '';
+    if (!full) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(full).catch(function () {});
+    }
+  });
+  const dlg = document.getElementById('dlgFundamento');
+  if (dlg) dlg.addEventListener('close', function () {
+    state.fundamentos.abiertoId = null;
+    state.fundamentos.abiertaNumero = null;
+    state.fundamentos.historial = false;
+    pintarFundamentos();
+  });
+  document.addEventListener('click', function (e) {
+    if (state.fundamentos.historial && !e.target.closest('#historialFund') && !e.target.closest('#btnHistorialFund')) {
+      state.fundamentos.historial = false;
+      const f = fundamentoAbierto();
+      if (f) renderHistorialFund(f, versionFundamentoAbierta(f));
+    }
+  });
 }
 
 const api = {

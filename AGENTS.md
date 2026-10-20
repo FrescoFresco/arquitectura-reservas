@@ -1,12 +1,12 @@
-# Conectar un agente
+# Agente y catálogos
 
-Empieza leyendo Documentación → API (https://frescofresco.github.io/arquitectura-reservas/) y el contrato que ya está en el repo. No inventes rutas.
+Empieza leyendo Documentación → API y el contrato que ya está en el repo. No inventes rutas.
 
-El token se obtiene en la página, Documentación → Conectar un agente, con el botón Generar token. La primera vez la persona confirma en GitHub. instálala solo en FrescoFresco/arquitectura-reservas. En ese navegador, los clics siguientes emiten otro token sin volver a GitHub. El token dura 1 hora. Pégalo en el agente, en GITHUB_TOKEN. No va en el HTML ni en el repo.
+El acceso de un agente de trabajo se concede en Catálogos → Agentes → **+ Agente** (instrucciones + clave `inv_…`). La clave **no caduca**. El agente se registra solo y late para aparecer En línea. No uses un flujo de «Generar token» en Documentación: ya no está en la página.
 
-Puede modificar: Skills (documento o versión en `catalogo/skills/`), Campos ancla (`catalogo/campos-ancla/`), Campos MongoDB (`catalogo/campos-mongodb/`) y Proyectos (`catalogo/proyectos/`). Cada cambio es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide. Un proyecto guarda las skills asociadas por id en `skills` (many-to-many).
+Puede modificar: Skills (documento o versión en `catalogo/skills/`), Campos ancla (`catalogo/campos-ancla/`), Campos MongoDB (`catalogo/campos-mongodb/`), Proyectos (`catalogo/proyectos/`) y Fundamentos (`catalogo/fundamentos/`). Cada cambio es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide. Un proyecto guarda las skills asociadas por id en `skills` (many-to-many).
 
-Catálogo Agentes (`catalogo/agentes/`): **+ Agente** solo da acceso (instrucciones + clave `inv_…`). El agente se registra solo y late para aparecer En línea. No hay cola de comentarios todavía.
+Catálogo Agentes (`catalogo/agentes/`): solo registro + latido. No hay cola de comentarios todavía.
 
 La página ya no edita el mapa: los archivos en `mapa/` pueden seguir en el repo, pero no hay hub ni contrato de edición del mapa en la UI.
 

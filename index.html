@@ -154,6 +154,12 @@ dialog::backdrop{background:#17212f66}
 .token-box input{display:block;width:100%;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white}
 .token-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
 .token-box .pegar{margin:8px 0 0;font-size:14px;line-height:1.55;color:#243246}
+.doc-arquitectura{max-width:78ch}
+.doc-arquitectura h3{margin:0 0 10px;font-size:18px;letter-spacing:-.02em}
+.doc-arquitectura p,.doc-arquitectura li{font-size:14px;line-height:1.55;color:#243246}
+.doc-arquitectura ul{margin:0 0 14px;padding-left:1.2em}
+.doc-arquitectura .diagrama{margin:0 0 16px;padding:14px 16px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc;overflow:auto}
+.doc-arquitectura .diagrama pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.4;color:#17212f;white-space:pre}
 
 .tabla-wrap{overflow:auto;border:1px solid #e5eaf1;border-radius:14px;background:white}
 .tabla-wrap table{width:100%;border-collapse:collapse;font-size:14px}
@@ -436,34 +442,46 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </form>
 </dialog>
 <section class="main catalogos" id="documentacion" hidden aria-label="Documentación">
-<section class="conectar" aria-labelledby="conectar-titulo">
-<h3 id="conectar-titulo">Conectar un agente</h3>
-<p>Empieza leyendo Documentación → API (<a href="https://frescofresco.github.io/arquitectura-reservas/">https://frescofresco.github.io/arquitectura-reservas/</a>) y el contrato que ya está en el repo. No inventes rutas.</p>
-<p>El token se obtiene con el botón <strong>Generar token</strong>. La primera vez confirmas en GitHub con la cuenta que puede escribir en <code>FrescoFresco/arquitectura-reservas</code>. En este navegador, los clics siguientes emiten otro token sin volver a GitHub. El token dura 1 hora. Pégalo solo en el agente.</p>
-<p>Puede modificar: Skills (documento o versión), Campos ancla, Campos MongoDB y Proyectos. Cada publicación es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide.</p>
-<p>En Skills: <strong>Editar</strong> modifica el contenido y guarda una versión nueva; <strong>Subir versión</strong> carga un documento completo como versión nueva.</p>
-<p>El cliente de referencia es <code>scripts/subir.js</code>. Lee el índice antes de escribir.</p>
-<div class="token-box">
-<div class="token-acciones">
-<button type="button" class="btn primary" id="btnGenerarToken" aria-describedby="tokenDuracion">Generar token</button>
-<button type="button" class="btn ghost" id="btnOlvidar">Olvidar esta autorización</button>
-</div>
-<p class="aviso" id="tokenAviso" role="status" tabindex="-1" hidden></p>
-<p class="pegar" id="tokenDuracion">El token dura 1 hora.</p>
-<div id="tokenResultado" hidden>
-<label for="tokenValor">Token
-<input type="text" id="tokenValor" readonly autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off">
-</label>
-<div class="token-acciones">
-<button type="button" class="btn version compact" id="btnCopiarToken">Copiar</button>
-</div>
-<p class="pegar" id="tokenPegar">Pégalo en el agente, en GITHUB_TOKEN, y pulsa Enviar.</p>
-</div>
-</div>
-</section>
 <div class="catalogo-tabs" id="docTabs" role="tablist" aria-label="Documentación"></div>
-<div class="doc" role="tabpanel" id="panel-api" data-doc="api">
-<p>Un agente publica con la API de contenidos de GitHub. El token se obtiene con Generar token, en Conectar un agente, dura 1 hora y va en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No se guarda en esta página.</p>
+<div role="tabpanel" id="panel-fundamentos" data-doc="fundamentos">
+<div id="fundamentos-root"></div>
+</div>
+<div class="doc doc-arquitectura" role="tabpanel" id="panel-arquitectura" data-doc="arquitectura" hidden>
+<h3>Arquitectura de relaciones</h3>
+<p>Cómo se enlazan los catálogos entre sí. Los agentes no usan esta pantalla para trabajar: entran por API con una clave de invite.</p>
+<div class="diagrama" aria-label="Diagrama de relaciones">
+<pre>┌─────────────┐         N:M          ┌─────────────┐
+│  Proyecto   │◄───────────────────►│    Skill    │
+└─────────────┘                      └──────┬──────┘
+                                            │ 1:N
+                                            ▼
+                                     ┌─────────────┐
+                                     │ Campo ancla │
+                                     └──────┬──────┘
+                                            │ 0..1  (enlace opcional)
+                                            ▼
+                                     ┌─────────────┐
+                                     │ Campo Mongo │
+                                     └─────────────┘
+
+┌─────────────┐
+│   Agente    │   (acceso / latido; trabaja vía API)
+└─────────────┘
+
+┌─────────────┐
+│ Fundamento  │   (pieza base; vive en Documentación)
+└─────────────┘</pre>
+</div>
+<ul>
+<li><strong>Proyecto ↔ Skill (N:M)</strong> — un proyecto contiene una o más skills; una skill puede estar en uno o más proyectos.</li>
+<li><strong>Skill → Campo ancla (1:N)</strong> — una skill declara uno o más campos ancla.</li>
+<li><strong>Ancla → Campo Mongo (0..1)</strong> — un campo ancla puede enlazar a un campo Mongo (opcional).</li>
+<li><strong>Agente</strong> — invite + registro + latido; trabaja vía API, no con la UI.</li>
+<li><strong>Fundamento</strong> — bloque conceptual en Documentación con el que se describe el sistema.</li>
+</ul>
+</div>
+<div class="doc" role="tabpanel" id="panel-api" data-doc="api" hidden>
+<p>Un agente de trabajo obtiene acceso en Catálogos → Agentes → <strong>+ Agente</strong> (clave <code>inv_…</code> sin caducidad). Para publicar en el repo usa la API de contenidos de GitHub con un token de escritura en el entorno (<code>GITHUB_TOKEN</code> o <code>GH_TOKEN</code>). No se guarda en esta página.</p>
 <p>Repositorio <code>FrescoFresco/arquitectura-reservas</code>. Rama <code>main</code>. Cada publicación son dos escrituras: primero el archivo y después el índice, con el <code>sha</code> que devolvió el GET.</p>
 <h3>Subir un documento a Skills</h3>
 <p>El catálogo se llama Skills. El id interno es <code>skills</code> y la carpeta es <code>catalogo/skills/</code>. No hay otro catálogo de instrucciones al lado.</p>
@@ -761,6 +779,88 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 </div>
 </article>
 </dialog>
+<dialog id="dlgFundamento" class="dlg-wide" aria-labelledby="fundReaderNombre">
+<article class="reader dlg-reader" id="fundReader">
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>
+<div>
+<h3 id="fundReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="fundReaderVersion" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistorialFund" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialFund">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="historialFund" hidden role="dialog" aria-label="Versiones">
+<p class="historial-titulo">Versiones</p>
+<ul id="historialFundLista"></ul>
+</div>
+</div>
+<button type="button" class="icon-btn" id="btnEditarFundamento" aria-label="Editar fundamento" title="Editar (guarda como versión nueva)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnCerrarFundamento" aria-label="Cerrar">×</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="fundReaderTabs" role="tablist" aria-label="Secciones del fundamento">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="fundTabDoc" data-fund-tab="documento" aria-selected="true" aria-controls="fundPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="fundTabInterno" data-fund-tab="interno" aria-selected="false" aria-controls="fundPanelInterno">Interno</button>
+</div>
+<div class="reader-panel" id="fundPanelDoc" role="tabpanel" aria-labelledby="fundTabDoc">
+<div class="md-wrap"><div class="md" id="fundMd"></div></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="fundPanelInterno" role="tabpanel" aria-labelledby="fundTabInterno" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="fundReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="fundInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="fundHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="fundHashFull"></code></button><span id="fundHashVacio">—</span></dd></div>
+</dl>
+</div>
+</article>
+</dialog>
+<dialog id="dlgNuevoFundamento" aria-labelledby="dlgNuevoFundamentoTitulo">
+<form class="dlg" id="formNuevoFundamento">
+<h3 id="dlgNuevoFundamentoTitulo">Añadir fundamento</h3>
+<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="form-error" id="nuevoFundamentoError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre del fundamento">
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off" placeholder="Texto corto">
+</label>
+<label>Contenido (markdown)
+<textarea name="markdown" rows="10" placeholder="Documento del fundamento" required></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevoFundamentoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir fundamento</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarFundamento" class="dlg-wide" aria-labelledby="dlgEditarFundamentoTitulo">
+<form class="dlg" id="formEditarFundamento">
+<h3 id="dlgEditarFundamentoTitulo">Editar fundamento</h3>
+<p class="nota">Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
+<p class="form-error" id="editarFundamentoError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required>
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off">
+</label>
+<label>Contenido (markdown)
+<textarea name="markdown" rows="12" placeholder="Contenido"></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarFundamentoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar versión</button>
+</div>
+</form>
+</dialog>
 <dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
 <div class="dlg" id="panelDarAcceso">
 <h3 id="dlgDarAccesoTitulo">Dar acceso a un agente</h3>
@@ -769,6 +869,7 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
 <div class="agente-clave-box">
 <span>Clave API</span>
 <code id="darAccesoClave"></code>
+<span class="origen" style="margin:0">Sin caducidad</span>
 </div>
 <label for="darAccesoTexto">Instrucciones (copiar todo)
 <textarea id="darAccesoTexto" class="agente-instrucciones" readonly spellcheck="false"></textarea>
@@ -827,12 +928,13 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020w"></script>
-<script src="campos-ancla-ui.js?v=20261020w"></script>
-<script src="campos-mongodb-ui.js?v=20261020w"></script>
-<script src="proyectos-ui.js?v=20261020w"></script>
-<script src="agentes-ui.js?v=20261020w"></script>
-<script src="catalogo-ui.js?v=20261020w"></script>
+<script src="skills-ui.js?v=20261020y"></script>
+<script src="campos-ancla-ui.js?v=20261020y"></script>
+<script src="campos-mongodb-ui.js?v=20261020y"></script>
+<script src="proyectos-ui.js?v=20261020y"></script>
+<script src="agentes-ui.js?v=20261020y"></script>
+<script src="fundamentos-ui.js?v=20261020y"></script>
+<script src="catalogo-ui.js?v=20261020y"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>
