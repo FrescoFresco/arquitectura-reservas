@@ -161,41 +161,44 @@ dialog::backdrop{background:#17212f66}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.3;padding:5px 9px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
 .skill-card .ancla-pill{font-size:9.5px;line-height:1.25;padding:2px 6px}
-.hash-chip{appearance:none;display:inline-flex;align-items:center;margin:0;padding:2px 7px;border:1px solid #d5e2f7;border-radius:8px;background:#f4f7fb;color:#4a5d78;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.3;cursor:pointer}
-.hash-chip:hover{background:#edf3ff;color:#1c4fae}
-.hash-chip-inline{margin:6px 14px 0}
+.hash-full-btn{appearance:none;display:inline;margin:0;padding:0;border:0;background:transparent;cursor:pointer;text-align:left;max-width:100%}
+.hash-full{display:inline;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#edf3ff;color:#315eb6;padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
+.hash-full-btn:hover .hash-full{filter:brightness(.96)}
 .editar-anclas-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 2px}
 .editar-anclas-top .icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2;flex:none}
 .editar-anclas-top .icon-btn svg{width:16px;height:16px;display:block}
 .ancla-ficha{padding:0;min-width:0;background:#fbfdff}
-.ancla-ficha-header{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 18px 12px;background:#fbfdff;border-bottom:1px solid #e8eef6}
-.ancla-ficha-header-text{min-width:0;flex:1;display:flex;flex-direction:column;gap:6px}
-.ancla-ficha-ancla{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px;font-weight:700;color:#1c4fae;background:#edf3ff;padding:4px 8px;border-radius:8px;overflow-wrap:anywhere;max-width:100%}
-.ancla-ficha-etiqueta{margin:0;font-size:15px;font-weight:700;letter-spacing:-.01em;color:#17212f}
-.ancla-ficha-tabs{display:flex;gap:0;padding:0 18px;border-bottom:1px solid #e5eaf1;background:#fff}
-.ancla-ficha-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 14px;font:inherit;font-size:13px;font-weight:800;color:#677488;cursor:pointer}
+.ancla-ficha-header{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 14px;background:#fbfdff;border-bottom:1px solid #e8eef6}
+.ancla-ficha-header-text{min-width:0;flex:1;display:flex;flex-direction:column;gap:8px}
+.ancla-ficha-titulo{margin:0;font-size:18px;letter-spacing:-.02em;font-weight:700;color:#17212f;overflow-wrap:anywhere}
+.ancla-ficha-codigo{display:inline-block;width:fit-content;max-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6;background:#edf3ff;padding:3px 8px;border-radius:8px;overflow-wrap:anywhere}
+.ancla-ficha-tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid #e5eaf1;background:#fff;overflow-x:auto;scrollbar-width:none}
+.ancla-ficha-tabs::-webkit-scrollbar{display:none}
+.ancla-ficha-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:12px 12px;font:inherit;font-size:13px;font-weight:800;color:#677488;cursor:pointer;white-space:nowrap;flex:none}
 .ancla-ficha-tab.is-on{color:#1c63d5;border-bottom-color:#1c63d5}
 .ancla-ficha-tab:hover{color:#1c63d5}
-.ancla-ficha-body{padding:8px 18px 18px}
-.ancla-ficha-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px}
+.ancla-ficha-body{padding:14px 18px 20px}
+.ancla-ficha-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:4px}
 .ancla-skill-card{padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff}
 .ancla-skill-nombre{display:block;font-size:13px;font-weight:700;color:#17212f}
 .ancla-skill-id{display:block;margin-top:4px;font-size:11px;color:#677488}
 .ancla-ficha-local{margin:0 18px 16px}
-.ancla-celda .hash-chip-inline{display:block;margin:6px 0 0;width:fit-content}
+.reader-tabs{margin:4px 0 0}
+.reader-panel[hidden]{display:none!important}
 .skill-historial{position:absolute;top:calc(100% + 6px);right:0;width:min(280px,70vw);z-index:5}
 .ancla-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0;border:1px solid #dce5f2;border-radius:14px;overflow:hidden;background:#fff}
 .ancla-grid-item{margin:0;min-width:0}
 .ancla-celda{display:block;width:100%;height:100%;min-height:64px;margin:0;padding:12px 10px;border:0;border-right:1px solid #e5eaf1;border-bottom:1px solid #e5eaf1;background:#fbfdff;text-align:left;font:inherit;cursor:pointer;color:#1c4fae}
 .ancla-celda code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
 .ancla-celda:hover{background:#edf3ff}
-.ancla-celda.is-open{background:#e7efff;box-shadow:inset 0 0 0 2px #1c63d5}
+.ancla-celda.is-open{background:#f3f7ff}
 dialog.dlg-wide{width:min(760px,calc(100vw - 24px));max-height:min(90vh,900px);padding:0;border:0;border-radius:16px;box-shadow:0 20px 60px #17212f33;overflow:auto}
 dialog.dlg-wide::backdrop{background:#17212f66}
 .dlg-reader{border:0;border-radius:16px;min-height:0;background:#fbfdff}
-.dlg-reader .reader-top{padding:16px 16px 0}
+.dlg-reader .reader-top{padding:18px 18px 8px}
 .reader-top-acciones{display:flex;align-items:flex-start;gap:6px;flex:none}
 .reader-anclas{margin:0 16px 16px}
+.dlg-reader .md-wrap{padding-top:4px}
 .editar-anclas{margin:14px 0 0}
 .ancla-ficha-dl{margin:0}
 .ancla-ficha-fila{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px 12px;padding:8px 0;border-bottom:1px solid #eef2f7}
@@ -246,7 +249,6 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div>
 <h3 id="readerNombre" tabindex="-1"></h3>
 <p class="bloque-ver" id="readerVersion" aria-live="polite"></p>
-<button type="button" class="hash-chip" id="readerHash" hidden></button>
 <p class="origen" id="readerOrigen" hidden></p>
 </div>
 <div class="reader-top-acciones">
@@ -262,10 +264,23 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <button type="button" class="icon-btn" id="btnCerrarSkill" aria-label="Cerrar">×</button>
 </div>
 </div>
+<div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="readerTabDoc" data-reader-tab="documento" aria-selected="true" aria-controls="readerPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabInterno" data-reader-tab="interno" aria-selected="false" aria-controls="readerPanelInterno">Interno</button>
+</div>
+<div class="reader-panel" id="readerPanelDoc" role="tabpanel" aria-labelledby="readerTabDoc">
 <div class="md-wrap"><div class="md" id="md"></div></div>
 <div class="skill-anclas-box reader-anclas" id="readerAnclas" hidden>
 <p class="skill-anclas-titulo">Anclas</p>
 <div class="skill-anclas-list" id="readerAnclasLista"></div>
+</div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="readerPanelInterno" role="tabpanel" aria-labelledby="readerTabInterno" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="readerId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="readerInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="readerHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="readerHashFull"></code></button><span id="readerHashVacio">—</span></dd></div>
+</dl>
 </div>
 </article>
 </dialog>
@@ -620,10 +635,10 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020i"></script>
-<script src="campos-ancla-ui.js?v=20261020i"></script>
-<script src="campos-mongodb-ui.js?v=20261020i"></script>
-<script src="catalogo-ui.js?v=20261020i"></script>
+<script src="skills-ui.js?v=20261020j"></script>
+<script src="campos-ancla-ui.js?v=20261020j"></script>
+<script src="campos-mongodb-ui.js?v=20261020j"></script>
+<script src="catalogo-ui.js?v=20261020j"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>

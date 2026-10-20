@@ -1400,14 +1400,6 @@ function renderReader() {
   state.abiertaNumero = v.numero;
   document.getElementById('readerNombre').textContent = ins.nombre;
   document.getElementById('readerVersion').textContent = formatVersion(v.numero, v.fecha);
-  const hashEl = document.getElementById('readerHash');
-  if (hashEl) {
-    const full = normalizarHash(v.hash) || hashFnvHex(ins.id + '|' + v.numero + '|' + (v.ruta || v.fecha || ''));
-    hashEl.hidden = !full;
-    hashEl.textContent = full ? '#' + full.slice(0, 10) : '';
-    hashEl.title = full ? 'Hash completo: ' + full + ' (clic para copiar)' : '';
-    hashEl.dataset.hash = full || '';
-  }
   const origen = document.getElementById('readerOrigen');
   if (v.origen === 'local') {
     origen.hidden = false;
@@ -1416,12 +1408,46 @@ function renderReader() {
     origen.hidden = true;
     origen.textContent = '';
   }
+  const readerId = document.getElementById('readerId');
+  if (readerId) readerId.textContent = ins.id || '—';
+  const readerInternoVersion = document.getElementById('readerInternoVersion');
+  if (readerInternoVersion) readerInternoVersion.textContent = formatVersion(v.numero, v.fecha);
+  const full = normalizarHash(v.hash) || hashFnvHex(ins.id + '|' + v.numero + '|' + (v.ruta || v.fecha || ''));
+  const hashBtn = document.getElementById('readerHashBtn');
+  const hashFull = document.getElementById('readerHashFull');
+  const hashVacio = document.getElementById('readerHashVacio');
+  if (hashBtn && hashFull && hashVacio) {
+    if (full) {
+      hashFull.textContent = full;
+      hashBtn.hidden = false;
+      hashBtn.dataset.hash = full;
+      hashVacio.hidden = true;
+    } else {
+      hashBtn.hidden = true;
+      hashBtn.dataset.hash = '';
+      hashVacio.hidden = false;
+    }
+  }
+  seleccionarReaderTab('documento');
   renderHistorial(ins, v);
   pintarVersion(v);
   pintarReaderAnclas(ins);
   if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
   const nombre = document.getElementById('readerNombre');
   if (nombre) nombre.focus();
+}
+
+function seleccionarReaderTab(id) {
+  const tabs = document.querySelectorAll('#readerTabs [data-reader-tab]');
+  const panelDoc = document.getElementById('readerPanelDoc');
+  const panelInterno = document.getElementById('readerPanelInterno');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-reader-tab') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  if (panelDoc) panelDoc.hidden = id !== 'documento';
+  if (panelInterno) panelInterno.hidden = id !== 'interno';
 }
 
 function render() {
@@ -2605,9 +2631,15 @@ function iniciar() {
   if (historialLista) historialLista.addEventListener('click', onClickHistorial);
   const btnCerrarSkill = document.getElementById('btnCerrarSkill');
   if (btnCerrarSkill) btnCerrarSkill.addEventListener('click', cerrarSkillModal);
-  const readerHash = document.getElementById('readerHash');
-  if (readerHash) readerHash.addEventListener('click', function () {
-    const full = readerHash.dataset.hash || '';
+  const readerTabs = document.getElementById('readerTabs');
+  if (readerTabs) readerTabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-reader-tab]');
+    if (!btn) return;
+    seleccionarReaderTab(btn.getAttribute('data-reader-tab'));
+  });
+  const readerHashBtn = document.getElementById('readerHashBtn');
+  if (readerHashBtn) readerHashBtn.addEventListener('click', function () {
+    const full = readerHashBtn.dataset.hash || '';
     if (!full) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(full).catch(function () {});

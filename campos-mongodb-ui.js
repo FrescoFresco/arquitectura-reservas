@@ -4,6 +4,7 @@
   if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') return;
 
   var e = React.createElement;
+  var useState = React.useState;
 
   function Fila(props) {
     return e('div', { className: 'ancla-ficha-fila' },
@@ -12,59 +13,90 @@
     );
   }
 
-  function HashChip(props) {
+  function HashCopiable(props) {
     var full = typeof props.hash === 'string' ? props.hash.trim().toLowerCase() : '';
-    if (!full || full.length < 8) return null;
-    var corto = full.slice(0, 10);
-    return e('button', {
-      type: 'button',
-      className: 'hash-chip',
-      title: 'Hash completo: ' + full + ' (clic para copiar)',
-      'aria-label': 'Copiar hash ' + full,
-      onClick: function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(full).catch(function () {});
+    if (!full) return e(Fila, { label: 'Hash' }, '—');
+    return e(Fila, { label: 'Hash' },
+      e('button', {
+        type: 'button',
+        className: 'hash-full-btn',
+        title: 'Clic para copiar',
+        'aria-label': 'Copiar hash',
+        onClick: function (ev) {
+          ev.preventDefault();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(full).catch(function () {});
+          }
         }
-      }
-    }, '#' + corto);
+      }, e('code', { className: 'hash-full' }, full))
+    );
+  }
+
+  function Pestanas(props) {
+    var tab = props.tab;
+    var setTab = props.setTab;
+    var items = [
+      { id: 'definicion', label: 'Definición' },
+      { id: 'interno', label: 'Interno' }
+    ];
+    return e('div', { className: 'ancla-ficha-tabs', role: 'tablist', 'aria-label': 'Secciones del campo MongoDB' },
+      items.map(function (item) {
+        var selected = tab === item.id;
+        return e('button', {
+          type: 'button',
+          key: item.id,
+          role: 'tab',
+          className: 'ancla-ficha-tab' + (selected ? ' is-on' : ''),
+          'aria-selected': selected ? 'true' : 'false',
+          onClick: function () { setTab(item.id); }
+        }, item.label);
+      })
+    );
   }
 
   function Ficha(props) {
     var c = props.campo;
+    var tabState = useState('definicion');
+    var tab = tabState[0];
+    var setTab = tabState[1];
     if (!c) {
       return e('div', { className: 'ancla-ficha' },
         e('div', { className: 'ancla-ficha-header' },
           e('div', { className: 'ancla-ficha-header-text' },
-            e('h3', { className: 'ancla-ficha-etiqueta' }, 'Campo MongoDB')
+            e('h3', { className: 'ancla-ficha-titulo' }, 'Campo MongoDB')
           ),
           e('button', { type: 'button', className: 'icon-btn', 'aria-label': 'Cerrar', onClick: props.onCerrar }, '×')
         ),
-        e('p', { className: 'ancla-ficha-vacio', style: { padding: '12px 18px' } }, props.mensaje || 'No está en el catálogo Campos MongoDB.')
+        e('p', { className: 'ancla-ficha-vacio ancla-ficha-body' }, props.mensaje || 'No está en el catálogo Campos MongoDB.')
       );
     }
     var label = c.campo || (c.coleccion + '.' + c.clave);
     return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo MongoDB' },
       e('div', { className: 'ancla-ficha-header' },
         e('div', { className: 'ancla-ficha-header-text' },
-          e('code', { className: 'ancla-ficha-ancla' }, label),
-          e(HashChip, { hash: c.hash })
+          e('h3', { className: 'ancla-ficha-titulo' }, label),
+          c.ancla ? e('code', { className: 'ancla-ficha-codigo' }, c.ancla) : null
         ),
         e('button', { type: 'button', className: 'icon-btn', 'aria-label': 'Cerrar', onClick: props.onCerrar }, '×')
       ),
+      e(Pestanas, { tab: tab, setTab: setTab }),
       e('div', { className: 'ancla-ficha-body' },
-        e('dl', { className: 'ancla-ficha-dl' },
-          e(Fila, { label: 'Base' }, e('code', null, c.baseDatos || '—')),
-          e(Fila, { label: 'Colección' }, e('code', null, c.coleccion || '—')),
-          e(Fila, { label: 'Clave' }, e('code', null, c.clave || '—')),
-          e(Fila, { label: 'bsonType' }, e('code', null, c.bsonType || '—')),
-          e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
-          e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
-          e(Fila, { label: 'Enlazado a ancla' },
-            c.ancla ? e('code', { className: 'ancla-code' }, c.ancla) : '—'
+        tab === 'definicion'
+          ? e('dl', { className: 'ancla-ficha-dl', role: 'tabpanel' },
+            e(Fila, { label: 'Base' }, e('code', null, c.baseDatos || '—')),
+            e(Fila, { label: 'Colección' }, e('code', null, c.coleccion || '—')),
+            e(Fila, { label: 'Clave' }, e('code', null, c.clave || '—')),
+            e(Fila, { label: 'bsonType' }, e('code', null, c.bsonType || '—')),
+            e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
+            e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
+            e(Fila, { label: 'Enlazado a ancla' },
+              c.ancla ? e('code', { className: 'ancla-code' }, c.ancla) : '—'
+            )
           )
-        )
+          : e('dl', { className: 'ancla-ficha-dl', role: 'tabpanel' },
+            e(Fila, { label: 'Id' }, e('code', null, c.id || '—')),
+            e(HashCopiable, { hash: c.hash })
+          )
       ),
       c.origen === 'local'
         ? e('p', { className: 'origen ancla-ficha-local' }, 'En este navegador. No está en GitHub.')
@@ -76,18 +108,13 @@
     var c = props.campo;
     var abierta = props.abierta;
     var label = c.campo || (c.coleccion + '.' + c.clave);
-    var hash = typeof c.hash === 'string' ? c.hash.trim().toLowerCase() : '';
-    var corto = hash ? hash.slice(0, 10) : '';
     return e('button', {
       type: 'button',
       className: 'ancla-celda' + (abierta ? ' is-open' : ''),
       'aria-pressed': abierta ? 'true' : 'false',
-      title: (c.descripcion || label) + (hash ? ' · #' + hash : ''),
+      title: c.descripcion || label,
       onClick: function () { props.onAbrir(c.id); }
-    },
-      e('code', null, label),
-      corto ? e('span', { className: 'hash-chip hash-chip-inline', 'aria-hidden': 'true' }, '#' + corto) : null
-    );
+    }, e('code', null, label));
   }
 
   function MongoApp(props) {

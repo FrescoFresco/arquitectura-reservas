@@ -29,29 +29,31 @@
     return t || 'string';
   }
 
-  function HashChip(props) {
-    var full = typeof props.hash === 'string' ? props.hash.trim().toLowerCase() : '';
-    if (!full || full.length < 8) return null;
-    var corto = full.slice(0, 10);
-    return e('button', {
-      type: 'button',
-      className: 'hash-chip',
-      title: 'Hash completo: ' + full + ' (clic para copiar)',
-      'aria-label': 'Copiar hash ' + full,
-      onClick: function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(full).catch(function () {});
-        }
-      }
-    }, '#' + corto);
-  }
-
   function Fila(props) {
     return e('div', { className: 'ancla-ficha-fila' },
       e('dt', null, props.label),
       e('dd', null, props.children)
+    );
+  }
+
+  function HashCopiable(props) {
+    var full = typeof props.hash === 'string' ? props.hash.trim().toLowerCase() : '';
+    if (!full) {
+      return e(Fila, { label: 'Hash' }, '—');
+    }
+    return e(Fila, { label: 'Hash' },
+      e('button', {
+        type: 'button',
+        className: 'hash-full-btn',
+        title: 'Clic para copiar',
+        'aria-label': 'Copiar hash',
+        onClick: function (ev) {
+          ev.preventDefault();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(full).catch(function () {});
+          }
+        }
+      }, e('code', { className: 'hash-full' }, full))
     );
   }
 
@@ -61,7 +63,8 @@
     var items = [
       { id: 'definicion', label: 'Definición' },
       { id: 'mongo', label: 'Mongo' },
-      { id: 'skills', label: 'Skills' }
+      { id: 'skills', label: 'Skills' },
+      { id: 'interno', label: 'Interno' }
     ];
     return e('div', { className: 'ancla-ficha-tabs', role: 'tablist', 'aria-label': 'Secciones del ancla' },
       items.map(function (item) {
@@ -126,6 +129,14 @@
     );
   }
 
+  function PanelInterno(props) {
+    var c = props.campo;
+    return e('dl', { className: 'ancla-ficha-dl', id: 'ancla-panel-interno', role: 'tabpanel' },
+      e(Fila, { label: 'Id' }, e('code', null, c.id || '—')),
+      e(HashCopiable, { hash: c.hash })
+    );
+  }
+
   function Ficha(props) {
     var c = props.campo;
     var tabState = useState('definicion');
@@ -135,7 +146,7 @@
       return e('div', { className: 'ancla-ficha' },
         e('div', { className: 'ancla-ficha-header' },
           e('div', { className: 'ancla-ficha-header-text' },
-            e('h3', { className: 'ancla-ficha-ancla' }, 'Campo ancla')
+            e('h3', { className: 'ancla-ficha-titulo' }, 'Campo ancla')
           ),
           e('button', {
             type: 'button',
@@ -144,16 +155,15 @@
             onClick: props.onCerrar
           }, '×')
         ),
-        e('p', { className: 'ancla-ficha-vacio' }, props.mensaje || 'No está en el catálogo Campos ancla.')
+        e('p', { className: 'ancla-ficha-vacio ancla-ficha-body' }, props.mensaje || 'No está en el catálogo Campos ancla.')
       );
     }
     var skills = Array.isArray(c.skills) ? c.skills : [];
     return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo ancla' },
       e('div', { className: 'ancla-ficha-header' },
         e('div', { className: 'ancla-ficha-header-text' },
-          e('code', { className: 'ancla-ficha-ancla' }, c.ancla),
-          e('p', { className: 'ancla-ficha-etiqueta' }, c.etiqueta || 'Sin etiqueta'),
-          e(HashChip, { hash: c.hash })
+          e('h3', { className: 'ancla-ficha-titulo' }, c.etiqueta || 'Campo ancla'),
+          e('code', { className: 'ancla-ficha-codigo' }, c.ancla)
         ),
         e('button', {
           type: 'button',
@@ -166,7 +176,8 @@
       e('div', { className: 'ancla-ficha-body' },
         tab === 'definicion' ? e(PanelDefinicion, { campo: c }) : null,
         tab === 'mongo' ? e(PanelMongo, { campo: c, mongo: props.mongo }) : null,
-        tab === 'skills' ? e(PanelSkills, { skills: skills, nombres: props.nombresSkill }) : null
+        tab === 'skills' ? e(PanelSkills, { skills: skills, nombres: props.nombresSkill }) : null,
+        tab === 'interno' ? e(PanelInterno, { campo: c }) : null
       ),
       c.origen === 'local'
         ? e('p', { className: 'origen ancla-ficha-local' }, 'En este navegador. No está en GitHub.')
@@ -177,17 +188,14 @@
   function Celda(props) {
     var c = props.campo;
     var abierta = props.abierta;
-    var hash = typeof c.hash === 'string' ? c.hash.trim().toLowerCase() : '';
-    var corto = hash ? hash.slice(0, 10) : '';
     return e('button', {
       type: 'button',
       className: 'ancla-celda' + (abierta ? ' is-open' : ''),
       'aria-pressed': abierta ? 'true' : 'false',
-      title: (c.etiqueta || c.ancla) + (hash ? ' · #' + hash : ''),
+      title: c.etiqueta || c.ancla,
       onClick: function () { props.onAbrir(c.id); }
     },
-      e('code', null, c.ancla),
-      corto ? e('span', { className: 'hash-chip hash-chip-inline', 'aria-hidden': 'true' }, '#' + corto) : null
+      e('code', null, c.ancla)
     );
   }
 

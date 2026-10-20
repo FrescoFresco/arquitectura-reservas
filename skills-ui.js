@@ -51,25 +51,6 @@
     return ins.versiones[ins.versiones.length - 1];
   }
 
-  function HashChip(props) {
-    var full = typeof props.hash === 'string' ? props.hash.trim().toLowerCase() : '';
-    if (!full || full.length < 8) return null;
-    var corto = full.slice(0, 10);
-    return e('button', {
-      type: 'button',
-      className: 'hash-chip' + (props.inline ? ' hash-chip-inline' : ''),
-      title: 'Hash completo: ' + full + ' (clic para copiar)',
-      'aria-label': 'Copiar hash ' + full,
-      onClick: function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(full).catch(function () {});
-        }
-      }
-    }, '#' + corto);
-  }
-
   function HistorialPopup(props) {
     var ins = props.ins;
     var abierta = props.abierta;
@@ -125,7 +106,6 @@
     var isOpen = abierta && abierta.id === ins.id;
     var showHist = historialId === ins.id;
     var anclas = Array.isArray(ins.anclas) ? ins.anclas : [];
-    var hash = actual && actual.hash ? actual.hash : '';
 
     return e('article', {
       className: 'skill-card'
@@ -185,7 +165,6 @@
       },
         e('h4', { className: 'skill-nombre' }, ins.nombre)
       ),
-      e(HashChip, { hash: hash, inline: true }),
       actual.origen === 'local' ? e('p', { className: 'en-navegador skill-card-local' }, 'En este navegador') : null,
       ins.descripcion ? e('p', { className: 'skill-desc' }, ins.descripcion) : null,
       anclas.length ? e('div', { className: 'skill-anclas-box' },
