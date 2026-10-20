@@ -1,10 +1,10 @@
 'use strict';
 
 const CATALOGOS = [
+  { id: 'proyectos', nombre: 'Proyectos', icono: 'proyecto' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
-  { id: 'campos-mongodb', nombre: 'Campos MongoDB', icono: 'mongo' },
-  { id: 'proyectos', nombre: 'Proyectos', icono: 'proyecto' }
+  { id: 'campos-mongodb', nombre: 'Campos MongoDB', icono: 'mongo' }
 ];
 const TABLAS = [];
 const DOCUMENTOS = [

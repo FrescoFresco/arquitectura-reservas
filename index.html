@@ -239,7 +239,10 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div class="layout">
 <section class="main catalogos" id="catalogos" aria-label="Catálogos">
 <div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
-<div role="tabpanel" id="panel-skills" data-catalogo="skills">
+<div role="tabpanel" id="panel-proyectos" data-catalogo="proyectos">
+<div id="proyectos-root"></div>
+</div>
+<div role="tabpanel" id="panel-skills" data-catalogo="skills" hidden>
 <div id="skills-root"></div>
 </div>
 <div role="tabpanel" id="panel-campos-ancla" data-catalogo="campos-ancla" hidden>
@@ -247,9 +250,6 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 <div role="tabpanel" id="panel-campos-mongodb" data-catalogo="campos-mongodb" hidden>
 <div id="campos-mongodb-root"></div>
-</div>
-<div role="tabpanel" id="panel-proyectos" data-catalogo="proyectos" hidden>
-<div id="proyectos-root"></div>
 </div>
 </section>
 <dialog id="dlgSkill" class="dlg-wide" aria-labelledby="readerNombre">
@@ -770,11 +770,11 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020u"></script>
-<script src="campos-ancla-ui.js?v=20261020u"></script>
-<script src="campos-mongodb-ui.js?v=20261020u"></script>
-<script src="proyectos-ui.js?v=20261020u"></script>
-<script src="catalogo-ui.js?v=20261020u"></script>
+<script src="skills-ui.js?v=20261020v"></script>
+<script src="campos-ancla-ui.js?v=20261020v"></script>
+<script src="campos-mongodb-ui.js?v=20261020v"></script>
+<script src="proyectos-ui.js?v=20261020v"></script>
+<script src="catalogo-ui.js?v=20261020v"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>
