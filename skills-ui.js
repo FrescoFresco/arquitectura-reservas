@@ -111,6 +111,7 @@
     var onEditar = props.onEditar;
     var onSubir = props.onSubir;
     var onEliminar = props.onEliminar;
+    var onAbrirAncla = props.onAbrirAncla;
     var actual = versionActual(ins);
     var isOpen = abierta && abierta.id === ins.id;
     var showHist = historialId === ins.id;
@@ -191,7 +192,16 @@
         e('p', { className: 'skill-anclas-titulo' }, 'Anclas'),
         e('div', { className: 'skill-anclas-list' },
           anclas.map(function (a) {
-            return e('span', { className: 'ancla-pill', key: a }, a);
+            return e('button', {
+              type: 'button',
+              className: 'ancla-pill ancla-pill-btn',
+              key: a,
+              title: 'Ver campo ancla',
+              onClick: function (ev) {
+                ev.stopPropagation();
+                if (onAbrirAncla) onAbrirAncla(a);
+              }
+            }, a);
           })
         )
       ) : null
@@ -236,7 +246,8 @@
             onElegirVersion: function (id, n) { bridge.abrirSkill(id, n); },
             onEditar: function (id) { bridge.editarSkill(id); },
             onEliminar: function (id) { bridge.eliminarSkill(id); },
-            onSubir: function (id) { bridge.subirVersion(id); }
+            onSubir: function (id) { bridge.subirVersion(id); },
+            onAbrirAncla: function (ancla) { bridge.abrirAncla(ancla); }
           });
         })
       )

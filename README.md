@@ -17,11 +17,11 @@ Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualqui
 
 El sitio se sirve desde la rama `main`, carpeta raíz (`/`). Tras un push a `main`, Pages se actualiza solo (suele tardar uno o dos minutos).
 
-El menú principal tiene tres destinos: **Mapa**, **Catálogos** y **Documentación**. En pantalla estrecha esa barra queda fija abajo. Dentro de Catálogos hay dos pestañas: **Skills** (`catalogo/skills/`) y **Campos ancla** (`catalogo/campos-ancla/`). Dentro de Documentación hay una pestaña, **API**.
+El menú principal tiene tres destinos: **Mapa**, **Catálogos** y **Documentación**. En pantalla estrecha esa barra queda fija abajo. Dentro de Catálogos hay tres pestañas: **Skills**, **Campos ancla** y **Campos MongoDB**. Dentro de Documentación hay una pestaña, **API**.
 
-El índice de Skills está en [`catalogo/skills/index.json`](./catalogo/skills/index.json). Cada skill lleva `id`, `nombre`, `versiones` y, si hace falta, `descripcion` y `anclas` (nombres completos como `_negocio.nombre_`). Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga. La cuadrícula de Skills se renderiza con React (CDN). En cada tarjeta: ver, historial, editar (versión nueva al guardar), subir versión (documento completo) y eliminar.
+El índice de Skills está en [`catalogo/skills/index.json`](./catalogo/skills/index.json). Cada skill lleva `id`, `nombre`, `versiones` y, si hace falta, `descripcion` y `anclas` (nombres completos como `_negocio.nombre_`). Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga. La cuadrícula de Skills se renderiza con React (CDN). En cada tarjeta: ver (popup), historial, editar (versión nueva al guardar), subir versión (documento completo) y eliminar. Las cápsulas de anclas abren la ficha de Campos ancla.
 
-El índice de Campos ancla está en [`catalogo/campos-ancla/index.json`](./catalogo/campos-ancla/index.json). Cada celda muestra el ancla completo; al pulsarla se abre la ficha (Mongo, tipo, skills, etc.). También con React (CDN).
+El índice de Campos ancla está en [`catalogo/campos-ancla/index.json`](./catalogo/campos-ancla/index.json). Cada celda muestra el ancla completo; al pulsarla se abre un popup con la ficha. Campos MongoDB está en [`catalogo/campos-mongodb/index.json`](./catalogo/campos-mongodb/index.json): celdas `colección.clave` y ficha con bsonType y ancla enlazada.
 
 El mapa también está versionado en [`mapa/index.json`](./mapa/index.json). La versión 1 es el diagrama actual, [`mapa/v1.mmd`](./mapa/v1.mmd). El lápiz abre ese fuente. Cancelar no cambia nada. Guardar crea la versión siguiente en ese navegador y el mapa pasa a mostrarla.
 

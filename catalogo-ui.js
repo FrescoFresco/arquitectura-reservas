@@ -2,7 +2,8 @@
 
 const CATALOGOS = [
   { id: 'skills', nombre: 'Skills' },
-  { id: 'campos-ancla', nombre: 'Campos ancla' }
+  { id: 'campos-ancla', nombre: 'Campos ancla' },
+  { id: 'campos-mongodb', nombre: 'Campos MongoDB' }
 ];
 const TABLAS = [];
 const DOCUMENTOS = [
@@ -10,6 +11,7 @@ const DOCUMENTOS = [
 ];
 const LS_KEY = 'arquitectura-reservas.catalogo.skills';
 const LS_CAMPOS = 'arquitectura-reservas.catalogo.campos-ancla';
+const LS_MONGO = 'arquitectura-reservas.catalogo.campos-mongodb';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const OJO_ABIERTO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -27,6 +29,13 @@ const state = {
   historial: false,
   historialSkillId: null,
   campos: {
+    ready: false,
+    indexError: false,
+    remotos: [],
+    lista: [],
+    abiertoId: null
+  },
+  mongo: {
     ready: false,
     indexError: false,
     remotos: [],
@@ -481,11 +490,11 @@ function skillsBridge() {
     abrirSkill: function (id, numero) {
       state.historialSkillId = null;
       if (state.abiertaId === id && numero == null) {
-        state.abiertaId = null;
-        state.abiertaNumero = null;
-        state.historial = false;
-        render();
-        return;
+        const dlg = document.getElementById('dlgSkill');
+        if (dlg && dlg.open) {
+          cerrarSkillModal();
+          return;
+        }
       }
       abrirInstruccion(id, numero == null ? null : numero);
     },
@@ -495,7 +504,8 @@ function skillsBridge() {
     },
     editarSkill: function (id) { abrirDialogoEditar(id); },
     eliminarSkill: function (id) { abrirDialogoEliminar(id); },
-    subirVersion: function (id) { abrirDialogoVersion(id); }
+    subirVersion: function (id) { abrirDialogoVersion(id); },
+    abrirAncla: function (ancla) { abrirFichaAncla(ancla); }
   };
 }
 
@@ -596,22 +606,278 @@ function camposBridge() {
         abierta: abierta
       };
     },
-    abrirCampo: function (id) {
-      state.campos.abiertoId = state.campos.abiertoId === id ? null : id;
-      pintarCampos();
-    },
-    cerrarCampo: function () {
-      state.campos.abiertoId = null;
-      pintarCampos();
-    },
+    abrirCampo: function (id) { abrirFichaCampo(id); },
+    cerrarCampo: function () { cerrarFichaCampo(); },
     añadirCampo: function () { abrirDialogoCampo(); }
   };
+}
+
+function buscarCampoPorAncla(texto) {
+  let a = String(texto || '').trim();
+  if (!a) return null;
+  if (a.charAt(0) !== '_') a = '_' + a;
+  if (a.charAt(a.length - 1) !== '_') a = a + '_';
+  const id = a.replace(/^_|_$/g, '');
+  return state.campos.lista.find(function (c) {
+    return c.ancla === a || c.id === id;
+  }) || null;
+}
+
+function abrirFichaCampo(id) {
+  refrescarCampos();
+  const campo = state.campos.lista.find(function (c) { return c.id === id; }) || null;
+  if (!campo) {
+    abrirFichaAncla('_' + id + '_');
+    return;
+  }
+  state.campos.abiertoId = campo.id;
+  const dlg = document.getElementById('dlgCampoFicha');
+  if (window.CamposAnclaUI && window.CamposAnclaUI.mostrarFicha) {
+    window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo);
+  }
+  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  pintarCampos();
+}
+
+function abrirFichaAncla(texto) {
+  refrescarCampos();
+  const campo = buscarCampoPorAncla(texto);
+  const dlg = document.getElementById('dlgCampoFicha');
+  if (campo) {
+    state.campos.abiertoId = campo.id;
+    if (window.CamposAnclaUI && window.CamposAnclaUI.mostrarFicha) {
+      window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo);
+    }
+  } else {
+    state.campos.abiertoId = null;
+    if (window.CamposAnclaUI && window.CamposAnclaUI.mostrarFicha) {
+      window.CamposAnclaUI.mostrarFicha(null, cerrarFichaCampo, 'Este ancla no está en el catálogo Campos ancla.');
+    }
+  }
+  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  pintarCampos();
+}
+
+function cerrarFichaCampo() {
+  state.campos.abiertoId = null;
+  const dlg = document.getElementById('dlgCampoFicha');
+  if (dlg && dlg.open) dlg.close();
+  if (window.CamposAnclaUI && window.CamposAnclaUI.limpiarFicha) {
+    window.CamposAnclaUI.limpiarFicha();
+  }
+  pintarCampos();
+}
+
+function cerrarSkillModal() {
+  state.abiertaId = null;
+  state.abiertaNumero = null;
+  state.historial = false;
+  const dlg = document.getElementById('dlgSkill');
+  if (dlg && dlg.open) dlg.close();
+  render();
 }
 
 function pintarCampos() {
   if (window.CamposAnclaUI && typeof window.CamposAnclaUI.refrescar === 'function') {
     window.CamposAnclaUI.refrescar(camposBridge());
   }
+}
+
+function normalizeMongoCampo(item) {
+  if (!item || typeof item !== 'object') return null;
+  const coleccion = typeof item.coleccion === 'string' ? item.coleccion.trim() : '';
+  const clave = typeof item.clave === 'string' ? item.clave.trim() : '';
+  let campo = typeof item.campo === 'string' ? item.campo.trim() : '';
+  if (!campo && coleccion && clave) campo = coleccion + '.' + clave;
+  if (!campo) return null;
+  const id = (typeof item.id === 'string' && item.id.trim())
+    ? item.id.trim()
+    : campo.replace(/\./g, '-');
+  let ancla = typeof item.ancla === 'string' ? item.ancla.trim() : '';
+  if (ancla && ancla.charAt(0) !== '_') ancla = '_' + ancla;
+  if (ancla && ancla.charAt(ancla.length - 1) !== '_') ancla = ancla + '_';
+  return {
+    id: id,
+    campo: campo,
+    baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : 'arquitectura_reservas',
+    coleccion: coleccion || campo.split('.')[0],
+    clave: clave || campo.split('.').slice(1).join('.'),
+    bsonType: typeof item.bsonType === 'string' ? item.bsonType.trim() : 'string',
+    obligatorio: !!item.obligatorio,
+    descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim() : '',
+    ancla: ancla
+  };
+}
+
+function normalizeMongoIndice(data) {
+  const list = data && Array.isArray(data.campos) ? data.campos : (Array.isArray(data) ? data : []);
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    const c = normalizeMongoCampo(item);
+    if (!c || seen.has(c.id)) return;
+    seen.add(c.id);
+    c.origen = 'indice';
+    out.push(c);
+  });
+  return out;
+}
+
+function leerMongoStore() {
+  try {
+    const raw = localStorage.getItem(LS_MONGO);
+    if (!raw) return { campos: [], eliminados: [] };
+    const data = JSON.parse(raw);
+    return {
+      campos: Array.isArray(data.campos) ? data.campos : [],
+      eliminados: Array.isArray(data.eliminados) ? data.eliminados : []
+    };
+  } catch (e) {
+    return { campos: [], eliminados: [] };
+  }
+}
+
+function guardarMongoStore(store) {
+  localStorage.setItem(LS_MONGO, JSON.stringify(store));
+}
+
+function mergeMongo(remotos, locales, eliminados) {
+  const map = new Map();
+  remotos.forEach(function (c) { map.set(c.id, Object.assign({}, c)); });
+  (locales || []).forEach(function (raw) {
+    const c = normalizeMongoCampo(raw);
+    if (!c) return;
+    c.origen = 'local';
+    map.set(c.id, c);
+  });
+  const ocultos = new Set(eliminados || []);
+  return Array.from(map.values()).filter(function (c) { return !ocultos.has(c.id); });
+}
+
+function refrescarMongo() {
+  const store = leerMongoStore();
+  state.mongo.lista = mergeMongo(state.mongo.remotos, store.campos, store.eliminados);
+}
+
+function mongoBridge() {
+  return {
+    getSnapshot: function () {
+      const abierta = state.mongo.abiertoId
+        ? state.mongo.lista.find(function (c) { return c.id === state.mongo.abiertoId; }) || null
+        : null;
+      return {
+        ready: state.mongo.ready,
+        indexError: state.mongo.indexError,
+        campos: state.mongo.lista,
+        abierta: abierta
+      };
+    },
+    abrirCampo: function (id) { abrirFichaMongo(id); },
+    cerrarCampo: function () { cerrarFichaMongo(); },
+    añadirCampo: function () { abrirDialogoMongo(); }
+  };
+}
+
+function pintarMongo() {
+  if (window.CamposMongoUI && typeof window.CamposMongoUI.refrescar === 'function') {
+    window.CamposMongoUI.refrescar(mongoBridge());
+  }
+}
+
+function abrirFichaMongo(id) {
+  refrescarMongo();
+  const campo = state.mongo.lista.find(function (c) { return c.id === id; }) || null;
+  const dlg = document.getElementById('dlgMongoFicha');
+  state.mongo.abiertoId = campo ? campo.id : null;
+  if (window.CamposMongoUI && window.CamposMongoUI.mostrarFicha) {
+    window.CamposMongoUI.mostrarFicha(
+      campo,
+      cerrarFichaMongo,
+      campo ? null : 'Este campo no está en el catálogo Campos MongoDB.'
+    );
+  }
+  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  pintarMongo();
+}
+
+function cerrarFichaMongo() {
+  state.mongo.abiertoId = null;
+  const dlg = document.getElementById('dlgMongoFicha');
+  if (dlg && dlg.open) dlg.close();
+  if (window.CamposMongoUI && window.CamposMongoUI.limpiarFicha) window.CamposMongoUI.limpiarFicha();
+  pintarMongo();
+}
+
+function cargarMongo() {
+  fetch('catalogo/campos-mongodb/index.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.json();
+    })
+    .then(function (data) {
+      state.mongo.remotos = normalizeMongoIndice(data);
+      state.mongo.indexError = false;
+    })
+    .catch(function () {
+      state.mongo.remotos = [];
+      state.mongo.indexError = true;
+    })
+    .then(function () {
+      state.mongo.ready = true;
+      refrescarMongo();
+      pintarMongo();
+    });
+}
+
+function abrirDialogoMongo() {
+  const dlg = document.getElementById('dlgMongo');
+  const form = document.getElementById('formMongo');
+  if (!dlg || !form) return;
+  form.reset();
+  const err = document.getElementById('mongoError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  if (form.coleccion) form.coleccion.focus();
+}
+
+function onSubmitMongo(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('mongoError');
+  if (error) error.textContent = '';
+  const coleccion = form.coleccion.value.trim();
+  const clave = form.clave.value.trim();
+  if (!coleccion || !clave) {
+    if (error) error.textContent = 'Colección y clave son obligatorias.';
+    return;
+  }
+  const campo = normalizeMongoCampo({
+    campo: coleccion + '.' + clave,
+    baseDatos: form.baseDatos.value.trim() || 'arquitectura_reservas',
+    coleccion: coleccion,
+    clave: clave,
+    bsonType: form.bsonType.value.trim() || 'string',
+    obligatorio: !!form.obligatorio.checked,
+    descripcion: form.descripcion.value.trim(),
+    ancla: form.ancla.value.trim()
+  });
+  if (!campo) {
+    if (error) error.textContent = 'No se pudo crear el campo.';
+    return;
+  }
+  const store = leerMongoStore();
+  store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
+  store.campos.push(campo);
+  store.eliminados = (store.eliminados || []).filter(function (id) { return id !== campo.id; });
+  try {
+    guardarMongoStore(store);
+  } catch (err) {
+    if (error) error.textContent = err.message || 'No se pudo guardar.';
+    return;
+  }
+  document.getElementById('dlgMongo').close();
+  refrescarMongo();
+  abrirFichaMongo(campo.id);
 }
 
 function cargarCampos() {
@@ -693,8 +959,7 @@ function onSubmitCampo(e) {
   }
   document.getElementById('dlgCampo').close();
   refrescarCampos();
-  state.campos.abiertoId = campo.id;
-  pintarCampos();
+  abrirFichaCampo(campo.id);
 }
 
 function textoDeVersionActual(v) {
@@ -939,22 +1204,19 @@ function renderHistorial(ins, abierta) {
 }
 
 function renderReader() {
-  const split = document.getElementById('catalogoSplit');
+  const dlg = document.getElementById('dlgSkill');
   const reader = document.getElementById('reader');
-  if (!split || !reader) return;
+  if (!reader) return;
   const ins = instruccionAbierta();
   if (!ins) {
     state.abiertaId = null;
     state.abiertaNumero = null;
     state.historial = false;
-    reader.hidden = true;
-    split.classList.remove('is-open');
+    if (dlg && dlg.open) dlg.close();
     return;
   }
   const v = versionAbierta(ins);
   state.abiertaNumero = v.numero;
-  reader.hidden = false;
-  split.classList.add('is-open');
   document.getElementById('readerNombre').textContent = ins.nombre;
   document.getElementById('readerVersion').textContent = formatVersion(v.numero, v.fecha);
   const origen = document.getElementById('readerOrigen');
@@ -967,6 +1229,9 @@ function renderReader() {
   }
   renderHistorial(ins, v);
   pintarVersion(v);
+  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  const nombre = document.getElementById('readerNombre');
+  if (nombre) nombre.focus();
 }
 
 function render() {
@@ -1126,10 +1391,6 @@ function abrirInstruccion(id, numero) {
   state.historial = false;
   state.historialSkillId = null;
   render();
-  if (window.matchMedia('(max-width: 800px)').matches) {
-    const reader = document.getElementById('reader');
-    if (reader) reader.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
 
 function cerrarHistorial() {
@@ -1297,6 +1558,10 @@ function seleccionarCatalogo(id) {
   if (id === 'campos-ancla') {
     refrescarCampos();
     pintarCampos();
+  }
+  if (id === 'campos-mongodb') {
+    refrescarMongo();
+    pintarMongo();
   }
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
@@ -2109,6 +2374,18 @@ function iniciar() {
   if (campoCancelar) campoCancelar.addEventListener('click', function () {
     document.getElementById('dlgCampo').close();
   });
+  const formMongo = document.getElementById('formMongo');
+  if (formMongo) formMongo.addEventListener('submit', onSubmitMongo);
+  const mongoCancelar = document.getElementById('mongoCancelar');
+  if (mongoCancelar) mongoCancelar.addEventListener('click', function () {
+    document.getElementById('dlgMongo').close();
+  });
+  const dlgMongoFicha = document.getElementById('dlgMongoFicha');
+  if (dlgMongoFicha) dlgMongoFicha.addEventListener('close', function () {
+    state.mongo.abiertoId = null;
+    if (window.CamposMongoUI && window.CamposMongoUI.limpiarFicha) window.CamposMongoUI.limpiarFicha();
+    pintarMongo();
+  });
   const nuevaArchivo = document.getElementById('nuevaArchivo');
   if (nuevaArchivo) nuevaArchivo.addEventListener('change', function (e) {
     nombreDeArchivo(e.target, 'nuevaArchivoNombre');
@@ -2121,6 +2398,25 @@ function iniciar() {
   if (btnHistorial) btnHistorial.addEventListener('click', alternarHistorial);
   const historialLista = document.getElementById('historialLista');
   if (historialLista) historialLista.addEventListener('click', onClickHistorial);
+  const btnCerrarSkill = document.getElementById('btnCerrarSkill');
+  if (btnCerrarSkill) btnCerrarSkill.addEventListener('click', cerrarSkillModal);
+  const dlgSkill = document.getElementById('dlgSkill');
+  if (dlgSkill) dlgSkill.addEventListener('close', function () {
+    if (state.abiertaId) {
+      state.abiertaId = null;
+      state.abiertaNumero = null;
+      state.historial = false;
+      pintarSkills();
+    }
+  });
+  const dlgCampoFicha = document.getElementById('dlgCampoFicha');
+  if (dlgCampoFicha) dlgCampoFicha.addEventListener('close', function () {
+    if (state.campos.abiertoId || (window.CamposAnclaUI && document.getElementById('campo-ficha-mount').childNodes.length)) {
+      state.campos.abiertoId = null;
+      if (window.CamposAnclaUI && window.CamposAnclaUI.limpiarFicha) window.CamposAnclaUI.limpiarFicha();
+      pintarCampos();
+    }
+  });
   const btnEdicion = document.getElementById('btnEdicion');
   if (btnEdicion) btnEdicion.addEventListener('click', abrirEdicionMapa);
   const formMapa = document.getElementById('formMapa');
@@ -2156,10 +2452,9 @@ function iniciar() {
       pintarSkills();
       return;
     }
-    if (state.campos.abiertoId && state.catalogoId === 'campos-ancla') {
-      e.preventDefault();
-      state.campos.abiertoId = null;
-      pintarCampos();
+    const dlgCampoFichaEsc = document.getElementById('dlgCampoFicha');
+    if (dlgCampoFichaEsc && dlgCampoFichaEsc.open) {
+      // native dialog handles Escape; close listener clears state
       return;
     }
     if (state.historial) {
@@ -2198,6 +2493,7 @@ function iniciar() {
     });
   cargarMapa();
   cargarCampos();
+  cargarMongo();
 }
 
 const api = {

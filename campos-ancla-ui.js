@@ -24,9 +24,22 @@
 
   function Ficha(props) {
     var c = props.campo;
-    if (!c) return null;
+    if (!c) {
+      return e('div', { className: 'ancla-ficha' },
+        e('div', { className: 'ancla-ficha-top' },
+          e('h3', { className: 'ancla-ficha-titulo' }, 'Campo ancla'),
+          e('button', {
+            type: 'button',
+            className: 'icon-btn',
+            'aria-label': 'Cerrar',
+            onClick: props.onCerrar
+          }, '×')
+        ),
+        e('p', { className: 'ancla-ficha-vacio' }, props.mensaje || 'No está en el catálogo Campos ancla.')
+      );
+    }
     var skills = Array.isArray(c.skills) ? c.skills : [];
-    return e('div', { className: 'ancla-ficha', role: 'dialog', 'aria-label': 'Ficha del campo ancla' },
+    return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo ancla' },
       e('div', { className: 'ancla-ficha-top' },
         e('h3', { className: 'ancla-ficha-titulo' }, 'Campo ancla'),
         e('button', {
@@ -99,40 +112,54 @@
         }, '+ Añadir ancla')
       ),
       e('p', { className: 'limite' },
-        'Cada celda es un campo ancla. Al pulsarla se abre la ficha con el enlace a Mongo y las skills que lo usan. Añadir ancla se queda en este navegador.'
+        'Cada celda es un campo ancla. Al pulsarla se abre la ficha en un popup. Añadir ancla se queda en este navegador.'
       ),
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
-      e('div', { className: 'campos-layout' + (abierta ? ' is-open' : '') },
-        e('div', { className: 'ancla-grid', role: 'list' },
-          campos.map(function (c) {
-            return e('div', { key: c.id, role: 'listitem', className: 'ancla-grid-item' },
-              e(Celda, {
-                campo: c,
-                abierta: !!(abierta && abierta.id === c.id),
-                onAbrir: function (id) { bridge.abrirCampo(id); }
-              })
-            );
-          })
-        ),
-        abierta ? e(Ficha, {
-          campo: abierta,
-          onCerrar: function () { bridge.cerrarCampo(); }
-        }) : null
+      e('div', { className: 'ancla-grid', role: 'list' },
+        campos.map(function (c) {
+          return e('div', { key: c.id, role: 'listitem', className: 'ancla-grid-item' },
+            e(Celda, {
+              campo: c,
+              abierta: !!(abierta && abierta.id === c.id),
+              onAbrir: function (id) { bridge.abrirCampo(id); }
+            })
+          );
+        })
       )
     );
   }
 
-  var reactRoot = null;
+  var gridRoot = null;
+  var fichaRoot = null;
 
-  function montar(bridge) {
+  function montarGrid(bridge) {
     var root = document.getElementById('campos-ancla-root');
     if (!root || !bridge) return;
-    if (!reactRoot) reactRoot = ReactDOM.createRoot(root);
-    reactRoot.render(e(CamposApp, { bridge: bridge }));
+    if (!gridRoot) gridRoot = ReactDOM.createRoot(root);
+    gridRoot.render(e(CamposApp, { bridge: bridge }));
+  }
+
+  function mostrarFicha(campo, onCerrar, mensaje) {
+    var mount = document.getElementById('campo-ficha-mount');
+    if (!mount) return;
+    if (!fichaRoot) fichaRoot = ReactDOM.createRoot(mount);
+    fichaRoot.render(e(Ficha, {
+      campo: campo || null,
+      mensaje: mensaje,
+      onCerrar: onCerrar
+    }));
+  }
+
+  function limpiarFicha() {
+    var mount = document.getElementById('campo-ficha-mount');
+    if (!mount || !fichaRoot) return;
+    fichaRoot.render(null);
   }
 
   window.CamposAnclaUI = {
-    montar: montar,
-    refrescar: function (bridge) { montar(bridge); }
+    montar: montarGrid,
+    refrescar: function (bridge) { montarGrid(bridge); },
+    mostrarFicha: mostrarFicha,
+    limpiarFicha: limpiarFicha
   };
 })();
