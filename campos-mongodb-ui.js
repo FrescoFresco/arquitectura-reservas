@@ -192,9 +192,26 @@
         ),
         e('button', {
           type: 'button',
-          className: 'btn primary',
+          className: 'btn primary btn-anadir',
           onClick: function () { bridge.añadirCampo(); }
-        }, '+ Añadir campo')
+        },
+          e('span', { className: 'btn-anadir-plus', 'aria-hidden': 'true' }, '+'),
+          e('svg', {
+            className: 'btn-anadir-svg',
+            viewBox: '0 0 24 24',
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: '2',
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            'aria-hidden': 'true'
+          },
+            e('ellipse', { cx: '12', cy: '6', rx: '7', ry: '3' }),
+            e('path', { d: 'M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6' }),
+            e('path', { d: 'M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6' })
+          ),
+          e('span', null, 'Añadir campo')
+        )
       ),
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
       e('div', { className: 'catalogo-lista', role: 'list' },

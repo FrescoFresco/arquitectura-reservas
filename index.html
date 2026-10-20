@@ -51,6 +51,9 @@
 .btn:disabled{opacity:.6;cursor:wait}
 .btn.primary,.btn.ver{background:#1c63d5;color:white;border:1px solid #1c63d5}
 .btn.primary{padding:10px 14px}
+.btn-anadir{display:inline-flex;align-items:center;gap:8px}
+.btn-anadir-plus{font-weight:800;line-height:1;font-size:15px}
+.btn-anadir-svg{width:16px;height:16px;display:block;flex:none}
 .btn.version,.btn.ghost{background:white;color:#1c63d5;border:1px solid #c5d4ef}
 .btn.version{display:block;width:100%;margin-top:12px}
 .btn.ver{display:inline-block;margin-top:10px}
@@ -143,31 +146,13 @@ dialog::backdrop{background:#17212f66}
 .tabla-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .dlg select{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;background:white;color:#17212f}
 
-.skills-toolbar{display:flex;justify-content:flex-end;margin:0 0 4px}
 .catalogo-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;margin:0 0 16px}
 .catalogo-toolbar .limite{margin:0;flex:1;min-width:0;max-width:none;white-space:nowrap}
 .catalogo-toolbar .btn{flex:none}
-.skills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;align-items:start}
-.skill-card{position:relative;display:block;width:100%;margin:0;border:1px solid #e5eaf1;border-radius:14px;background:white;padding:0 0 14px;overflow:visible;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
-.skill-card:hover{background:#fafbfd;border-color:#c9d5e8}
-.skill-card:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
-.skill-card.is-open{border-color:#9db7ea;background:#f8fbff}
-.skill-card-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 14px 0}
-.skill-card-ver{margin:0;flex:1;min-width:0}
-.skill-card-titulo{display:block;width:calc(100% - 28px);margin:10px 14px 0;padding:0}
-.skill-nombre{margin:0;font-size:16px;letter-spacing:-.02em;overflow-wrap:anywhere}
-.skill-desc{margin:8px 14px 0;color:#5f6f84;font-size:13px;line-height:1.5}
-.skill-card-local{margin:6px 14px 0}
-.skill-card-acciones{display:flex;align-items:center;gap:4px;flex:none;position:relative;flex-wrap:nowrap}
-.skill-card-acciones .icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2;flex:none}
-.skill-card-acciones .icon-btn.is-on,.skill-card-acciones .icon-btn[aria-expanded="true"],.skill-card-acciones .icon-btn[aria-pressed="true"]{background:#edf3ff;border-color:#9db7ea;color:#1c63d5}
-.skill-card-acciones .icon-btn svg{width:16px;height:16px;display:block}
 .skill-anclas-box{margin:12px 14px 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc}
 .skill-anclas-titulo{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#677488}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;line-height:1.25;padding:2px 6px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
-.skill-card .ancla-pill{font-size:8px;line-height:1.2;padding:1px 5px}
-.skill-card .skill-anclas-list{gap:4px;margin-top:6px}
 .hash-full-btn{appearance:none;display:inline;margin:0;padding:0;border:0;background:transparent;cursor:pointer;text-align:left;max-width:100%}
 .hash-full{display:inline;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#edf3ff;color:#315eb6;padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
 .hash-full-btn:hover .hash-full{filter:brightness(.96)}
@@ -197,7 +182,6 @@ dialog::backdrop{background:#17212f66}
 .ancla-ficha-local{margin:0 18px 16px}
 .reader-tabs{margin:4px 0 0}
 .reader-panel[hidden]{display:none!important}
-.skill-historial{position:absolute;top:calc(100% + 6px);right:0;width:min(280px,70vw);z-index:5}
 .catalogo-lista{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
 .catalogo-fila{display:flex;align-items:center;gap:12px;width:100%;min-width:0;margin:0;padding:12px 12px 12px 14px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
 .catalogo-fila:hover{background:#f5f8fc;border-color:#c9d5e8}
@@ -231,7 +215,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .ancla-pill-btn:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
 .icon-btn.is-on{background:#edf3ff}
 .ancla-ficha-vacio{margin:8px 0 0;color:#5f6f84;font-size:14px;line-height:1.5}
-@media(max-width:800px){.skills-grid{grid-template-columns:1fr}.ancla-ficha-fila{grid-template-columns:1fr}}
+@media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
 </style>
 </head>
@@ -279,6 +263,12 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 <button type="button" class="icon-btn" id="btnEditarSkill" aria-label="Editar skill" title="Editar (guarda como versión nueva)">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnSubirSkill" aria-label="Subir versión" title="Subir versión (documento completo)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarSkill" aria-label="Eliminar skill" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
 <button type="button" class="icon-btn" id="btnCerrarSkill" aria-label="Cerrar">×</button>
 </div>
@@ -651,10 +641,10 @@ GITHUB_TOKEN=TOKEN node scripts/subir.js skills --eliminar --id mapear-recorrido
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261020n"></script>
-<script src="campos-ancla-ui.js?v=20261020n"></script>
-<script src="campos-mongodb-ui.js?v=20261020n"></script>
-<script src="catalogo-ui.js?v=20261020n"></script>
+<script src="skills-ui.js?v=20261020q"></script>
+<script src="campos-ancla-ui.js?v=20261020q"></script>
+<script src="campos-mongodb-ui.js?v=20261020q"></script>
+<script src="catalogo-ui.js?v=20261020q"></script>
 <script src="token-ui.js?v=20261020b"></script>
 
 </body>

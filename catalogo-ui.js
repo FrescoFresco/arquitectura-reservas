@@ -2749,6 +2749,16 @@ function iniciar() {
     if (!state.abiertaId) return;
     abrirDialogoEditar(state.abiertaId);
   });
+  const btnSubirSkill = document.getElementById('btnSubirSkill');
+  if (btnSubirSkill) btnSubirSkill.addEventListener('click', function () {
+    if (!state.abiertaId) return;
+    abrirDialogoVersion(state.abiertaId);
+  });
+  const btnEliminarSkill = document.getElementById('btnEliminarSkill');
+  if (btnEliminarSkill) btnEliminarSkill.addEventListener('click', function () {
+    if (!state.abiertaId) return;
+    abrirDialogoEliminar(state.abiertaId);
+  });
   const readerTabs = document.getElementById('readerTabs');
   if (readerTabs) readerTabs.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-reader-tab]');

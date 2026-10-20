@@ -297,9 +297,27 @@
         ),
         e('button', {
           type: 'button',
-          className: 'btn primary',
+          className: 'btn primary btn-anadir',
           onClick: function () { bridge.añadirCampo(); }
-        }, '+ Añadir ancla')
+        },
+          e('span', { className: 'btn-anadir-plus', 'aria-hidden': 'true' }, '+'),
+          e('svg', {
+            className: 'btn-anadir-svg',
+            viewBox: '0 0 24 24',
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: '2',
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            'aria-hidden': 'true'
+          },
+            e('circle', { cx: '12', cy: '5', r: '2.5' }),
+            e('path', { d: 'M12 7.5v10.5' }),
+            e('path', { d: 'M8 14c0 2.5 1.8 4.5 4 4.5s4-2 4-4.5' }),
+            e('path', { d: 'M7 11h10' })
+          ),
+          e('span', null, 'Añadir ancla')
+        )
       ),
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
       e('div', { className: 'catalogo-lista', role: 'list' },
