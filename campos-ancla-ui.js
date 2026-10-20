@@ -185,17 +185,60 @@
     );
   }
 
-  function Celda(props) {
+  function IconoAncla() {
+    return e('svg', {
+      className: 'catalogo-fila-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('circle', { cx: '12', cy: '5', r: '2.5' }),
+      e('path', { d: 'M12 7.5v10.5' }),
+      e('path', { d: 'M8 14c0 2.5 1.8 4.5 4 4.5s4-2 4-4.5' }),
+      e('path', { d: 'M7 11h10' })
+    );
+  }
+
+  function FilaLista(props) {
     var c = props.campo;
     var abierta = props.abierta;
-    return e('button', {
-      type: 'button',
-      className: 'ancla-celda' + (abierta ? ' is-open' : ''),
-      'aria-pressed': abierta ? 'true' : 'false',
-      title: c.etiqueta || c.ancla,
-      onClick: function () { props.onAbrir(c.id); }
+    var titulo = c.etiqueta || c.ancla;
+    function abrir() { props.onAbrir(c.id); }
+    return e('div', {
+      className: 'catalogo-fila' + (abierta ? ' is-open' : ''),
+      role: 'listitem'
     },
-      e('code', null, c.ancla)
+      e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoAncla)),
+      e('button', {
+        type: 'button',
+        className: 'catalogo-fila-main',
+        onClick: abrir,
+        title: titulo
+      },
+        e('span', { className: 'catalogo-fila-titulo' }, titulo),
+        e('code', { className: 'catalogo-fila-codigo' }, c.ancla)
+      ),
+      e('button', {
+        type: 'button',
+        className: 'catalogo-fila-abrir',
+        onClick: abrir,
+        'aria-label': 'Abrir ' + titulo
+      },
+        e('span', null, 'Abrir'),
+        e('svg', {
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: 'currentColor',
+          strokeWidth: '2',
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          'aria-hidden': 'true'
+        }, e('path', { d: 'M9 6l6 6-6 6' }))
+      )
     );
   }
 
@@ -221,18 +264,17 @@
         }, '+ Añadir ancla')
       ),
       e('p', { className: 'limite' },
-        'Cada celda es un campo ancla. Al pulsarla se abre la ficha en un popup. Añadir ancla se queda en este navegador.'
+        'Cada fila es un campo ancla. Abrir muestra la ficha en un popup. Añadir ancla se queda en este navegador.'
       ),
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
-      e('div', { className: 'ancla-grid', role: 'list' },
+      e('div', { className: 'catalogo-lista', role: 'list' },
         campos.map(function (c) {
-          return e('div', { key: c.id, role: 'listitem', className: 'ancla-grid-item' },
-            e(Celda, {
-              campo: c,
-              abierta: !!(abierta && abierta.id === c.id),
-              onAbrir: function (id) { bridge.abrirCampo(id); }
-            })
-          );
+          return e(FilaLista, {
+            key: c.id,
+            campo: c,
+            abierta: !!(abierta && abierta.id === c.id),
+            onAbrir: function (id) { bridge.abrirCampo(id); }
+          });
         })
       )
     );

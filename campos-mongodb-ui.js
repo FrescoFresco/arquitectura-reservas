@@ -104,17 +104,72 @@
     );
   }
 
-  function Celda(props) {
+  function etiquetaMongo(c) {
+    var clave = String(c.clave || '').trim();
+    if (clave) {
+      return clave.split(/[._]/).filter(Boolean).map(function (p) {
+        if (p.length === 1) return p.toUpperCase();
+        return p.charAt(0).toUpperCase() + p.slice(1);
+      }).join(' ');
+    }
+    return c.campo || c.id || 'Campo';
+  }
+
+  function IconoMongo() {
+    return e('svg', {
+      className: 'catalogo-fila-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('ellipse', { cx: '12', cy: '6', rx: '7', ry: '3' }),
+      e('path', { d: 'M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6' }),
+      e('path', { d: 'M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6' })
+    );
+  }
+
+  function FilaLista(props) {
     var c = props.campo;
     var abierta = props.abierta;
-    var label = c.campo || (c.coleccion + '.' + c.clave);
-    return e('button', {
-      type: 'button',
-      className: 'ancla-celda' + (abierta ? ' is-open' : ''),
-      'aria-pressed': abierta ? 'true' : 'false',
-      title: c.descripcion || label,
-      onClick: function () { props.onAbrir(c.id); }
-    }, e('code', null, label));
+    var codigo = c.campo || ((c.coleccion || '') + '.' + (c.clave || ''));
+    var titulo = etiquetaMongo(c);
+    function abrir() { props.onAbrir(c.id); }
+    return e('div', {
+      className: 'catalogo-fila' + (abierta ? ' is-open' : ''),
+      role: 'listitem'
+    },
+      e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoMongo)),
+      e('button', {
+        type: 'button',
+        className: 'catalogo-fila-main',
+        onClick: abrir,
+        title: c.descripcion || titulo
+      },
+        e('span', { className: 'catalogo-fila-titulo' }, titulo),
+        e('code', { className: 'catalogo-fila-codigo' }, codigo)
+      ),
+      e('button', {
+        type: 'button',
+        className: 'catalogo-fila-abrir',
+        onClick: abrir,
+        'aria-label': 'Abrir ' + titulo
+      },
+        e('span', null, 'Abrir'),
+        e('svg', {
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: 'currentColor',
+          strokeWidth: '2',
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          'aria-hidden': 'true'
+        }, e('path', { d: 'M9 6l6 6-6 6' }))
+      )
+    );
   }
 
   function MongoApp(props) {
@@ -139,18 +194,17 @@
         }, '+ Añadir campo')
       ),
       e('p', { className: 'limite' },
-        'Cada celda es un campo MongoDB (colección.clave). Al pulsarla se abre la ficha en un popup. Añadir campo se queda en este navegador.'
+        'Cada fila es un campo MongoDB. Abrir muestra la ficha en un popup. Añadir campo se queda en este navegador.'
       ),
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
-      e('div', { className: 'ancla-grid', role: 'list' },
+      e('div', { className: 'catalogo-lista', role: 'list' },
         campos.map(function (c) {
-          return e('div', { key: c.id, role: 'listitem', className: 'ancla-grid-item' },
-            e(Celda, {
-              campo: c,
-              abierta: !!(abierta && abierta.id === c.id),
-              onAbrir: function (id) { bridge.abrirCampo(id); }
-            })
-          );
+          return e(FilaLista, {
+            key: c.id,
+            campo: c,
+            abierta: !!(abierta && abierta.id === c.id),
+            onAbrir: function (id) { bridge.abrirCampo(id); }
+          });
         })
       )
     );
