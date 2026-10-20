@@ -1513,14 +1513,6 @@ function renderReader() {
   state.abiertaNumero = v.numero;
   document.getElementById('readerNombre').textContent = ins.nombre;
   document.getElementById('readerVersion').textContent = formatVersion(v.numero, v.fecha);
-  const origen = document.getElementById('readerOrigen');
-  if (v.origen === 'local') {
-    origen.hidden = false;
-    origen.textContent = 'En este navegador. No está en GitHub.';
-  } else {
-    origen.hidden = true;
-    origen.textContent = '';
-  }
   const readerId = document.getElementById('readerId');
   if (readerId) readerId.textContent = ins.id || '—';
   const readerInternoVersion = document.getElementById('readerInternoVersion');
