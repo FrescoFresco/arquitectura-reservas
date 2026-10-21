@@ -74,18 +74,29 @@ export function parseJsonObject(raw: unknown): Record<string, string> {
 }
 
 export function normalizeAliasList(list: unknown): string[] {
-  const raw = Array.isArray(list)
-    ? list
-    : typeof list === 'string'
-      ? list.split(/[\n,]+/)
-      : [];
+  let source: unknown = list;
+  if (typeof list === 'string') {
+    const trimmed = list.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        source = JSON.parse(trimmed);
+      } catch {
+        source = trimmed.split(/[\n,]+/);
+      }
+    } else {
+      source = trimmed.split(/[\n,]+/);
+    }
+  }
+  const raw = Array.isArray(source) ? source : [];
   const out: string[] = [];
   const seen = new Set<string>();
   for (const item of raw) {
     let a = String(item || '')
       .trim()
       .replace(/^_+|_+$/g, '');
-    if (!a) continue;
+    // Defend against double-encoded JSON fragments.
+    a = a.replace(/^\[?"?|"?\]?$/g, '').replace(/^"|"$/g, '');
+    if (!a || a === '[' || a === ']') continue;
     const key = a.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
