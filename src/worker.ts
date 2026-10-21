@@ -1195,11 +1195,15 @@ function normalizeAnclaBody(body: Record<string, unknown>) {
   const skills = Array.isArray(body.skills) ? body.skills.map(String).filter(Boolean) : [];
   const aliases = normalizeAliasList(body.aliases ?? body.alias);
   const formato = String(body.formato || '').trim();
-  const sensible =
-    body.sensible === true ||
-    body.sensible === 1 ||
-    body.sensible === '1' ||
-    /\bsensible\b/i.test(formato);
+  // `sensible` en formato = máscara de ficha (flags tipo "uri, sensible").
+  // No aplicar si el cuerpo dice sensible:false, ni dentro de enum:…|sensible|…
+  const explicitOff =
+    body.sensible === false || body.sensible === 0 || body.sensible === '0';
+  const explicitOn =
+    body.sensible === true || body.sensible === 1 || body.sensible === '1';
+  const formatoMarcaSensible =
+    !/^enum:/i.test(formato) && /(^|[,;\s])sensible([,;\s]|$)/i.test(formato);
+  const sensible = explicitOff ? false : explicitOn || formatoMarcaSensible;
   return {
     id,
     ancla,
