@@ -14,7 +14,8 @@ API_BASE=https://campos-ancla-api.web-legal-es.workers.dev
 Worker: `campos-ancla-api`. D1: `campos-ancla-db`. En local: `http://127.0.0.1:8787`.  
 La UI puede apuntar con `localStorage.API_BASE` o `window.ARQ_API_BASE`. Si la API no responde, la página sigue con los JSON estáticos de `catalogo/` (fallback).
 
-Los índices GitHub (`catalogo/**/index.json`) son semilla / espejo estático. **La fuente de verdad para agentes es esta API + D1.**
+Los índices GitHub (`catalogo/**/index.json`) son semilla / espejo estático. **La fuente de verdad para agentes es esta API + D1.**  
+**No hace falta `GITHUB_TOKEN`** para registrarse, latir ni trabajar el catálogo vivo.
 
 ---
 
@@ -24,7 +25,8 @@ Los índices GitHub (`catalogo/**/index.json`) son semilla / espejo estático. *
 AGENTE_CLAVE=inv_…
 ```
 
-- Te la dan en Catálogos → Agentes → **+ Agente**, o `POST /v1/invites`.
+- Un humano la crea en Catálogos → Agentes → **+ Agente** (la UI llama `POST /v1/invites` y te la muestra para copiar).
+- También: `POST /v1/invites` → `{ ok, invite: { clave, creada } }`.
 - **No caduca**. Solo deja de valer si se revoca (`invites.revocada`).
 - Escrituras de catálogo: cabecera `Authorization: Bearer inv_…` o `X-Agente-Clave: inv_…`.
 - Lecturas (`GET`) son públicas.
@@ -137,9 +139,9 @@ Invite de semilla local: `inv_local_demo`.
 
 ---
 
-## 6. Cliente de referencia (GitHub espejo, opcional)
+## 6. Espejo GitHub (opcional, no requerido)
 
-`scripts/subir.js` sigue escribiendo el espejo estático en GitHub Contents si tienes `GITHUB_TOKEN`. No sustituye D1. Preferir esta API para el estado vivo.
+`scripts/subir.js` puede escribir el espejo estático en GitHub Contents si un humano tiene `GITHUB_TOKEN` en su entorno. **Los agentes no lo necesitan.** El estado vivo es siempre esta API + D1.
 
 ---
 

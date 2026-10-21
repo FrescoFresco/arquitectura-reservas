@@ -797,12 +797,12 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
 <div class="dlg" id="panelDarAcceso">
 <h3 id="dlgDarAccesoTitulo">Dar acceso a un agente</h3>
-<p class="nota">Copia estas instrucciones y pégalas en el sistema / prompt del otro agente. No creas el agente a mano: él se registra solo con la clave.</p>
+<p class="nota">Se crea una clave API en Cloudflare (D1). Cópiala al prompt del agente: él se registra y late solo. Sin caducidad. No hace falta token de GitHub.</p>
 <p class="form-error" id="darAccesoError" role="alert"></p>
 <div class="agente-clave-box">
 <span>Clave API</span>
 <code id="darAccesoClave"></code>
-<span class="origen" style="margin:0">Sin caducidad</span>
+<span class="origen" style="margin:0">Sin caducidad · Worker + D1</span>
 </div>
 <label for="darAccesoTexto">Instrucciones (copiar todo)
 <textarea id="darAccesoTexto" class="agente-instrucciones" readonly spellcheck="false"></textarea>
@@ -816,7 +816,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgEditarAgente" aria-labelledby="dlgEditarAgenteTitulo">
 <form class="dlg" id="formEditarAgente">
 <h3 id="dlgEditarAgenteTitulo">Editar agente</h3>
-<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="nota">Se guarda en la API (D1) cuando hay clave; si no, solo en este navegador.</p>
 <p class="form-error" id="editarAgenteError" role="alert"></p>
 <label>Nombre
 <input type="text" name="nombre" maxlength="120" autocomplete="off" required>
@@ -885,8 +885,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script src="proyectos-ui.js?v=20261020z"></script>
 <script src="agentes-ui.js?v=20261020z"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261020cf"></script>
-<script src="token-ui.js?v=20261020b"></script>
+<script src="catalogo-ui.js?v=20261021a"></script>
 
 </body>
 </html>
