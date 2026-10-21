@@ -171,22 +171,27 @@ Los listados suelen responder con `{ "ok": true, … }` y el array del recurso (
 
 ---
 
-## 6b. Anclas — aliases, observaciones, sensible, PII
+## 6b. Anclas — aliases, valores por negocio, sensible, PII
 
-### Aliases
+### Aliases (unicidad)
 
-Cada ancla guarda `aliases: ["negocio.telefono", "telefono_local"]` (sinónimos del software).
+Cada ancla guarda `aliases: ["contacto.telefono", "telefono_local"]` (sinónimos del software).
+
+Reglas: un alias **no se repite** entre anclas; un alias **no puede coincidir** con el id/nombre de otra ancla. Teléfono canónico: `_negocio.telefono_` (alias `contacto.telefono`).
 
 ```
+GET {API_BASE}/v1/anclas/resolve?q=contacto.telefono
+→ { "ok": true, "via": "alias", "canonical": "negocio.telefono", "ancla": "_negocio.telefono_", "campo": { … } }
+
 GET {API_BASE}/v1/anclas/resolve?q=negocio.telefono
-→ { "ok": true, "canonical": "contacto.telefono", "ancla": "_contacto.telefono_", "campo": { … } }
+→ { "ok": true, "via": "canonical", "canonical": "negocio.telefono", … }
 ```
 
-Resuelve alias **o** nombre canónico al ancla viva.
+Si el mismo alias está en dos fichas → `409`.
 
-### Observaciones (historial de hechos)
+### Observaciones por negocio (no en la ficha)
 
-Al actualizar un valor desde extracción, **append** (no replace ciego):
+La ficha del ancla es **definición** (tipo, formato, aliases, ejemplo genérico). `valorActual` / `observaciones` van por `negocio_id`:
 
 ```
 POST {API_BASE}/v1/anclas/:id/observaciones
@@ -194,6 +199,7 @@ Authorization: Bearer inv_…
 Content-Type: application/json
 
 {
+  "negocio_id": "pelo-sur",
   "valor": "+34 699 111 222",
   "url": "https://pelosur.es/contacto",
   "skill_id": "descubrir-negocio",
@@ -201,17 +207,20 @@ Content-Type: application/json
 }
 ```
 
-`valorActual` = última observación. La ficha UI muestra el historial en la pestaña Historial.
+```
+GET {API_BASE}/v1/anclas/:id/valores?negocio_id=pelo-sur
+GET {API_BASE}/v1/anclas/:id?negocio_id=pelo-sur
+```
 
-También puedes mandar `observaciones[]` / `valorActual` / `aliases` / `sensible` en `POST|PUT /v1/anclas`.
+`POST|PUT /v1/anclas` **rechaza** `observaciones` / `valorActual` en el body (usa el endpoint de observaciones).
 
-### Sensible
+### Sensible (clase, no valor de cliente)
 
-`"sensible": true` (o formato que contenga `sensible`). En listados públicos, `ejemplo`, `valorActual` y valores de `observaciones` salen enmascarados (`••••••••`). Para ver el valor real: `?reveal=1` **y** cabecera Bearer con invite válida. No loguear el valor en claro.
+`"sensible": true` en la **definición** del ancla (o formato con `sensible`) enmascara `ejemplo` en listados públicos. Para campos de formulario, la clase va en la proyección array (`campos.N.sensible`), **sin** guardar el valor PII del cliente. No existe ancla `_cliente.tarjeta_sanitaria_`.
 
-### PII en URLs
+### PII en URLs (strict por defecto)
 
-Si el ancla parece URL (`formato` uri/url/`sin_pii`, o el id contiene `.url`), al persistir `ejemplo` / `valorActual` / observación se **redactan** query keys tipo `nombre`, `tel`, `email`, `tarjeta`, … (`[REDACTED]`). Con `"strict": true` la API responde `400` en lugar de redactar. Preferir plantillas sin PII (`https://book.pelosur.es/r/{slot_id}`).
+Si el ancla parece URL (`formato` uri/url/`sin_pii`, o el id contiene `.url`), al persistir `ejemplo` / observación la API **rechaza** query PII (`nombre`, `tel`, `email`, …) con `400`. Opt-out: `"strict": false` (entonces redacta `[REDACTED]`). Ejemplo limpio: `https://book.pelosur.es/`.
 
 ### Relación (sin anclas huérfanas)
 
@@ -230,7 +239,9 @@ Anclas convencionales (sin entidad Ejecución en este slice):
 
 ### Proyección Mongo `campos.N` → array
 
-En el campo Mongo (o Interno): `"proyeccionMongo": "array"` + `"proyeccionElemento": { "nombre": "campos.N.nombre", "selector": "campos.N.selector" }`.
+Plantillas de catálogo: `_campos.N.nombre_`, `_campos.N.selector_`, `_campos.N.sensible_` (no anclas fijas `campos.0` / `campos.1`).
+
+En el campo Mongo: `"proyeccionMongo": "array"` + `"proyeccionElemento": { "nombre": "campos.N.nombre", "selector": "campos.N.selector", "sensible": "campos.N.sensible" }`.
 
 Helper:
 
@@ -241,15 +252,24 @@ Content-Type: application/json
 
 {
   "ruta_ancla": "campos.N",
-  "elemento": { "nombre": "campos.N.nombre", "selector": "campos.N.selector" },
+  "elemento": {
+    "nombre": "campos.N.nombre",
+    "selector": "campos.N.selector",
+    "sensible": "campos.N.sensible"
+  },
   "valores": {
     "campos.0.nombre": "Nombre",
     "campos.0.selector": "#client-name",
+    "campos.0.sensible": "false",
     "campos.1.nombre": "Teléfono",
-    "campos.1.selector": "#client-phone"
+    "campos.1.selector": "#client-phone",
+    "campos.1.sensible": "false",
+    "campos.2.nombre": "Tarjeta sanitaria",
+    "campos.2.selector": "#health-card",
+    "campos.2.sensible": "true"
   }
 }
-→ { "ok": true, "clave": "campos", "campos": [ { "nombre": "Nombre", "selector": "#client-name" }, … ] }
+→ { "ok": true, "clave": "campos", "campos": [ { "nombre": "Nombre", "selector": "#client-name", "sensible": "false" }, … ] }
 ```
 
 También acepta `"mongo_id": "formularios-campos"` para tomar la proyección del catálogo Mongo.

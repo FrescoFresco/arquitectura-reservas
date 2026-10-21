@@ -67,13 +67,10 @@ async function main() {
   const anclasIdx = readJson('catalogo/campos-ancla/index.json');
   for (const c of anclasIdx.campos || []) {
     const aliases = JSON.stringify(Array.isArray(c.aliases) ? c.aliases : []);
-    const observaciones = JSON.stringify(Array.isArray(c.observaciones) ? c.observaciones : []);
-    const valorActual = c.valorActual || (Array.isArray(c.observaciones) && c.observaciones.length
-      ? c.observaciones[c.observaciones.length - 1].valor
-      : '') || '';
+    // N2: ficha = definición; valores/observaciones van en ancla_valores_negocio.
     const sensible = c.sensible ? 1 : 0;
     stmts.push(
-      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.ancla)}', '${esc(c.etiqueta || '')}', '${esc(c.claveMongo || '')}', '${esc(c.coleccion || '')}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.tipo || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.formato || '')}', '${esc(c.descripcion || '')}', '${esc(c.ejemplo || '')}', '${esc(c.hash || '')}', '${esc(aliases)}', '${esc(observaciones)}', '${esc(valorActual)}', ${sensible}, '${now}', '${now}');`
+      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.ancla)}', '${esc(c.etiqueta || '')}', '${esc(c.claveMongo || '')}', '${esc(c.coleccion || '')}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.tipo || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.formato || '')}', '${esc(c.descripcion || '')}', '${esc(c.ejemplo || '')}', '${esc(c.hash || '')}', '${esc(aliases)}', '[]', '', ${sensible}, '${now}', '${now}');`
     );
     for (const sid of c.skills || []) {
       stmts.push(`INSERT OR IGNORE INTO ancla_skills (ancla_id, skill_id) VALUES ('${esc(c.id)}', '${esc(sid)}');`);

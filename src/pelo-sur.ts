@@ -140,6 +140,61 @@ export type PiiUrlResult = {
   rejectedKeys: string[];
 };
 
+/** URL / sin_pii anclas: reject PII query by default (strict). Opt out with strict:false. */
+export function defaultStrictPii(campo: {
+  id?: string;
+  ancla?: string;
+  formato?: string;
+  tipo?: string;
+}): boolean {
+  return looksLikeUrlAncla(campo);
+}
+
+/**
+ * Alias uniqueness: no duplicate aliases across anclas; alias must not equal
+ * another ancla's id / canonical name.
+ */
+export function findAliasConflicts(opts: {
+  selfId: string;
+  aliases: string[];
+  catalog: Array<{ id: string; ancla: string; aliases: string[] }>;
+}): string | null {
+  const self = opts.selfId.toLowerCase();
+  const reservedNames = new Set<string>();
+  const aliasOwner = new Map<string, string>();
+  for (const row of opts.catalog) {
+    const id = String(row.id || '').toLowerCase();
+    const canon = canonicalFromAncla(row.ancla).toLowerCase();
+    if (id !== self) {
+      if (id) reservedNames.add(id);
+      if (canon) reservedNames.add(canon);
+    }
+    for (const a of row.aliases || []) {
+      const key = String(a || '').toLowerCase();
+      if (!key) continue;
+      if (id === self) continue;
+      if (!aliasOwner.has(key)) aliasOwner.set(key, row.id);
+    }
+  }
+  const seen = new Set<string>();
+  for (const raw of opts.aliases) {
+    const a = String(raw || '').trim();
+    if (!a) continue;
+    const key = a.toLowerCase();
+    if (seen.has(key)) return 'Alias duplicado en la misma ficha: ' + a;
+    seen.add(key);
+    if (key === self || key === canonicalFromAncla('_' + opts.selfId + '_').toLowerCase()) {
+      return 'Alias no puede coincidir con el propio id canónico: ' + a;
+    }
+    if (reservedNames.has(key)) {
+      return 'Alias choca con el nombre de otra ancla: ' + a;
+    }
+    const owner = aliasOwner.get(key);
+    if (owner) return 'Alias ya usado por ' + owner + ': ' + a;
+  }
+  return null;
+}
+
 /** Redact PII-looking query keys. If strict and any found, caller may 400. */
 export function scrubPiiFromUrl(raw: string, opts?: { strict?: boolean }): PiiUrlResult {
   const input = String(raw || '').trim();

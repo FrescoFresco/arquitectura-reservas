@@ -71,31 +71,19 @@
       "baseDatos": "arquitectura_reservas",
       "tipo": "string",
       "obligatorio": false,
-      "formato": "e164",
-      "descripcion": "Teléfono público del local, con prefijo internacional.",
-      "ejemplo": "+34 699 111 222",
+      "formato": "E.164",
+      "descripcion": "Teléfono público del local (canónico). Alias: contacto.telefono, telefono_local. Valores por negocio_id, no en esta ficha.",
+      "ejemplo": "+34699111222",
       "skills": [
         "descubrir-negocio"
       ],
       "hash": "14bd8ff0d0fafa096030629cab84a11b96ab663fce7df47b9e8400152a28426d",
       "aliases": [
+        "contacto.telefono",
         "telefono_local"
       ],
-      "observaciones": [
-        {
-          "valor": "+34 612 000 111",
-          "url": "https://pelosur.es/contacto",
-          "timestamp": "2026-10-13T10:00:00.000Z",
-          "visto_en": "web"
-        },
-        {
-          "valor": "+34 699 111 222",
-          "url": "https://pelosur.es/contacto",
-          "timestamp": "2026-10-17T16:30:00.000Z",
-          "visto_en": "web"
-        }
-      ],
-      "valorActual": "+34 699 111 222"
+      "observaciones": [],
+      "sensible": false
     },
     {
       "id": "proceso.url_inicio",
@@ -107,15 +95,16 @@
       "tipo": "string",
       "obligatorio": true,
       "formato": "uri, sin_pii",
-      "descripcion": "Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. URL preparada sin nombre/tel/email en query.",
-      "ejemplo": "https://restaurantmogan.com/reservation/",
+      "descripcion": "Punto A: URL de inicio del proceso de reserva, sin query con PII. Persistencia strict: rechaza nombre/tel/email en query.",
+      "ejemplo": "https://book.pelosur.es/",
       "skills": [
         "mapear-recorrido",
         "generar-script",
         "descubrir-negocio",
         "diagnosticar-alerta"
       ],
-      "hash": "2ce1ef10b6c9ff0a5a85fc1aa1152d0b86879b7f53aa98f0a4b3cef4e2fca987"
+      "hash": "2ce1ef10b6c9ff0a5a85fc1aa1152d0b86879b7f53aa98f0a4b3cef4e2fca987",
+      "observaciones": []
     },
     {
       "id": "version.recorrido.sistema.nombre",
@@ -275,58 +264,6 @@
       "hash": "00e4de7e642dd388922c6827ad0445075a313293d810de51f54c3dd7b0e72ba6"
     },
     {
-      "id": "contacto.telefono",
-      "ancla": "_contacto.telefono_",
-      "etiqueta": "Teléfono de contacto",
-      "claveMongo": "telefono",
-      "coleccion": "negocios",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": false,
-      "formato": "E.164",
-      "descripcion": "Teléfono de contacto del negocio (canónico Pelo Sur).",
-      "ejemplo": "+34 699 111 222",
-      "aliases": [
-        "negocio.telefono",
-        "telefono_local"
-      ],
-      "skills": [
-        "descubrir-negocio"
-      ],
-      "observaciones": [
-        {
-          "valor": "+34 612 000 111",
-          "url": "https://pelosur.es/contacto",
-          "timestamp": "2026-10-13T10:00:00.000Z"
-        },
-        {
-          "valor": "+34 699 111 222",
-          "url": "https://pelosur.es/contacto",
-          "timestamp": "2026-10-17T16:30:00.000Z"
-        }
-      ],
-      "valorActual": "+34 699 111 222",
-      "sensible": false,
-      "hash": "pelo-sur-contacto-telefono-v1"
-    },
-    {
-      "id": "cliente.tarjeta_sanitaria",
-      "ancla": "_cliente.tarjeta_sanitaria_",
-      "etiqueta": "Tarjeta sanitaria",
-      "claveMongo": "tarjeta_sanitaria",
-      "coleccion": "clientes",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": false,
-      "formato": "sensible",
-      "descripcion": "Nº tarjeta sanitaria. Marca sensible: UI/logs enmascaran el valor.",
-      "ejemplo": "ES-1234-5678",
-      "aliases": [],
-      "skills": [],
-      "sensible": true,
-      "hash": "pelo-sur-tarjeta-v1"
-    },
-    {
       "id": "reserva_prueba.cuando",
       "ancla": "_reserva_prueba.cuando_",
       "etiqueta": "Reserva de prueba · cuándo",
@@ -403,80 +340,61 @@
       "hash": "pelo-sur-reserva_prueba-nota"
     },
     {
-      "id": "campos.0.nombre",
-      "ancla": "_campos.0.nombre_",
+      "id": "campos.N.nombre",
+      "ancla": "_campos.N.nombre_",
+      "etiqueta": "Campo N · nombre",
+      "claveMongo": "campos.N.nombre",
+      "coleccion": "formularios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Plantilla: nombre del campo N del formulario. Índices solo en valores / proyección array.",
       "ejemplo": "Nombre",
-      "etiqueta": "Campo 0 · nombre",
-      "claveMongo": "0.nombre",
-      "coleccion": "formularios",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": false,
-      "formato": "",
-      "descripcion": "Familia indexada campos.N.* → proyección Mongo array.",
       "aliases": [],
       "skills": [
         "mapear-recorrido"
       ],
       "sensible": false,
-      "hash": "pelo-sur-campos-0-nombre"
+      "hash": "audit-n1-campos-N-nombre"
     },
     {
-      "id": "campos.0.selector",
-      "ancla": "_campos.0.selector_",
+      "id": "campos.N.selector",
+      "ancla": "_campos.N.selector_",
+      "etiqueta": "Campo N · selector",
+      "claveMongo": "campos.N.selector",
+      "coleccion": "formularios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Plantilla: selector del campo N. Índices solo en valores / proyección array.",
       "ejemplo": "#client-name",
-      "etiqueta": "Campo 0 · selector",
-      "claveMongo": "0.selector",
-      "coleccion": "formularios",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": false,
-      "formato": "",
-      "descripcion": "Familia indexada campos.N.* → proyección Mongo array.",
       "aliases": [],
       "skills": [
         "mapear-recorrido"
       ],
       "sensible": false,
-      "hash": "pelo-sur-campos-0-selector"
+      "hash": "audit-n1-campos-N-selector"
     },
     {
-      "id": "campos.1.nombre",
-      "ancla": "_campos.1.nombre_",
-      "ejemplo": "Teléfono",
-      "etiqueta": "Campo 1 · nombre",
-      "claveMongo": "1.nombre",
+      "id": "campos.N.sensible",
+      "ancla": "_campos.N.sensible_",
+      "etiqueta": "Campo N · sensible (clase)",
+      "claveMongo": "campos.N.sensible",
       "coleccion": "formularios",
       "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
+      "tipo": "boolean",
       "obligatorio": false,
-      "formato": "",
-      "descripcion": "Familia indexada campos.N.* → proyección Mongo array.",
+      "formato": "clase",
+      "descripcion": "Clase del campo del formulario: true si el input es sensible (p. ej. tarjeta). Nunca guardar el valor PII del cliente; solo la marca.",
+      "ejemplo": "true",
       "aliases": [],
       "skills": [
         "mapear-recorrido"
       ],
       "sensible": false,
-      "hash": "pelo-sur-campos-1-nombre"
-    },
-    {
-      "id": "campos.1.selector",
-      "ancla": "_campos.1.selector_",
-      "ejemplo": "#client-phone",
-      "etiqueta": "Campo 1 · selector",
-      "claveMongo": "1.selector",
-      "coleccion": "formularios",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": false,
-      "formato": "",
-      "descripcion": "Familia indexada campos.N.* → proyección Mongo array.",
-      "aliases": [],
-      "skills": [
-        "mapear-recorrido"
-      ],
-      "sensible": false,
-      "hash": "pelo-sur-campos-1-selector"
+      "hash": "audit-n3-campos-N-sensible"
     }
   ]
 }

@@ -25,7 +25,7 @@
     {
       "id": "pelo-sur",
       "nombre": "Pelo Sur",
-      "descripcion": "Salón ficticio — casos de aliases, observaciones, sensibles, reserva de prueba.",
+      "descripcion": "Salón ficticio — aliases, valores por negocio, clase sensible, reserva de prueba.",
       "skills": [
         "descubrir-negocio",
         "mapear-recorrido",

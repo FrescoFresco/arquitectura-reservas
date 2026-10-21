@@ -95,15 +95,13 @@
     var c = props.campo;
     var aliases = Array.isArray(c.aliases) ? c.aliases : [];
     var ejemploMostrado = enmascararSiSensible(c, c.ejemplo);
-    var valorMostrado = enmascararSiSensible(c, c.valorActual || c.valor_actual);
     return e('dl', { className: 'ancla-ficha-dl', id: 'ancla-panel-definicion', role: 'tabpanel' },
       e(Fila, { label: 'Tipo' }, c.tipo ? e('code', null, c.tipo) : '—'),
       e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
-      e(Fila, { label: 'Sensible' }, c.sensible ? 'Sí (enmascarado)' : 'No'),
+      e(Fila, { label: 'Sensible' }, c.sensible ? 'Sí (clase; enmascara ejemplo)' : 'No'),
       e(Fila, { label: 'Formato' }, c.formato ? e('code', null, c.formato) : '—'),
       e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
       e(Fila, { label: 'Ejemplo' }, ejemploMostrado !== '—' ? e('code', null, ejemploMostrado) : '—'),
-      e(Fila, { label: 'Valor actual' }, valorMostrado !== '—' ? e('code', null, valorMostrado) : '—'),
       e(Fila, { label: 'Aliases' },
         aliases.length
           ? e('span', { className: 'ancla-aliases' }, aliases.map(function (a, i) {
@@ -116,14 +114,57 @@
 
   function PanelHistorial(props) {
     var c = props.campo;
-    var obs = Array.isArray(c.observaciones) ? c.observaciones.slice().reverse() : [];
-    if (!obs.length) {
+    var negocioId = props.negocioId || 'pelo-sur';
+    var state = useState({ loading: true, obs: [], valorActual: '', error: '' });
+    var pack = state[0];
+    var setPack = state[1];
+
+    React.useEffect(function () {
+      var cancelled = false;
+      setPack({ loading: true, obs: [], valorActual: '', error: '' });
+      var base = (typeof window !== 'undefined' && (window.ARQ_API_BASE || window.CAMPOS_API_BASE)) ||
+        'https://campos-ancla-api.web-legal-es.workers.dev';
+      var url = String(base).replace(/\/$/, '') +
+        '/v1/anclas/' + encodeURIComponent(c.id) +
+        '/valores?negocio_id=' + encodeURIComponent(negocioId);
+      fetch(url, { headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (cancelled) return;
+          if (!res.ok || res.j.ok === false) {
+            setPack({ loading: false, obs: [], valorActual: '', error: (res.j && res.j.error) || 'No se pudo cargar.' });
+            return;
+          }
+          var obs = Array.isArray(res.j.observaciones) ? res.j.observaciones.slice().reverse() : [];
+          setPack({ loading: false, obs: obs, valorActual: res.j.valorActual || '', error: '' });
+        })
+        .catch(function () {
+          if (!cancelled) setPack({ loading: false, obs: [], valorActual: '', error: 'Error de red.' });
+        });
+      return function () { cancelled = true; };
+    }, [c.id, negocioId]);
+
+    if (pack.loading) {
       return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-historial', role: 'tabpanel' },
-        'Sin observaciones todavía. Al actualizar desde extracción se hace append aquí.'
+        'Cargando historial de ' + negocioId + '…'
+      );
+    }
+    if (pack.error) {
+      return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-historial', role: 'tabpanel' }, pack.error);
+    }
+    if (!pack.obs.length) {
+      return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-historial', role: 'tabpanel' },
+        'Sin observaciones para negocio «' + negocioId + '». Los valores van por negocio_id, no en la ficha.'
       );
     }
     return e('div', { className: 'ancla-historial', id: 'ancla-panel-historial', role: 'tabpanel' },
-      obs.map(function (o, idx) {
+      e('p', { className: 'ancla-historial-meta' },
+        'Negocio ', e('code', null, negocioId),
+        pack.valorActual
+          ? e('span', null, ' · vigente ', e('code', null, enmascararSiSensible(c, pack.valorActual)))
+          : null
+      ),
+      pack.obs.map(function (o, idx) {
         var valor = enmascararSiSensible(c, o.valor);
         return e('div', { className: 'ancla-historial-fila', key: (o.timestamp || '') + idx },
           e('time', { dateTime: o.timestamp || '' }, o.timestamp ? String(o.timestamp).replace('T', ' ').replace(/\.\d+Z$/, 'Z') : '—'),
@@ -302,7 +343,7 @@
       e(Pestanas, { tab: tab, setTab: setTab }),
       e('div', { className: 'ancla-ficha-body' },
         tab === 'definicion' ? e(PanelDefinicion, { campo: c }) : null,
-        tab === 'historial' ? e(PanelHistorial, { campo: c }) : null,
+        tab === 'historial' ? e(PanelHistorial, { campo: c, negocioId: props.negocioId || 'pelo-sur' }) : null,
         tab === 'mongo' ? e(PanelMongo, { campo: c, mongo: props.mongo }) : null,
         tab === 'skills' ? e(PanelSkills, {
           skills: skills,
@@ -450,7 +491,8 @@
       onEliminar: opts.onEliminar || null,
       mongo: opts.mongo || null,
       nombresSkill: opts.nombresSkill || {},
-      onAbrirSkill: opts.onAbrirSkill || null
+      onAbrirSkill: opts.onAbrirSkill || null,
+      negocioId: opts.negocioId || 'pelo-sur'
     }));
   }
 

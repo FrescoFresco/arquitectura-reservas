@@ -179,12 +179,13 @@
       "clave": "campos",
       "bsonType": "array",
       "obligatorio": false,
-      "descripcion": "Proyección array: campos.N.* → [{nombre, selector}, …].",
+      "descripcion": "Proyección array: campos.N.* → [{nombre, selector, sensible}, …]. sensible es clase, no valor PII.",
       "ancla": "_campos.N_",
       "proyeccionMongo": "array",
       "proyeccionElemento": {
         "nombre": "campos.N.nombre",
-        "selector": "campos.N.selector"
+        "selector": "campos.N.selector",
+        "sensible": "campos.N.sensible"
       },
       "hash": "pelo-sur-formularios-campos"
     }

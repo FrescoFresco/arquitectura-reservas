@@ -5,6 +5,8 @@ import apiDocsMd from '../documentacion/api.md';
 import {
   appendObservacion,
   canonicalFromAncla,
+  defaultStrictPii,
+  findAliasConflicts,
   looksLikeUrlAncla,
   maskSensitive,
   normalizeAliasList,
@@ -117,7 +119,11 @@ app.get('/v1/anclas', async (c) => {
   return c.json({ ok: true, id: 'campos-ancla', nombre: 'Campos ancla', campos: out });
 });
 
-/** Resolve alias or canonical name → ancla. Public. Alias wins over id (software → canónico). */
+/**
+ * Resolve alias or canonical name → ancla. Public.
+ * Canonical id wins over alias when both match (avoids alias=`negocio.telefono` colliding with id).
+ * Duplicate aliases across anclas → 409.
+ */
 app.get('/v1/anclas/resolve', async (c) => {
   const q = String(c.req.query('q') || c.req.query('alias') || '')
     .trim()
@@ -127,26 +133,35 @@ app.get('/v1/anclas/resolve', async (c) => {
   const rows = await c.env.DB.prepare('SELECT * FROM anclas').all();
   const needle = q.toLowerCase();
   type Hit = { row: Record<string, unknown>; mapped: ReturnType<typeof mapAnclaRow> };
-  let aliasHit: Hit | null = null;
+  const aliasHits: Hit[] = [];
   let idHit: Hit | null = null;
   for (const row of rows.results || []) {
     const mapped = mapAnclaRow(row as Record<string, unknown>);
     const canon = canonicalFromAncla(mapped.ancla).toLowerCase();
     const id = mapped.id.toLowerCase();
     const aliases = mapped.aliases.map((a) => a.toLowerCase());
-    if (!aliasHit && aliases.includes(needle)) {
-      aliasHit = { row: row as Record<string, unknown>, mapped };
+    if (aliases.includes(needle)) {
+      aliasHits.push({ row: row as Record<string, unknown>, mapped });
     }
     if (!idHit && (canon === needle || id === needle)) {
       idHit = { row: row as Record<string, unknown>, mapped };
     }
   }
-  const hit = aliasHit || idHit;
+  if (aliasHits.length > 1) {
+    return jsonError(
+      c,
+      409,
+      'Alias ambiguo («' + q + '»): ' + aliasHits.map((h) => h.mapped.id).join(', ')
+    );
+  }
+  // Prefer canonical id match over alias (N4: alias must not collide with another name).
+  const hit = idHit || aliasHits[0] || null;
   if (!hit) return jsonError(c, 404, 'Ningún ancla coincide con ese alias o canónico.');
+  const via = idHit ? 'canonical' : 'alias';
   return c.json({
     ok: true,
     query: q,
-    via: aliasHit ? 'alias' : 'canonical',
+    via,
     canonical: canonicalFromAncla(hit.mapped.ancla),
     ancla: hit.mapped.ancla,
     campo: await hydrateAncla(c.env.DB, hit.row, { reveal }),
@@ -157,7 +172,39 @@ app.get('/v1/anclas/:id', async (c) => {
   const row = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(c.req.param('id')).first();
   if (!row) return jsonError(c, 404, 'Ancla no encontrada.');
   const reveal = await mayRevealSensitive(c);
-  return c.json({ ok: true, campo: await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal }) });
+  const negocioId = String(c.req.query('negocio_id') || '').trim();
+  const campo = await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal });
+  if (negocioId) {
+    const valores = await loadValoresNegocio(c.env.DB, negocioId, String(row.id), {
+      mask: !!campo.sensible && !reveal,
+    });
+    return c.json({
+      ok: true,
+      campo: { ...campo, ...valores, negocio_id: negocioId },
+    });
+  }
+  return c.json({ ok: true, campo });
+});
+
+/** Valores / historial por negocio (N2). Definición del ancla no guarda valorActual. */
+app.get('/v1/anclas/:id/valores', async (c) => {
+  const id = c.req.param('id');
+  const negocioId = String(c.req.query('negocio_id') || '').trim();
+  if (!negocioId) return jsonError(c, 400, 'Falta negocio_id.');
+  const row = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'Ancla no encontrada.');
+  const mapped = mapAnclaRow(row as Record<string, unknown>);
+  const reveal = await mayRevealSensitive(c);
+  const valores = await loadValoresNegocio(c.env.DB, negocioId, id, {
+    mask: mapped.sensible && !reveal,
+  });
+  return c.json({
+    ok: true,
+    negocio_id: negocioId,
+    ancla_id: id,
+    ancla: mapped.ancla,
+    ...valores,
+  });
 });
 
 app.get('/v1/mongo', async (c) => {
@@ -464,7 +511,7 @@ app.delete('/v1/skills/:id', async (c) => {
 
 app.post('/v1/anclas', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-  const prepared = prepareAnclaPersist(body);
+  const prepared = await prepareAnclaPersistAsync(c.env.DB, body);
   if ('error' in prepared) return jsonError(c, 400, prepared.error);
   const campo = prepared.campo;
   const ts = nowIso();
@@ -487,8 +534,8 @@ app.post('/v1/anclas', async (c) => {
         campo.ejemplo,
         campo.hash,
         JSON.stringify(campo.aliases),
-        JSON.stringify(campo.observaciones),
-        campo.valorActual,
+        '[]',
+        '',
         campo.sensible ? 1 : 0,
         ts,
         ts
@@ -515,7 +562,7 @@ app.put('/v1/anclas/:id', async (c) => {
   if (!prev) return jsonError(c, 404, 'Ancla no encontrada.');
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
   const prevMapped = mapAnclaRow(prev as Record<string, unknown>);
-  const prepared = prepareAnclaPersist({ ...prevMapped, ...body, id });
+  const prepared = await prepareAnclaPersistAsync(c.env.DB, { ...prevMapped, ...body, id }, id);
   if ('error' in prepared) return jsonError(c, 400, prepared.error);
   const merged = prepared.campo;
   const ts = nowIso();
@@ -537,8 +584,8 @@ app.put('/v1/anclas/:id', async (c) => {
       merged.ejemplo,
       merged.hash,
       JSON.stringify(merged.aliases),
-      JSON.stringify(merged.observaciones),
-      merged.valorActual,
+      '[]',
+      '',
       merged.sensible ? 1 : 0,
       ts,
       id
@@ -553,30 +600,50 @@ app.put('/v1/anclas/:id', async (c) => {
   });
 });
 
-/** Append observación (no blind overwrite). Current value = latest. */
+/**
+ * Append observación por negocio (N2). No se escribe en la ficha global del ancla.
+ * Body: { negocio_id, valor, url?, … }. URL/sin_pii: strict por defecto.
+ */
 app.post('/v1/anclas/:id/observaciones', async (c) => {
   const id = c.req.param('id');
   const prev = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
   if (!prev) return jsonError(c, 404, 'Ancla no encontrada.');
   const mapped = mapAnclaRow(prev as Record<string, unknown>);
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-  const strict = body.strict === true || body.strict_pii === true;
-  const result = appendObservacion(mapped.observaciones, body, {
+  const negocioId = String(body.negocio_id || body.negocioId || '').trim();
+  if (!negocioId) return jsonError(c, 400, 'Falta negocio_id (los valores van por negocio, no en la ficha ancla).');
+  const strictExplicit = body.strict === true || body.strict_pii === true;
+  const strictOff = body.strict === false || body.strict_pii === false;
+  const strict = strictExplicit || (!strictOff && defaultStrictPii(mapped));
+  const prevValores = await loadValoresNegocio(c.env.DB, negocioId, id);
+  const result = appendObservacion(prevValores.observaciones, body, {
     scrubUrlValue: looksLikeUrlAncla(mapped),
     strictPii: strict,
   });
   if (result.piiError) return jsonError(c, 400, result.piiError);
   const ts = nowIso();
   await c.env.DB.prepare(
-    'UPDATE anclas SET observaciones = ?, valor_actual = ?, updated_at = ? WHERE id = ?'
+    `INSERT INTO ancla_valores_negocio (negocio_id, ancla_id, observaciones, valor_actual, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(negocio_id, ancla_id) DO UPDATE SET
+       observaciones = excluded.observaciones,
+       valor_actual = excluded.valor_actual,
+       updated_at = excluded.updated_at`
   )
-    .bind(JSON.stringify(result.observaciones), result.valorActual, ts, id)
+    .bind(negocioId, id, JSON.stringify(result.observaciones), result.valorActual, ts)
     .run();
-  const row = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
+  const valores = await loadValoresNegocio(c.env.DB, negocioId, id);
   return c.json({
     ok: true,
     piiRedactado: result.piiRedactado || undefined,
-    campo: await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal: true }),
+    negocio_id: negocioId,
+    ancla_id: id,
+    ...valores,
+    campo: {
+      ...(await hydrateAncla(c.env.DB, prev as Record<string, unknown>, { reveal: true })),
+      ...valores,
+      negocio_id: negocioId,
+    },
   });
 });
 
@@ -977,31 +1044,45 @@ async function hydrateAncla(
   const mapped = mapAnclaRow(row);
   const reveal = !!opts?.reveal;
   let ejemplo = mapped.ejemplo;
-  let valorActual = mapped.valorActual;
-  let observaciones: Observacion[] = mapped.observaciones;
   if (mapped.sensible && !reveal) {
     ejemplo = ejemplo ? maskSensitive(ejemplo) : '';
-    valorActual = valorActual ? maskSensitive(valorActual) : '';
-    observaciones = observaciones.map((o) => ({
-      ...o,
-      valor: maskSensitive(o.valor),
-    }));
   }
+  // N2: definición = sin valorActual/observaciones (van por negocio_id).
   return {
     ...mapped,
     ejemplo,
-    valorActual,
-    observaciones,
+    valorActual: '',
+    observaciones: [] as Observacion[],
     skills: (skills.results || []).map((r) => (r as { skill_id: string }).skill_id),
   };
 }
 
+async function loadValoresNegocio(
+  db: D1Database,
+  negocioId: string,
+  anclaId: string,
+  opts?: { mask?: boolean }
+): Promise<{ valorActual: string; observaciones: Observacion[] }> {
+  const row = await db
+    .prepare(
+      'SELECT observaciones, valor_actual FROM ancla_valores_negocio WHERE negocio_id = ? AND ancla_id = ?'
+    )
+    .bind(negocioId, anclaId)
+    .first<{ observaciones: string; valor_actual: string }>();
+  const observaciones = normalizeObservaciones(row?.observaciones);
+  let valorActual =
+    String(row?.valor_actual || '').trim() ||
+    (observaciones.length ? observaciones[observaciones.length - 1].valor : '');
+  let obs = observaciones;
+  if (opts?.mask) {
+    valorActual = valorActual ? maskSensitive(valorActual) : '';
+    obs = observaciones.map((o) => ({ ...o, valor: maskSensitive(o.valor) }));
+  }
+  return { valorActual, observaciones: obs };
+}
+
 function mapAnclaRow(row: Record<string, unknown>) {
   const aliases = normalizeAliasList(row.aliases ?? row.alias);
-  const observaciones = normalizeObservaciones(row.observaciones);
-  const valorActual =
-    String(row.valor_actual ?? row.valorActual ?? '').trim() ||
-    (observaciones.length ? observaciones[observaciones.length - 1].valor : '');
   return {
     id: String(row.id),
     ancla: String(row.ancla || ''),
@@ -1016,8 +1097,9 @@ function mapAnclaRow(row: Record<string, unknown>) {
     ejemplo: String(row.ejemplo || ''),
     hash: String(row.hash || ''),
     aliases,
-    observaciones,
-    valorActual,
+    // N2: ficha = definición. Valores por negocio en ancla_valores_negocio.
+    observaciones: [] as Observacion[],
+    valorActual: '',
     sensible: !!(row.sensible === 1 || row.sensible === true || row.sensible === '1'),
   };
 }
@@ -1098,10 +1180,6 @@ function normalizeAnclaBody(body: Record<string, unknown>) {
   if (!id) return null;
   const skills = Array.isArray(body.skills) ? body.skills.map(String).filter(Boolean) : [];
   const aliases = normalizeAliasList(body.aliases ?? body.alias);
-  const observaciones = normalizeObservaciones(body.observaciones);
-  const valorActual =
-    String(body.valorActual ?? body.valor_actual ?? '').trim() ||
-    (observaciones.length ? observaciones[observaciones.length - 1].valor : '');
   const formato = String(body.formato || '').trim();
   const sensible =
     body.sensible === true ||
@@ -1123,20 +1201,54 @@ function normalizeAnclaBody(body: Record<string, unknown>) {
     skills,
     hash: String(body.hash || ''),
     aliases,
-    observaciones,
-    valorActual,
+    // N2: nunca en la ficha; usar POST …/observaciones con negocio_id.
+    observaciones: [] as Observacion[],
+    valorActual: '',
     sensible,
   };
 }
 
-function prepareAnclaPersist(
-  body: Record<string, unknown>
-):
+async function prepareAnclaPersistAsync(
+  db: D1Database,
+  body: Record<string, unknown>,
+  selfId?: string
+): Promise<
   | { campo: NonNullable<ReturnType<typeof normalizeAnclaBody>>; piiRedactado?: boolean }
-  | { error: string } {
+  | { error: string }
+> {
   const campo = normalizeAnclaBody(body);
   if (!campo) return { error: 'ancla/id inválidos.' };
-  const strict = body.strict === true || body.strict_pii === true;
+  const hasObs =
+    (Array.isArray(body.observaciones) && body.observaciones.length > 0) ||
+    (typeof body.observaciones === 'string' && body.observaciones.trim() && body.observaciones.trim() !== '[]');
+  const hasValor =
+    (typeof body.valorActual === 'string' && body.valorActual.trim()) ||
+    (typeof body.valor_actual === 'string' && body.valor_actual.trim());
+  if (hasObs || hasValor) {
+    return {
+      error:
+        'valorActual/observaciones no van en la ficha ancla; usa POST /v1/anclas/:id/observaciones con negocio_id.',
+    };
+  }
+  const rows = await db.prepare('SELECT id, ancla, aliases FROM anclas').all();
+  const catalog = (rows.results || []).map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      ancla: String(row.ancla || ''),
+      aliases: normalizeAliasList(row.aliases),
+    };
+  });
+  const conflict = findAliasConflicts({
+    selfId: selfId || campo.id,
+    aliases: campo.aliases,
+    catalog,
+  });
+  if (conflict) return { error: conflict };
+
+  const strictExplicit = body.strict === true || body.strict_pii === true;
+  const strictOff = body.strict === false || body.strict_pii === false;
+  const strict = strictExplicit || (!strictOff && defaultStrictPii(campo));
   let piiRedactado = false;
   if (looksLikeUrlAncla(campo) && campo.ejemplo) {
     const scrubbed = scrubPiiFromUrl(campo.ejemplo, { strict });
@@ -1145,16 +1257,6 @@ function prepareAnclaPersist(
     }
     if (scrubbed.redacted) {
       campo.ejemplo = scrubbed.url;
-      piiRedactado = true;
-    }
-  }
-  if (looksLikeUrlAncla(campo) && campo.valorActual) {
-    const scrubbed = scrubPiiFromUrl(campo.valorActual, { strict });
-    if (strict && scrubbed.rejectedKeys.length) {
-      return { error: 'valor_actual URL con PII en query: ' + scrubbed.rejectedKeys.join(', ') };
-    }
-    if (scrubbed.redacted) {
-      campo.valorActual = scrubbed.url;
       piiRedactado = true;
     }
   }
@@ -1181,6 +1283,7 @@ function normalizeMongoBody(body: Record<string, unknown>) {
     proyeccionElemento = {
       nombre: base + '.N.nombre',
       selector: base + '.N.selector',
+      sensible: base + '.N.sensible',
     };
   }
   return {
