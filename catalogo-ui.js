@@ -4857,6 +4857,7 @@ function seleccionarMongoSub(id, opts) {
   if (!items.length) return;
   const sub = mongoSubPorId(id) || items[0];
   state.mongoDoc.subId = sub.id;
+  const token = ++state.mongoDoc.fetchToken;
   renderMongoDocPestanas();
   if (!(opts && opts.skipHash) && typeof history !== 'undefined' && history.replaceState) {
     const next = '#documentacion/mongodb/' + sub.id;
@@ -4864,18 +4865,24 @@ function seleccionarMongoSub(id, opts) {
   }
   const mount = document.getElementById('mongoDocMount');
   if (!mount) return;
-  if (state.mongoDoc.cache[sub.id]) {
-    pintarMongoDocMount(state.mongoDoc.cache[sub.id], sub);
+  const cached = state.mongoDoc.cache[sub.id];
+  const tiposListos = sub.id !== 'tipos' || !!state.mongoDoc.tipos;
+  if (cached && tiposListos) {
+    pintarMongoDocMount(cached, sub);
     return;
   }
-  const token = ++state.mongoDoc.fetchToken;
   mount.innerHTML = '<p class="estado">Cargando…</p>';
-  const jobs = [
-    fetch('documentacion/mongodb/' + sub.archivo, { cache: 'no-store' }).then(function (res) {
-      if (!res.ok) throw new Error('http');
-      return res.text();
-    })
-  ];
+  const jobs = [];
+  if (cached) {
+    jobs.push(Promise.resolve(cached));
+  } else {
+    jobs.push(
+      fetch('documentacion/mongodb/' + sub.archivo, { cache: 'no-store' }).then(function (res) {
+        if (!res.ok) throw new Error('http');
+        return res.text();
+      })
+    );
+  }
   if (sub.id === 'tipos' && !state.mongoDoc.tipos) {
     jobs.push(
       fetch('documentacion/mongodb/mongodb-tipos.json', { cache: 'no-store' }).then(function (res) {
@@ -4886,14 +4893,14 @@ function seleccionarMongoSub(id, opts) {
   }
   Promise.all(jobs)
     .then(function (results) {
-      if (token !== state.mongoDoc.fetchToken) return;
+      if (token !== state.mongoDoc.fetchToken || state.mongoDoc.subId !== sub.id) return;
       const text = results[0];
       state.mongoDoc.cache[sub.id] = text;
       if (sub.id === 'tipos' && results[1]) state.mongoDoc.tipos = results[1];
       pintarMongoDocMount(text, sub);
     })
     .catch(function () {
-      if (token !== state.mongoDoc.fetchToken) return;
+      if (token !== state.mongoDoc.fetchToken || state.mongoDoc.subId !== sub.id) return;
       mount.innerHTML = '<p class="estado">No se pudo cargar <code>documentacion/mongodb/' +
         escapeHtml(sub.archivo) + '</code>.</p>';
     });
