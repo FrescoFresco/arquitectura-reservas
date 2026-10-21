@@ -1,0 +1,10 @@
+{
+  "_id": "la-mesa-norte",
+  "nombre": "La Mesa Norte",
+  "url": "https://lamesanorte.example",
+  "zona_horaria": "Europe/Madrid",
+  "telefono": "",
+  "notas": "Documento de cajón negocios (antes era proyecto). Borrar la fila de proyecto solo tras confirmación explícita del humano.",
+  "proyectoSoftware": "reservas",
+  "legacyProyectoId": "la-mesa-norte"
+}

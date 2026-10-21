@@ -1,0 +1,11 @@
+{
+  "id": "negocios",
+  "nombre": "Negocios (cajón)",
+  "descripcion": "Documentos de la colección Mongo negocios del software reservas. No son proyectos. Los proyectos legado pelo-sur y la-mesa-norte siguen en catálogo/proyectos hasta confirmación de borrado.",
+  "proyecto": "reservas",
+  "coleccion": "negocios",
+  "documentos": [
+    { "id": "pelo-sur", "ruta": "catalogo/negocios/pelo-sur.json" },
+    { "id": "la-mesa-norte", "ruta": "catalogo/negocios/la-mesa-norte.json" }
+  ]
+}

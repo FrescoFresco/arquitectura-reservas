@@ -3785,17 +3785,27 @@ function cerrarProyectoModal() {
 
 function seleccionarProyReaderTab(id) {
   const tabs = document.querySelectorAll('#proyReaderTabs [data-proy-tab]');
-  const panelDoc = document.getElementById('proyPanelDoc');
-  const panelSkills = document.getElementById('proyPanelSkills');
-  const panelInterno = document.getElementById('proyPanelInterno');
+  const panels = {
+    resumen: document.getElementById('proyPanelResumen'),
+    diagrama: document.getElementById('proyPanelDiagrama'),
+    campos: document.getElementById('proyPanelCampos'),
+    agentes: document.getElementById('proyPanelAgentes')
+  };
+  // Compat: nombres antiguos → resumen
+  if (id === 'documento' || id === 'skills' || id === 'interno') id = 'resumen';
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-proy-tab') === id;
     btn.classList.toggle('is-on', on);
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
-  if (panelDoc) panelDoc.hidden = id !== 'documento';
-  if (panelSkills) panelSkills.hidden = id !== 'skills';
-  if (panelInterno) panelInterno.hidden = id !== 'interno';
+  Object.keys(panels).forEach(function (key) {
+    if (panels[key]) panels[key].hidden = key !== id;
+  });
+  const proy = proyectoAbierto();
+  if (!proy) return;
+  if (id === 'diagrama') cargarProyectoDiagrama(proy);
+  if (id === 'campos') pintarProyectoCampos(proy);
+  if (id === 'agentes') pintarProyectoAgentes(proy);
 }
 
 function seleccionarEditarProyTab(id) {
@@ -3945,6 +3955,28 @@ function renderProyectoReader() {
   document.getElementById('proyReaderVersion').textContent = formatVersion(v.numero, v.fecha);
   const proyId = document.getElementById('proyReaderId');
   if (proyId) proyId.textContent = proy.id || '—';
+  const baseEl = document.getElementById('proyReaderBaseDatos');
+  if (baseEl) baseEl.textContent = proy.baseDatos || '—';
+  const skillsRes = document.getElementById('proyResumenSkills');
+  if (skillsRes) {
+    const sk = Array.isArray(proy.skills) ? proy.skills : [];
+    skillsRes.textContent = sk.length ? sk.join(', ') : '—';
+  }
+  const agRes = document.getElementById('proyResumenAgentes');
+  if (agRes) {
+    const ag = Array.isArray(proy.agentes) ? proy.agentes : [];
+    agRes.textContent = ag.length ? ag.join(', ') : '—';
+  }
+  const legacyFila = document.getElementById('proyLegacyFila');
+  if (legacyFila) legacyFila.hidden = !proy.legacyNegocio;
+  const msgBd = document.getElementById('proyCrearBdMsg');
+  if (msgBd) {
+    msgBd.hidden = true;
+    msgBd.textContent = '';
+    msgBd.classList.remove('is-err');
+  }
+  const btnCrear = document.getElementById('btnCrearBdProyecto');
+  if (btnCrear) btnCrear.hidden = !!proy.legacyNegocio || !proy.baseDatos;
   const proyVer = document.getElementById('proyInternoVersion');
   if (proyVer) proyVer.textContent = formatVersion(v.numero, v.fecha);
   const full = normalizarHash(v.hash) || hashFnvHex(proy.id + '|' + v.numero + '|' + (v.ruta || v.fecha || ''));
@@ -3963,13 +3995,177 @@ function renderProyectoReader() {
       hashVacio.hidden = false;
     }
   }
-  seleccionarProyReaderTab('documento');
+  seleccionarProyReaderTab('resumen');
   pintarVersionProyecto(v);
   pintarProyectoSkillsLista(proy);
   renderHistorialProyecto(proy, v);
   if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
   const nombre = document.getElementById('proyReaderNombre');
   if (nombre) nombre.focus();
+}
+
+
+function cargarProyectoDiagrama(proy) {
+  const estado = document.getElementById('proyDiagramaEstado');
+  const pre = document.getElementById('proyDiagramaMermaid');
+  const boxes = document.getElementById('proyDiagramaBoxes');
+  if (!proy || !proy.id) return;
+  if (estado) {
+    estado.hidden = false;
+    estado.textContent = 'Cargando diagrama…';
+  }
+  if (pre) pre.hidden = true;
+  if (boxes) {
+    boxes.hidden = true;
+    boxes.replaceChildren();
+  }
+  apiFetch('/v1/proyectos/' + encodeURIComponent(proy.id) + '/diagrama')
+    .then(function (data) {
+      const d = data && data.diagrama ? data.diagrama : data;
+      if (!d) throw new Error('sin diagrama');
+      if (estado) estado.hidden = true;
+      if (pre) {
+        pre.textContent = d.mermaid || '';
+        pre.hidden = !d.mermaid;
+      }
+      if (boxes) {
+        boxes.replaceChildren();
+        (d.colecciones || []).forEach(function (col) {
+          const box = el('div', 'proy-er-box', null);
+          box.append(el('h4', null, col.id));
+          const ul = document.createElement('ul');
+          ul.appendChild(el('li', null, '_id · objectid'));
+          (col.campos || []).forEach(function (f) {
+            const label = (f.clave || '?') + ' · ' + (f.bsonType || 'string') + (f.obligatorio ? ' *' : '');
+            ul.appendChild(el('li', null, label));
+          });
+          box.append(ul);
+          boxes.append(box);
+        });
+        if ((d.relaciones || []).length) {
+          const rels = el('p', 'proy-er-rels', null);
+          rels.textContent = (d.relaciones || []).map(function (r) {
+            return (r.desde || '') + ' → ' + (r.hacia || '') + ' (' + (r.tipo || 'N:1') + ')';
+          }).join(' · ');
+          boxes.append(rels);
+        }
+        boxes.hidden = false;
+      }
+    })
+    .catch(function () {
+      if (estado) {
+        estado.hidden = false;
+        estado.textContent = proy.colecciones && proy.colecciones.length
+          ? 'No se pudo cargar el diagrama desde la API.'
+          : 'Este proyecto no tiene colecciones (¿negocio legado?).';
+      }
+    });
+}
+
+function pintarProyectoCampos(proy) {
+  const vacio = document.getElementById('proyCamposVacio');
+  const tabla = document.getElementById('proyCamposTabla');
+  const body = document.getElementById('proyCamposBody');
+  if (!body || !proy) return;
+  body.replaceChildren();
+  const q = proy.legacyNegocio ? '' : ('?proyecto=' + encodeURIComponent(proy.id));
+  apiFetch('/v1/mongo' + q)
+    .then(function (data) {
+      let campos = (data && data.campos) || [];
+      if (proy.legacyNegocio) campos = [];
+      if (!campos.length) {
+        if (vacio) { vacio.hidden = false; vacio.textContent = 'Sin campos Mongo en este proyecto.'; }
+        if (tabla) tabla.hidden = true;
+        return;
+      }
+      if (vacio) vacio.hidden = true;
+      if (tabla) tabla.hidden = false;
+      campos.forEach(function (c) {
+        const tr = document.createElement('tr');
+        tr.append(
+          el('td', null, c.ancla || '—'),
+          el('td', null, c.campo || (c.coleccion + '.' + c.clave)),
+          el('td', null, c.coleccion || '—'),
+          el('td', null, c.bsonType || 'string')
+        );
+        body.append(tr);
+      });
+    })
+    .catch(function () {
+      if (vacio) { vacio.hidden = false; vacio.textContent = 'No se pudieron cargar los campos.'; }
+      if (tabla) tabla.hidden = true;
+    });
+}
+
+function pintarProyectoAgentes(proy) {
+  const lista = document.getElementById('proyAgentesLista');
+  const vacio = document.getElementById('proyAgentesVacio');
+  if (!lista || !proy) return;
+  lista.replaceChildren();
+  const ids = Array.isArray(proy.agentes) ? proy.agentes : [];
+  apiFetch('/v1/agentes')
+    .then(function (data) {
+      const todos = (data && data.agentes) || [];
+      const filtrados = ids.length
+        ? todos.filter(function (a) { return ids.indexOf(a.id) >= 0; })
+        : todos.filter(function (a) {
+          return Array.isArray(a.proyectos) && a.proyectos.indexOf(proy.id) >= 0;
+        });
+      if (!filtrados.length) {
+        if (vacio) { vacio.hidden = false; vacio.textContent = 'Ningún agente asignado.'; }
+        return;
+      }
+      if (vacio) vacio.hidden = true;
+      filtrados.forEach(function (a) {
+        const card = el('div', 'proy-agente-card', null);
+        card.append(el('h4', null, a.nombre || a.id));
+        const perms = el('p', 'proy-agente-perms', null);
+        const lee = Array.isArray(a.lee) && a.lee.length ? a.lee.join(', ') : '—';
+        const escribe = Array.isArray(a.escribe) && a.escribe.length ? a.escribe.join(', ') : '—';
+        perms.textContent = 'Lee: ' + lee + ' · Escribe: ' + escribe;
+        card.append(perms);
+        lista.append(card);
+      });
+    })
+    .catch(function () {
+      if (vacio) { vacio.hidden = false; vacio.textContent = 'No se pudieron cargar los agentes.'; }
+    });
+}
+
+async function onCrearBaseDatosProyecto() {
+  const proy = proyectoAbierto();
+  const msg = document.getElementById('proyCrearBdMsg');
+  const btn = document.getElementById('btnCrearBdProyecto');
+  if (!proy || !proy.id) return;
+  if (msg) {
+    msg.hidden = false;
+    msg.classList.remove('is-err');
+    msg.textContent = 'Creando base de datos…';
+  }
+  if (btn) btn.disabled = true;
+  try {
+    const data = await apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/crear-bd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    if (!data || data.ok === false) throw new Error((data && data.error) || 'Error');
+    if (msg) {
+      if (data.mock || data.dryRun) {
+        msg.textContent = 'Plan listo (sin URI Mongo). Configura Ajustes → Conexiones y vuelve a pulsar. Base: ' + (data.db || proy.baseDatos);
+      } else {
+        const created = (data.created || []).join(', ') || 'ninguna nueva';
+        msg.textContent = 'Base ' + (data.db || '') + ' lista. Colecciones creadas: ' + created + '.';
+      }
+    }
+  } catch (err) {
+    if (msg) {
+      msg.classList.add('is-err');
+      msg.textContent = err && err.message ? err.message : 'No se pudo crear la base.';
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function abrirProyecto(id, numero) {
@@ -4328,6 +4524,8 @@ function wireProyectosUi() {
   });
   const btnEditSkills = document.getElementById('btnEditarProyectoSkills');
   if (btnEditSkills) btnEditSkills.addEventListener('click', abrirDialogoEditarProyectoSkills);
+  const btnCrearBd = document.getElementById('btnCrearBdProyecto');
+  if (btnCrearBd) btnCrearBd.addEventListener('click', onCrearBaseDatosProyecto);
   const proyTabs = document.getElementById('proyReaderTabs');
   if (proyTabs) proyTabs.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-proy-tab]');

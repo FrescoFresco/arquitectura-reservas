@@ -99,7 +99,7 @@ PUT    {API_BASE}/v1/agentes/:id     Authorization: Bearer inv_…
 DELETE {API_BASE}/v1/agentes/:id     Authorization: Bearer inv_…
 ```
 
-`PUT` body: `{ "nombre"?, "foto"?, "descripcion"? }`.
+`PUT` body: `{ "nombre"?, "foto"?, "descripcion"?, "proyectos"?, "lee"?, "escribe"? }`.
 
 ### Crear invite (solo humanos / UI)
 
@@ -156,6 +156,53 @@ Content-Type: application/json
 
 `PUT /v1/skills/:id` crea **versión nueva** (no pisa el markdown anterior).  
 `DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`).
+
+### Proyecto = software (base Mongo propia)
+
+Un **proyecto** es un software (`reservas`, `llamadas`, …), no un negocio. Campos:
+
+```json
+{
+  "id": "reservas",
+  "nombre": "Software de reservas",
+  "baseDatos": "software_reservas",
+  "colecciones": [{ "id": "negocios", "descripcion": "…" }],
+  "relaciones": [{ "desde": "reservas.negocio_id", "hacia": "negocios._id", "tipo": "N:1" }],
+  "skills": ["descubrir-negocio"],
+  "agentes": ["reservas-pagweb"]
+}
+```
+
+- `PUT` crea **versión nueva**.
+- Cada colección citada en `relaciones` debe existir en `colecciones` (si no → `400`).
+- Negocios legado (`pelo-sur`, `la-mesa-norte`) llevan `legacyNegocio: true` hasta confirmación humana de borrado (`DELETE` → `409`).
+
+```
+GET  {API_BASE}/v1/proyectos/:id/diagrama
+→ { ok, proyecto, diagrama: { mermaid, colecciones, relaciones, baseDatos } }
+  ?format=mermaid → text/plain con el erDiagram
+
+POST {API_BASE}/v1/proyectos/:id/crear-bd
+Authorization: Bearer inv_…
+→ crea DB/colecciones/índices/$jsonSchema desde campos Mongo del proyecto
+  Sin URI → { mock:true, dryRun:true, plan } (no inventa secretos; URI en Ajustes → Conexiones)
+```
+
+### Campos MongoDB ↔ proyecto
+
+Campo obligatorio `"proyecto": "reservas"`. `baseDatos` se toma del proyecto (no a mano). `coleccion` debe estar en `colecciones` del proyecto. Tipos `object` / `array` admiten `"hijos": […]`.
+
+```
+GET {API_BASE}/v1/mongo?proyecto=reservas
+```
+
+### Agentes — permisos por proyecto
+
+```json
+{ "proyectos": ["reservas"], "lee": ["_negocio.telefono_"], "escribe": ["_ejecucion.respuesta.estado_"] }
+```
+
+`PUT /v1/agentes/:id` acepta `proyectos`, `lee`, `escribe`.
 
 ### Proyecto ↔ skills (N:M)
 

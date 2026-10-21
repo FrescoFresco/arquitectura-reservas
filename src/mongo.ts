@@ -151,3 +151,90 @@ export async function upsertNegocio(db: Db, doc: NegocioDoc) {
     matched: Boolean(result.matchedCount),
   };
 }
+
+export type CreateBdCollectionPlan = {
+  id: string;
+  validator?: Record<string, unknown>;
+  indexes?: Array<{ keys: Record<string, 1 | -1>; name?: string; unique?: boolean }>;
+};
+
+export type CreateBdResult = {
+  db: string;
+  created: string[];
+  updated: string[];
+  indexes: Array<{ collection: string; name: string }>;
+  dryRun?: boolean;
+  mock?: boolean;
+};
+
+/**
+ * Crea (o actualiza) la base: colecciones + $jsonSchema + índices.
+ * Nunca recibe ni loguea la URI (usa env ya resuelto).
+ */
+export async function createProjectDatabase(
+  env: MongoEnv,
+  dbName: string,
+  collections: CreateBdCollectionPlan[]
+): Promise<CreateBdResult> {
+  return withMongoDb(
+    env,
+    async (db) => {
+      const existing = await db.listCollections({}, { nameOnly: true }).toArray();
+      const existingNames = new Set(existing.map((c) => c.name));
+      const created: string[] = [];
+      const updated: string[] = [];
+      const indexes: Array<{ collection: string; name: string }> = [];
+
+      for (const col of collections) {
+        const name = String(col.id || '').trim();
+        if (!name) continue;
+        if (!existingNames.has(name)) {
+          if (col.validator) {
+            await db.createCollection(name, {
+              validator: { $jsonSchema: col.validator },
+              validationLevel: 'moderate',
+              validationAction: 'warn',
+            });
+          } else {
+            await db.createCollection(name);
+          }
+          created.push(name);
+          existingNames.add(name);
+        } else if (col.validator) {
+          await db.command({
+            collMod: name,
+            validator: { $jsonSchema: col.validator },
+            validationLevel: 'moderate',
+            validationAction: 'warn',
+          });
+          updated.push(name);
+        }
+
+        const indexSpecs = col.indexes || [];
+        // Default index on _id already exists; add declared ones.
+        for (const spec of indexSpecs) {
+          const keys = spec.keys || {};
+          if (!Object.keys(keys).length) continue;
+          const idxName =
+            spec.name ||
+            Object.entries(keys)
+              .map(([k, v]) => `${k}_${v}`)
+              .join('_');
+          try {
+            await db.collection(name).createIndex(keys, {
+              name: idxName,
+              unique: !!spec.unique,
+              background: true,
+            });
+            indexes.push({ collection: name, name: idxName });
+          } catch {
+            // Index may already exist with same keys — ignore.
+          }
+        }
+      }
+
+      return { db: dbName, created, updated, indexes };
+    },
+    dbName
+  );
+}

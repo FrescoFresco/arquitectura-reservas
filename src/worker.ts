@@ -21,6 +21,7 @@ import {
 } from './pelo-sur';
 import {
   buildNegocioDoc,
+  createProjectDatabase,
   mongoHealthLabel,
   mongoNotConfiguredError,
   mongoUriConfigured,
@@ -38,6 +39,18 @@ import {
   saveStoredUri,
   type MongoConfigMeta,
 } from './mongo-config';
+import {
+  buildDiagrama,
+  buildJsonSchemaForCollection,
+  parseColecciones,
+  parseRelaciones,
+  parseStringList,
+  validateColeccionEnProyecto,
+  validateRelaciones,
+  type ColeccionDef,
+  type MongoCampoShape,
+  type RelacionDef,
+} from './proyecto-schema';
 
 export type Env = {
   DB: D1Database;
@@ -354,11 +367,17 @@ app.get('/v1/anclas/:id/valores', async (c) => {
 });
 
 app.get('/v1/mongo', async (c) => {
-  const rows = await c.env.DB.prepare('SELECT * FROM campos_mongo ORDER BY campo').all();
+  const proyecto = String(c.req.query('proyecto') || '').trim();
+  const rows = proyecto
+    ? await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE proyecto = ? ORDER BY campo')
+        .bind(proyecto)
+        .all()
+    : await c.env.DB.prepare('SELECT * FROM campos_mongo ORDER BY campo').all();
   return c.json({
     ok: true,
     id: 'campos-mongodb',
     nombre: 'Campos MongoDB',
+    ...(proyecto ? { proyecto } : {}),
     campos: (rows.results || []).map(mapMongo),
   });
 });
@@ -407,7 +426,9 @@ app.get('/v1/mongo/:id', async (c) => {
 app.get('/v1/proyectos', async (c) => {
   // Batch hydrate versions + skills to keep list GETs under D1 statement pressure.
   const rows = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM proyectos ORDER BY nombre'
+    `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+            base_datos, colecciones, relaciones, agentes_json, legacy_negocio
+     FROM proyectos ORDER BY nombre`
   ).all();
   const ids = (rows.results || []).map((r) => String((r as { id: string }).id));
   const [versionesAll, skillsAll] = await Promise.all([
@@ -437,22 +458,39 @@ app.get('/v1/proyectos', async (c) => {
       string,
       unknown
     >;
-    return {
-      id,
-      nombre: row.nombre,
-      descripcion: row.descripcion || '',
-      hash: row.hash || '',
-      skills: skillsBy.get(id) || [],
-      versiones: versBy.get(id) || [],
-    };
+    return mapProyectoRow(row, skillsBy.get(id) || [], versBy.get(id) || []);
   });
   return c.json({ ok: true, id: 'proyectos', nombre: 'Proyectos', proyectos: out });
 });
 
-app.get('/v1/proyectos/:id', async (c) => {
-  const row = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM proyectos WHERE id = ?'
+app.get('/v1/proyectos/:id/diagrama', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
+  const proy = mapProyectoRow(row as Record<string, unknown>, [], []);
+  const camposRows = await c.env.DB.prepare(
+    'SELECT * FROM campos_mongo WHERE proyecto = ? ORDER BY coleccion, campo'
   )
+    .bind(id)
+    .all();
+  const campos = (camposRows.results || []).map((r) => mapMongo(r as Record<string, unknown>)) as MongoCampoShape[];
+  const diagrama = buildDiagrama(
+    {
+      baseDatos: proy.baseDatos,
+      colecciones: proy.colecciones,
+      relaciones: proy.relaciones,
+    },
+    campos
+  );
+  const format = String(c.req.query('format') || 'json').toLowerCase();
+  if (format === 'mermaid' || format === 'text') {
+    return c.text(diagrama.mermaid, 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+  }
+  return c.json({ ok: true, proyecto: id, diagrama });
+});
+
+app.get('/v1/proyectos/:id', async (c) => {
+  const row = await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?')
     .bind(c.req.param('id'))
     .first();
   if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
@@ -482,7 +520,7 @@ app.get('/v1/fundamentos/:id', async (c) => {
 
 app.get('/v1/agentes', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, nombre, foto, descripcion, invite_usada, last_seen, hash FROM agentes ORDER BY nombre'
+    'SELECT id, nombre, foto, descripcion, invite_usada, last_seen, hash, proyectos, lee, escribe FROM agentes ORDER BY nombre'
   ).all();
   return c.json({
     ok: true,
@@ -611,7 +649,14 @@ app.delete('/v1/agentes/:id', async (c) => {
 
 app.put('/v1/agentes/:id', async (c) => {
   const id = c.req.param('id');
-  const body = (await c.req.json().catch(() => ({}))) as { nombre?: string; foto?: string; descripcion?: string };
+  const body = (await c.req.json().catch(() => ({}))) as {
+    nombre?: string;
+    foto?: string;
+    descripcion?: string;
+    proyectos?: string[];
+    lee?: string[];
+    escribe?: string[];
+  };
   const ag = await c.env.DB.prepare('SELECT * FROM agentes WHERE id = ?').bind(id).first();
   if (!ag) return jsonError(c, 404, 'Agente no encontrado.');
   const nombre = String(body.nombre ?? (ag as { nombre: string }).nombre).trim();
@@ -619,14 +664,42 @@ app.put('/v1/agentes/:id', async (c) => {
   const descripcion = String(body.descripcion ?? ((ag as { descripcion: string }).descripcion || ''))
     .trim()
     .slice(0, 280);
+  const proyectos =
+    body.proyectos != null
+      ? parseStringList(body.proyectos)
+      : parseStringList((ag as { proyectos?: string }).proyectos);
+  const lee = body.lee != null ? parseStringList(body.lee) : parseStringList((ag as { lee?: string }).lee);
+  const escribe =
+    body.escribe != null
+      ? parseStringList(body.escribe)
+      : parseStringList((ag as { escribe?: string }).escribe);
   const ts = nowIso();
   const hash = await sha256Hex(id + '|' + nombre + '|' + ((ag as { invite_usada: string }).invite_usada || ''));
   await c.env.DB.prepare(
-    'UPDATE agentes SET nombre = ?, foto = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?'
+    `UPDATE agentes SET nombre = ?, foto = ?, descripcion = ?, hash = ?, updated_at = ?,
+     proyectos = ?, lee = ?, escribe = ? WHERE id = ?`
   )
-    .bind(nombre, foto, descripcion, hash, ts, id)
+    .bind(
+      nombre,
+      foto,
+      descripcion,
+      hash,
+      ts,
+      JSON.stringify(proyectos),
+      JSON.stringify(lee),
+      JSON.stringify(escribe),
+      id
+    )
     .run();
-  return c.json({ ok: true, id, nombre, foto });
+  return c.json({
+    ok: true,
+    id,
+    nombre,
+    foto,
+    proyectos,
+    lee,
+    escribe,
+  });
 });
 
 app.post('/v1/skills', async (c) => {
@@ -1070,13 +1143,14 @@ app.post('/v1/mongo/sync/proyecto', async (c) => {
 
 app.post('/v1/mongo', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-  const campo = normalizeMongoBody(body);
-  if (!campo) return jsonError(c, 400, 'colección/clave obligatorias.');
+  const prepared = await prepareMongoPersist(c.env.DB, body);
+  if ('error' in prepared) return jsonError(c, 400, prepared.error);
+  const campo = prepared.campo;
   const ts = nowIso();
   try {
     await c.env.DB.prepare(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, proyecto, hijos, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         campo.id,
@@ -1092,6 +1166,8 @@ app.post('/v1/mongo', async (c) => {
         campo.proyeccionMongo,
         JSON.stringify(campo.proyeccionElemento),
         JSON.stringify(campo.indices || []),
+        campo.proyecto,
+        JSON.stringify(campo.hijos || []),
         ts,
         ts
       )
@@ -1107,12 +1183,18 @@ app.put('/v1/mongo/:id', async (c) => {
   const prev = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE id = ?').bind(id).first();
   if (!prev) return jsonError(c, 404, 'Campo Mongo no encontrado.');
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-  const merged = normalizeMongoBody({ ...mapMongo(prev as Record<string, unknown>), ...body, id });
-  if (!merged) return jsonError(c, 400, 'Datos inválidos.');
+  const prepared = await prepareMongoPersist(c.env.DB, {
+    ...mapMongo(prev as Record<string, unknown>),
+    ...body,
+    id,
+  });
+  if ('error' in prepared) return jsonError(c, 400, prepared.error);
+  const merged = prepared.campo;
   const ts = nowIso();
   await c.env.DB.prepare(
     `UPDATE campos_mongo SET campo = ?, base_datos = ?, coleccion = ?, clave = ?, bson_type = ?,
-     obligatorio = ?, descripcion = ?, ancla = ?, hash = ?, proyeccion_mongo = ?, proyeccion_elemento = ?, indices = ?, updated_at = ? WHERE id = ?`
+     obligatorio = ?, descripcion = ?, ancla = ?, hash = ?, proyeccion_mongo = ?, proyeccion_elemento = ?, indices = ?,
+     proyecto = ?, hijos = ?, updated_at = ? WHERE id = ?`
   )
     .bind(
       merged.campo,
@@ -1127,6 +1209,8 @@ app.put('/v1/mongo/:id', async (c) => {
       merged.proyeccionMongo,
       JSON.stringify(merged.proyeccionElemento),
       JSON.stringify(merged.indices || []),
+      merged.proyecto,
+      JSON.stringify(merged.hijos || []),
       ts,
       id
     )
@@ -1140,27 +1224,35 @@ app.delete('/v1/mongo/:id', async (c) => {
 });
 
 app.post('/v1/proyectos', async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
-    id?: string;
-    nombre?: string;
-    descripcion?: string;
-    markdown?: string;
-    skills?: string[];
-  };
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
   const nombre = String(body.nombre || '').trim();
   if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
   const id = String(body.id || slugId(nombre)).trim();
   if (!ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
+  const shape = normalizeProyectoSoftwareBody(body, { id, nombre });
+  if ('error' in shape) return jsonError(c, 400, shape.error);
   const markdown = String(body.markdown || '');
-  const descripcion = String(body.descripcion || '').trim().slice(0, 280);
-  const skills = (body.skills || []).map(String).filter(Boolean);
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
   try {
     await c.env.DB.prepare(
-      'INSERT INTO proyectos (id, nombre, descripcion, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      `INSERT INTO proyectos (id, nombre, descripcion, hash, created_at, updated_at,
+        base_datos, colecciones, relaciones, agentes_json, legacy_negocio)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(id, nombre, descripcion, hash, ts, ts)
+      .bind(
+        id,
+        shape.nombre,
+        shape.descripcion,
+        hash,
+        ts,
+        ts,
+        shape.baseDatos,
+        JSON.stringify(shape.colecciones),
+        JSON.stringify(shape.relaciones),
+        JSON.stringify(shape.agentes),
+        shape.legacyNegocio ? 1 : 0
+      )
       .run();
   } catch {
     return jsonError(c, 409, 'Ya existe ese proyecto.');
@@ -1170,7 +1262,7 @@ app.post('/v1/proyectos', async (c) => {
   )
     .bind(id, todayIso(), markdown, '', id + '.md', hash)
     .run();
-  await replaceProyectoSkills(c.env.DB, id, skills);
+  await replaceProyectoSkills(c.env.DB, id, shape.skills);
   return c.json({
     ok: true,
     proyecto: await hydrateProyecto(
@@ -1184,16 +1276,22 @@ app.put('/v1/proyectos/:id', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
-  const body = (await c.req.json().catch(() => ({}))) as {
-    nombre?: string;
-    descripcion?: string;
-    markdown?: string;
-    skills?: string[];
-  };
-  const nombre = String(body.nombre ?? (row as { nombre: string }).nombre).trim();
-  const descripcion = String(body.descripcion ?? ((row as { descripcion: string }).descripcion || ''))
-    .trim()
-    .slice(0, 280);
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const prev = mapProyectoRow(row as Record<string, unknown>, [], []);
+  const shape = normalizeProyectoSoftwareBody(
+    {
+      ...prev,
+      ...body,
+      // merge nested arrays carefully when omitted
+      colecciones: body.colecciones != null ? body.colecciones : prev.colecciones,
+      relaciones: body.relaciones != null ? body.relaciones : prev.relaciones,
+      agentes: body.agentes != null ? body.agentes : prev.agentes,
+      skills: body.skills != null ? body.skills : undefined,
+      baseDatos: body.baseDatos != null || body.base_datos != null ? body.baseDatos ?? body.base_datos : prev.baseDatos,
+    },
+    { id, nombre: String(body.nombre ?? prev.nombre).trim() }
+  );
+  if ('error' in shape) return jsonError(c, 400, shape.error);
   const max = await c.env.DB.prepare(
     'SELECT COALESCE(MAX(numero), 0) AS m FROM proyecto_versions WHERE proyecto_id = ?'
   )
@@ -1210,19 +1308,41 @@ app.put('/v1/proyectos/:id', async (c) => {
             .bind(id)
             .first<{ markdown: string }>()
         )?.markdown || '';
-  const hash = await sha256Hex(markdown || id + '|' + numero);
+  const hash = await sha256Hex(
+    JSON.stringify({
+      markdown,
+      baseDatos: shape.baseDatos,
+      colecciones: shape.colecciones,
+      relaciones: shape.relaciones,
+      agentes: shape.agentes,
+      skills: shape.skills,
+    }) || id + '|' + numero
+  );
   const ts = nowIso();
-  await c.env.DB.prepare('UPDATE proyectos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?')
-    .bind(nombre, descripcion, hash, ts, id)
-    .run();
-  if (body.markdown != null) {
-    await c.env.DB.prepare(
-      'INSERT INTO proyecto_versions (proyecto_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  await c.env.DB.prepare(
+    `UPDATE proyectos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?,
+     base_datos = ?, colecciones = ?, relaciones = ?, agentes_json = ?, legacy_negocio = ? WHERE id = ?`
+  )
+    .bind(
+      shape.nombre,
+      shape.descripcion,
+      hash,
+      ts,
+      shape.baseDatos,
+      JSON.stringify(shape.colecciones),
+      JSON.stringify(shape.relaciones),
+      JSON.stringify(shape.agentes),
+      shape.legacyNegocio ? 1 : 0,
+      id
     )
-      .bind(id, numero, todayIso(), markdown, '', id + '.md', hash)
-      .run();
-  }
-  if (body.skills) await replaceProyectoSkills(c.env.DB, id, body.skills.map(String).filter(Boolean));
+    .run();
+  // PUT always creates a new version (software schema + optional markdown).
+  await c.env.DB.prepare(
+    'INSERT INTO proyecto_versions (proyecto_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  )
+    .bind(id, numero, todayIso(), markdown, '', id + '.md', hash)
+    .run();
+  if (body.skills != null) await replaceProyectoSkills(c.env.DB, id, shape.skills);
   return c.json({
     ok: true,
     proyecto: await hydrateProyecto(
@@ -1232,9 +1352,106 @@ app.put('/v1/proyectos/:id', async (c) => {
   });
 });
 
+app.post('/v1/proyectos/:id/crear-bd', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
+  const proy = await hydrateProyecto(c.env.DB, row as Record<string, unknown>);
+  if (!proy.baseDatos) return jsonError(c, 400, 'El proyecto no tiene baseDatos.');
+  if (!proy.colecciones.length) return jsonError(c, 400, 'El proyecto no tiene colecciones.');
+
+  const camposRows = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE proyecto = ?').bind(id).all();
+  const campos = (camposRows.results || []).map((r) => mapMongo(r as Record<string, unknown>)) as MongoCampoShape[];
+
+  const plans = proy.colecciones.map((col: ColeccionDef) => {
+    const colCampos = campos.filter((f) => f.coleccion === col.id);
+    const indexes: Array<{ keys: Record<string, 1 | -1>; name?: string; unique?: boolean }> = [];
+    for (const f of colCampos) {
+      const idxList = Array.isArray((f as { indices?: unknown }).indices)
+        ? ((f as { indices: unknown[] }).indices as unknown[])
+        : [];
+      for (const raw of idxList) {
+        if (typeof raw === 'string' && raw.trim()) {
+          indexes.push({ keys: { [raw.trim()]: 1 }, name: `${col.id}_${raw.trim()}_1` });
+        } else if (raw && typeof raw === 'object') {
+          const o = raw as Record<string, unknown>;
+          const keys = (o.keys || o) as Record<string, 1 | -1>;
+          if (keys && typeof keys === 'object') {
+            indexes.push({
+              keys,
+              name: String(o.name || '') || undefined,
+              unique: !!o.unique,
+            });
+          }
+        }
+      }
+    }
+    // FK-ish fields ending in _id get a plain index.
+    for (const f of colCampos) {
+      const clave = String(f.clave || '');
+      if (clave.endsWith('_id') || clave === 'negocio_id' || clave === 'proceso_id') {
+        indexes.push({ keys: { [clave.split('.')[0]]: 1 }, name: `${col.id}_${clave.split('.')[0]}_1` });
+      }
+    }
+    return {
+      id: col.id,
+      validator: buildJsonSchemaForCollection(col.id, campos),
+      indexes,
+    };
+  });
+
+  const body = (await c.req.json().catch(() => ({}))) as { dryRun?: boolean; mock?: boolean };
+  const dryRun = body.dryRun === true;
+  const resolved = await resolveRuntimeMongo(c.env, proy.baseDatos);
+
+  if (dryRun || body.mock === true || !mongoUriConfigured(resolved.env)) {
+    return c.json({
+      ok: true,
+      proyecto: id,
+      mock: !mongoUriConfigured(resolved.env) || body.mock === true,
+      dryRun: dryRun || !mongoUriConfigured(resolved.env),
+      db: proy.baseDatos,
+      plan: {
+        collections: plans.map((p) => ({
+          id: p.id,
+          validator: p.validator,
+          indexes: p.indexes,
+        })),
+      },
+      hint: mongoUriConfigured(resolved.env)
+        ? undefined
+        : 'Sin URI Mongo: plan en seco. Configura Ajustes → Conexiones o MONGODB_URI y vuelve a llamar.',
+      created: [],
+      updated: [],
+      indexes: [],
+    });
+  }
+
+  try {
+    const result = await createProjectDatabase(resolved.env, proy.baseDatos, plans);
+    return c.json({ ok: true, proyecto: id, ...result });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'crear-bd falló';
+    if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
+    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
+    return jsonError(c, 502, scrubbed);
+  }
+});
+
 app.delete('/v1/proyectos/:id', async (c) => {
-  await c.env.DB.prepare('DELETE FROM proyectos WHERE id = ?').bind(c.req.param('id')).run();
-  return c.json({ ok: true, deleted: c.req.param('id') });
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT legacy_negocio FROM proyectos WHERE id = ?')
+    .bind(id)
+    .first<{ legacy_negocio: number }>();
+  if (row && row.legacy_negocio) {
+    return jsonError(
+      c,
+      409,
+      'Proyecto legado (negocio). Confirma con el humano antes de borrar; quita legacyNegocio o bórralo tras confirmación explícita.'
+    );
+  }
+  await c.env.DB.prepare('DELETE FROM proyectos WHERE id = ?').bind(id).run();
+  return c.json({ ok: true, deleted: id });
 });
 
 app.post('/v1/fundamentos', async (c) => {
@@ -1559,10 +1776,21 @@ function mapAnclaRow(row: Record<string, unknown>) {
 }
 
 function mapMongo(row: Record<string, unknown>) {
+  const hijosRaw = row.hijos;
+  let hijos: unknown[] = [];
+  if (Array.isArray(hijosRaw)) hijos = hijosRaw;
+  else if (typeof hijosRaw === 'string' && hijosRaw.trim()) {
+    try {
+      const p = JSON.parse(hijosRaw);
+      if (Array.isArray(p)) hijos = p;
+    } catch {
+      hijos = [];
+    }
+  }
   return {
     id: String(row.id),
     campo: String(row.campo || ''),
-    baseDatos: String(row.base_datos ?? row.baseDatos ?? 'arquitectura_reservas'),
+    baseDatos: String(row.base_datos ?? row.baseDatos ?? ''),
     coleccion: String(row.coleccion || ''),
     clave: String(row.clave || ''),
     bsonType: String(row.bson_type ?? row.bsonType ?? 'string'),
@@ -1573,6 +1801,8 @@ function mapMongo(row: Record<string, unknown>) {
     proyeccionMongo: String(row.proyeccion_mongo ?? row.proyeccionMongo ?? '').trim(),
     proyeccionElemento: parseJsonObject(row.proyeccion_elemento ?? row.proyeccionElemento),
     indices: parseJsonArray(row.indices),
+    proyecto: String(row.proyecto || ''),
+    hijos,
   };
 }
 
@@ -1585,6 +1815,32 @@ function mapAgente(row: Record<string, unknown>) {
     inviteUsada: String(row.invite_usada ?? row.inviteUsada ?? ''),
     lastSeen: String(row.last_seen ?? row.lastSeen ?? ''),
     hash: String(row.hash || ''),
+    proyectos: parseStringList(row.proyectos),
+    lee: parseStringList(row.lee),
+    escribe: parseStringList(row.escribe),
+  };
+}
+
+function mapProyectoRow(
+  row: Record<string, unknown>,
+  skills: string[],
+  versiones: unknown[]
+) {
+  const colecciones = parseColecciones(row.colecciones);
+  const relaciones = parseRelaciones(row.relaciones);
+  const agentes = parseStringList(row.agentes_json ?? row.agentes);
+  return {
+    id: String(row.id),
+    nombre: row.nombre,
+    descripcion: row.descripcion || '',
+    hash: row.hash || '',
+    baseDatos: String(row.base_datos ?? row.baseDatos ?? '').trim(),
+    colecciones,
+    relaciones,
+    agentes,
+    legacyNegocio: !!(row.legacy_negocio === 1 || row.legacy_negocio === true || row.legacyNegocio === true),
+    skills,
+    versiones,
   };
 }
 
@@ -1597,13 +1853,88 @@ async function hydrateProyecto(db: D1Database, row: Record<string, unknown>) {
     .bind(id)
     .all();
   const skills = await db.prepare('SELECT skill_id FROM proyecto_skills WHERE proyecto_id = ?').bind(id).all();
+  return mapProyectoRow(
+    row,
+    (skills.results || []).map((r) => (r as { skill_id: string }).skill_id),
+    versiones.results || []
+  );
+}
+
+function normalizeProyectoSoftwareBody(
+  body: Record<string, unknown>,
+  opts: { id: string; nombre: string }
+):
+  | {
+      nombre: string;
+      descripcion: string;
+      baseDatos: string;
+      colecciones: ColeccionDef[];
+      relaciones: RelacionDef[];
+      agentes: string[];
+      skills: string[];
+      legacyNegocio: boolean;
+    }
+  | { error: string } {
+  const nombre = String(opts.nombre || '').trim();
+  if (!nombre) return { error: 'nombre obligatorio.' };
+  const descripcion = String(body.descripcion || '').trim().slice(0, 280);
+  const baseDatos = String(body.baseDatos || body.base_datos || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_]/g, '_');
+  const colecciones = parseColecciones(body.colecciones);
+  const relaciones = parseRelaciones(body.relaciones);
+  const relErr = validateRelaciones(colecciones, relaciones);
+  if (relErr) return { error: relErr };
+  const agentes = parseStringList(body.agentes ?? body.agentes_json);
+  const skills = Array.isArray(body.skills)
+    ? body.skills.map(String).filter(Boolean)
+    : parseStringList(body.skills);
+  const legacyNegocio = !!(
+    body.legacyNegocio === true ||
+    body.legacy_negocio === true ||
+    body.legacy_negocio === 1 ||
+    body.legacyNegocio === 1
+  );
   return {
-    id,
-    nombre: row.nombre,
-    descripcion: row.descripcion || '',
-    hash: row.hash || '',
-    skills: (skills.results || []).map((r) => (r as { skill_id: string }).skill_id),
-    versiones: versiones.results || [],
+    nombre,
+    descripcion,
+    baseDatos,
+    colecciones,
+    relaciones,
+    agentes,
+    skills,
+    legacyNegocio,
+  };
+}
+
+async function prepareMongoPersist(
+  db: D1Database,
+  body: Record<string, unknown>
+): Promise<{ campo: ReturnType<typeof normalizeMongoBody> & { proyecto: string; hijos: unknown[] } } | { error: string }> {
+  const proyectoId = String(body.proyecto || '').trim();
+  if (!proyectoId) return { error: 'proyecto obligatorio (id del software).' };
+  if (!ID_RE.test(proyectoId)) return { error: 'proyecto inválido.' };
+  const proyRow = await db.prepare('SELECT * FROM proyectos WHERE id = ?').bind(proyectoId).first();
+  if (!proyRow) return { error: 'proyecto no encontrado.' };
+  const proy = mapProyectoRow(proyRow as Record<string, unknown>, [], []);
+  const base = normalizeMongoBody(body);
+  if (!base) return { error: 'colección/clave obligatorias.' };
+  const colErr = validateColeccionEnProyecto(proy.colecciones, base.coleccion);
+  if (colErr) return { error: colErr };
+  // baseDatos siempre del proyecto (no se edita a mano en el campo).
+  const hijos = Array.isArray(body.hijos) ? body.hijos : base.hijos || [];
+  const bsonType = String(base.bsonType || 'string').trim();
+  if ((bsonType === 'object' || bsonType === 'array') && !Array.isArray(hijos)) {
+    return { error: 'object/array requieren hijos[].' };
+  }
+  return {
+    campo: {
+      ...base,
+      baseDatos: proy.baseDatos || base.baseDatos,
+      proyecto: proyectoId,
+      hijos,
+      bsonType,
+    },
   };
 }
 
@@ -1751,13 +2082,18 @@ function normalizeMongoBody(body: Record<string, unknown>) {
     };
   }
   const indices = parseJsonArray(body.indices);
+  let hijos: unknown[] = [];
+  if (Array.isArray(body.hijos)) hijos = body.hijos;
+  const bsonType = String(
+    body.bsonType || body.bson_type || (proyeccionMongo === 'array' ? 'array' : 'string')
+  ).trim();
   return {
     id,
     campo,
-    baseDatos: String(body.baseDatos || body.base_datos || 'arquitectura_reservas').trim(),
+    baseDatos: String(body.baseDatos || body.base_datos || '').trim(),
     coleccion: coleccion || campo.split('.')[0],
     clave: clave || campo.split('.').slice(1).join('.'),
-    bsonType: String(body.bsonType || body.bson_type || (proyeccionMongo === 'array' ? 'array' : 'string')).trim(),
+    bsonType,
     obligatorio: !!(body.obligatorio === true || body.obligatorio === 1 || body.obligatorio === '1'),
     descripcion: String(body.descripcion || '').trim(),
     ancla,
@@ -1765,5 +2101,7 @@ function normalizeMongoBody(body: Record<string, unknown>) {
     proyeccionMongo,
     proyeccionElemento,
     indices,
+    proyecto: String(body.proyecto || '').trim(),
+    hijos,
   };
 }

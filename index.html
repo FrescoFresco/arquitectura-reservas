@@ -290,6 +290,22 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .ancla-pill-btn:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
 .icon-btn.is-on{background:#edf3ff}
 .ancla-ficha-vacio{margin:8px 0 0;color:#5f6f84;font-size:14px;line-height:1.5}
+.proy-campos-tabla{width:100%;border-collapse:collapse;font-size:13px}
+.proy-campos-tabla th,.proy-campos-tabla td{text-align:left;padding:8px 10px;border-bottom:1px solid #eef2f7;vertical-align:top}
+.proy-campos-tabla th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#677488}
+.proy-er-boxes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px}
+.proy-er-box{border:1px solid #c9d5e8;border-radius:12px;background:#fff;overflow:hidden}
+.proy-er-box h4{margin:0;padding:10px 12px;background:#edf3ff;color:#1c63d5;font-size:13px;font-weight:800}
+.proy-er-box ul{list-style:none;margin:0;padding:8px 12px 12px}
+.proy-er-box li{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.55;color:#315eb6}
+.proy-er-rels{margin:14px 0 0;font-size:12px;color:#5f6f84;line-height:1.5}
+.proy-mermaid-src{margin:0;padding:12px;background:#0f172a;color:#e2e8f0;border-radius:12px;font-size:11px;overflow:auto;max-height:280px}
+.proy-agente-card{border:1px solid #e5eaf1;border-radius:12px;padding:12px;margin:0 0 10px;background:#fff}
+.proy-agente-card h4{margin:0 0 6px;font-size:14px}
+.proy-agente-perms{margin:0;font-size:12px;color:#5f6f84;line-height:1.5}
+.proy-crear-bd-msg{margin:10px 0 0;font-size:13px;color:#0f7a45}
+.proy-crear-bd-msg.is-err{color:#b42318}
+.tabla-scroll{overflow:auto}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
 </style>
@@ -398,6 +414,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 </div>
 <div class="reader-top-acciones">
+<button type="button" class="btn primary" id="btnCrearBdProyecto" title="Crea la base, colecciones, índices y validación en Mongo">Crear base de datos</button>
 <div class="historial-ancla">
 <button type="button" class="icon-btn" id="btnHistorialProyecto" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialProyecto">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
@@ -417,28 +434,48 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones del proyecto">
-<button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabDoc" data-proy-tab="documento" aria-selected="true" aria-controls="proyPanelDoc">Documento</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabInterno" data-proy-tab="interno" aria-selected="false" aria-controls="proyPanelInterno">Interno</button>
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabAgentes" data-proy-tab="agentes" aria-selected="false" aria-controls="proyPanelAgentes">Agentes</button>
 </div>
-<div class="reader-panel" id="proyPanelDoc" role="tabpanel" aria-labelledby="proyTabDoc">
-<div class="md-wrap"><div class="md" id="proyMd"></div></div>
-</div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelSkills" role="tabpanel" aria-labelledby="proyTabSkills" hidden>
-<div class="editar-anclas-top">
+<div class="reader-panel ancla-ficha-body" id="proyPanelResumen" role="tabpanel" aria-labelledby="proyTabResumen">
+<dl class="ancla-ficha-dl" id="proyResumenDl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="proyReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Base de datos</dt><dd><code id="proyReaderBaseDatos">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
+<div class="ancla-ficha-fila"><dt>Skills</dt><dd id="proyResumenSkills">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Agentes</dt><dd id="proyResumenAgentes">—</dd></div>
+<div class="ancla-ficha-fila" id="proyLegacyFila" hidden><dt>Estado</dt><dd id="proyLegacyNota">Negocio legado (pendiente de borrar como proyecto)</dd></div>
+</dl>
+<p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
+<div class="editar-anclas-top" style="margin-top:0.75rem">
+<span class="historial-titulo">Skills</span>
 <button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills del proyecto" title="Editar skills">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
 </button>
 </div>
 <div class="ancla-ficha-skills" id="proySkillsLista"></div>
 <p class="ancla-ficha-vacio" id="proySkillsVacio" hidden>Ninguna skill asociada.</p>
+<div class="md-wrap" style="margin-top:1rem"><div class="md" id="proyMd"></div></div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelInterno" role="tabpanel" aria-labelledby="proyTabInterno" hidden>
-<dl class="ancla-ficha-dl">
-<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="proyReaderId">—</code></dd></div>
-<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
-<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
-</dl>
+<div class="reader-panel ancla-ficha-body" id="proyPanelDiagrama" role="tabpanel" aria-labelledby="proyTabDiagrama" hidden>
+<p class="ancla-ficha-vacio" id="proyDiagramaEstado">Cargando diagrama…</p>
+<pre class="proy-mermaid-src" id="proyDiagramaMermaid" hidden></pre>
+<div class="proy-diagrama-render" id="proyDiagramaRender" hidden></div>
+<div class="proy-er-boxes" id="proyDiagramaBoxes" hidden></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelCampos" role="tabpanel" aria-labelledby="proyTabCampos" hidden>
+<p class="ancla-ficha-vacio" id="proyCamposVacio" hidden>Sin campos Mongo en este proyecto.</p>
+<div class="tabla-scroll"><table class="proy-campos-tabla" id="proyCamposTabla" hidden>
+<thead><tr><th>Ancla</th><th>Campo Mongo</th><th>Colección</th><th>Tipo</th></tr></thead>
+<tbody id="proyCamposBody"></tbody>
+</table></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelAgentes" role="tabpanel" aria-labelledby="proyTabAgentes" hidden>
+<p class="ancla-ficha-vacio" id="proyAgentesVacio" hidden>Ningún agente asignado.</p>
+<div id="proyAgentesLista"></div>
 </div>
 </article>
 </dialog>
@@ -982,10 +1019,10 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script src="skills-ui.js?v=20261020y"></script>
 <script src="campos-ancla-ui.js?v=20261021pelo"></script>
 <script src="campos-mongodb-ui.js?v=20261021pelo"></script>
-<script src="proyectos-ui.js?v=20261020z"></script>
+<script src="proyectos-ui.js?v=20261021proysoft1"></script>
 <script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261021ajustes1"></script>
+<script src="catalogo-ui.js?v=20261021proysoft1"></script>
 <script src="ajustes-ui.js?v=20261021a"></script>
 
 </body>

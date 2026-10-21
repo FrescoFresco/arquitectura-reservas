@@ -34,6 +34,10 @@ npm run deploy:ui
 
 Equivale a `npm run build:ui` (arma `dist-ui/`) + `wrangler deploy -c wrangler.ui.jsonc`.
 
+## Proyectos = softwares
+
+Cada proyecto de catálogo es un **software** con `baseDatos` propia (p. ej. `software_reservas`). Los negocios viven como documentos Mongo en la colección `negocios`, no como proyectos. Migración D1: `0006_proyectos_software.sql`. Crear la base Atlas: `POST /v1/proyectos/:id/crear-bd` (URI desde Ajustes → Conexiones; sin URI responde plan en seco).
+
 ## MongoDB Atlas (Ajustes → Conexiones)
 
 El Worker habla con Atlas con el **driver oficial `mongodb`** (TCP). No uses Data API. **No pegues la URI en el chat.**

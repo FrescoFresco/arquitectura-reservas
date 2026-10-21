@@ -59,6 +59,8 @@
     var isOpen = abierta && abierta.id === proy.id;
     var secundario = formatVersion(actual.numero, actual.fecha);
     if (actual.origen === 'local') secundario += ' · local';
+    if (proy.baseDatos) secundario += ' · ' + proy.baseDatos;
+    else if (proy.legacyNegocio) secundario += ' · negocio legado';
     var nSkills = Array.isArray(proy.skills) ? proy.skills.length : 0;
     if (nSkills) secundario += ' · ' + nSkills + (nSkills === 1 ? ' skill' : ' skills');
 
