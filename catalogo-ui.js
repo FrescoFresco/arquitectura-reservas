@@ -313,17 +313,23 @@ function normalizeVersionIndice(v) {
   if (!Number.isInteger(numero) || numero < 1) return null;
   const fecha = typeof v.fecha === 'string' ? v.fecha : '';
   if (!/^(\d{4})-(\d{2})-(\d{2})/.test(fecha)) return null;
-  if (!rutaValida(v.ruta)) return null;
+  // API D1 versions carry markdown inline and often ruta:"" — accept either path or body.
+  const tieneRuta = rutaValida(v.ruta);
+  const tieneMd = typeof v.markdown === 'string';
+  if (!tieneRuta && !tieneMd) return null;
   const out = {
     numero: numero,
     fecha: fecha.slice(0, 10),
-    ruta: String(v.ruta).trim(),
     origen: 'indice'
   };
+  if (tieneRuta) out.ruta = String(v.ruta).trim();
+  if (tieneMd) out.markdown = v.markdown;
   const nombre = nombreArchivoDe(v);
   if (nombre) out.nombreArchivo = nombre;
   const hash = normalizarHash(v.hash);
-  out.hash = hash || hashFnvHex(out.ruta + '|' + out.numero + '|' + out.fecha);
+  if (hash) out.hash = hash;
+  else if (tieneMd) out.hash = hashFnvHex(v.markdown);
+  else out.hash = hashFnvHex(out.ruta + '|' + out.numero + '|' + out.fecha);
   return out;
 }
 
