@@ -31,7 +31,7 @@ export function mongoNotConfiguredError() {
   return {
     ok: false as const,
     error: 'configure MONGODB_URI',
-    hint: 'Añade el secret MONGODB_URI en el Worker (wrangler secret put MONGODB_URI) o en Cursor Environment Secrets. No pegues la URI en el chat ni en la UI.',
+    hint: 'Configura la URI en Ajustes → Conexiones del panel, o el secret MONGODB_URI del Worker. La URI no se reexpone por API.',
   };
 }
 

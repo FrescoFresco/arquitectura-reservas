@@ -212,6 +212,23 @@ dialog::backdrop{background:#17212f66}
 .mongo-conn-status.is-yes{color:#1b6b3a}
 .mongo-conn-status.is-no{color:#677488}
 .mongo-conn-status.is-err{color:#9b2c2c}
+.ajustes-sec{padding:4px 0 20px;max-width:560px}
+.ajustes-sec h3{margin:0 0 6px;font-size:18px;letter-spacing:-.02em;color:#17212f}
+.ajustes-sec .ajustes-lead{margin:0 0 16px;font-size:14px;line-height:1.55;color:#5f6f84}
+.ajustes-status-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 16px}
+.ajustes-status-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;font-size:13px;font-weight:700;background:#f4f7fb;color:#677488;border:1px solid #e5eaf1}
+.ajustes-status-badge.is-yes{background:#e8f6ee;color:#1b6b3a;border-color:#b7dfc5}
+.ajustes-status-badge.is-err{background:#fdecec;color:#9b2c2c;border-color:#f0c4c4}
+.ajustes-status-badge.is-no{background:#f4f7fb;color:#677488}
+.ajustes-hint{margin:0;font-size:12px;color:#75859a;line-height:1.4}
+.ajustes-form label{display:flex;flex-direction:column;gap:6px;margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#677488}
+.ajustes-form input{font:inherit;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;padding:10px 12px;border:1px solid #d5deec;border-radius:10px;color:#17212f;background:#fff}
+.ajustes-form input:focus{outline:2px solid #1c63d5;outline-offset:1px;border-color:#1c63d5}
+.ajustes-actions{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.ajustes-msg{margin:0;min-height:1.2em;font-size:13px;line-height:1.45;color:#5f6f84}
+.ajustes-msg.is-ok{color:#1b6b3a}
+.ajustes-msg.is-err{color:#9b2c2c}
+.ajustes-msg.is-info{color:#315eb6}
 .md-table-wrap{overflow:auto;margin:0 0 16px;border:1px solid #e5eaf1;border-radius:10px}
 .md-table-wrap table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.45}
 .md-table-wrap th,.md-table-wrap td{padding:8px 10px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top}
@@ -285,6 +302,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div class="hub-inner">
 <a href="#catalogos" data-destino="catalogos" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></a>
 <a href="#documentacion" data-destino="documentacion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Documentación</span></a>
+<a href="#ajustes/conexiones" data-destino="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Ajustes</span></a>
 </div>
 </nav>
 <div class="app-main">
@@ -534,8 +552,41 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 <div class="doc doc-mongodb" role="tabpanel" id="panel-mongodb" data-doc="mongodb" hidden>
 <p id="mongoConnStatus" class="nota mongo-conn-status" aria-live="polite">URI configurada: …</p>
+<p class="nota" style="margin:-4px 0 14px;font-size:13px"><a href="#ajustes/conexiones">Abrir Ajustes → Conexiones</a> para pegar o borrar la URI.</p>
 <div class="catalogo-tabs doc-subtabs" id="mongoDocTabs" role="tablist" aria-label="MongoDB"></div>
 <div id="mongoDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando documentación MongoDB…</p></div>
+</div>
+</section>
+<section class="main catalogos" id="ajustes" hidden aria-label="Ajustes">
+<div class="catalogo-tabs" id="ajustesTabs" role="tablist" aria-label="Ajustes">
+<button type="button" class="pestana" role="tab" id="tab-conexiones" data-ajuste="conexiones" aria-selected="true" aria-controls="panel-conexiones">
+<svg class="pestana-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+<span>Conexiones</span>
+</button>
+</div>
+<div role="tabpanel" id="panel-conexiones" data-ajuste-panel="conexiones" aria-labelledby="tab-conexiones">
+<div class="ajustes-sec">
+<h3>MongoDB Atlas</h3>
+<p class="ajustes-lead">Pega la URI aquí. Queda cifrada en el Worker; el panel no la vuelve a mostrar. Documentación → MongoDB sigue siendo solo lectura.</p>
+<div class="ajustes-status-row">
+<span id="ajustesMongoStatus" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
+<p id="ajustesMongoHint" class="ajustes-hint">La URI guardada no se vuelve a mostrar.</p>
+</div>
+<form class="ajustes-form" id="formAjustesMongo" autocomplete="off">
+<label>URI de conexión
+<input type="password" id="ajustesMongoUri" name="uri" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/" required>
+</label>
+<label>Nombre de base (opcional)
+<input type="text" id="ajustesMongoDb" name="db" autocomplete="off" spellcheck="false" placeholder="arquitectura_reservas">
+</label>
+<div class="ajustes-actions">
+<button type="submit" class="btn primary" id="ajustesMongoGuardar">Guardar</button>
+<button type="button" class="btn ghost" id="ajustesMongoProbar">Probar</button>
+<button type="button" class="btn ghost" id="ajustesMongoBorrar">Borrar</button>
+</div>
+<p id="ajustesMongoMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
+</form>
+</div>
 </div>
 </section>
 </div>
@@ -893,7 +944,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script>
 (function () {
-  var IDS = ['catalogos', 'documentacion'];
+  var IDS = ['catalogos', 'documentacion', 'ajustes'];
   function abrir(id) {
     if (IDS.indexOf(id) < 0) id = 'catalogos';
     for (var i = 0; i < IDS.length; i++) {
@@ -934,7 +985,8 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script src="proyectos-ui.js?v=20261020z"></script>
 <script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261021mongo1"></script>
+<script src="catalogo-ui.js?v=20261021ajustes1"></script>
+<script src="ajustes-ui.js?v=20261021a"></script>
 
 </body>
 </html>

@@ -287,14 +287,26 @@ Content-Type: application/json
 
 ## 6c. MongoDB Atlas (conexión + sync)
 
-Driver: **`mongodb`** oficial en el Worker (TCP; no Data API). Secret `MONGODB_URI` (wrangler / Cursor env). Opcional `MONGODB_DB` (default `arquitectura_reservas`).
+Driver: **`mongodb`** oficial en el Worker (TCP; no Data API).
+
+**Origen de la URI (prioridad):** (1) URI guardada en D1 desde el panel **Ajustes → Conexiones** (AES-GCM con secret `ENCRYPTION_KEY`); (2) fallback secret/env `MONGODB_URI`. Opcional `MONGODB_DB` / campo `db` (default `arquitectura_reservas`).
 
 ```
 GET  {API_BASE}/health
 → { "ok": true, "service": "campos-ancla-api", "mongo": "configured" | "disconnected" }
 
 GET  {API_BASE}/v1/mongo/status
-→ { "ok": true, "configured": true|false, "connected": true|false, "db": "arquitectura_reservas" }
+→ { "ok": true, "configured": true|false, "connected": true|false, "db": "…",
+    "source": "stored"|"env"|"none", "hint"? }   # hint = últimos 4 del host; nunca la URI
+
+POST {API_BASE}/v1/mongo/config
+Authorization: Bearer inv_…
+{ "uri": "mongodb+srv://…", "db"?: "arquitectura_reservas", "probeOnly"?: true }
+→ guarda cifrado (o solo prueba si probeOnly). Respuesta: configured/connected/db/source/hint — sin uri
+
+DELETE {API_BASE}/v1/mongo/config
+Authorization: Bearer inv_…
+→ borra la URI del panel; el secret MONGODB_URI del Worker no se toca
 
 POST {API_BASE}/v1/mongo/sync/negocio
 Authorization: Bearer inv_…
@@ -307,7 +319,7 @@ Authorization: Bearer inv_…
 → mismo upsert; `negocio_id` por defecto = `proyecto_id`
 ```
 
-Sin URI: escrituras → **503** `{ "error": "configure MONGODB_URI" }`. Nunca se devuelve la URI.
+Sin URI (ni stored ni env): sync → **503** `{ "error": "configure MONGODB_URI" }`. **Nunca** se devuelve la URI en ningún GET.
 
 ---
 

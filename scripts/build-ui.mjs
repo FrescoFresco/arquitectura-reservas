@@ -11,6 +11,7 @@ const out = join(root, 'dist-ui');
 
 const files = [
   'index.html',
+  'ajustes-ui.js',
   'agentes-ui.js',
   'campos-ancla-ui.js',
   'campos-mongodb-ui.js',

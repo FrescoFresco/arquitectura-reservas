@@ -9,9 +9,12 @@
       "enabled": true
     }
   },
-  // Secrets (no commits): MONGODB_URI (required for Atlas writes), optional MONGODB_DB.
+  // Secrets (no commits):
+  //   ENCRYPTION_KEY — AES key material for in-app Mongo URI in D1 (Ajustes → Conexiones)
+  //   MONGODB_URI    — optional fallback if nothing stored in D1
+  //   MONGODB_DB     — optional default arquitectura_reservas
+  //   npx wrangler secret put ENCRYPTION_KEY
   //   npx wrangler secret put MONGODB_URI
-  //   npx wrangler secret put MONGODB_DB   # default arquitectura_reservas
   "vars": {
     "PUBLIC_UI_ORIGIN": "https://campos-ancla.web-legal-es.workers.dev",
     "CORS_ORIGINS": "https://frescofresco.github.io"

@@ -502,6 +502,7 @@ function inlineMarkdown(s) {
   let t = escapeHtml(s);
   t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
   t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" rel="noopener noreferrer" target="_blank">$1</a>');
+  t = t.replace(/\[([^\]]+)\]\((#[a-z0-9][a-z0-9/_-]*)\)/gi, '<a href="$2">$1</a>');
   t = t.replace(/(^|[^"'>=])(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, function (_m, pre, url) {
     return pre + '<a href="' + url + '" rel="noopener noreferrer" target="_blank">' + url + '</a>';
   });
@@ -4878,7 +4879,7 @@ function pintarMongoDocMount(markdown, sub) {
   refrescarMongoConnStatus();
 }
 
-/** Solo sí/no de secret MONGODB_URI — nunca pide pegar la URI en la página. */
+/** Solo estado sí/no (+ pista host) — Documentación no pide pegar la URI. */
 function refrescarMongoConnStatus() {
   const el = document.getElementById('mongoConnStatus');
   const catalogHint = document.getElementById('mongoCatalogConnStatus');
@@ -4900,11 +4901,13 @@ function refrescarMongoConnStatus() {
       const configured = !!(data.configured || (data.ok && data.mongo === 'configured'));
       const connected = data.connected;
       const db = data.db ? String(data.db) : '';
+      const hint = data.hint ? String(data.hint) : '';
       let text = 'URI configurada: ' + (configured ? 'sí' : 'no');
+      if (configured && hint) text += ' (' + hint + ')';
       if (configured && connected === true) text += ' · conectada';
       if (configured && connected === false) text += ' · no alcanza el cluster';
       if (db) text += ' · db ' + db;
-      text += ' (solo Environment Secrets / wrangler secret — no pegues la URI aquí)';
+      text += ' — configurar en Ajustes → Conexiones';
       targets.forEach(function (n) {
         n.textContent = text;
         n.classList.add(configured ? (connected === false ? 'is-err' : 'is-yes') : 'is-no');
@@ -4919,7 +4922,7 @@ function refrescarMongoConnStatus() {
           const text =
             'URI configurada: ' +
             (configured ? 'sí' : 'no') +
-            ' (solo Environment Secrets / wrangler secret — no pegues la URI aquí)';
+            ' — configurar en Ajustes → Conexiones';
           targets.forEach(function (n) {
             n.textContent = text;
             n.classList.add(configured ? 'is-yes' : 'is-no');
@@ -4933,6 +4936,7 @@ function refrescarMongoConnStatus() {
       });
     });
 }
+window.refrescarMongoConnStatus = refrescarMongoConnStatus;
 
 function seleccionarMongoSub(id, opts) {
   const items = mongoSubpestanas();

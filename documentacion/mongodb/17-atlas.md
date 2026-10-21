@@ -39,13 +39,15 @@ Es una **búsqueda de texto completo integrada** en el cluster: no hace falta mo
 
 Ejemplo Pelo Sur: buscar "mechas rubias" en las notas de las citas y obtener primero las más relevantes.
 
-### Conectar Campos ancla (Worker API) — solo secretos
+### Conectar Campos ancla (Worker API)
 
-El panel **no** pide pegar la URI. El Worker `campos-ancla-api` usa el driver oficial **`mongodb`** (TCP en Cloudflare Workers; ver [docs CF](https://developers.cloudflare.com/workers/databases/third-party-integrations/mongodb/)).
+Usa **[Ajustes → Conexiones](#ajustes/conexiones)** en el panel: pega la URI ahí (campo tipo contraseña). Queda cifrada en D1; **nunca se reexpone** en GET. Esta pestaña de Documentación es solo lectura.
+
+El Worker `campos-ancla-api` usa el driver oficial **`mongodb`** (TCP en Cloudflare Workers; ver [docs CF](https://developers.cloudflare.com/workers/databases/third-party-integrations/mongodb/)).
 
 1. Crea un cluster en Atlas y copia la cadena SRV (`mongodb+srv://…`).
-2. Guarda el secret **`MONGODB_URI`** (Cursor Environment Secrets y/o `npx wrangler secret put MONGODB_URI` en el Worker). Opcional: var/secret **`MONGODB_DB`** (por defecto `arquitectura_reservas`, la misma `baseDatos` del catálogo).
-3. Comprueba: `GET /health` → `mongo: "configured"`; `GET /v1/mongo/status` → `{ configured, connected, db }`.
+2. En el panel: **Ajustes → Conexiones** → pega URI (+ base opcional) → **Guardar** / **Probar**. Alternativa ops: secret `MONGODB_URI` (`wrangler secret put`) como fallback si no hay URI en el panel.
+3. Comprueba: `GET /health` → `mongo: "configured"`; `GET /v1/mongo/status` → `{ configured, connected, db, source, hint? }` (sin URI).
 4. Sincroniza un negocio (invite Bearer): `POST /v1/mongo/sync/negocio` con `{ "negocio_id": "pelo-sur" }`.
 
-Detalle paso a paso: `CLOUDFLARE.md` (sección MongoDB) y el doc del proyecto en el store.
+Detalle: `CLOUDFLARE.md` (sección MongoDB) y el doc del proyecto en el store.
