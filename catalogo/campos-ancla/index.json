@@ -169,15 +169,15 @@
       "tipo": "array",
       "obligatorio": false,
       "formato": "proyeccion-array",
-      "descripcion": "Ancla de lista (X1/X5): índice de la proyección array versiones.recorrido.campos. Plantillas hijas: nombre, selector, sensible.",
-      "ejemplo": "[{nombre, selector, sensible}]",
+      "descripcion": "Ancla de lista (X1/X5): índice de la proyección array versiones.recorrido.campos. Plantillas hijas: nombre, selector, clase.",
+      "ejemplo": "[{nombre, selector, clase}]",
       "skills": [
         "mapear-recorrido",
         "generar-script"
       ],
       "aliases": [],
       "sensible": false,
-      "hash": "audit-x1-version-recorrido-campos-N"
+      "hash": "audit-x3-version-recorrido-campos-N"
     },
     {
       "id": "version.recorrido.campos.N.nombre",
@@ -217,23 +217,23 @@
       "hash": "0516b8222d3004f6703688a50aac9f182b7629397629867d74e4c39ada15c364"
     },
     {
-      "id": "version.recorrido.campos.N.sensible",
-      "ancla": "_version.recorrido.campos.N.sensible_",
-      "etiqueta": "Campo N · sensible (clase)",
-      "claveMongo": "recorrido.campos.N.sensible",
+      "id": "version.recorrido.campos.N.clase",
+      "ancla": "_version.recorrido.campos.N.clase_",
+      "etiqueta": "Campo N · clase",
+      "claveMongo": "recorrido.campos.N.clase",
       "coleccion": "versiones",
       "baseDatos": "arquitectura_reservas",
-      "tipo": "boolean",
-      "obligatorio": false,
-      "formato": "clase",
-      "descripcion": "Clase del campo N: true si el input es sensible. Nunca guardar el valor PII del cliente; solo la marca.",
-      "ejemplo": "true",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "enum:normal|texto_libre|identificador|sensible|consentimiento",
+      "descripcion": "Clase del campo N (X3): normal | texto_libre | identificador | sensible | consentimiento. Sustituye el sí/no `sensible`. Nunca persistir el valor PII del cliente.",
+      "ejemplo": "normal",
       "skills": [
         "mapear-recorrido"
       ],
       "aliases": [],
       "sensible": false,
-      "hash": "audit-x1-version-recorrido-campos-N-sensible"
+      "hash": "audit-x3-version-recorrido-campos-N-clase"
     },
     {
       "id": "version.recorrido.boton_confirmar.selector",
@@ -328,17 +328,17 @@
       "claveMongo": "cuando",
       "coleccion": "reservas_prueba",
       "ejemplo": "2026-10-23T10:00:00+02:00",
-      "descripcion": "Momento de la reserva de prueba (ISO-8601).",
+      "descripcion": "Momento de la reserva de prueba (ISO-8601 → Mongo date).",
       "formato": "datetime",
       "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": false,
+      "tipo": "date",
+      "obligatorio": true,
       "aliases": [],
       "skills": [
         "diagnosticar-alerta"
       ],
       "sensible": false,
-      "hash": "pelo-sur-reserva_prueba-cuando"
+      "hash": "audit-x4-reserva_prueba-cuando"
     },
     {
       "id": "reserva_prueba.estado",
@@ -351,13 +351,13 @@
       "formato": "enum:pendiente|confirmada|cancelada|por_cancelar",
       "baseDatos": "arquitectura_reservas",
       "tipo": "string",
-      "obligatorio": false,
+      "obligatorio": true,
       "aliases": [],
       "skills": [
         "diagnosticar-alerta"
       ],
       "sensible": false,
-      "hash": "pelo-sur-reserva_prueba-estado"
+      "hash": "audit-x4-reserva_prueba-estado"
     },
     {
       "id": "reserva_prueba.cancelada_en",
@@ -366,17 +366,17 @@
       "claveMongo": "cancelada_en",
       "coleccion": "reservas_prueba",
       "ejemplo": "2026-10-23T10:15:00+02:00",
-      "descripcion": "Cuándo se canceló la reserva de prueba.",
+      "descripcion": "Cuándo se canceló la reserva de prueba (ISO-8601 → Mongo date).",
       "formato": "datetime",
       "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
+      "tipo": "date",
       "obligatorio": false,
       "aliases": [],
       "skills": [
         "diagnosticar-alerta"
       ],
       "sensible": false,
-      "hash": "pelo-sur-reserva_prueba-cancelada_en"
+      "hash": "audit-x4-reserva_prueba-cancelada_en"
     },
     {
       "id": "reserva_prueba.nota",
@@ -395,7 +395,7 @@
         "diagnosticar-alerta"
       ],
       "sensible": false,
-      "hash": "pelo-sur-reserva_prueba-nota"
+      "hash": "audit-x4-reserva_prueba-nota"
     }
   ]
 }

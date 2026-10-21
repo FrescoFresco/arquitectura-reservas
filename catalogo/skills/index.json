@@ -14,7 +14,9 @@
         "_version.recorrido.sistema.nombre_",
         "_version.recorrido.llega_a_b_",
         "_version.recorrido.pasos.N.accion_",
+        "_version.recorrido.campos.N.nombre_",
         "_version.recorrido.campos.N.selector_",
+        "_version.recorrido.campos.N.clase_",
         "_version.recorrido.boton_confirmar.selector_"
       ],
       "versiones": [
@@ -31,6 +33,13 @@
           "ruta": "catalogo/skills/mapear-recorrido/v2.md",
           "nombreArchivo": "mapear-recorrido.md",
           "hash": "8512403733885189039b954bd984a2c454dadb36b9973fb0ff2ae0842a6d3436"
+        },
+        {
+          "numero": 3,
+          "fecha": "2026-10-21",
+          "ruta": "catalogo/skills/mapear-recorrido/v3.md",
+          "nombreArchivo": "mapear-recorrido.md",
+          "hash": "54aa622e033810b007203ba5d70d4cd22f39132413763794ec18d423d7e69653"
         }
       ]
     },

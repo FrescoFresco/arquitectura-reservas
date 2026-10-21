@@ -75,7 +75,8 @@ function payloadHashMongo(c) {
     c.campo || '', c.baseDatos || '', c.coleccion || '', c.clave || '',
     c.bsonType || '', c.obligatorio ? '1' : '0',
     c.descripcion || '', c.ancla || '',
-    c.proyeccionMongo || '', JSON.stringify(c.proyeccionElemento || {})
+    c.proyeccionMongo || '', JSON.stringify(c.proyeccionElemento || {}),
+    JSON.stringify(c.indices || [])
   ].join('|');
 }
 
@@ -1021,6 +1022,13 @@ function normalizeMongoCampo(item) {
   const proyeccionMongo = typeof item.proyeccionMongo === 'string'
     ? item.proyeccionMongo.trim()
     : (typeof item.proyeccion_mongo === 'string' ? item.proyeccion_mongo.trim() : '');
+  let indices = [];
+  if (Array.isArray(item.indices)) {
+    indices = item.indices;
+  } else if (typeof item.indices === 'string' && item.indices.trim()) {
+    try { indices = JSON.parse(item.indices); } catch (e) { indices = []; }
+    if (!Array.isArray(indices)) indices = [];
+  }
   const out = {
     id: id,
     campo: campo,
@@ -1032,7 +1040,8 @@ function normalizeMongoCampo(item) {
     descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim() : '',
     ancla: ancla,
     proyeccionMongo: proyeccionMongo,
-    proyeccionElemento: proyeccionElemento
+    proyeccionElemento: proyeccionElemento,
+    indices: indices
   };
   const hash = normalizarHash(item.hash);
   out.hash = hash || hashFnvHex(payloadHashMongo(out));

@@ -81,8 +81,9 @@ async function main() {
   for (const c of mongoIdx.campos || []) {
     const proyeccion = esc(c.proyeccionMongo || '');
     const elemento = esc(JSON.stringify(c.proyeccionElemento || {}));
+    const indices = esc(JSON.stringify(Array.isArray(c.indices) ? c.indices : []));
     stmts.push(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.campo)}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.coleccion || '')}', '${esc(c.clave || '')}', '${esc(c.bsonType || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.descripcion || '')}', '${esc(c.ancla || '')}', '${esc(c.hash || '')}', '${proyeccion}', '${elemento}', '${now}', '${now}');`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.campo)}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.coleccion || '')}', '${esc(c.clave || '')}', '${esc(c.bsonType || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.descripcion || '')}', '${esc(c.ancla || '')}', '${esc(c.hash || '')}', '${proyeccion}', '${elemento}', '${indices}', '${now}', '${now}');`
     );
   }
 

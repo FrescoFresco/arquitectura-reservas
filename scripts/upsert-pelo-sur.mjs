@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 /**
- * Upsert / migrate Pelo Sur + auditoría X1/X5/X2 (lista canónica recorrido,
- * índice `_version.recorrido.campos.N_`, E.164) into remote D1 via HTTP API
+ * Upsert / migrate Pelo Sur + auditoría X3/X4/X6 (clase enum, reservas_prueba
+ * en plano Mongo, skill mapear-recorrido v3) into remote D1 via HTTP API
  * without wiping existing agentes/invites.
  *
  * Usage:
  *   AGENTE_CLAVE=inv_… node scripts/upsert-pelo-sur.mjs
  */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 const API = (process.env.API_BASE || 'https://campos-ancla-api.web-legal-es.workers.dev').replace(/\/$/, '');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 async function api(path, opts = {}) {
   const res = await fetch(API + path, {
@@ -163,9 +168,6 @@ function e164(raw) {
 /** X2: reescribe historial teléfono a E.164 vía D1 (POST solo añade). */
 async function migratePhoneE164ViaD1() {
   const { spawnSync } = await import('node:child_process');
-  const { fileURLToPath } = await import('node:url');
-  const { dirname, join } = await import('node:path');
-  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
   const existing = await api(
     '/v1/anclas/negocio.telefono/valores?negocio_id=' + encodeURIComponent('pelo-sur')
@@ -203,6 +205,64 @@ async function migratePhoneE164ViaD1() {
   return { seeded: true, valorActual };
 }
 
+/** X6: nueva versión de mapear-recorrido si aún no pide `clase`. */
+async function upsertSkillMapearV3(clave) {
+  const { spawnSync } = await import('node:child_process');
+  const headers = { Authorization: `Bearer ${clave}` };
+  const md = readFileSync(join(root, 'catalogo/skills/mapear-recorrido/v3.md'), 'utf8');
+  const anclas = [
+    '_negocio.nombre_',
+    '_negocio.url_',
+    '_negocio.zona_horaria_',
+    '_proceso.url_inicio_',
+    '_version.recorrido.sistema.nombre_',
+    '_version.recorrido.llega_a_b_',
+    '_version.recorrido.pasos.N.accion_',
+    '_version.recorrido.campos.N.nombre_',
+    '_version.recorrido.campos.N.selector_',
+    '_version.recorrido.campos.N.clase_',
+    '_version.recorrido.boton_confirmar.selector_',
+  ];
+  const cur = await api('/v1/skills/mapear-recorrido').catch(() => null);
+  const versiones = cur?.skill?.versiones || [];
+  const hasClase = versiones.some((v) => String(v.markdown || '').includes('campos.N.clase'));
+  if (!hasClase) {
+    await api('/v1/skills/mapear-recorrido', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        nombre: 'Mapear recorrido',
+        descripcion:
+          'Recorre la web de reserva desde A hasta B y describe el formulario con campos ancla (nombre, selector, clase), sin confirmar nunca.',
+        markdown: md,
+        anclas,
+      }),
+    });
+    console.log('X6: PUT skill mapear-recorrido → nueva versión con clase');
+    return;
+  }
+  // Ya hay versión con clase: solo alinea skill_anclas (PUT crearía otra versión).
+  const esc = (s) => String(s).replace(/'/g, "''");
+  const stmts = [
+    "DELETE FROM skill_anclas WHERE skill_id = 'mapear-recorrido';",
+    ...anclas.map(
+      (a) =>
+        `INSERT OR IGNORE INTO skill_anclas (skill_id, ancla) VALUES ('mapear-recorrido', '${esc(a)}');`
+    ),
+  ];
+  const sql = stmts.join('\n');
+  const r = spawnSync(
+    'npx',
+    ['wrangler', 'd1', 'execute', 'campos-ancla-db', '--remote', '--command', sql],
+    { cwd: root, encoding: 'utf8', env: process.env }
+  );
+  if (r.status !== 0) {
+    console.error(r.stdout || '', r.stderr || '');
+    throw new Error('D1 skill_anclas sync failed');
+  }
+  console.log('X6: mapear-recorrido ya tiene clase; skill_anclas sincronizadas');
+}
+
 const DELETE_ANCLA_IDS = [
   'contacto.telefono',
   'cliente.tarjeta_sanitaria',
@@ -210,16 +270,14 @@ const DELETE_ANCLA_IDS = [
   'campos.0.selector',
   'campos.1.nombre',
   'campos.1.selector',
-  // X1: lista duplicada en formularios — canónico = version.recorrido.campos
   'campos.N.nombre',
   'campos.N.selector',
   'campos.N.sensible',
+  // X3: sí/no sensible → enum clase
+  'version.recorrido.campos.N.sensible',
 ];
 
-const DELETE_MONGO_IDS = [
-  'formularios-campos',
-  'versiones-recorrido-campos-N-selector',
-];
+const DELETE_MONGO_IDS = ['formularios-campos', 'versiones-recorrido-campos-N-selector'];
 
 const anclas = [
   {
@@ -230,9 +288,9 @@ const anclas = [
     coleccion: 'versiones',
     tipo: 'array',
     formato: 'proyeccion-array',
-    ejemplo: '[{nombre, selector, sensible}]',
+    ejemplo: '[{nombre, selector, clase}]',
     descripcion:
-      'Ancla de lista (X1/X5): índice de versiones.recorrido.campos. Plantillas: nombre, selector, sensible.',
+      'Ancla de lista (X1/X5/X3): índice de versiones.recorrido.campos. Plantillas: nombre, selector, clase.',
     skills: ['mapear-recorrido', 'generar-script'],
     aliases: [],
     sensible: false,
@@ -265,18 +323,20 @@ const anclas = [
     sensible: false,
   },
   {
-    id: 'version.recorrido.campos.N.sensible',
-    ancla: '_version.recorrido.campos.N.sensible_',
-    etiqueta: 'Campo N · sensible (clase)',
-    claveMongo: 'recorrido.campos.N.sensible',
+    id: 'version.recorrido.campos.N.clase',
+    ancla: '_version.recorrido.campos.N.clase_',
+    etiqueta: 'Campo N · clase',
+    claveMongo: 'recorrido.campos.N.clase',
     coleccion: 'versiones',
-    tipo: 'boolean',
-    formato: 'clase',
-    ejemplo: 'true',
-    descripcion: 'Clase sensible del campo N. Nunca persistir el valor PII del cliente.',
+    tipo: 'string',
+    formato: 'enum:normal|texto_libre|identificador|sensible|consentimiento',
+    ejemplo: 'normal',
+    descripcion:
+      'Clase del campo N (X3): normal | texto_libre | identificador | sensible | consentimiento. Nunca persistir el valor PII del cliente.',
     skills: ['mapear-recorrido'],
     aliases: [],
     sensible: false,
+    obligatorio: true,
   },
   {
     id: 'reserva_prueba.cuando',
@@ -284,11 +344,12 @@ const anclas = [
     etiqueta: 'Reserva de prueba · cuándo',
     claveMongo: 'cuando',
     coleccion: 'reservas_prueba',
-    tipo: 'string',
+    tipo: 'date',
     formato: 'datetime',
     ejemplo: '2026-10-23T10:00:00+02:00',
-    descripcion: 'Momento de la reserva de prueba.',
+    descripcion: 'Momento de la reserva de prueba (ISO-8601 → Mongo date).',
     skills: ['diagnosticar-alerta'],
+    obligatorio: true,
   },
   {
     id: 'reserva_prueba.estado',
@@ -301,6 +362,7 @@ const anclas = [
     ejemplo: 'cancelada',
     descripcion: 'Estado de la reserva de prueba.',
     skills: ['diagnosticar-alerta'],
+    obligatorio: true,
   },
   {
     id: 'reserva_prueba.cancelada_en',
@@ -308,9 +370,10 @@ const anclas = [
     etiqueta: 'Reserva de prueba · cancelada en',
     claveMongo: 'cancelada_en',
     coleccion: 'reservas_prueba',
-    tipo: 'string',
+    tipo: 'date',
     formato: 'datetime',
     ejemplo: '2026-10-23T10:15:00+02:00',
+    descripcion: 'Cuándo se canceló la reserva de prueba (ISO-8601 → Mongo date).',
     skills: ['diagnosticar-alerta'],
   },
   {
@@ -367,7 +430,7 @@ async function main() {
     console.warn('skip proceso.url_inicio', e.message);
   }
 
-  // X1: lista canónica en versiones.recorrido.campos
+  // X1/X3: lista canónica + clase
   await upsertMongo(clave, {
     id: 'versiones-recorrido-campos',
     campo: 'versiones.recorrido.campos',
@@ -377,17 +440,68 @@ async function main() {
     bsonType: 'array',
     obligatorio: false,
     descripcion:
-      'Lista canónica de campos del formulario en la versión del recorrido (X1). No usar formularios.campos.',
+      'Lista canónica de campos del formulario (X1/X3). Elemento: {nombre, selector, clase}. Booleanos reales en proyección.',
     ancla: '_version.recorrido.campos.N_',
     proyeccionMongo: 'array',
     proyeccionElemento: {
       nombre: 'version.recorrido.campos.N.nombre',
       selector: 'version.recorrido.campos.N.selector',
-      sensible: 'version.recorrido.campos.N.sensible',
+      clase: 'version.recorrido.campos.N.clase',
     },
   });
 
-  // Teléfono: seed si vacío; si hay filas, normalizar E.164 en D1
+  // X4: cajón reservas_prueba en el plano
+  await upsertMongo(clave, {
+    id: 'reservas_prueba-cuando',
+    campo: 'reservas_prueba.cuando',
+    baseDatos: 'arquitectura_reservas',
+    coleccion: 'reservas_prueba',
+    clave: 'cuando',
+    bsonType: 'date',
+    obligatorio: true,
+    descripcion: 'Momento del slot de la reserva de prueba (ISO-8601 → BSON date).',
+    ancla: '_reserva_prueba.cuando_',
+    indices: [{ nombre: 'idx_reservas_prueba_cuando', keys: { cuando: 1 } }],
+  });
+  await upsertMongo(clave, {
+    id: 'reservas_prueba-estado',
+    campo: 'reservas_prueba.estado',
+    baseDatos: 'arquitectura_reservas',
+    coleccion: 'reservas_prueba',
+    clave: 'estado',
+    bsonType: 'string',
+    obligatorio: true,
+    descripcion: 'Estado: pendiente | confirmada | cancelada | por_cancelar.',
+    ancla: '_reserva_prueba.estado_',
+    indices: [{ nombre: 'idx_reservas_prueba_estado', keys: { estado: 1 } }],
+  });
+  await upsertMongo(clave, {
+    id: 'reservas_prueba-cancelada_en',
+    campo: 'reservas_prueba.cancelada_en',
+    baseDatos: 'arquitectura_reservas',
+    coleccion: 'reservas_prueba',
+    clave: 'cancelada_en',
+    bsonType: 'date',
+    obligatorio: false,
+    descripcion: 'Cuándo se canceló la reserva de prueba (BSON date), si aplica.',
+    ancla: '_reserva_prueba.cancelada_en_',
+    indices: [],
+  });
+  await upsertMongo(clave, {
+    id: 'reservas_prueba-nota',
+    campo: 'reservas_prueba.nota',
+    baseDatos: 'arquitectura_reservas',
+    coleccion: 'reservas_prueba',
+    clave: 'nota',
+    bsonType: 'string',
+    obligatorio: false,
+    descripcion: 'Nota de seguimiento (canal, software, qué cancelar).',
+    ancla: '_reserva_prueba.nota_',
+    indices: [],
+  });
+
+  await upsertSkillMapearV3(clave);
+
   const phoneHistory = [
     {
       valor: '+34612000111',
@@ -420,13 +534,13 @@ async function main() {
   await upsertProyecto(clave, {
     id: 'pelo-sur',
     nombre: 'Pelo Sur',
-    descripcion: 'Salón ficticio — lista canónica en versiones.recorrido.campos, E.164.',
+    descripcion: 'Salón ficticio — clase de campo, reservas_prueba en plano, E.164.',
     markdown:
-      '# Pelo Sur\n\nLista de campos del formulario: `_version.recorrido.campos.N_*` (no formularios). Teléfono E.164 `_negocio.telefono_`.\n',
+      '# Pelo Sur\n\nLista: `_version.recorrido.campos.N.{nombre,selector,clase}_`. Cajón `reservas_prueba`. Teléfono E.164.\n',
     skills: ['descubrir-negocio', 'mapear-recorrido', 'diagnosticar-alerta'],
   });
 
-  console.log('Upsert auditoría X1/X5/X2 OK →', API);
+  console.log('Upsert auditoría X3/X4/X6 OK →', API);
 }
 
 main().catch((e) => {

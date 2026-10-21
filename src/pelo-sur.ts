@@ -351,15 +351,47 @@ export function appendObservacion(
   return { observaciones, valorActual: valor, piiRedactado, e164Normalizado };
 }
 
+/** Clases de campo de formulario (X3). No son booleans. */
+export const CLASES_CAMPO = [
+  'normal',
+  'texto_libre',
+  'identificador',
+  'sensible',
+  'consentimiento',
+] as const;
+export type ClaseCampo = (typeof CLASES_CAMPO)[number];
+
+export function isClaseCampo(v: unknown): v is ClaseCampo {
+  return typeof v === 'string' && (CLASES_CAMPO as readonly string[]).includes(v);
+}
+
 /**
- * Flat `campos.0.nombre` / `campos.1.selector` → `campos: [{ nombre, selector }, …]`.
+ * Coerce JSON-ish scalars: `"true"`/`"false"` → boolean real (X3).
+ * Leave class enum strings and other text untouched.
+ */
+export function coerceProyeccionValor(raw: unknown): string | boolean | number | null {
+  if (raw === true || raw === false) return raw;
+  if (raw === null || raw === undefined) return '';
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  const s = String(raw);
+  if (s === 'true') return true;
+  if (s === 'false') return false;
+  if (s === 'null') return null;
+  return s;
+}
+
+/**
+ * Flat `campos.0.nombre` / `campos.1.selector` → `campos: [{ nombre, selector, clase }, …]`.
  * `elemento` maps output keys → ancla path templates with `N`.
+ * Booleans leave the array as real `true`/`false`, never `"false"` strings (X3).
  */
 export function proyectarArrayN(input: {
   ruta_ancla?: string;
   elemento?: Record<string, string>;
-  valores?: Record<string, string>;
-}): { ok: true; clave: string; array: Record<string, string>[] } | { ok: false; error: string } {
+  valores?: Record<string, unknown>;
+}):
+  | { ok: true; clave: string; array: Record<string, string | boolean | number | null>[] }
+  | { ok: false; error: string } {
   const ruta = String(input.ruta_ancla || 'campos.N').trim();
   // `campos.N` → `campos`; avoid turning `campos.N.N` into `campos.`
   const base = ruta.replace(/(\.N)+$/, '').replace(/\.N\b/g, '');
@@ -367,7 +399,11 @@ export function proyectarArrayN(input: {
   const elemento =
     input.elemento && Object.keys(input.elemento).length
       ? input.elemento
-      : { nombre: base + '.N.nombre', selector: base + '.N.selector' };
+      : {
+          nombre: base + '.N.nombre',
+          selector: base + '.N.selector',
+          clase: base + '.N.clase',
+        };
   const valores = input.valores || {};
 
   const indexRe = new RegExp('^' + escapeRegExp(base) + '\\.(\\d+)(?:\\.|$)');
@@ -377,13 +413,14 @@ export function proyectarArrayN(input: {
     if (m) indices.add(Number(m[1]));
   }
   const sorted = Array.from(indices).sort((a, b) => a - b);
-  const array: Record<string, string>[] = [];
+  const array: Record<string, string | boolean | number | null>[] = [];
   for (const i of sorted) {
-    const row: Record<string, string> = {};
+    const row: Record<string, string | boolean | number | null> = {};
     for (const [outKey, template] of Object.entries(elemento)) {
       const path = String(template).replace(/\.N\b/g, '.' + i).replace(/\bN\b/g, String(i));
       const bare = path.replace(/^_+|_+$/g, '');
-      row[outKey] = valores[bare] ?? valores[path] ?? valores['_' + bare + '_'] ?? '';
+      const raw = valores[bare] ?? valores[path] ?? valores['_' + bare + '_'] ?? '';
+      row[outKey] = coerceProyeccionValor(raw);
     }
     array.push(row);
   }

@@ -221,9 +221,15 @@ GET {API_BASE}/v1/anclas/:id?negocio_id=pelo-sur
 
 Si `formato` declara `E.164` / `e164`, al guardar observación o `ejemplo` la API **normaliza** (`+34 699 111 222` → `+34699111222`) o **rechaza** con `400`. Aplica a valores por `negocio_id` (no hay `valorActual` en la ficha).
 
-### Sensible (clase, no valor de cliente)
+### Sensible (máscara de ejemplo en la ficha)
 
-`"sensible": true` en la **definición** del ancla (o formato con `sensible`) enmascara `ejemplo` en listados públicos. Para campos de formulario, la clase va en la proyección array (`version.recorrido.campos.N.sensible`), **sin** guardar el valor PII del cliente. No existe ancla `_cliente.tarjeta_sanitaria_`.
+`"sensible": true` en la **definición** del ancla (o formato con `sensible`) enmascara `ejemplo` en listados públicos. Eso **no** es la clase del campo de formulario.
+
+### Clase de campo de formulario (X3)
+
+Cada elemento de `versiones.recorrido.campos` lleva `clase` ∈ `normal` | `texto_libre` | `identificador` | `sensible` | `consentimiento` (`_version.recorrido.campos.N.clase_`). Sustituye el sí/no `sensible` del formulario. **Sin** guardar el valor PII del cliente. No existe ancla `_cliente.tarjeta_sanitaria_`.
+
+En la proyección array, los booleanos salen como `true`/`false` reales (nunca `"false"` como texto).
 
 ### PII en URLs (strict por defecto)
 
@@ -233,22 +239,22 @@ Si el ancla parece URL (`formato` uri/url/`sin_pii`, o el id contiene `.url`), a
 
 Todo hecho de un negocio (p. ej. Pelo Sur) entra como skill del proyecto; no persistir anclas sin skill/proyecto. Si solo hay URL↔negocio: `_proceso.url_inicio_` dentro de la skill de Punto A del mismo proyecto.
 
-### Reserva de prueba
+### Reserva de prueba (X4)
 
-Anclas convencionales (sin entidad Ejecución en este slice):
+Cajón Mongo `reservas_prueba` en `/v1/mongo` (tipos `date` en `cuando` / `cancelada_en`; índices en `cuando` y `estado`):
 
-| Ancla | Uso |
-|-------|-----|
-| `_reserva_prueba.cuando_` | ISO-8601 del slot de prueba |
-| `_reserva_prueba.estado_` | `pendiente` \| `confirmada` \| `cancelada` \| `por_cancelar` |
-| `_reserva_prueba.cancelada_en_` | cuándo se canceló |
-| `_reserva_prueba.nota_` | seguimiento |
+| Ancla | Mongo | Tipo |
+|-------|-------|------|
+| `_reserva_prueba.cuando_` | `reservas_prueba.cuando` | date / datetime |
+| `_reserva_prueba.estado_` | `reservas_prueba.estado` | string enum |
+| `_reserva_prueba.cancelada_en_` | `reservas_prueba.cancelada_en` | date / datetime |
+| `_reserva_prueba.nota_` | `reservas_prueba.nota` | string |
 
-### Lista canónica de campos (X1) — `versiones.recorrido.campos`
+### Lista canónica de campos (X1/X3) — `versiones.recorrido.campos`
 
 **Un solo sitio:** la lista de campos del formulario vive en la **versión del recorrido** (`versiones.recorrido.campos`). No existe `formularios.campos` ni plantillas `_campos.N_*` en `formularios`.
 
-Plantillas: `_version.recorrido.campos.N_` (lista), `_version.recorrido.campos.N.nombre_`, `_version.recorrido.campos.N.selector_`, `_version.recorrido.campos.N.sensible_`.
+Plantillas: `_version.recorrido.campos.N_` (lista), `_version.recorrido.campos.N.nombre_`, `_version.recorrido.campos.N.selector_`, `_version.recorrido.campos.N.clase_`.
 
 Campo Mongo: `"proyeccionMongo": "array"` + elemento con esas rutas. Helper:
 
@@ -262,13 +268,19 @@ Content-Type: application/json
   "valores": {
     "version.recorrido.campos.0.nombre": "Nombre",
     "version.recorrido.campos.0.selector": "#client-name",
-    "version.recorrido.campos.0.sensible": "false",
+    "version.recorrido.campos.0.clase": "normal",
     "version.recorrido.campos.1.nombre": "Teléfono",
     "version.recorrido.campos.1.selector": "#client-phone",
-    "version.recorrido.campos.1.sensible": "false"
+    "version.recorrido.campos.1.clase": "sensible",
+    "version.recorrido.campos.2.nombre": "Acepto la política",
+    "version.recorrido.campos.2.selector": "#privacy",
+    "version.recorrido.campos.2.clase": "consentimiento"
   }
 }
-→ { "ok": true, "clave": "version.recorrido.campos", "array": [ … ] }
+→ { "ok": true, "clave": "version.recorrido.campos", "array": [
+    { "nombre": "Nombre", "selector": "#client-name", "clase": "normal" },
+    …
+  ] }
 ```
 
 ---

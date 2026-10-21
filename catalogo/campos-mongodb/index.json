@@ -107,15 +107,81 @@
       "clave": "recorrido.campos",
       "bsonType": "array",
       "obligatorio": false,
-      "descripcion": "Lista canónica de campos del formulario en la versión del recorrido. Proyección: version.recorrido.campos.N.* → [{nombre, selector, sensible}, …]. No usar formularios.campos.",
+      "descripcion": "Lista canónica de campos del formulario en la versión del recorrido. Proyección: version.recorrido.campos.N.* → [{nombre, selector, clase}, …]. clase ∈ normal|texto_libre|identificador|sensible|consentimiento. Booleanos en la proyección son true/false reales, no texto. No usar formularios.campos.",
       "ancla": "_version.recorrido.campos.N_",
       "proyeccionMongo": "array",
       "proyeccionElemento": {
         "nombre": "version.recorrido.campos.N.nombre",
         "selector": "version.recorrido.campos.N.selector",
-        "sensible": "version.recorrido.campos.N.sensible"
+        "clase": "version.recorrido.campos.N.clase"
       },
-      "hash": "audit-x1-versiones-recorrido-campos"
+      "hash": "audit-x3-versiones-recorrido-campos"
+    },
+    {
+      "id": "reservas_prueba-cuando",
+      "campo": "reservas_prueba.cuando",
+      "baseDatos": "arquitectura_reservas",
+      "coleccion": "reservas_prueba",
+      "clave": "cuando",
+      "bsonType": "date",
+      "obligatorio": true,
+      "descripcion": "Momento del slot de la reserva de prueba (ISO-8601 → BSON date).",
+      "ancla": "_reserva_prueba.cuando_",
+      "indices": [
+        {
+          "nombre": "idx_reservas_prueba_cuando",
+          "keys": {
+            "cuando": 1
+          }
+        }
+      ],
+      "hash": "audit-x4-reservas_prueba-cuando"
+    },
+    {
+      "id": "reservas_prueba-estado",
+      "campo": "reservas_prueba.estado",
+      "baseDatos": "arquitectura_reservas",
+      "coleccion": "reservas_prueba",
+      "clave": "estado",
+      "bsonType": "string",
+      "obligatorio": true,
+      "descripcion": "Estado: pendiente | confirmada | cancelada | por_cancelar.",
+      "ancla": "_reserva_prueba.estado_",
+      "indices": [
+        {
+          "nombre": "idx_reservas_prueba_estado",
+          "keys": {
+            "estado": 1
+          }
+        }
+      ],
+      "hash": "audit-x4-reservas_prueba-estado"
+    },
+    {
+      "id": "reservas_prueba-cancelada_en",
+      "campo": "reservas_prueba.cancelada_en",
+      "baseDatos": "arquitectura_reservas",
+      "coleccion": "reservas_prueba",
+      "clave": "cancelada_en",
+      "bsonType": "date",
+      "obligatorio": false,
+      "descripcion": "Cuándo se canceló la reserva de prueba (BSON date), si aplica.",
+      "ancla": "_reserva_prueba.cancelada_en_",
+      "indices": [],
+      "hash": "audit-x4-reservas_prueba-cancelada_en"
+    },
+    {
+      "id": "reservas_prueba-nota",
+      "campo": "reservas_prueba.nota",
+      "baseDatos": "arquitectura_reservas",
+      "coleccion": "reservas_prueba",
+      "clave": "nota",
+      "bsonType": "string",
+      "obligatorio": false,
+      "descripcion": "Nota de seguimiento (canal, software, qué cancelar).",
+      "ancla": "_reserva_prueba.nota_",
+      "indices": [],
+      "hash": "audit-x4-reservas_prueba-nota"
     },
     {
       "id": "versiones-recorrido-boton_confirmar-selector",

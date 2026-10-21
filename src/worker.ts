@@ -13,6 +13,7 @@ import {
   normalizeAliasList,
   normalizeE164,
   normalizeObservaciones,
+  parseJsonArray,
   parseJsonObject,
   proyectarArrayN,
   scrubPiiFromUrl,
@@ -696,8 +697,8 @@ app.post('/v1/mongo', async (c) => {
   const ts = nowIso();
   try {
     await c.env.DB.prepare(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         campo.id,
@@ -712,6 +713,7 @@ app.post('/v1/mongo', async (c) => {
         campo.hash,
         campo.proyeccionMongo,
         JSON.stringify(campo.proyeccionElemento),
+        JSON.stringify(campo.indices || []),
         ts,
         ts
       )
@@ -732,7 +734,7 @@ app.put('/v1/mongo/:id', async (c) => {
   const ts = nowIso();
   await c.env.DB.prepare(
     `UPDATE campos_mongo SET campo = ?, base_datos = ?, coleccion = ?, clave = ?, bson_type = ?,
-     obligatorio = ?, descripcion = ?, ancla = ?, hash = ?, proyeccion_mongo = ?, proyeccion_elemento = ?, updated_at = ? WHERE id = ?`
+     obligatorio = ?, descripcion = ?, ancla = ?, hash = ?, proyeccion_mongo = ?, proyeccion_elemento = ?, indices = ?, updated_at = ? WHERE id = ?`
   )
     .bind(
       merged.campo,
@@ -746,6 +748,7 @@ app.put('/v1/mongo/:id', async (c) => {
       merged.hash,
       merged.proyeccionMongo,
       JSON.stringify(merged.proyeccionElemento),
+      JSON.stringify(merged.indices || []),
       ts,
       id
     )
@@ -1128,6 +1131,7 @@ function mapMongo(row: Record<string, unknown>) {
     hash: String(row.hash || ''),
     proyeccionMongo: String(row.proyeccion_mongo ?? row.proyeccionMongo ?? '').trim(),
     proyeccionElemento: parseJsonObject(row.proyeccion_elemento ?? row.proyeccionElemento),
+    indices: parseJsonArray(row.indices),
   };
 }
 
@@ -1298,9 +1302,10 @@ function normalizeMongoBody(body: Record<string, unknown>) {
     proyeccionElemento = {
       nombre: base + '.N.nombre',
       selector: base + '.N.selector',
-      sensible: base + '.N.sensible',
+      clase: base + '.N.clase',
     };
   }
+  const indices = parseJsonArray(body.indices);
   return {
     id,
     campo,
@@ -1314,5 +1319,6 @@ function normalizeMongoBody(body: Record<string, unknown>) {
     hash: String(body.hash || ''),
     proyeccionMongo,
     proyeccionElemento,
+    indices,
   };
 }

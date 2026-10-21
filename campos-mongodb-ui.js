@@ -154,6 +154,11 @@
                 : '—'
             ),
             e(Fila, { label: 'bsonType' }, e('code', null, c.bsonType || '—')),
+            e(Fila, { label: 'Índices' },
+              Array.isArray(c.indices) && c.indices.length
+                ? e('code', null, JSON.stringify(c.indices))
+                : '—'
+            ),
             e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
             e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
             e(Fila, { label: 'Enlazado a ancla' },
