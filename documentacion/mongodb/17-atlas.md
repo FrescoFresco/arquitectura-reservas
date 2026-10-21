@@ -38,3 +38,14 @@ Fuente: https://www.mongodb.com/docs/atlas/atlas-search/
 Es una **búsqueda de texto completo integrada** en el cluster: no hace falta montar un buscador aparte. Ofrece varios analizadores de texto, un lenguaje de consulta rico y puntuación por relevancia. Es distinta del índice `text` clásico (subpestaña *Índices*).
 
 Ejemplo Pelo Sur: buscar "mechas rubias" en las notas de las citas y obtener primero las más relevantes.
+
+### Conectar Campos ancla (Worker API) — solo secretos
+
+El panel **no** pide pegar la URI. El Worker `campos-ancla-api` usa el driver oficial **`mongodb`** (TCP en Cloudflare Workers; ver [docs CF](https://developers.cloudflare.com/workers/databases/third-party-integrations/mongodb/)).
+
+1. Crea un cluster en Atlas y copia la cadena SRV (`mongodb+srv://…`).
+2. Guarda el secret **`MONGODB_URI`** (Cursor Environment Secrets y/o `npx wrangler secret put MONGODB_URI` en el Worker). Opcional: var/secret **`MONGODB_DB`** (por defecto `arquitectura_reservas`, la misma `baseDatos` del catálogo).
+3. Comprueba: `GET /health` → `mongo: "configured"`; `GET /v1/mongo/status` → `{ configured, connected, db }`.
+4. Sincroniza un negocio (invite Bearer): `POST /v1/mongo/sync/negocio` con `{ "negocio_id": "pelo-sur" }`.
+
+Detalle paso a paso: `CLOUDFLARE.md` (sección MongoDB) y el doc del proyecto en el store.

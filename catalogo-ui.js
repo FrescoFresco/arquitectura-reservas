@@ -1256,6 +1256,7 @@ function cargarMongo() {
       state.mongo.ready = true;
       refrescarMongo();
       pintarMongo();
+      refrescarMongoConnStatus();
     });
 }
 
@@ -2574,6 +2575,7 @@ function seleccionarDoc(id, opts) {
   if (id === 'api') cargarDocumentoApi();
   if (id === 'mongodb') {
     const subId = opts && opts.subId ? opts.subId : null;
+    refrescarMongoConnStatus();
     cargarDocumentoMongodb(subId, { skipHash: !!(opts && opts.skipHash) });
   } else if (!(opts && opts.skipHash) && typeof history !== 'undefined' && history.replaceState) {
     const next = '#documentacion/' + id;
@@ -4873,6 +4875,63 @@ function pintarMongoDocMount(markdown, sub) {
     mount.append(heading);
     mount.append(tablaTiposMongodb(state.mongoDoc.tipos.tipos || state.mongoDoc.tipos));
   }
+  refrescarMongoConnStatus();
+}
+
+/** Solo sí/no de secret MONGODB_URI — nunca pide pegar la URI en la página. */
+function refrescarMongoConnStatus() {
+  const el = document.getElementById('mongoConnStatus');
+  const catalogHint = document.getElementById('mongoCatalogConnStatus');
+  const targets = [el, catalogHint].filter(Boolean);
+  if (!targets.length) return;
+  targets.forEach(function (n) {
+    n.classList.remove('is-yes', 'is-no', 'is-err');
+    n.textContent = 'URI configurada: …';
+  });
+  const base = apiBaseUrl();
+  fetch(base + '/v1/mongo/status', { cache: 'no-store' })
+    .then(function (res) {
+      return res.json().then(function (data) {
+        return { res: res, data: data };
+      });
+    })
+    .then(function (pack) {
+      const data = pack.data || {};
+      const configured = !!(data.configured || (data.ok && data.mongo === 'configured'));
+      const connected = data.connected;
+      const db = data.db ? String(data.db) : '';
+      let text = 'URI configurada: ' + (configured ? 'sí' : 'no');
+      if (configured && connected === true) text += ' · conectada';
+      if (configured && connected === false) text += ' · no alcanza el cluster';
+      if (db) text += ' · db ' + db;
+      text += ' (solo Environment Secrets / wrangler secret — no pegues la URI aquí)';
+      targets.forEach(function (n) {
+        n.textContent = text;
+        n.classList.add(configured ? (connected === false ? 'is-err' : 'is-yes') : 'is-no');
+      });
+    })
+    .catch(function () {
+      // Fallback health (mongo: configured|disconnected)
+      return fetch(base + '/health', { cache: 'no-store' })
+        .then(function (res) { return res.json(); })
+        .then(function (h) {
+          const configured = h && h.mongo === 'configured';
+          const text =
+            'URI configurada: ' +
+            (configured ? 'sí' : 'no') +
+            ' (solo Environment Secrets / wrangler secret — no pegues la URI aquí)';
+          targets.forEach(function (n) {
+            n.textContent = text;
+            n.classList.add(configured ? 'is-yes' : 'is-no');
+          });
+        });
+    })
+    .catch(function () {
+      targets.forEach(function (n) {
+        n.textContent = 'URI configurada: no se pudo consultar la API';
+        n.classList.add('is-err');
+      });
+    });
 }
 
 function seleccionarMongoSub(id, opts) {

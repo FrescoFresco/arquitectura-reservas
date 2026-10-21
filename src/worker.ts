@@ -19,12 +19,26 @@ import {
   scrubPiiFromUrl,
   type Observacion,
 } from './pelo-sur';
+import {
+  buildNegocioDoc,
+  mongoHealthLabel,
+  mongoNotConfiguredError,
+  mongoUriConfigured,
+  probeMongoStatus,
+  resolveMongoDbName,
+  upsertNegocio,
+  withMongoDb,
+} from './mongo';
 
 export type Env = {
   DB: D1Database;
   PUBLIC_UI_ORIGIN?: string;
   /** Optional extra origin for local UI (comma-separated). */
   CORS_ORIGINS?: string;
+  /** Atlas / Mongo connection string — wrangler secret (never commit). */
+  MONGODB_URI?: string;
+  /** Optional DB name; default arquitectura_reservas (catálogo baseDatos). */
+  MONGODB_DB?: string;
 };
 
 type Variables = {
@@ -78,7 +92,13 @@ app.use('*', async (c, next) => {
   return mw(c, next);
 });
 
-app.get('/health', (c) => c.json({ ok: true, service: 'campos-ancla-api' }));
+app.get('/health', (c) =>
+  c.json({
+    ok: true,
+    service: 'campos-ancla-api',
+    mongo: mongoHealthLabel(c.env),
+  })
+);
 
 /** Canonical agent contract (same markdown as UI Documentación → API). */
 app.get('/v1/docs', (c) =>
@@ -242,8 +262,24 @@ app.get('/v1/mongo', async (c) => {
   });
 });
 
+/** Live Atlas link status (no URI leaked). Public GET so the panel can show sí/no. */
+app.get('/v1/mongo/status', async (c) => {
+  const dbHint = await catalogMongoDbHint(c.env.DB);
+  const status = await probeMongoStatus(c.env, dbHint);
+  return c.json({
+    ok: true,
+    configured: status.configured,
+    connected: status.connected,
+    db: status.db,
+    ...(status.error ? { error: status.error } : {}),
+  });
+});
+
 app.get('/v1/mongo/:id', async (c) => {
-  const row = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE id = ?').bind(c.req.param('id')).first();
+  // Avoid treating "status" / "sync" as campo ids if routing order changes.
+  const id = c.req.param('id');
+  if (id === 'status' || id === 'sync') return jsonError(c, 404, 'Campo Mongo no encontrado.');
+  const row = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'Campo Mongo no encontrado.');
   return c.json({ ok: true, campo: mapMongo(row as Record<string, unknown>) });
 });
@@ -746,6 +782,99 @@ app.post('/v1/helpers/proyeccion-array', async (c) => {
   return c.json({ ok: true, clave: out.clave, [out.clave]: out.array, array: out.array });
 });
 
+/**
+ * Upsert `negocios` in Atlas from D1 ancla_valores_negocio (catalog mapping).
+ * Auth: invite Bearer. Without MONGODB_URI → 503 configure MONGODB_URI.
+ */
+app.post('/v1/mongo/sync/negocio', async (c) => {
+  if (!mongoUriConfigured(c.env)) {
+    return c.json(mongoNotConfiguredError(), 503);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    negocio_id?: string;
+    negocioId?: string;
+  };
+  const negocioId = String(body.negocio_id || body.negocioId || '').trim();
+  if (!negocioId) return jsonError(c, 400, 'Falta negocio_id.');
+  if (!ID_RE.test(negocioId)) return jsonError(c, 400, 'negocio_id inválido.');
+
+  try {
+    const built = await buildNegocioFromAnclas(c.env.DB, negocioId);
+    const dbName = resolveMongoDbName(c.env, built.baseDatos);
+    const result = await withMongoDb(
+      c.env,
+      async (db) => upsertNegocio(db, built.doc),
+      dbName
+    );
+    return c.json({
+      ok: true,
+      db: dbName,
+      coleccion: 'negocios',
+      fields: built.fieldsUsed,
+      ...result,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'sync falló';
+    if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
+    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
+    return jsonError(c, 502, scrubbed);
+  }
+});
+
+/**
+ * Map proyecto id → negocio_id (default: same id) and upsert negocios.
+ */
+app.post('/v1/mongo/sync/proyecto', async (c) => {
+  if (!mongoUriConfigured(c.env)) {
+    return c.json(mongoNotConfiguredError(), 503);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    proyecto_id?: string;
+    proyectoId?: string;
+    negocio_id?: string;
+    negocioId?: string;
+  };
+  const proyectoId = String(body.proyecto_id || body.proyectoId || '').trim();
+  if (!proyectoId) return jsonError(c, 400, 'Falta proyecto_id.');
+  if (!ID_RE.test(proyectoId)) return jsonError(c, 400, 'proyecto_id inválido.');
+
+  const proyecto = await c.env.DB.prepare(
+    'SELECT id, nombre FROM proyectos WHERE id = ?'
+  )
+    .bind(proyectoId)
+    .first<{ id: string; nombre: string }>();
+  if (!proyecto) return jsonError(c, 404, 'Proyecto no encontrado.');
+
+  const negocioId = String(body.negocio_id || body.negocioId || proyectoId).trim();
+  if (!ID_RE.test(negocioId)) return jsonError(c, 400, 'negocio_id inválido.');
+
+  try {
+    const built = await buildNegocioFromAnclas(c.env.DB, negocioId, {
+      fallbackNombre: proyecto.nombre,
+      proyectoId,
+    });
+    const dbName = resolveMongoDbName(c.env, built.baseDatos);
+    const result = await withMongoDb(
+      c.env,
+      async (db) => upsertNegocio(db, built.doc),
+      dbName
+    );
+    return c.json({
+      ok: true,
+      db: dbName,
+      coleccion: 'negocios',
+      proyecto_id: proyectoId,
+      fields: built.fieldsUsed,
+      ...result,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'sync falló';
+    if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
+    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
+    return jsonError(c, 502, scrubbed);
+  }
+});
+
 app.post('/v1/mongo', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
   const campo = normalizeMongoBody(body);
@@ -1148,6 +1277,69 @@ async function loadValoresNegocio(
     obs = observaciones.map((o) => ({ ...o, valor: maskSensitive(o.valor) }));
   }
   return { valorActual, observaciones: obs };
+}
+
+/** Prefer catálogo baseDatos (campos_mongo / anclas) over hard-coded default. */
+async function catalogMongoDbHint(db: D1Database): Promise<string | undefined> {
+  const fromMongo = await db
+    .prepare(
+      `SELECT base_datos FROM campos_mongo WHERE base_datos IS NOT NULL AND trim(base_datos) != '' LIMIT 1`
+    )
+    .first<{ base_datos: string }>();
+  if (fromMongo?.base_datos) return fromMongo.base_datos;
+  const fromAncla = await db
+    .prepare(
+      `SELECT base_datos FROM anclas WHERE coleccion = 'negocios' AND base_datos IS NOT NULL AND trim(base_datos) != '' LIMIT 1`
+    )
+    .first<{ base_datos: string }>();
+  return fromAncla?.base_datos || undefined;
+}
+
+/**
+ * Collect nombre/telefono/url/zona_horaria from anclas mapped to colección negocios
+ * + valores in ancla_valores_negocio for this negocio_id.
+ */
+async function buildNegocioFromAnclas(
+  db: D1Database,
+  negocioId: string,
+  opts?: { fallbackNombre?: string; proyectoId?: string }
+) {
+  const rows = await db
+    .prepare(
+      `SELECT id, clave_mongo, coleccion, base_datos FROM anclas
+       WHERE coleccion = 'negocios'
+          OR id IN ('negocio.nombre','negocio.telefono','negocio.url','negocio.zona_horaria')
+       ORDER BY id`
+    )
+    .all();
+  const fields: Record<string, string> = {};
+  const fieldsUsed: string[] = [];
+  let baseDatos: string | undefined;
+  for (const raw of rows.results || []) {
+    const row = raw as {
+      id: string;
+      clave_mongo: string;
+      coleccion: string;
+      base_datos: string;
+    };
+    if (!baseDatos && row.base_datos) baseDatos = row.base_datos;
+    const clave = String(row.clave_mongo || '').trim();
+    if (!clave || !['nombre', 'telefono', 'url', 'zona_horaria'].includes(clave)) continue;
+    const vals = await loadValoresNegocio(db, negocioId, String(row.id), { mask: false });
+    if (vals.valorActual) {
+      fields[clave] = vals.valorActual;
+      fieldsUsed.push(clave);
+    }
+  }
+  if (!fields.nombre && opts?.fallbackNombre) {
+    fields.nombre = opts.fallbackNombre;
+    fieldsUsed.push('nombre');
+  }
+  const doc = buildNegocioDoc(negocioId, fields, {
+    proyecto_id: opts?.proyectoId,
+    actualizado_en: nowIso(),
+  });
+  return { doc, fieldsUsed, baseDatos };
 }
 
 function mapAnclaRow(row: Record<string, unknown>) {
