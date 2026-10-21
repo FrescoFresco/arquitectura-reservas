@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+// Bundled via wrangler rules (Text) — same canonical contract as Documentación → API.
+import apiDocsMd from '../documentacion/api.md';
 
 export type Env = {
   DB: D1Database;
@@ -60,6 +62,15 @@ app.use('*', async (c, next) => {
 });
 
 app.get('/health', (c) => c.json({ ok: true, service: 'campos-ancla-api' }));
+
+/** Canonical agent contract (same markdown as UI Documentación → API). */
+app.get('/v1/docs', (c) =>
+  c.text(String(apiDocsMd), 200, {
+    'Content-Type': 'text/markdown; charset=utf-8',
+    'Cache-Control': 'public, max-age=60',
+  })
+);
+app.get('/docs', (c) => c.redirect('/v1/docs', 302));
 
 /** Public catalog reads — no auth. */
 app.get('/v1/skills', async (c) => {

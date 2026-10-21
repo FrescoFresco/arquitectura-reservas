@@ -13,6 +13,9 @@
     "PUBLIC_UI_ORIGIN": "https://campos-ancla.web-legal-es.workers.dev",
     "CORS_ORIGINS": "https://frescofresco.github.io"
   },
+  "rules": [
+    { "type": "Text", "globs": ["**/documentacion/api.md"], "fallthrough": true }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

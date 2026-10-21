@@ -2325,7 +2325,7 @@ function seleccionarCatalogo(id) {
   if (tab) tab.focus();
 }
 
-function seleccionarDoc(id) {
+function seleccionarDoc(id, opts) {
   const existe = DOCUMENTOS.some(function (doc) { return doc.id === id; });
   if (!existe) return;
   state.docId = id;
@@ -2335,8 +2335,21 @@ function seleccionarDoc(id) {
     pintarFundamentos();
   }
   if (id === 'api') cargarDocumentoApi();
+  if (!(opts && opts.skipHash) && typeof history !== 'undefined' && history.replaceState) {
+    const next = '#documentacion/' + id;
+    if (location.hash !== next) history.replaceState(null, '', next);
+  }
   const tab = document.getElementById('tab-' + id);
-  if (tab) tab.focus();
+  if (tab && !(opts && opts.skipFocus)) tab.focus();
+}
+
+function aplicarHashDocumentacion() {
+  const h = (location.hash || '').replace(/^#/, '');
+  if (h !== 'documentacion' && h.indexOf('documentacion/') !== 0) return;
+  const parts = h.split('/');
+  const docId = parts[1] || 'api';
+  if (typeof window.abrirDestino === 'function') window.abrirDestino('documentacion');
+  seleccionarDoc(docId, { skipHash: true, skipFocus: true });
 }
 
 function teclasPestana(e, selector, actual, elegir) {
@@ -4327,53 +4340,46 @@ function apiFetch(path, opts) {
 const UI_PROD_BASE = 'https://campos-ancla.web-legal-es.workers.dev/';
 const API_PROD_BASE = 'https://campos-ancla-api.web-legal-es.workers.dev';
 
-function textoInstruccionesInvite(clave) {
+function urlsProdParaInvite() {
   const onLocalHost =
     typeof location !== 'undefined' &&
     /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || '');
-  // En prod el invite siempre apunta a Cloudflare; nunca a 127.0.0.1 ni a github.io.
   const base = onLocalHost
     ? UI_PROD_BASE
     : typeof location !== 'undefined' && location.origin
       ? location.origin.replace(/\/$/, '') + '/'
       : UI_PROD_BASE;
   const apiBase = onLocalHost ? API_PROD_BASE : apiBaseUrl();
-  const apiDoc = base + 'documentacion/api.md';
-  const apiUi = base + '#documentacion';
+  return { base: base, apiBase: apiBase };
+}
+
+function textoInstruccionesInvite(clave) {
+  // Invite = acceso + apuntar al contrato. Todo el detalle vive en Documentación → API.
+  const urls = urlsProdParaInvite();
+  const apiDoc = urls.base + 'documentacion/api.md';
+  const apiUi = urls.base + '#documentacion/api';
+  const apiDocsEndpoint = urls.apiBase + '/v1/docs';
   return [
-    '# Acceso a Campos ancla',
+    '# Campos ancla — acceso de agente',
     '',
-    'Te han concedido acceso. Conserva esta clave API. No hace falta token de GitHub.',
+    'Te han dado acceso. Conserva esta clave. No uses localhost ni GITHUB_TOKEN.',
     '',
+    'API_BASE=' + urls.apiBase,
     'AGENTE_CLAVE=' + clave,
-    'API_BASE=' + apiBase,
-    'CATALOGO_UI=' + base,
+    'CATALOGO_UI=' + urls.base,
     '',
-    '## Clave',
-    'Sin caducidad. Solo deja de valer si alguien la revoca a mano.',
-    'La base viva es Cloudflare Worker + D1. No escribas en el repo ni uses GITHUB_TOKEN.',
-    '',
-    '## Contrato API (léelo entero)',
-    'En la UI: Documentación → API, o:',
-    apiUi,
+    '## 1. Lee el contrato API (obligatorio; ahí está todo)',
     apiDoc,
+    'UI: ' + apiUi,
+    'o: GET ' + apiDocsEndpoint,
     '',
-    '## 1. Registro (tú eliges el nombre)',
-    'curl -s -X POST \"$API_BASE/v1/agentes/registro\" -H \"Content-Type: application/json\" \\',
-    '  -d \'{\"clave\":\"' + clave + '\",\"nombre\":\"Mi agente\",\"foto\":\"\"}\'',
-    '# Respuesta: { \"ok\": true, \"id\": \"…\", \"lastSeen\": \"…\" } — guarda el id.',
-    '',
-    '## 2. Latido (en línea)',
-    'Cada ~30 s:',
-    'curl -s -X POST \"$API_BASE/v1/agentes/latido\" -H \"Content-Type: application/json\" \\',
-    '  -d \'{\"id\":\"<id>\",\"clave\":\"' + clave + '\"}\'',
-    '',
-    '## 3. Desde la consola de la UI (misma API)',
-    'const r = await window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
-    'await window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
-    '',
+    '## 2. Conéctate según ese documento',
+    'Registro: POST $API_BASE/v1/agentes/registro  { clave, nombre, foto?, id? }',
+    'Latido (~30 s): POST $API_BASE/v1/agentes/latido  { id, clave }',
     'Lecturas de catálogo: GET $API_BASE/v1/… (públicas).',
-    'Escrituras: Authorization: Bearer $AGENTE_CLAVE.'
+    'Escrituras: Authorization: Bearer $AGENTE_CLAVE.',
+    '',
+    'La clave no caduca. La fuente viva es Cloudflare Worker + D1.'
   ].join('\n');
 }
 
@@ -4444,40 +4450,55 @@ function abrirDialogoDarAcceso() {
   });
 }
 
-function copiarInstruccionesAcceso() {
-  const texto = document.getElementById('darAccesoTexto');
-  const err = document.getElementById('darAccesoError');
-  if (!texto) return;
-  const body = texto.value || '';
+function copiarTextoPortapapeles(body, btnId, errId) {
+  const err = errId ? document.getElementById(errId) : null;
   const done = function () {
-    const btn = document.getElementById('darAccesoCopiar');
+    const btn = btnId ? document.getElementById(btnId) : null;
     if (btn) {
-      const prev = btn.textContent;
+      const prev = btn.getAttribute('data-label') || btn.textContent;
+      btn.setAttribute('data-label', prev);
       btn.textContent = 'Copiado';
       setTimeout(function () { btn.textContent = prev; }, 1400);
     }
   };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(body).then(done).catch(function () {
-      texto.focus();
-      texto.select();
-      try {
-        document.execCommand('copy');
-        done();
-      } catch (e) {
-        if (err) err.textContent = 'No se pudo copiar. Selecciona el texto a mano.';
-      }
-    });
+  const fail = function () {
+    if (err) err.textContent = 'No se pudo copiar. Selecciona el texto a mano.';
+  };
+  if (!body) {
+    fail();
     return;
   }
-  texto.focus();
-  texto.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(body).then(done).catch(fail);
+    return;
+  }
   try {
+    const ta = document.createElement('textarea');
+    ta.value = body;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
     document.execCommand('copy');
+    document.body.removeChild(ta);
     done();
   } catch (e) {
-    if (err) err.textContent = 'No se pudo copiar. Selecciona el texto a mano.';
+    fail();
   }
+}
+
+function copiarInstruccionesAcceso() {
+  const texto = document.getElementById('darAccesoTexto');
+  if (!texto) return;
+  copiarTextoPortapapeles(texto.value || '', 'darAccesoCopiar', 'darAccesoError');
+}
+
+function copiarClaveAcceso() {
+  const claveNodo = document.getElementById('darAccesoClave');
+  const clave = claveNodo ? String(claveNodo.textContent || '').trim() : '';
+  if (!clave || clave === '…' || clave === '—') return;
+  copiarTextoPortapapeles(clave, 'darAccesoCopiarClave', 'darAccesoError');
 }
 
 function slugAgenteDesdeNombre(nombre) {
@@ -4710,6 +4731,10 @@ function wireAgentesUi() {
   });
   const copiar = document.getElementById('darAccesoCopiar');
   if (copiar) copiar.addEventListener('click', copiarInstruccionesAcceso);
+  const copiarClave = document.getElementById('darAccesoCopiarClave');
+  if (copiarClave) copiarClave.addEventListener('click', copiarClaveAcceso);
+  window.addEventListener('hashchange', function () { aplicarHashDocumentacion(); });
+  aplicarHashDocumentacion();
   window.AgentesCatalogo = {
     apiBase: apiBaseUrl,
     registrar: registrarAgenteApi,

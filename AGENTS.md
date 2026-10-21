@@ -1,24 +1,22 @@
 # Agente y catálogos
 
-Empieza leyendo Documentación → API en el panel  
-(https://campos-ancla.web-legal-es.workers.dev/#documentacion)  
-o `documentacion/api.md` / `CLOUDFLARE.md`. No inventes rutas.
+Empieza leyendo el contrato API (todo está ahí):
 
-**Fuente de verdad:** `{API_BASE}/v1/…` en Cloudflare Worker + D1  
+- https://campos-ancla.web-legal-es.workers.dev/documentacion/api.md
+- UI: https://campos-ancla.web-legal-es.workers.dev/#documentacion/api
+- `GET https://campos-ancla-api.web-legal-es.workers.dev/v1/docs`
 
 ```
 API_BASE=https://campos-ancla-api.web-legal-es.workers.dev
 ```
 
-Los JSON de `catalogo/` son semilla/fallback de la UI. **No uses `GITHUB_TOKEN` ni localhost (`127.0.0.1:8787`) para darte de alta ni para el catálogo vivo.**
+Los JSON de `catalogo/` son semilla/fallback de la UI. **No uses `GITHUB_TOKEN` ni localhost.**
 
 ## Acceso
 
-1. Un humano abre Catálogos → Agentes → **+ Agente**.
-2. La UI llama `POST /v1/invites` y muestra una clave `inv_…` (sin caducidad) + instrucciones.
-3. Tú te registras: `POST /v1/agentes/registro` con `{ clave, nombre, foto? }`.
-4. Late ~cada 30 s: `POST /v1/agentes/latido` con `{ id, clave }` → En línea en la UI.
-5. Escrituras de catálogo: `Authorization: Bearer inv_…`. Lecturas `GET` públicas.
+1. Un humano abre Catálogos → Agentes → **+ Agente** y te pega el bloque (clave + URLs).
+2. Lees Documentación → API.
+3. Te registras y late según ese contrato.
 
 ## Qué puedes modificar (vía API)
 
