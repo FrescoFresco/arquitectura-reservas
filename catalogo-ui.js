@@ -1917,7 +1917,7 @@ function eliminarProyecto(id) {
   pintarProyectos();
 }
 
-function eliminarAgente(id) {
+function eliminarAgenteLocal(id) {
   const store = leerAgentesStore();
   store.agentes = (store.agentes || []).filter(function (a) { return !(a && a.id === id); });
   if ((store.eliminados || []).indexOf(id) < 0) {
@@ -1931,6 +1931,23 @@ function eliminarAgente(id) {
   }
   refrescarAgentes();
   pintarAgentes();
+}
+
+function eliminarAgente(id) {
+  const ag = state.agentes.lista.find(function (a) { return a.id === id; });
+  const clave = (ag && ag.inviteUsada) || state.agentes.inviteActual || '';
+  const finish = function () { eliminarAgenteLocal(id); };
+  if (!clave) {
+    finish();
+    return;
+  }
+  apiFetch('/v1/agentes/' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + clave }
+  }).then(finish).catch(function () {
+    // Si la API falla, al menos se oculta en este navegador.
+    finish();
+  });
 }
 
 function eliminarFundamento(id) {
@@ -4284,7 +4301,27 @@ function apiBaseUrl() {
     const ls = localStorage.getItem('API_BASE') || localStorage.getItem('ARQ_API_BASE');
     if (ls) return String(ls).replace(/\/$/, '');
   } catch (e) {}
-  return 'http://127.0.0.1:8787';
+  if (typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || '')) {
+    return 'http://127.0.0.1:8787';
+  }
+  return 'https://campos-ancla-api.web-legal-es.workers.dev';
+}
+
+function apiFetch(path, opts) {
+  const base = apiBaseUrl();
+  const init = Object.assign({ cache: 'no-store' }, opts || {});
+  init.headers = Object.assign({ Accept: 'application/json' }, init.headers || {});
+  return fetch(base + path, init).then(function (res) {
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (!res.ok || (data && data.ok === false)) {
+        const err = new Error((data && data.error) || ('API HTTP ' + res.status));
+        err.status = res.status;
+        err.data = data;
+        throw err;
+      }
+      return data;
+    });
+  });
 }
 
 function textoInstruccionesInvite(clave) {
@@ -4295,9 +4332,9 @@ function textoInstruccionesInvite(clave) {
   const apiDoc = base + 'documentacion/api.md';
   const apiUi = base + '#documentacion';
   return [
-    '# Acceso al catálogo (Arquitectura reservas)',
+    '# Acceso a Campos ancla',
     '',
-    'Te han concedido acceso. Conserva esta clave.',
+    'Te han concedido acceso. Conserva esta clave API. No hace falta token de GitHub.',
     '',
     'AGENTE_CLAVE=' + clave,
     'API_BASE=' + apiBase,
@@ -4305,23 +4342,29 @@ function textoInstruccionesInvite(clave) {
     '',
     '## Clave',
     'Sin caducidad. Solo deja de valer si alguien la revoca a mano.',
+    'La base viva es Cloudflare Worker + D1. No escribas en el repo ni uses GITHUB_TOKEN.',
     '',
     '## Contrato API (léelo entero)',
-    'Documentación → API, o:',
+    'En la UI: Documentación → API, o:',
     apiUi,
     apiDoc,
     '',
-    '## Registro + latido (API viva / D1)',
+    '## 1. Registro (tú eliges el nombre)',
     'curl -s -X POST \"$API_BASE/v1/agentes/registro\" -H \"Content-Type: application/json\" \\',
     '  -d \'{\"clave\":\"' + clave + '\",\"nombre\":\"Mi agente\",\"foto\":\"\"}\'',
+    '# Respuesta: { \"ok\": true, \"id\": \"…\", \"lastSeen\": \"…\" } — guarda el id.',
+    '',
+    '## 2. Latido (en línea)',
+    'Cada ~30 s:',
     'curl -s -X POST \"$API_BASE/v1/agentes/latido\" -H \"Content-Type: application/json\" \\',
     '  -d \'{\"id\":\"<id>\",\"clave\":\"' + clave + '\"}\'',
     '',
-    '## Prueba en el navegador del catálogo (fallback local)',
-    'const r = window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
-    'window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
+    '## 3. Desde la consola de la UI (misma API)',
+    'const r = await window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
+    'await window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
     '',
-    'CRUD de catálogos: GET públicos; escrituras con Authorization: Bearer $AGENTE_CLAVE.'
+    'Lecturas de catálogo: GET $API_BASE/v1/… (públicas).',
+    'Escrituras: Authorization: Bearer $AGENTE_CLAVE.'
   ].join('\n');
 }
 
@@ -4349,6 +4392,14 @@ function cargarDocumentoApi() {
     });
 }
 
+function cacheInviteLocal(clave, creada) {
+  const store = leerAgentesStore();
+  if (!store.invites.some(function (i) { return i && i.clave === clave; })) {
+    store.invites.push({ clave: clave, creada: creada || new Date().toISOString(), usadaPor: null });
+    try { guardarAgentesLocal(store); } catch (e) {}
+  }
+}
+
 function abrirDialogoDarAcceso() {
   const dlg = document.getElementById('dlgDarAcceso');
   const err = document.getElementById('darAccesoError');
@@ -4356,21 +4407,32 @@ function abrirDialogoDarAcceso() {
   const texto = document.getElementById('darAccesoTexto');
   if (!dlg || !claveNodo || !texto) return;
   if (err) err.textContent = '';
-  const clave = generarClaveInvite();
-  const store = leerAgentesStore();
-  store.invites.push({ clave: clave, creada: new Date().toISOString(), usadaPor: null });
-  try {
-    guardarAgentesLocal(store);
-  } catch (e) {
-    if (err) err.textContent = e.message;
-    return;
-  }
-  state.agentes.inviteActual = clave;
-  claveNodo.textContent = clave;
-  texto.value = textoInstruccionesInvite(clave);
+  claveNodo.textContent = '…';
+  texto.value = 'Creando clave API en ' + apiBaseUrl() + ' …';
   dlg.showModal();
-  texto.focus();
-  texto.select();
+  apiFetch('/v1/invites', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  }).then(function (data) {
+    const inv = data && data.invite;
+    const clave = inv && inv.clave;
+    if (!clave) throw new Error('La API no devolvió una clave.');
+    cacheInviteLocal(clave, inv.creada);
+    state.agentes.inviteActual = clave;
+    claveNodo.textContent = clave;
+    texto.value = textoInstruccionesInvite(clave);
+    texto.focus();
+    texto.select();
+  }).catch(function (e) {
+    claveNodo.textContent = '—';
+    texto.value = '';
+    if (err) {
+      err.textContent = (e && e.message)
+        ? (e.message + ' Comprueba API_BASE (' + apiBaseUrl() + '). Sin API no se crea la clave.')
+        : 'No se pudo crear la clave en la API.';
+    }
+  });
 }
 
 function copiarInstruccionesAcceso() {
@@ -4427,70 +4489,77 @@ function slugAgenteDesdeNombre(nombre) {
   return id;
 }
 
+function espejoAgenteLocal(entrada) {
+  const store = leerAgentesStore();
+  store.agentes = (store.agentes || []).filter(function (a) { return !(a && a.id === entrada.id); });
+  store.agentes.push(entrada);
+  const inv = store.invites.find(function (i) { return i && i.clave === entrada.inviteUsada; });
+  if (inv) inv.usadaPor = entrada.id;
+  else if (entrada.inviteUsada) {
+    store.invites.push({
+      clave: entrada.inviteUsada,
+      creada: new Date().toISOString(),
+      usadaPor: entrada.id
+    });
+  }
+  try { guardarAgentesLocal(store); } catch (e) {}
+}
+
 function registrarAgenteApi(opts) {
   const clave = String(opts && opts.clave || '').trim();
   const nombre = String(opts && opts.nombre || '').trim();
   const foto = typeof (opts && opts.foto) === 'string' ? opts.foto.trim() : '';
-  if (!clave || clave.indexOf('inv_') !== 0) throw new Error('Falta una clave de invitación válida.');
-  if (!nombre) throw new Error('Elige un nombre.');
-  const store = leerAgentesStore();
-  const invite = store.invites.find(function (i) { return i && i.clave === clave; });
-  if (!invite) throw new Error('Esa clave no está en este navegador. Genera acceso con + Agente aquí.');
-  if (invite.usadaPor) throw new Error('Esa clave ya la usó el agente ' + invite.usadaPor + '.');
-  const id = opts.id && /^[a-z0-9][a-z0-9-]{0,60}$/i.test(String(opts.id).trim())
-    ? String(opts.id).trim()
-    : slugAgenteDesdeNombre(nombre);
-  if (state.agentes.lista.some(function (a) { return a.id === id; }) ||
-      store.agentes.some(function (a) { return a && a.id === id; })) {
-    throw new Error('Ya existe un agente con el id ' + id + '.');
-  }
-  const ahora = new Date().toISOString();
-  const entrada = {
-    id: id,
-    nombre: nombre,
-    foto: foto,
-    lastSeen: ahora,
-    inviteUsada: clave,
-    demoEnLinea: false,
-    hash: hashFnvHex(id + '|' + nombre + '|' + clave + '|' + ahora)
-  };
-  store.agentes.push(entrada);
-  invite.usadaPor = id;
-  guardarAgentesLocal(store);
-  refrescarAgentes();
-  pintarAgentes();
-  return { id: id, nombre: nombre, lastSeen: ahora };
+  if (!clave || clave.indexOf('inv_') !== 0) return Promise.reject(new Error('Falta una clave de invitación válida.'));
+  if (!nombre) return Promise.reject(new Error('Elige un nombre.'));
+  const body = { clave: clave, nombre: nombre, foto: foto };
+  if (opts && opts.id) body.id = String(opts.id).trim();
+  return apiFetch('/v1/agentes/registro', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function (data) {
+    const id = data.id;
+    const lastSeen = data.lastSeen || new Date().toISOString();
+    espejoAgenteLocal({
+      id: id,
+      nombre: nombre,
+      foto: foto,
+      lastSeen: lastSeen,
+      inviteUsada: clave,
+      demoEnLinea: false,
+      hash: hashFnvHex(id + '|' + nombre + '|' + clave + '|' + lastSeen)
+    });
+    return cargarAgentesDesdeApi().then(function () {
+      return { id: id, nombre: nombre, lastSeen: lastSeen };
+    });
+  });
 }
 
 function latidoAgenteApi(opts) {
   const id = String(opts && opts.id || '').trim();
   const clave = String(opts && opts.clave || '').trim();
-  if (!id || !clave) throw new Error('Faltan id y clave.');
-  const store = leerAgentesStore();
-  let entrada = store.agentes.find(function (a) { return a && a.id === id; });
-  if (!entrada) {
-    refrescarAgentes();
-    const remoto = state.agentes.lista.find(function (a) { return a.id === id; });
-    if (!remoto) throw new Error('No está ese agente.');
-    if (remoto.inviteUsada && remoto.inviteUsada !== clave) throw new Error('Clave incorrecta.');
-    entrada = {
-      id: remoto.id,
-      nombre: remoto.nombre,
-      foto: remoto.foto || '',
-      lastSeen: remoto.lastSeen || '',
-      inviteUsada: remoto.inviteUsada || clave,
-      demoEnLinea: false
-    };
-    store.agentes.push(entrada);
-  }
-  if (entrada.inviteUsada && entrada.inviteUsada !== clave) throw new Error('Clave incorrecta.');
-  entrada.lastSeen = new Date().toISOString();
-  entrada.demoEnLinea = false;
-  guardarAgentesLocal(store);
-  refrescarAgentes();
-  pintarAgentes();
-  if (state.agentes.abiertoId === id) renderAgenteReader();
-  return { id: id, lastSeen: entrada.lastSeen, enLinea: true };
+  if (!id || !clave) return Promise.reject(new Error('Faltan id y clave.'));
+  return apiFetch('/v1/agentes/latido', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: id, clave: clave })
+  }).then(function (data) {
+    const lastSeen = data.lastSeen || new Date().toISOString();
+    const store = leerAgentesStore();
+    let entrada = store.agentes.find(function (a) { return a && a.id === id; });
+    if (!entrada) {
+      entrada = { id: id, nombre: id, foto: '', inviteUsada: clave, demoEnLinea: false };
+      store.agentes.push(entrada);
+    }
+    entrada.lastSeen = lastSeen;
+    entrada.inviteUsada = clave;
+    entrada.demoEnLinea = false;
+    try { guardarAgentesLocal(store); } catch (e) {}
+    return cargarAgentesDesdeApi().then(function () {
+      if (state.agentes.abiertoId === id) renderAgenteReader();
+      return { id: id, lastSeen: lastSeen, enLinea: true };
+    });
+  });
 }
 
 function cerrarAgenteModal() {
@@ -4556,8 +4625,20 @@ function abrirAgente(id) {
   pintarAgentes();
 }
 
-function cargarAgentes() {
-  fetch('catalogo/agentes/index.json', { cache: 'no-store' })
+function cargarAgentesDesdeApi() {
+  return apiFetch('/v1/agentes')
+    .then(function (data) {
+      state.agentes.remotos = normalizeAgentesIndice(data);
+      state.agentes.indexError = false;
+      state.agentes.fuente = 'api';
+      refrescarAgentes();
+      pintarAgentes();
+      return state.agentes.lista;
+    });
+}
+
+function cargarAgentesDesdeSeed() {
+  return fetch('catalogo/agentes/index.json', { cache: 'no-store' })
     .then(function (res) {
       if (!res.ok) throw new Error('http');
       return res.json();
@@ -4565,10 +4646,18 @@ function cargarAgentes() {
     .then(function (data) {
       state.agentes.remotos = normalizeAgentesIndice(data);
       state.agentes.indexError = false;
-    })
+      state.agentes.fuente = 'seed';
+    });
+}
+
+function cargarAgentes() {
+  cargarAgentesDesdeApi()
     .catch(function () {
-      state.agentes.remotos = [];
-      state.agentes.indexError = true;
+      return cargarAgentesDesdeSeed().catch(function () {
+        state.agentes.remotos = [];
+        state.agentes.indexError = true;
+        state.agentes.fuente = 'ninguna';
+      });
     })
     .then(function () {
       state.agentes.ready = true;
@@ -4613,12 +4702,19 @@ function wireAgentesUi() {
   const copiar = document.getElementById('darAccesoCopiar');
   if (copiar) copiar.addEventListener('click', copiarInstruccionesAcceso);
   window.AgentesCatalogo = {
+    apiBase: apiBaseUrl,
     registrar: registrarAgenteApi,
     latido: latidoAgenteApi,
     listar: function () {
-      refrescarAgentes();
-      return state.agentes.lista.map(function (a) {
-        return { id: a.id, nombre: a.nombre, enLinea: a.enLinea, lastSeen: a.lastSeen };
+      return cargarAgentesDesdeApi().then(function (lista) {
+        return (lista || state.agentes.lista).map(function (a) {
+          return { id: a.id, nombre: a.nombre, enLinea: a.enLinea, lastSeen: a.lastSeen };
+        });
+      }).catch(function () {
+        refrescarAgentes();
+        return state.agentes.lista.map(function (a) {
+          return { id: a.id, nombre: a.nombre, enLinea: a.enLinea, lastSeen: a.lastSeen };
+        });
       });
     }
   };

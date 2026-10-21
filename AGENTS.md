@@ -1,17 +1,23 @@
 # Agente y catálogos
 
-Empieza leyendo Documentación → API (`documentacion/api.md`) y el Worker Cloudflare + D1 (`CLOUDFLARE.md`). No inventes rutas.
+Empieza leyendo Documentación → API (`documentacion/api.md`) y `CLOUDFLARE.md`. No inventes rutas.
 
-La fuente de verdad viva es `{API_BASE}/v1/…` (D1). Los JSON de `catalogo/` son semilla/espejo estático.
+**Fuente de verdad:** `{API_BASE}/v1/…` en Cloudflare Worker + D1  
+(`https://campos-ancla-api.web-legal-es.workers.dev`).  
+Los JSON de `catalogo/` son semilla/fallback de la UI. **No uses `GITHUB_TOKEN` para darte de alta ni para el catálogo vivo.**
 
-El acceso de un agente se concede en Catálogos → Agentes → **+ Agente** (clave `inv_…` sin caducidad). Registro/latido: `POST /v1/agentes/registro` y `POST /v1/agentes/latido`. Escrituras de catálogo llevan `Authorization: Bearer inv_…`.
+## Acceso
 
-Puede modificar: Skills (documento o versión en `catalogo/skills/`), Campos ancla (`catalogo/campos-ancla/`), Campos MongoDB (`catalogo/campos-mongodb/`), Proyectos (`catalogo/proyectos/`) y Fundamentos (`catalogo/fundamentos/`). Cada cambio es una versión nueva y no pisa la anterior. También puede eliminar una skill. La confirmación solo está en la página; la API elimina directo cuando el agente lo pide. Un proyecto guarda las skills asociadas por id en `skills` (many-to-many).
+1. Un humano abre Catálogos → Agentes → **+ Agente**.
+2. La UI llama `POST /v1/invites` y muestra una clave `inv_…` (sin caducidad) + instrucciones.
+3. Tú te registras: `POST /v1/agentes/registro` con `{ clave, nombre, foto? }`.
+4. Late ~cada 30 s: `POST /v1/agentes/latido` con `{ id, clave }` → En línea en la UI.
+5. Escrituras de catálogo: `Authorization: Bearer inv_…`. Lecturas `GET` públicas.
 
-Catálogo Agentes (`catalogo/agentes/`): solo registro + latido. No hay cola de comentarios todavía.
+## Qué puedes modificar (vía API)
 
-La página ya no edita el mapa: los archivos en `mapa/` pueden seguir en el repo, pero no hay hub ni contrato de edición del mapa en la UI.
+Skills, Campos ancla, Campos MongoDB, Proyectos, Fundamentos — cada cambio versionado donde aplica. Eliminar skill limpia asociaciones N:M en proyectos.
 
-En la UI de Skills: **Editar** modifica el contenido y al guardar crea una versión nueva solo si markdown o anclas cambiaron; **Subir versión** carga un documento completo como versión nueva. Ver skill y las fichas de ancla/Mongo se abren en popup. Cada versión y cada campo llevan un `hash` estable en el índice.
+No hay cola de comentarios / Metricool todavía.
 
-El cliente de referencia es `scripts/subir.js`. Lee el índice antes de escribir.
+`scripts/subir.js` es un espejo opcional a GitHub Contents; no sustituye D1.

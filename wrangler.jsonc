@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "arquitectura-reservas-api",
+  "name": "campos-ancla-api",
   "main": "src/worker.ts",
   "compatibility_date": "2026-10-20",
   "observability": {
@@ -15,10 +15,9 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "arquitectura-reservas",
-      // Placeholder until `wrangler d1 create arquitectura-reservas` (replace with real UUID).
-      "database_id": "00000000-0000-4000-8000-000000000001",
-      "preview_database_id": "local-arquitectura-reservas",
+      "database_name": "campos-ancla-db",
+      "database_id": "42cb5187-a922-4e40-8227-0e72c1002f15",
+      "preview_database_id": "local-campos-ancla-db",
       "migrations_dir": "migrations"
     }
   ]

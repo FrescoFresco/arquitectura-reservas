@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:migrate:local": "wrangler d1 migrations apply arquitectura-reservas --local",
-    "db:migrate:remote": "wrangler d1 migrations apply arquitectura-reservas --remote",
+    "db:migrate:local": "wrangler d1 migrations apply campos-ancla-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply campos-ancla-db --remote",
     "db:seed:local": "node scripts/seed-d1.mjs --local",
     "db:seed:remote": "node scripts/seed-d1.mjs --remote",
     "cf-typegen": "wrangler types"
