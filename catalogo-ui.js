@@ -21,6 +21,7 @@ const LS_AGENTES = 'arquitectura-reservas.catalogo.agentes';
 const LS_FUNDAMENTOS = 'arquitectura-reservas.catalogo.fundamentos';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const AGENTE_LATIDO_MS = 120000;
+const AGENTE_POLL_MS = 4000;
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function esHashHex(h) {
@@ -123,7 +124,10 @@ const state = {
     remotos: [],
     lista: [],
     abiertoId: null,
-    inviteActual: null
+    inviteActual: null,
+    lastSyncAt: null,
+    pollTimer: null,
+    pollInflight: false
   },
   fundamentos: {
     ready: false,
@@ -1931,6 +1935,7 @@ function eliminarAgenteLocal(id) {
   }
   refrescarAgentes();
   pintarAgentes();
+  sincronizarAgentesSilencioso();
 }
 
 function eliminarAgente(id) {
@@ -2320,6 +2325,9 @@ function seleccionarCatalogo(id) {
   if (id === 'agentes') {
     refrescarAgentes();
     pintarAgentes();
+    arrancarPollAgentes();
+  } else {
+    detenerPollAgentes();
   }
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
@@ -4155,9 +4163,26 @@ function onSubmitEditarAgente(e) {
     if (actual.descripcion) entrada.descripcion = actual.descripcion;
     guardarAgentesLocal(store);
     document.getElementById('dlgEditarAgente').close();
-    refrescarAgentes();
-    pintarAgentes();
-    if (state.agentes.abiertoId === id) renderAgenteReader();
+    const clave = (actual.inviteUsada || state.agentes.inviteActual || '').trim();
+    const afterLocal = function () {
+      sincronizarAgentesSilencioso().then(function () {
+        if (state.agentes.abiertoId === id) renderAgenteReader();
+      });
+    };
+    if (clave) {
+      apiFetch('/v1/agentes/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + clave
+        },
+        body: JSON.stringify({ nombre: nombre, foto: foto })
+      }).then(afterLocal).catch(afterLocal);
+    } else {
+      refrescarAgentes();
+      pintarAgentes();
+      if (state.agentes.abiertoId === id) renderAgenteReader();
+    }
   } catch (err) {
     if (error) error.textContent = err.message;
   }
@@ -4275,6 +4300,67 @@ function refrescarAgentes() {
   state.agentes.lista = mergeAgentes(state.agentes.remotos, store.agentes, store.eliminados);
 }
 
+function textoAgentesActualizado() {
+  const t = state.agentes.lastSyncAt;
+  if (!t) return '';
+  const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (s < 6) return 'Actualizado ahora';
+  if (s < 60) return 'Actualizado hace ' + s + ' s';
+  const m = Math.floor(s / 60);
+  return 'Actualizado hace ' + m + ' min';
+}
+
+function agentesCatalogoVisible() {
+  if (state.catalogoId !== 'agentes') return false;
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+  const cat = document.getElementById('catalogos');
+  if (cat && cat.hidden) return false;
+  return true;
+}
+
+function detenerPollAgentes() {
+  if (state.agentes.pollTimer) {
+    clearInterval(state.agentes.pollTimer);
+    state.agentes.pollTimer = null;
+  }
+}
+
+/** Silent in-place refresh from GET /v1/agentes — no loading spinner. */
+function sincronizarAgentesSilencioso() {
+  if (state.agentes.pollInflight) return Promise.resolve(state.agentes.lista);
+  state.agentes.pollInflight = true;
+  return apiFetch('/v1/agentes')
+    .then(function (data) {
+      state.agentes.remotos = normalizeAgentesIndice(data);
+      state.agentes.indexError = false;
+      state.agentes.fuente = 'api';
+    })
+    .catch(function () {
+      /* Keep last known list; still recompute En línea from lastSeen. */
+    })
+    .then(function () {
+      state.agentes.pollInflight = false;
+      state.agentes.lastSyncAt = Date.now();
+      refrescarAgentes();
+      if (state.agentes.abiertoId) renderAgenteReader();
+      pintarAgentes();
+      return state.agentes.lista;
+    });
+}
+
+function arrancarPollAgentes() {
+  detenerPollAgentes();
+  if (!agentesCatalogoVisible()) return;
+  sincronizarAgentesSilencioso();
+  state.agentes.pollTimer = setInterval(function () {
+    if (!agentesCatalogoVisible()) {
+      detenerPollAgentes();
+      return;
+    }
+    sincronizarAgentesSilencioso();
+  }, AGENTE_POLL_MS);
+}
+
 function agentesBridge() {
   return {
     getSnapshot: function () {
@@ -4285,7 +4371,8 @@ function agentesBridge() {
         ready: state.agentes.ready,
         indexError: state.agentes.indexError,
         agentes: state.agentes.lista,
-        abierta: abierta ? { id: abierta.id } : null
+        abierta: abierta ? { id: abierta.id } : null,
+        syncLabel: textoAgentesActualizado()
       };
     },
     darAcceso: function () { abrirDialogoDarAcceso(); },
@@ -4439,6 +4526,8 @@ function abrirDialogoDarAcceso() {
     texto.value = textoInstruccionesInvite(clave);
     texto.focus();
     texto.select();
+    sincronizarAgentesSilencioso();
+    if (state.catalogoId === 'agentes') arrancarPollAgentes();
   }).catch(function (e) {
     claveNodo.textContent = '—';
     texto.value = '';
@@ -4691,8 +4780,10 @@ function cargarAgentes() {
     })
     .then(function () {
       state.agentes.ready = true;
+      state.agentes.lastSyncAt = Date.now();
       refrescarAgentes();
       pintarAgentes();
+      if (agentesCatalogoVisible()) arrancarPollAgentes();
     });
 }
 
@@ -4733,8 +4824,24 @@ function wireAgentesUi() {
   if (copiar) copiar.addEventListener('click', copiarInstruccionesAcceso);
   const copiarClave = document.getElementById('darAccesoCopiarClave');
   if (copiarClave) copiarClave.addEventListener('click', copiarClaveAcceso);
-  window.addEventListener('hashchange', function () { aplicarHashDocumentacion(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') detenerPollAgentes();
+    else if (agentesCatalogoVisible()) arrancarPollAgentes();
+  });
+  window.addEventListener('hashchange', function () {
+    aplicarHashDocumentacion();
+    if (agentesCatalogoVisible()) arrancarPollAgentes();
+    else detenerPollAgentes();
+  });
   aplicarHashDocumentacion();
+  if (typeof window.abrirDestino === 'function') {
+    const abrirPrev = window.abrirDestino;
+    window.abrirDestino = function (id) {
+      abrirPrev(id);
+      if (agentesCatalogoVisible()) arrancarPollAgentes();
+      else detenerPollAgentes();
+    };
+  }
   window.AgentesCatalogo = {
     apiBase: apiBaseUrl,
     registrar: registrarAgenteApi,

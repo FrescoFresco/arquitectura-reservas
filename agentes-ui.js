@@ -95,6 +95,7 @@
     var indexError = snapshot.indexError;
     var abierta = snapshot.abierta;
 
+    var syncLabel = snapshot.syncLabel || '';
     var estado = '';
     if (!ready) estado = 'Cargando el índice…';
     else if (indexError) estado = 'No se pudo leer el índice compartido.';
@@ -102,6 +103,9 @@
 
     return e('div', { className: 'agentes-app' },
       e('div', { className: 'catalogo-toolbar' },
+        syncLabel
+          ? e('span', { className: 'agentes-sync', 'aria-live': 'polite' }, syncLabel)
+          : null,
         e('button', {
           type: 'button',
           className: 'btn primary btn-anadir',
