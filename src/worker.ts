@@ -113,12 +113,34 @@ app.get('/v1/skills/:id', async (c) => {
 });
 
 app.get('/v1/anclas', async (c) => {
+  // Batch hydrate: one query for anclas + one for ancla_skills (avoids N+1 D1_ERROR under load).
   const reveal = await mayRevealSensitive(c);
-  const rows = await c.env.DB.prepare('SELECT * FROM anclas ORDER BY ancla').all();
-  const out = [];
-  for (const row of rows.results || []) {
-    out.push(await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal }));
+  const [rows, skillRows] = await Promise.all([
+    c.env.DB.prepare('SELECT * FROM anclas ORDER BY ancla').all(),
+    c.env.DB.prepare('SELECT ancla_id, skill_id FROM ancla_skills').all(),
+  ]);
+  const skillsByAncla = new Map<string, string[]>();
+  for (const r of skillRows.results || []) {
+    const aid = String((r as { ancla_id: string }).ancla_id);
+    const sid = String((r as { skill_id: string }).skill_id);
+    const list = skillsByAncla.get(aid);
+    if (list) list.push(sid);
+    else skillsByAncla.set(aid, [sid]);
   }
+  const out = (rows.results || []).map((row) => {
+    const mapped = mapAnclaRow(row as Record<string, unknown>);
+    let ejemplo = mapped.ejemplo;
+    if (mapped.sensible && !reveal) {
+      ejemplo = ejemplo ? maskSensitive(ejemplo) : '';
+    }
+    return {
+      ...mapped,
+      ejemplo,
+      valorActual: '',
+      observaciones: [] as Observacion[],
+      skills: skillsByAncla.get(mapped.id) || [],
+    };
+  });
   return c.json({ ok: true, id: 'campos-ancla', nombre: 'Campos ancla', campos: out });
 });
 
@@ -227,13 +249,47 @@ app.get('/v1/mongo/:id', async (c) => {
 });
 
 app.get('/v1/proyectos', async (c) => {
+  // Batch hydrate versions + skills to keep list GETs under D1 statement pressure.
   const rows = await c.env.DB.prepare(
     'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM proyectos ORDER BY nombre'
   ).all();
-  const out = [];
-  for (const row of rows.results || []) {
-    out.push(await hydrateProyecto(c.env.DB, row as Record<string, unknown>));
+  const ids = (rows.results || []).map((r) => String((r as { id: string }).id));
+  const [versionesAll, skillsAll] = await Promise.all([
+    c.env.DB.prepare(
+      'SELECT proyecto_id, numero, fecha, markdown, ruta, nombre_archivo AS nombreArchivo, hash FROM proyecto_versions ORDER BY proyecto_id, numero'
+    ).all(),
+    c.env.DB.prepare('SELECT proyecto_id, skill_id FROM proyecto_skills').all(),
+  ]);
+  const versBy = new Map<string, unknown[]>();
+  for (const v of versionesAll.results || []) {
+    const pid = String((v as { proyecto_id: string }).proyecto_id);
+    const { proyecto_id: _p, ...rest } = v as Record<string, unknown>;
+    const list = versBy.get(pid);
+    if (list) list.push(rest);
+    else versBy.set(pid, [rest]);
   }
+  const skillsBy = new Map<string, string[]>();
+  for (const s of skillsAll.results || []) {
+    const pid = String((s as { proyecto_id: string }).proyecto_id);
+    const sid = String((s as { skill_id: string }).skill_id);
+    const list = skillsBy.get(pid);
+    if (list) list.push(sid);
+    else skillsBy.set(pid, [sid]);
+  }
+  const out = ids.map((id) => {
+    const row = (rows.results || []).find((r) => String((r as { id: string }).id) === id) as Record<
+      string,
+      unknown
+    >;
+    return {
+      id,
+      nombre: row.nombre,
+      descripcion: row.descripcion || '',
+      hash: row.hash || '',
+      skills: skillsBy.get(id) || [],
+      versiones: versBy.get(id) || [],
+    };
+  });
   return c.json({ ok: true, id: 'proyectos', nombre: 'Proyectos', proyectos: out });
 });
 

@@ -2541,19 +2541,11 @@ function seleccionarCatalogo(id) {
   if (!existe) return;
   state.catalogoId = id;
   renderPestanasCatalogo();
-  if (id === 'skills') pintarSkills();
-  if (id === 'campos-ancla') {
-    refrescarCampos();
-    pintarCampos();
-  }
-  if (id === 'campos-mongodb') {
-    refrescarMongo();
-    pintarMongo();
-  }
-  if (id === 'proyectos') {
-    refrescarProyectos();
-    pintarProyectos();
-  }
+  // Re-fetch from live API on tab focus so agent writes appear without hard reload.
+  if (id === 'skills') cargarSkills();
+  if (id === 'campos-ancla') cargarCampos();
+  if (id === 'campos-mongodb') cargarMongo();
+  if (id === 'proyectos') cargarProyectos();
   if (id === 'agentes') {
     refrescarAgentes();
     pintarAgentes();
@@ -2571,8 +2563,7 @@ function seleccionarDoc(id, opts) {
   state.docId = id;
   renderDocPestanas();
   if (id === 'fundamentos') {
-    refrescarFundamentos();
-    pintarFundamentos();
+    cargarFundamentos();
   }
   if (id === 'api') cargarDocumentoApi();
   if (id === 'mongodb') {
@@ -3549,7 +3540,19 @@ function iniciar() {
     }
   });
   render();
-  fetch('catalogo/skills/index.json', { cache: 'no-store' })
+  cargarSkills();
+  cargarCampos();
+  cargarMongo();
+  cargarProyectos();
+  wireProyectosUi();
+  cargarAgentes();
+  wireAgentesUi();
+  cargarFundamentos();
+  wireFundamentosUi();
+}
+
+function cargarSkillsDesdeSeed() {
+  return fetch('catalogo/skills/index.json', { cache: 'no-store' })
     .then(function (res) {
       if (!res.ok) throw new Error('http');
       return res.json();
@@ -3557,6 +3560,17 @@ function iniciar() {
     .then(function (data) {
       state.remotas = normalizeIndice(data);
       state.indexError = false;
+    });
+}
+
+function cargarSkills() {
+  apiFetch('/v1/skills')
+    .then(function (data) {
+      state.remotas = normalizeIndice(data);
+      state.indexError = false;
+    })
+    .catch(function () {
+      return cargarSkillsDesdeSeed();
     })
     .catch(function () {
       state.remotas = [];
@@ -3566,14 +3580,6 @@ function iniciar() {
       state.ready = true;
       render();
     });
-  cargarCampos();
-  cargarMongo();
-  cargarProyectos();
-  wireProyectosUi();
-  cargarAgentes();
-  wireAgentesUi();
-  cargarFundamentos();
-  wireFundamentosUi();
 }
 
 function normalizarSkillsProyecto(list) {
@@ -4252,8 +4258,8 @@ function onSubmitEditarProyectoSkills(e) {
   }
 }
 
-function cargarProyectos() {
-  fetch('catalogo/proyectos/index.json', { cache: 'no-store' })
+function cargarProyectosDesdeSeed() {
+  return fetch('catalogo/proyectos/index.json', { cache: 'no-store' })
     .then(function (res) {
       if (!res.ok) throw new Error('http');
       return res.json();
@@ -4261,6 +4267,17 @@ function cargarProyectos() {
     .then(function (data) {
       state.proyectos.remotos = normalizeProyectosIndice(data);
       state.proyectos.indexError = false;
+    });
+}
+
+function cargarProyectos() {
+  apiFetch('/v1/proyectos')
+    .then(function (data) {
+      state.proyectos.remotos = normalizeProyectosIndice(data);
+      state.proyectos.indexError = false;
+    })
+    .catch(function () {
+      return cargarProyectosDesdeSeed();
     })
     .catch(function () {
       state.proyectos.remotos = [];
@@ -5807,8 +5824,8 @@ async function onSubmitEditarFundamento(e) {
   }
 }
 
-function cargarFundamentos() {
-  fetch('catalogo/fundamentos/index.json', { cache: 'no-store' })
+function cargarFundamentosDesdeSeed() {
+  return fetch('catalogo/fundamentos/index.json', { cache: 'no-store' })
     .then(function (res) {
       if (!res.ok) throw new Error('http');
       return res.json();
@@ -5816,6 +5833,17 @@ function cargarFundamentos() {
     .then(function (data) {
       state.fundamentos.remotos = normalizeFundamentosIndice(data);
       state.fundamentos.indexError = false;
+    });
+}
+
+function cargarFundamentos() {
+  apiFetch('/v1/fundamentos')
+    .then(function (data) {
+      state.fundamentos.remotos = normalizeFundamentosIndice(data);
+      state.fundamentos.indexError = false;
+    })
+    .catch(function () {
+      return cargarFundamentosDesdeSeed();
     })
     .catch(function () {
       state.fundamentos.remotos = [];
