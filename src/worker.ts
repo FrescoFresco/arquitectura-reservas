@@ -670,7 +670,12 @@ app.post('/v1/helpers/proyeccion-array', async (c) => {
     if (!mongo) return jsonError(c, 404, 'Campo Mongo no encontrado.');
     const m = mapMongo(mongo as Record<string, unknown>);
     if (m.proyeccionMongo === 'array') {
-      ruta = ruta || (m.ancla ? canonicalFromAncla(m.ancla).replace(/\.\d+.*$/, '') + '.N' : 'campos.N');
+      if (!ruta && m.ancla) {
+        const canon = canonicalFromAncla(m.ancla);
+        // `_campos.N_` → `campos.N` (no añadir otro `.N`)
+        ruta = /\.N\b/.test(canon) ? canon.replace(/\.\d+\b/g, '.N') : canon.replace(/\.\d+.*$/, '') + '.N';
+      }
+      ruta = ruta || 'campos.N';
       if (!elemento && Object.keys(m.proyeccionElemento).length) elemento = m.proyeccionElemento;
     }
   }

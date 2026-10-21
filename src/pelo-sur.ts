@@ -312,7 +312,8 @@ export function proyectarArrayN(input: {
   valores?: Record<string, string>;
 }): { ok: true; clave: string; array: Record<string, string>[] } | { ok: false; error: string } {
   const ruta = String(input.ruta_ancla || 'campos.N').trim();
-  const base = ruta.replace(/\.N$/, '').replace(/N$/, '');
+  // `campos.N` → `campos`; avoid turning `campos.N.N` into `campos.`
+  const base = ruta.replace(/(\.N)+$/, '').replace(/\.N\b/g, '');
   if (!base) return { ok: false, error: 'ruta_ancla inválida (ej. campos.N).' };
   const elemento =
     input.elemento && Object.keys(input.elemento).length
