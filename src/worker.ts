@@ -28,18 +28,118 @@ import {
   resolveMongoDbName,
   upsertNegocio,
   withMongoDb,
+  type MongoEnv,
 } from './mongo';
+import {
+  clearStoredUri,
+  isValidMongoUri,
+  loadStoredUri,
+  readStoredMeta,
+  saveStoredUri,
+  type MongoConfigMeta,
+} from './mongo-config';
 
 export type Env = {
   DB: D1Database;
   PUBLIC_UI_ORIGIN?: string;
   /** Optional extra origin for local UI (comma-separated). */
   CORS_ORIGINS?: string;
-  /** Atlas / Mongo connection string — wrangler secret (never commit). */
+  /** Atlas / Mongo connection string — wrangler secret fallback (never commit). */
   MONGODB_URI?: string;
   /** Optional DB name; default arquitectura_reservas (catálogo baseDatos). */
   MONGODB_DB?: string;
+  /**
+   * AES-GCM key material for encrypting the in-app Mongo URI in D1.
+   * Prefer `wrangler secret put ENCRYPTION_KEY`. Required to save/load stored URI.
+   */
+  ENCRYPTION_KEY?: string;
 };
+
+type ResolvedMongo = {
+  env: MongoEnv;
+  meta: MongoConfigMeta;
+  decryptError?: string;
+};
+
+/** Prefer D1-stored encrypted URI; else env MONGODB_URI. Never exposes the URI. */
+async function resolveRuntimeMongo(env: Env, dbHint?: string): Promise<ResolvedMongo> {
+  const storedMeta = await readStoredMeta(env.DB);
+  let storedUri: string | undefined;
+  let storedDb: string | undefined;
+  let decryptError: string | undefined;
+  let hint = '';
+
+  if (storedMeta?.present) {
+    hint = storedMeta.hint || '';
+    try {
+      const loaded = await loadStoredUri(env.DB, env.ENCRYPTION_KEY);
+      if (loaded) {
+        storedUri = loaded.uri;
+        storedDb = loaded.db;
+        hint = loaded.hint || hint;
+      }
+    } catch (err) {
+      decryptError = err instanceof Error ? err.message : 'decrypt failed';
+    }
+  }
+
+  if (storedUri) {
+    const mongoEnv: MongoEnv = {
+      MONGODB_URI: storedUri,
+      MONGODB_DB: storedDb || env.MONGODB_DB,
+    };
+    return {
+      env: mongoEnv,
+      meta: {
+        configured: true,
+        source: 'stored',
+        hint,
+        db: resolveMongoDbName(mongoEnv, dbHint || storedDb),
+      },
+      decryptError,
+    };
+  }
+
+  if (mongoUriConfigured(env)) {
+    const mongoEnv: MongoEnv = {
+      MONGODB_URI: env.MONGODB_URI,
+      MONGODB_DB: env.MONGODB_DB,
+    };
+    return {
+      env: mongoEnv,
+      meta: {
+        configured: true,
+        source: 'env',
+        hint: '',
+        db: resolveMongoDbName(mongoEnv, dbHint),
+      },
+    };
+  }
+
+  // Row present but undecryptable still counts as "configured" for UI (never leak URI).
+  if (storedMeta?.present) {
+    return {
+      env: {},
+      meta: {
+        configured: true,
+        source: 'stored',
+        hint: storedMeta.hint || '',
+        db: storedMeta.dbName || resolveMongoDbName(env, dbHint),
+      },
+      decryptError: decryptError || 'ENCRYPTION_KEY missing',
+    };
+  }
+
+  return {
+    env: {},
+    meta: {
+      configured: false,
+      source: 'none',
+      hint: '',
+      db: resolveMongoDbName(env, dbHint),
+    },
+  };
+}
 
 type Variables = {
   inviteClave?: string;
@@ -92,13 +192,14 @@ app.use('*', async (c, next) => {
   return mw(c, next);
 });
 
-app.get('/health', (c) =>
-  c.json({
+app.get('/health', async (c) => {
+  const resolved = await resolveRuntimeMongo(c.env);
+  return c.json({
     ok: true,
     service: 'campos-ancla-api',
-    mongo: mongoHealthLabel(c.env),
-  })
-);
+    mongo: mongoHealthLabel(resolved.env),
+  });
+});
 
 /** Canonical agent contract (same markdown as UI Documentación → API). */
 app.get('/v1/docs', (c) =>
@@ -262,23 +363,42 @@ app.get('/v1/mongo', async (c) => {
   });
 });
 
-/** Live Atlas link status (no URI leaked). Public GET so the panel can show sí/no. */
+/**
+ * Live Atlas link status (no URI leaked).
+ * Public GET: configured / connected / db / source / optional safe host hint (last-4).
+ */
 app.get('/v1/mongo/status', async (c) => {
   const dbHint = await catalogMongoDbHint(c.env.DB);
-  const status = await probeMongoStatus(c.env, dbHint);
+  const resolved = await resolveRuntimeMongo(c.env, dbHint);
+  if (!resolved.meta.configured || !mongoUriConfigured(resolved.env)) {
+    return c.json({
+      ok: true,
+      configured: resolved.meta.configured,
+      connected: false,
+      db: resolved.meta.db,
+      source: resolved.meta.source,
+      ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
+      ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
+    });
+  }
+  const status = await probeMongoStatus(resolved.env, resolved.meta.db);
   return c.json({
     ok: true,
-    configured: status.configured,
+    configured: true,
     connected: status.connected,
     db: status.db,
+    source: resolved.meta.source,
+    ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
     ...(status.error ? { error: status.error } : {}),
   });
 });
 
 app.get('/v1/mongo/:id', async (c) => {
-  // Avoid treating "status" / "sync" as campo ids if routing order changes.
+  // Avoid treating reserved paths as campo ids if routing order changes.
   const id = c.req.param('id');
-  if (id === 'status' || id === 'sync') return jsonError(c, 404, 'Campo Mongo no encontrado.');
+  if (id === 'status' || id === 'sync' || id === 'config') {
+    return jsonError(c, 404, 'Campo Mongo no encontrado.');
+  }
   const row = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'Campo Mongo no encontrado.');
   return c.json({ ok: true, campo: mapMongo(row as Record<string, unknown>) });
@@ -783,11 +903,83 @@ app.post('/v1/helpers/proyeccion-array', async (c) => {
 });
 
 /**
+ * Save Mongo URI from the panel (Ajustes → Conexiones).
+ * Auth: invite Bearer (same as other writes). Body: { uri, db? }.
+ * Validates format + ping; stores AES-GCM ciphertext in D1. Never echoes URI.
+ */
+app.post('/v1/mongo/config', async (c) => {
+  const key = (c.env.ENCRYPTION_KEY || '').trim();
+  if (!key) {
+    return c.json(
+      {
+        ok: false,
+        error: 'ENCRYPTION_KEY missing',
+        hint: 'Define el secret ENCRYPTION_KEY en el Worker (wrangler secret put ENCRYPTION_KEY).',
+      },
+      503
+    );
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    uri?: string;
+    db?: string;
+    dbName?: string;
+    probeOnly?: boolean;
+  };
+  const uri = String(body.uri || '').trim();
+  const dbName = String(body.db || body.dbName || '').trim();
+  if (!uri) return jsonError(c, 400, 'Falta uri.');
+  if (!isValidMongoUri(uri)) {
+    return jsonError(c, 400, 'URI inválida (usa mongodb:// o mongodb+srv:// con usuario@host).');
+  }
+  const probeEnv: MongoEnv = {
+    MONGODB_URI: uri,
+    MONGODB_DB: dbName || c.env.MONGODB_DB,
+  };
+  const status = await probeMongoStatus(probeEnv, dbName || undefined);
+  if (body.probeOnly) {
+    return c.json({
+      ok: true,
+      probed: true,
+      configured: false,
+      connected: status.connected,
+      db: status.db,
+      ...(status.error ? { error: status.error } : {}),
+    });
+  }
+  // Persist even if ping fails (Atlas IP allowlist often lags); surface connected.
+  const saved = await saveStoredUri(c.env.DB, key, uri, dbName || undefined);
+  return c.json({
+    ok: true,
+    configured: true,
+    connected: status.connected,
+    db: saved.db || status.db,
+    source: 'stored' as const,
+    hint: saved.hint,
+    ...(status.error ? { error: status.error } : {}),
+  });
+});
+
+/** Clear in-app stored URI (env MONGODB_URI fallback remains if set). */
+app.delete('/v1/mongo/config', async (c) => {
+  await clearStoredUri(c.env.DB);
+  const resolved = await resolveRuntimeMongo(c.env);
+  return c.json({
+    ok: true,
+    cleared: true,
+    configured: resolved.meta.configured,
+    connected: false,
+    db: resolved.meta.db,
+    source: resolved.meta.source,
+  });
+});
+
+/**
  * Upsert `negocios` in Atlas from D1 ancla_valores_negocio (catalog mapping).
- * Auth: invite Bearer. Without MONGODB_URI → 503 configure MONGODB_URI.
+ * Auth: invite Bearer. Without URI (stored or env) → 503.
  */
 app.post('/v1/mongo/sync/negocio', async (c) => {
-  if (!mongoUriConfigured(c.env)) {
+  const resolved = await resolveRuntimeMongo(c.env);
+  if (!mongoUriConfigured(resolved.env)) {
     return c.json(mongoNotConfiguredError(), 503);
   }
   const body = (await c.req.json().catch(() => ({}))) as {
@@ -800,9 +992,9 @@ app.post('/v1/mongo/sync/negocio', async (c) => {
 
   try {
     const built = await buildNegocioFromAnclas(c.env.DB, negocioId);
-    const dbName = resolveMongoDbName(c.env, built.baseDatos);
+    const dbName = resolveMongoDbName(resolved.env, built.baseDatos);
     const result = await withMongoDb(
-      c.env,
+      resolved.env,
       async (db) => upsertNegocio(db, built.doc),
       dbName
     );
@@ -825,7 +1017,8 @@ app.post('/v1/mongo/sync/negocio', async (c) => {
  * Map proyecto id → negocio_id (default: same id) and upsert negocios.
  */
 app.post('/v1/mongo/sync/proyecto', async (c) => {
-  if (!mongoUriConfigured(c.env)) {
+  const resolved = await resolveRuntimeMongo(c.env);
+  if (!mongoUriConfigured(resolved.env)) {
     return c.json(mongoNotConfiguredError(), 503);
   }
   const body = (await c.req.json().catch(() => ({}))) as {
@@ -853,9 +1046,9 @@ app.post('/v1/mongo/sync/proyecto', async (c) => {
       fallbackNombre: proyecto.nombre,
       proyectoId,
     });
-    const dbName = resolveMongoDbName(c.env, built.baseDatos);
+    const dbName = resolveMongoDbName(resolved.env, built.baseDatos);
     const result = await withMongoDb(
-      c.env,
+      resolved.env,
       async (db) => upsertNegocio(db, built.doc),
       dbName
     );

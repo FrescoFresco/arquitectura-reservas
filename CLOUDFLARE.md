@@ -34,20 +34,25 @@ npm run deploy:ui
 
 Equivale a `npm run build:ui` (arma `dist-ui/`) + `wrangler deploy -c wrangler.ui.jsonc`.
 
-## MongoDB Atlas (URI solo en secrets)
+## MongoDB Atlas (Ajustes → Conexiones)
 
-El Worker habla con Atlas con el **driver oficial `mongodb`** (TCP). No uses Data API. No pegues la URI en el chat ni en la UI.
+El Worker habla con Atlas con el **driver oficial `mongodb`** (TCP). No uses Data API. **No pegues la URI en el chat.**
+
+**Preferido:** panel **Ajustes → Conexiones** → form URI (password) → `POST /v1/mongo/config`. Se cifra en D1 (AES-GCM) con secret `ENCRYPTION_KEY`. La URI **nunca** se reexpone en GET (solo `configured` + pista de host).
 
 | Secret / var | Obligatorio | Dónde |
 |--------------|-------------|--------|
-| `MONGODB_URI` | sí, para escribir | Cursor **Environment Secrets** + `npx wrangler secret put MONGODB_URI` (Worker `campos-ancla-api`) |
-| `MONGODB_DB` | no | default `arquitectura_reservas` (coincide con `baseDatos` del catálogo). Opcional: `wrangler secret put MONGODB_DB` o var |
+| `ENCRYPTION_KEY` | sí, para guardar URI desde el panel | `npx wrangler secret put ENCRYPTION_KEY` (Worker `campos-ancla-api`) |
+| `MONGODB_URI` | no (fallback) | Solo si no hay URI en D1; Cursor env + `wrangler secret put MONGODB_URI` |
+| `MONGODB_DB` | no | default `arquitectura_reservas`. Opcional en el form o secret |
 
 ```bash
-# Tras crear el cluster en Atlas y copiar la SRV:
+# Una vez (cifrado en reposo de la URI del panel):
+npx wrangler secret put ENCRYPTION_KEY
+# Alternativa ops sin panel:
 npx wrangler secret put MONGODB_URI
-# (pega la URI en el prompt; no la commits)
 npm run deploy
+npm run db:migrate:remote   # incluye tabla mongo_config
 ```
 
 Comprobar (sin filtrar secretos):
@@ -57,7 +62,7 @@ curl -s https://campos-ancla-api.web-legal-es.workers.dev/health
 # → { "ok": true, "service": "campos-ancla-api", "mongo": "configured" | "disconnected" }
 
 curl -s https://campos-ancla-api.web-legal-es.workers.dev/v1/mongo/status
-# → { "ok": true, "configured": true|false, "connected": true|false|null, "db": "arquitectura_reservas" }
+# → { "ok": true, "configured": true|false, "connected": …, "db": "…", "source": "stored"|"env"|"none", "hint"? }
 ```
 
 Sync (invite Bearer; proyección anclas → colección `negocios`):
@@ -72,7 +77,7 @@ curl -s -X POST https://campos-ancla-api.web-legal-es.workers.dev/v1/mongo/sync/
   -d '{"proyecto_id":"pelo-sur"}'
 ```
 
-Sin `MONGODB_URI`, esos POST responden **503** `configure MONGODB_URI`. El panel solo muestra «URI configurada: sí/no».
+Sin URI (ni panel ni secret), esos POST responden **503** `configure MONGODB_URI`. Documentación → MongoDB es solo lectura; el enlace a Atlas apunta a `#ajustes/conexiones`.
 
 ## CORS
 
