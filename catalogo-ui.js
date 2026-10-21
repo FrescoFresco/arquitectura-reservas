@@ -11,7 +11,8 @@ const TABLAS = [];
 const DOCUMENTOS = [
   { id: 'fundamentos', nombre: 'Fundamentos', icono: 'fundamento' },
   { id: 'arquitectura', nombre: 'Arquitectura', icono: 'arquitectura' },
-  { id: 'api', nombre: 'API', icono: 'api' }
+  { id: 'api', nombre: 'API', icono: 'api' },
+  { id: 'mongodb', nombre: 'MongoDB', icono: 'mongo' }
 ];
 const LS_KEY = 'arquitectura-reservas.catalogo.skills';
 const LS_CAMPOS = 'arquitectura-reservas.catalogo.campos-ancla';
@@ -183,6 +184,15 @@ const state = {
     reabrirTrasSkill: null
   },
   apiDoc: { loaded: false, loading: false, error: false },
+  mongoDoc: {
+    index: null,
+    subId: null,
+    cache: {},
+    tipos: null,
+    indexError: false,
+    loading: false,
+    fetchToken: 0
+  },
   agentes: {
     ready: false,
     indexError: false,
@@ -485,12 +495,51 @@ function escapeHtml(s) {
 function inlineMarkdown(s) {
   let t = escapeHtml(s);
   t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
-  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" rel="noopener noreferrer">$1</a>');
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" rel="noopener noreferrer" target="_blank">$1</a>');
+  t = t.replace(/(^|[^"'>=])(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, function (_m, pre, url) {
+    return pre + '<a href="' + url + '" rel="noopener noreferrer" target="_blank">' + url + '</a>';
+  });
   t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   t = t.replace(/__([^_]+)__/g, '<strong>$1</strong>');
   t = t.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
   t = t.replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>');
   return t;
+}
+
+function esFilaTablaMd(line) {
+  return /^\s*\|/.test(line) && /\|/.test(line.slice(1));
+}
+
+function esSeparadorTablaMd(line) {
+  if (!esFilaTablaMd(line)) return false;
+  const cells = line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|');
+  return cells.length > 0 && cells.every(function (c) {
+    return /^\s*:?-{3,}:?\s*$/.test(c);
+  });
+}
+
+function celdasTablaMd(line) {
+  const raw = String(line || '').replace(/^\s*\|/, '').replace(/\|\s*$/, '');
+  return raw.split('|').map(function (c) { return c.trim(); });
+}
+
+function renderTablaMarkdown(headerLine, rows) {
+  const headers = celdasTablaMd(headerLine);
+  let html = '<div class="md-table-wrap"><table><thead><tr>';
+  headers.forEach(function (h) {
+    html += '<th>' + inlineMarkdown(h) + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+  rows.forEach(function (row) {
+    const cells = celdasTablaMd(row);
+    html += '<tr>';
+    for (let i = 0; i < headers.length; i++) {
+      html += '<td>' + inlineMarkdown(cells[i] != null ? cells[i] : '') + '</td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
 }
 
 function renderMarkdown(src) {
@@ -515,6 +564,17 @@ function renderMarkdown(src) {
       const level = heading[1].length;
       html += '<h' + level + '>' + inlineMarkdown(heading[2]) + '</h' + level + '>';
       i += 1;
+      continue;
+    }
+    if (esFilaTablaMd(line) && i + 1 < lines.length && esSeparadorTablaMd(lines[i + 1])) {
+      const headerLine = line;
+      i += 2;
+      const rows = [];
+      while (i < lines.length && esFilaTablaMd(lines[i]) && !esSeparadorTablaMd(lines[i])) {
+        rows.push(lines[i]);
+        i += 1;
+      }
+      html += renderTablaMarkdown(headerLine, rows);
       continue;
     }
     if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())) {
@@ -563,6 +623,7 @@ function renderMarkdown(src) {
       && !/^\s*\d+\.\s+/.test(lines[i])
       && !/^>\s?/.test(lines[i])
       && !/^(-{3,}|\*{3,}|_{3,})$/.test(lines[i].trim())
+      && !(esFilaTablaMd(lines[i]) && i + 1 < lines.length && esSeparadorTablaMd(lines[i + 1]))
     ) {
       buf.push(lines[i]);
       i += 1;
@@ -2514,7 +2575,10 @@ function seleccionarDoc(id, opts) {
     pintarFundamentos();
   }
   if (id === 'api') cargarDocumentoApi();
-  if (!(opts && opts.skipHash) && typeof history !== 'undefined' && history.replaceState) {
+  if (id === 'mongodb') {
+    const subId = opts && opts.subId ? opts.subId : null;
+    cargarDocumentoMongodb(subId, { skipHash: !!(opts && opts.skipHash) });
+  } else if (!(opts && opts.skipHash) && typeof history !== 'undefined' && history.replaceState) {
     const next = '#documentacion/' + id;
     if (location.hash !== next) history.replaceState(null, '', next);
   }
@@ -2527,8 +2591,9 @@ function aplicarHashDocumentacion() {
   if (h !== 'documentacion' && h.indexOf('documentacion/') !== 0) return;
   const parts = h.split('/');
   const docId = parts[1] || 'api';
+  const subId = parts[2] || null;
   if (typeof window.abrirDestino === 'function') window.abrirDestino('documentacion');
-  seleccionarDoc(docId, { skipHash: true, skipFocus: true });
+  seleccionarDoc(docId, { skipHash: true, skipFocus: true, subId: subId });
 }
 
 function teclasPestana(e, selector, actual, elegir) {
@@ -3295,6 +3360,17 @@ function iniciar() {
     });
     docTabs.addEventListener('keydown', function (e) {
       teclasPestana(e, '#docTabs [role="tab"]', 'doc', seleccionarDoc);
+    });
+  }
+  const mongoDocTabs = document.getElementById('mongoDocTabs');
+  if (mongoDocTabs) {
+    mongoDocTabs.addEventListener('click', function (e) {
+      const tab = e.target.closest('[data-mongo-doc]');
+      if (!tab) return;
+      seleccionarMongoSub(tab.dataset.mongoDoc);
+    });
+    mongoDocTabs.addEventListener('keydown', function (e) {
+      teclasPestana(e, '#mongoDocTabs [role="tab"]', 'mongoDoc', seleccionarMongoSub);
     });
   }
   const btnNueva = document.getElementById('btnNueva');
@@ -4662,6 +4738,207 @@ function cargarDocumentoApi() {
       state.apiDoc.loading = false;
       state.apiDoc.error = true;
       mount.innerHTML = '<p class="estado">No se pudo cargar <code>documentacion/api.md</code>.</p>';
+    });
+}
+
+function normalizarMongoSubpestanas(data) {
+  const list = data && Array.isArray(data.subpestanas) ? data.subpestanas : [];
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    if (!item || typeof item !== 'object') return;
+    if (typeof item.id !== 'string' || !item.id.trim()) return;
+    if (typeof item.titulo !== 'string' || !item.titulo.trim()) return;
+    if (typeof item.archivo !== 'string' || !item.archivo.trim()) return;
+    const id = item.id.trim();
+    if (seen.has(id)) return;
+    seen.add(id);
+    const orden = Number(item.orden);
+    out.push({
+      id: id,
+      titulo: item.titulo.trim(),
+      orden: Number.isFinite(orden) ? orden : out.length + 1,
+      archivo: item.archivo.trim()
+    });
+  });
+  out.sort(function (a, b) { return a.orden - b.orden; });
+  return out;
+}
+
+function mongoSubpestanas() {
+  return state.mongoDoc.index || [];
+}
+
+function mongoSubPorId(id) {
+  return mongoSubpestanas().find(function (s) { return s.id === id; }) || null;
+}
+
+function renderMongoDocPestanas() {
+  const lista = document.getElementById('mongoDocTabs');
+  if (!lista) return;
+  const items = mongoSubpestanas();
+  const actual = state.mongoDoc.subId;
+  lista.replaceChildren();
+  items.forEach(function (item) {
+    const btn = el('button', 'pestana');
+    btn.type = 'button';
+    btn.id = 'mongo-tab-' + item.id;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-controls', 'mongoDocMount');
+    btn.dataset.mongoDoc = item.id;
+    const label = document.createElement('span');
+    label.textContent = item.titulo;
+    btn.append(label);
+    const on = item.id === actual;
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    btn.tabIndex = on ? 0 : -1;
+    lista.append(btn);
+  });
+}
+
+function tablaTiposMongodb(tipos) {
+  const wrap = document.createElement('div');
+  wrap.className = 'md-table-wrap mongo-tipos-wrap';
+  const table = document.createElement('table');
+  table.className = 'mongo-tipos-table';
+  table.setAttribute('aria-label', 'Tipos BSON (mongodb-tipos.json)');
+  const thead = document.createElement('thead');
+  const hr = document.createElement('tr');
+  ['bsonType', 'alias', 'numero', 'descripcion', 'ejemplo', 'reglas_aplicables'].forEach(function (h) {
+    const th = document.createElement('th');
+    th.textContent = h;
+    hr.append(th);
+  });
+  thead.append(hr);
+  table.append(thead);
+  const tbody = document.createElement('tbody');
+  (Array.isArray(tipos) ? tipos : []).forEach(function (t) {
+    if (!t || typeof t !== 'object') return;
+    const tr = document.createElement('tr');
+    if (t.obsoleto === true) tr.className = 'is-obsoleto';
+    const reglas = Array.isArray(t.reglas_aplicables) ? t.reglas_aplicables.join(', ') : '';
+    [
+      t.bsonType != null ? String(t.bsonType) : '',
+      t.alias != null ? String(t.alias) : '',
+      t.numero != null ? String(t.numero) : '',
+      t.descripcion != null ? String(t.descripcion) : '',
+      t.ejemplo != null ? String(t.ejemplo) : '',
+      reglas
+    ].forEach(function (val) {
+      const td = document.createElement('td');
+      td.textContent = val;
+      tr.append(td);
+    });
+    tbody.append(tr);
+  });
+  table.append(tbody);
+  wrap.append(table);
+  return wrap;
+}
+
+function pintarMongoDocMount(markdown, sub) {
+  const mount = document.getElementById('mongoDocMount');
+  if (!mount) return;
+  mount.replaceChildren();
+  const body = document.createElement('div');
+  body.className = 'mongo-doc-md';
+  body.innerHTML = htmlDeMarkdown(markdown);
+  mount.append(body);
+  if (sub && sub.id === 'tipos' && state.mongoDoc.tipos) {
+    const heading = document.createElement('h2');
+    heading.textContent = 'Catálogo máquina (mongodb-tipos.json)';
+    mount.append(heading);
+    mount.append(tablaTiposMongodb(state.mongoDoc.tipos.tipos || state.mongoDoc.tipos));
+  }
+}
+
+function seleccionarMongoSub(id, opts) {
+  const items = mongoSubpestanas();
+  if (!items.length) return;
+  const sub = mongoSubPorId(id) || items[0];
+  state.mongoDoc.subId = sub.id;
+  const token = ++state.mongoDoc.fetchToken;
+  renderMongoDocPestanas();
+  if (!(opts && opts.skipHash) && typeof history !== 'undefined' && history.replaceState) {
+    const next = '#documentacion/mongodb/' + sub.id;
+    if (location.hash !== next) history.replaceState(null, '', next);
+  }
+  const mount = document.getElementById('mongoDocMount');
+  if (!mount) return;
+  const cached = state.mongoDoc.cache[sub.id];
+  const tiposListos = sub.id !== 'tipos' || !!state.mongoDoc.tipos;
+  if (cached && tiposListos) {
+    pintarMongoDocMount(cached, sub);
+    return;
+  }
+  mount.innerHTML = '<p class="estado">Cargando…</p>';
+  const jobs = [];
+  if (cached) {
+    jobs.push(Promise.resolve(cached));
+  } else {
+    jobs.push(
+      fetch('documentacion/mongodb/' + sub.archivo, { cache: 'no-store' }).then(function (res) {
+        if (!res.ok) throw new Error('http');
+        return res.text();
+      })
+    );
+  }
+  if (sub.id === 'tipos' && !state.mongoDoc.tipos) {
+    jobs.push(
+      fetch('documentacion/mongodb/mongodb-tipos.json', { cache: 'no-store' }).then(function (res) {
+        if (!res.ok) throw new Error('http');
+        return res.json();
+      })
+    );
+  }
+  Promise.all(jobs)
+    .then(function (results) {
+      if (token !== state.mongoDoc.fetchToken || state.mongoDoc.subId !== sub.id) return;
+      const text = results[0];
+      state.mongoDoc.cache[sub.id] = text;
+      if (sub.id === 'tipos' && results[1]) state.mongoDoc.tipos = results[1];
+      pintarMongoDocMount(text, sub);
+    })
+    .catch(function () {
+      if (token !== state.mongoDoc.fetchToken || state.mongoDoc.subId !== sub.id) return;
+      mount.innerHTML = '<p class="estado">No se pudo cargar <code>documentacion/mongodb/' +
+        escapeHtml(sub.archivo) + '</code>.</p>';
+    });
+}
+
+function cargarDocumentoMongodb(subIdPreferido, opts) {
+  const mount = document.getElementById('mongoDocMount');
+  if (!mount) return;
+  if (state.mongoDoc.index) {
+    seleccionarMongoSub(subIdPreferido || state.mongoDoc.subId || state.mongoDoc.index[0].id, opts);
+    return;
+  }
+  if (state.mongoDoc.loading) return;
+  state.mongoDoc.loading = true;
+  state.mongoDoc.indexError = false;
+  mount.innerHTML = '<p class="estado">Cargando índice MongoDB…</p>';
+  fetch('documentacion/mongodb/index.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.json();
+    })
+    .then(function (data) {
+      state.mongoDoc.loading = false;
+      state.mongoDoc.index = normalizarMongoSubpestanas(data);
+      if (!state.mongoDoc.index.length) {
+        state.mongoDoc.indexError = true;
+        mount.innerHTML = '<p class="estado">El índice MongoDB no tiene subpestañas.</p>';
+        return;
+      }
+      const preferida = subIdPreferido && mongoSubPorId(subIdPreferido)
+        ? subIdPreferido
+        : state.mongoDoc.index[0].id;
+      seleccionarMongoSub(preferida, opts);
+    })
+    .catch(function () {
+      state.mongoDoc.loading = false;
+      state.mongoDoc.indexError = true;
+      mount.innerHTML = '<p class="estado">No se pudo cargar <code>documentacion/mongodb/index.json</code>.</p>';
     });
 }
 

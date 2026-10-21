@@ -205,6 +205,18 @@ dialog::backdrop{background:#17212f66}
 .api-doc pre{overflow:auto;background:#f4f7fb;border:1px solid #e5eaf1;border-radius:10px;padding:12px;font-size:12px}
 .api-doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
 .api-doc hr{border:0;border-top:1px solid #e5eaf1;margin:20px 0}
+.doc-mongodb{padding:0 0 28px}
+.doc-mongodb .doc-subtabs{margin:0 0 14px}
+.md-table-wrap{overflow:auto;margin:0 0 16px;border:1px solid #e5eaf1;border-radius:10px}
+.md-table-wrap table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.45}
+.md-table-wrap th,.md-table-wrap td{padding:8px 10px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top}
+.md-table-wrap th{background:#f4f7fb;color:#17212f;font-weight:700;white-space:nowrap}
+.md-table-wrap tr:last-child td{border-bottom:0}
+.md-table-wrap code{font-size:12px}
+.mongo-tipos-table tr.is-obsoleto{opacity:.48;color:#677488;background:#f8fafc}
+.mongo-tipos-table tr.is-obsoleto td{text-decoration:line-through;text-decoration-color:#b8c0cc}
+.api-doc .md-table-wrap,.doc-mongodb .md-table-wrap{max-width:100%}
+.doc-mongodb .api-doc{max-width:none;padding-top:0}
 .ancla-ficha-titulo{margin:0;font-size:18px;letter-spacing:-.02em;font-weight:700;color:#17212f;overflow-wrap:anywhere}
 .ancla-ficha-codigo{display:inline-block;width:fit-content;max-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6;background:#edf3ff;padding:3px 8px;border-radius:8px;overflow-wrap:anywhere}
 .ancla-ficha-tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid #e5eaf1;background:#fff;overflow-x:auto;scrollbar-width:none}
@@ -513,6 +525,10 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 <div class="doc" role="tabpanel" id="panel-api" data-doc="api" hidden>
 <div id="apiDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando el contrato API…</p></div>
+</div>
+<div class="doc doc-mongodb" role="tabpanel" id="panel-mongodb" data-doc="mongodb" hidden>
+<div class="catalogo-tabs doc-subtabs" id="mongoDocTabs" role="tablist" aria-label="MongoDB"></div>
+<div id="mongoDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando documentación MongoDB…</p></div>
 </div>
 </section>
 </div>
@@ -911,7 +927,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script src="proyectos-ui.js?v=20261020z"></script>
 <script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261021pelo"></script>
+<script src="catalogo-ui.js?v=20261021mongo2"></script>
 
 </body>
 </html>

@@ -1,0 +1,40 @@
+# Atlas, drivers y cadena de conexión
+
+Verificado contra la documentación oficial el 21 oct 2026. Ejemplos con el archivador de la peluquería **Pelo Sur** (`pelo_sur`).
+
+### MongoDB Atlas
+
+Fuente: https://www.mongodb.com/docs/atlas/
+
+Atlas es MongoDB **como servicio en la nube**: en vez de tener tú los servidores, Atlas los ejecuta en **AWS, Azure o Google Cloud** y se ocupa del trabajo operativo: **aprovisionar, parchear, copias de seguridad, monitorizar y escalar**. Se trabaja con los datos con la misma API de consultas, así que el código, los drivers y las herramientas funcionan igual que con una instalación propia. Atlas ofrece dos ediciones, **Atlas Core** y **Atlas Infinite**, que se diferencian en cómo gestionan cómputo y almacenamiento.
+
+Ejemplo Pelo Sur: el archivador `pelo_sur` puede vivir en un cluster de Atlas y la web de reservas se conecta a él por Internet.
+
+### Drivers: cómo habla tu programa con MongoDB
+
+Fuente: https://www.mongodb.com/docs/drivers/
+
+Un driver es la **librería oficial** para cada lenguaje (Node.js, Python, Java, C#…). MongoDB mantiene las oficiales (nuevas funciones, rendimiento, parches de seguridad); hay otras de la comunidad que MongoDB no soporta.
+
+### Cadena de conexión
+
+Fuente: https://www.mongodb.com/docs/manual/reference/connection-string/
+
+Es la "dirección" del archivador. Hay dos formatos:
+- Estándar: `mongodb://servidor1:27017,servidor2:27017/?replicaSet=miReplica`
+- **SRV**: `mongodb+srv://...`, que incluye automáticamente todos los servidores del cluster y permite rotarlos sin tocar la aplicación. **La documentación recomienda SRV cuando sea posible.**
+
+Ejemplo (Node.js), sin poner la contraseña en el código:
+```js
+const { MongoClient } = require("mongodb")
+const client = new MongoClient(process.env.MONGODB_URI) // p. ej. mongodb+srv://recepcion:<contraseña>@<cluster>/
+const citas = client.db("pelo_sur").collection("citas")
+```
+
+### Búsqueda de texto completo (Atlas Search, ahora "MongoDB Search")
+
+Fuente: https://www.mongodb.com/docs/atlas/atlas-search/
+
+Es una **búsqueda de texto completo integrada** en el cluster: no hace falta montar un buscador aparte. Ofrece varios analizadores de texto, un lenguaje de consulta rico y puntuación por relevancia. Es distinta del índice `text` clásico (subpestaña *Índices*).
+
+Ejemplo Pelo Sur: buscar "mechas rubias" en las notas de las citas y obtener primero las más relevantes.
