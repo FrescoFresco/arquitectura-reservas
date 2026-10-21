@@ -170,6 +170,23 @@
       "descripcion": "URL en la que estaba el navegador al terminar.",
       "ancla": "_ejecucion.ultima_url_",
       "hash": "b24ead9ccba88e2c69fdfedec4dd33742740b34c3c27ad3fd391b787cad12129"
+    },
+    {
+      "id": "formularios-campos",
+      "campo": "formularios.campos",
+      "baseDatos": "arquitectura_reservas",
+      "coleccion": "formularios",
+      "clave": "campos",
+      "bsonType": "array",
+      "obligatorio": false,
+      "descripcion": "Proyección array: campos.N.* → [{nombre, selector}, …].",
+      "ancla": "_campos.N_",
+      "proyeccionMongo": "array",
+      "proyeccionElemento": {
+        "nombre": "campos.N.nombre",
+        "selector": "campos.N.selector"
+      },
+      "hash": "pelo-sur-formularios-campos"
     }
   ]
 }

@@ -178,6 +178,12 @@ dialog::backdrop{background:#17212f66}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
 .editar-anclas-top{justify-content:flex-end}
 .ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;line-height:1.25;padding:2px 6px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
+.ancla-aliases{display:flex;flex-wrap:wrap;gap:6px}
+.ancla-alias-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;padding:2px 7px;border-radius:8px;background:#edf3ff;color:#315eb6}
+.ancla-historial{display:flex;flex-direction:column;gap:10px}
+.ancla-historial-fila{display:grid;gap:4px;padding:10px 12px;border:1px solid #e5eaf1;border-radius:10px;background:#fff}
+.ancla-historial-fila time{font-size:12px;color:#677488}
+.ancla-historial-url{font-size:12px;color:#1c63d5;overflow-wrap:anywhere}
 .hash-full-btn{appearance:none;display:inline;margin:0;padding:0;border:0;background:transparent;cursor:pointer;text-align:left;max-width:100%}
 .hash-full{display:inline;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#edf3ff;color:#315eb6;padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
 .hash-full-btn:hover .hash-full{filter:brightness(.96)}
@@ -499,7 +505,8 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <ul>
 <li><strong>Proyecto ↔ Skill (N:M)</strong> — un proyecto contiene una o más skills; una skill puede estar en uno o más proyectos.</li>
 <li><strong>Skill → Campo ancla (1:N)</strong> — una skill declara uno o más campos ancla.</li>
-<li><strong>Ancla → Campo Mongo (0..1)</strong> — un campo ancla puede enlazar a un campo Mongo (opcional).</li>
+<li><strong>Ancla → Campo Mongo (0..1)</strong> — un campo ancla puede enlazar a un campo Mongo (opcional). Con <code>proyeccionMongo: array</code> agrupa <code>campos.N.*</code> en un array BSON.</li>
+<li><strong>Sin anclas huérfanas</strong> — todo hecho de un negocio (p. ej. Pelo Sur) entra como skill del proyecto; no persistir anclas sueltas fuera del catálogo.</li>
 <li><strong>Agente</strong> — invite + registro + latido; trabaja vía API, no con la UI.</li>
 <li><strong>Fundamento</strong> — bloque conceptual en Documentación con el que se describe el sistema.</li>
 </ul>
@@ -611,13 +618,16 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgCampo" aria-labelledby="dlgCampoTitulo">
 <form class="dlg" id="formCampo">
 <h3 id="dlgCampoTitulo">Añadir ancla</h3>
-<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="nota">Se guarda en la API viva (Cloudflare D1) cuando hay clave; si no, en este navegador.</p>
 <p class="form-error" id="campoError" role="alert"></p>
 <label>Ancla
 <input type="text" name="ancla" maxlength="120" autocomplete="off" required placeholder="_negocio.nombre_">
 </label>
 <label>Etiqueta
 <input type="text" name="etiqueta" maxlength="120" autocomplete="off" placeholder="Nombre del negocio">
+</label>
+<label>Aliases (uno por línea)
+<textarea name="aliases" rows="3" placeholder="negocio.telefono&#10;telefono_local"></textarea>
 </label>
 <label>Clave Mongo
 <input type="text" name="claveMongo" maxlength="120" autocomplete="off" placeholder="nombre">
@@ -632,8 +642,9 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <input type="text" name="tipo" maxlength="40" autocomplete="off" placeholder="string">
 </label>
 <label><input type="checkbox" name="obligatorio"> Obligatorio</label>
+<label><input type="checkbox" name="sensible"> Sensible (enmascarar en UI/logs)</label>
 <label>Formato
-<input type="text" name="formato" maxlength="80" autocomplete="off" placeholder="uri">
+<input type="text" name="formato" maxlength="80" autocomplete="off" placeholder="uri, sin_pii">
 </label>
 <label>Descripción
 <textarea name="descripcion" placeholder="Qué significa este campo"></textarea>
@@ -673,6 +684,15 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </label>
 <label>Enlazado a ancla
 <input type="text" name="ancla" maxlength="120" autocomplete="off" placeholder="_negocio.nombre_">
+</label>
+<label>Proyección Mongo
+<select name="proyeccionMongo">
+<option value="">—</option>
+<option value="array">array (campos.N.* → [{…}])</option>
+</select>
+</label>
+<label>Elemento proyección (JSON)
+<textarea name="proyeccionElemento" rows="3" placeholder='{"nombre":"campos.N.nombre","selector":"campos.N.selector"}'></textarea>
 </label>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="mongoCancelar">Cancelar</button>
@@ -886,12 +906,12 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 })();
 </script>
 <script src="skills-ui.js?v=20261020y"></script>
-<script src="campos-ancla-ui.js?v=20261020z"></script>
-<script src="campos-mongodb-ui.js?v=20261020z"></script>
+<script src="campos-ancla-ui.js?v=20261021pelo"></script>
+<script src="campos-mongodb-ui.js?v=20261021pelo"></script>
 <script src="proyectos-ui.js?v=20261020z"></script>
 <script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261021d"></script>
+<script src="catalogo-ui.js?v=20261021pelo"></script>
 
 </body>
 </html>

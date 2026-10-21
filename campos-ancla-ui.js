@@ -57,11 +57,19 @@
     );
   }
 
+  function enmascararSiSensible(campo, valor) {
+    if (!campo || !campo.sensible) return valor || '—';
+    var v = String(valor || '');
+    if (!v) return '—';
+    return '••••••••';
+  }
+
   function Pestanas(props) {
     var tab = props.tab;
     var setTab = props.setTab;
     var items = [
       { id: 'definicion', label: 'Definición' },
+      { id: 'historial', label: 'Historial' },
       { id: 'mongo', label: 'Mongo' },
       { id: 'skills', label: 'Skills' },
       { id: 'interno', label: 'Interno' }
@@ -85,12 +93,44 @@
 
   function PanelDefinicion(props) {
     var c = props.campo;
+    var aliases = Array.isArray(c.aliases) ? c.aliases : [];
+    var ejemploMostrado = enmascararSiSensible(c, c.ejemplo);
+    var valorMostrado = enmascararSiSensible(c, c.valorActual || c.valor_actual);
     return e('dl', { className: 'ancla-ficha-dl', id: 'ancla-panel-definicion', role: 'tabpanel' },
       e(Fila, { label: 'Tipo' }, c.tipo ? e('code', null, c.tipo) : '—'),
       e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
+      e(Fila, { label: 'Sensible' }, c.sensible ? 'Sí (enmascarado)' : 'No'),
       e(Fila, { label: 'Formato' }, c.formato ? e('code', null, c.formato) : '—'),
       e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
-      e(Fila, { label: 'Ejemplo' }, c.ejemplo ? e('code', null, c.ejemplo) : '—')
+      e(Fila, { label: 'Ejemplo' }, ejemploMostrado !== '—' ? e('code', null, ejemploMostrado) : '—'),
+      e(Fila, { label: 'Valor actual' }, valorMostrado !== '—' ? e('code', null, valorMostrado) : '—'),
+      e(Fila, { label: 'Aliases' },
+        aliases.length
+          ? e('span', { className: 'ancla-aliases' }, aliases.map(function (a, i) {
+            return e('code', { key: a + i, className: 'ancla-alias-pill' }, a);
+          }))
+          : '—'
+      )
+    );
+  }
+
+  function PanelHistorial(props) {
+    var c = props.campo;
+    var obs = Array.isArray(c.observaciones) ? c.observaciones.slice().reverse() : [];
+    if (!obs.length) {
+      return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-historial', role: 'tabpanel' },
+        'Sin observaciones todavía. Al actualizar desde extracción se hace append aquí.'
+      );
+    }
+    return e('div', { className: 'ancla-historial', id: 'ancla-panel-historial', role: 'tabpanel' },
+      obs.map(function (o, idx) {
+        var valor = enmascararSiSensible(c, o.valor);
+        return e('div', { className: 'ancla-historial-fila', key: (o.timestamp || '') + idx },
+          e('time', { dateTime: o.timestamp || '' }, o.timestamp ? String(o.timestamp).replace('T', ' ').replace(/\.\d+Z$/, 'Z') : '—'),
+          e('code', null, valor),
+          o.url ? e('a', { href: o.url, target: '_blank', rel: 'noopener noreferrer', className: 'ancla-historial-url' }, o.url) : null
+        );
+      })
     );
   }
 
@@ -162,8 +202,13 @@
 
   function PanelInterno(props) {
     var c = props.campo;
+    var aliases = Array.isArray(c.aliases) ? c.aliases : [];
     return e('dl', { className: 'ancla-ficha-dl', id: 'ancla-panel-interno', role: 'tabpanel' },
       e(Fila, { label: 'Id' }, e('code', null, c.id || '—')),
+      e(Fila, { label: 'Sensible' }, c.sensible ? 'true' : 'false'),
+      e(Fila, { label: 'Aliases (JSON)' },
+        aliases.length ? e('code', null, JSON.stringify(aliases)) : '[]'
+      ),
       e(HashCopiable, { hash: c.hash })
     );
   }
@@ -257,6 +302,7 @@
       e(Pestanas, { tab: tab, setTab: setTab }),
       e('div', { className: 'ancla-ficha-body' },
         tab === 'definicion' ? e(PanelDefinicion, { campo: c }) : null,
+        tab === 'historial' ? e(PanelHistorial, { campo: c }) : null,
         tab === 'mongo' ? e(PanelMongo, { campo: c, mongo: props.mongo }) : null,
         tab === 'skills' ? e(PanelSkills, {
           skills: skills,

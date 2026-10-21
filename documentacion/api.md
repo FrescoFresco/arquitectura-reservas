@@ -171,6 +171,91 @@ Los listados suelen responder con `{ "ok": true, … }` y el array del recurso (
 
 ---
 
+## 6b. Anclas — aliases, observaciones, sensible, PII
+
+### Aliases
+
+Cada ancla guarda `aliases: ["negocio.telefono", "telefono_local"]` (sinónimos del software).
+
+```
+GET {API_BASE}/v1/anclas/resolve?q=negocio.telefono
+→ { "ok": true, "canonical": "contacto.telefono", "ancla": "_contacto.telefono_", "campo": { … } }
+```
+
+Resuelve alias **o** nombre canónico al ancla viva.
+
+### Observaciones (historial de hechos)
+
+Al actualizar un valor desde extracción, **append** (no replace ciego):
+
+```
+POST {API_BASE}/v1/anclas/:id/observaciones
+Authorization: Bearer inv_…
+Content-Type: application/json
+
+{
+  "valor": "+34 699 111 222",
+  "url": "https://pelosur.es/contacto",
+  "skill_id": "descubrir-negocio",
+  "visto_en": "web"
+}
+```
+
+`valorActual` = última observación. La ficha UI muestra el historial en la pestaña Historial.
+
+También puedes mandar `observaciones[]` / `valorActual` / `aliases` / `sensible` en `POST|PUT /v1/anclas`.
+
+### Sensible
+
+`"sensible": true` (o formato que contenga `sensible`). En listados públicos, `ejemplo`, `valorActual` y valores de `observaciones` salen enmascarados (`••••••••`). Para ver el valor real: `?reveal=1` **y** cabecera Bearer con invite válida. No loguear el valor en claro.
+
+### PII en URLs
+
+Si el ancla parece URL (`formato` uri/url/`sin_pii`, o el id contiene `.url`), al persistir `ejemplo` / `valorActual` / observación se **redactan** query keys tipo `nombre`, `tel`, `email`, `tarjeta`, … (`[REDACTED]`). Con `"strict": true` la API responde `400` en lugar de redactar. Preferir plantillas sin PII (`https://book.pelosur.es/r/{slot_id}`).
+
+### Relación (sin anclas huérfanas)
+
+Todo hecho de un negocio (p. ej. Pelo Sur) entra como skill del proyecto; no persistir anclas sin skill/proyecto. Si solo hay URL↔negocio: `_proceso.url_inicio_` dentro de la skill de Punto A del mismo proyecto.
+
+### Reserva de prueba
+
+Anclas convencionales (sin entidad Ejecución en este slice):
+
+| Ancla | Uso |
+|-------|-----|
+| `_reserva_prueba.cuando_` | ISO-8601 del slot de prueba |
+| `_reserva_prueba.estado_` | `pendiente` \| `confirmada` \| `cancelada` \| `por_cancelar` |
+| `_reserva_prueba.cancelada_en_` | cuándo se canceló |
+| `_reserva_prueba.nota_` | seguimiento |
+
+### Proyección Mongo `campos.N` → array
+
+En el campo Mongo (o Interno): `"proyeccionMongo": "array"` + `"proyeccionElemento": { "nombre": "campos.N.nombre", "selector": "campos.N.selector" }`.
+
+Helper:
+
+```
+POST {API_BASE}/v1/helpers/proyeccion-array
+Authorization: Bearer inv_…
+Content-Type: application/json
+
+{
+  "ruta_ancla": "campos.N",
+  "elemento": { "nombre": "campos.N.nombre", "selector": "campos.N.selector" },
+  "valores": {
+    "campos.0.nombre": "Nombre",
+    "campos.0.selector": "#client-name",
+    "campos.1.nombre": "Teléfono",
+    "campos.1.selector": "#client-phone"
+  }
+}
+→ { "ok": true, "clave": "campos", "campos": [ { "nombre": "Nombre", "selector": "#client-name" }, … ] }
+```
+
+También acepta `"mongo_id": "formularios-campos"` para tomar la proyección del catálogo Mongo.
+
+---
+
 ## 7. CORS / UI
 
 Origen de producción del panel: `https://campos-ancla.web-legal-es.workers.dev`.  

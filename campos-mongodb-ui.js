@@ -147,6 +147,12 @@
             e(Fila, { label: 'Base' }, e('code', null, c.baseDatos || '—')),
             e(Fila, { label: 'Colección' }, e('code', null, c.coleccion || '—')),
             e(Fila, { label: 'Clave' }, e('code', null, c.clave || '—')),
+            e(Fila, { label: 'Proyección' }, c.proyeccionMongo ? e('code', null, c.proyeccionMongo) : '—'),
+            e(Fila, { label: 'Elemento N→array' },
+              c.proyeccionElemento && Object.keys(c.proyeccionElemento).length
+                ? e('code', null, JSON.stringify(c.proyeccionElemento))
+                : '—'
+            ),
             e(Fila, { label: 'bsonType' }, e('code', null, c.bsonType || '—')),
             e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
             e(Fila, { label: 'Descripción' }, c.descripcion || '—'),

@@ -19,7 +19,11 @@
         "mapear-recorrido",
         "descubrir-negocio"
       ],
-      "hash": "701c7446ec3f25fddc68a35dd4c7e6ac5fbdc3c69339f4f13ca0c8d10540f655"
+      "hash": "701c7446ec3f25fddc68a35dd4c7e6ac5fbdc3c69339f4f13ca0c8d10540f655",
+      "aliases": [
+        "salon_name",
+        "nombre_local"
+      ]
     },
     {
       "id": "negocio.url",
@@ -69,11 +73,29 @@
       "obligatorio": false,
       "formato": "e164",
       "descripcion": "Teléfono público del local, con prefijo internacional.",
-      "ejemplo": "+34 928 000 000",
+      "ejemplo": "+34 699 111 222",
       "skills": [
         "descubrir-negocio"
       ],
-      "hash": "14bd8ff0d0fafa096030629cab84a11b96ab663fce7df47b9e8400152a28426d"
+      "hash": "14bd8ff0d0fafa096030629cab84a11b96ab663fce7df47b9e8400152a28426d",
+      "aliases": [
+        "telefono_local"
+      ],
+      "observaciones": [
+        {
+          "valor": "+34 612 000 111",
+          "url": "https://pelosur.es/contacto",
+          "timestamp": "2026-10-13T10:00:00.000Z",
+          "visto_en": "web"
+        },
+        {
+          "valor": "+34 699 111 222",
+          "url": "https://pelosur.es/contacto",
+          "timestamp": "2026-10-17T16:30:00.000Z",
+          "visto_en": "web"
+        }
+      ],
+      "valorActual": "+34 699 111 222"
     },
     {
       "id": "proceso.url_inicio",
@@ -84,8 +106,8 @@
       "baseDatos": "arquitectura_reservas",
       "tipo": "string",
       "obligatorio": true,
-      "formato": "uri",
-      "descripcion": "Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script.",
+      "formato": "uri, sin_pii",
+      "descripcion": "Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. URL preparada sin nombre/tel/email en query.",
       "ejemplo": "https://restaurantmogan.com/reservation/",
       "skills": [
         "mapear-recorrido",
@@ -251,6 +273,210 @@
         "diagnosticar-alerta"
       ],
       "hash": "00e4de7e642dd388922c6827ad0445075a313293d810de51f54c3dd7b0e72ba6"
+    },
+    {
+      "id": "contacto.telefono",
+      "ancla": "_contacto.telefono_",
+      "etiqueta": "Teléfono de contacto",
+      "claveMongo": "telefono",
+      "coleccion": "negocios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "E.164",
+      "descripcion": "Teléfono de contacto del negocio (canónico Pelo Sur).",
+      "ejemplo": "+34 699 111 222",
+      "aliases": [
+        "negocio.telefono",
+        "telefono_local"
+      ],
+      "skills": [
+        "descubrir-negocio"
+      ],
+      "observaciones": [
+        {
+          "valor": "+34 612 000 111",
+          "url": "https://pelosur.es/contacto",
+          "timestamp": "2026-10-13T10:00:00.000Z"
+        },
+        {
+          "valor": "+34 699 111 222",
+          "url": "https://pelosur.es/contacto",
+          "timestamp": "2026-10-17T16:30:00.000Z"
+        }
+      ],
+      "valorActual": "+34 699 111 222",
+      "sensible": false,
+      "hash": "pelo-sur-contacto-telefono-v1"
+    },
+    {
+      "id": "cliente.tarjeta_sanitaria",
+      "ancla": "_cliente.tarjeta_sanitaria_",
+      "etiqueta": "Tarjeta sanitaria",
+      "claveMongo": "tarjeta_sanitaria",
+      "coleccion": "clientes",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "sensible",
+      "descripcion": "Nº tarjeta sanitaria. Marca sensible: UI/logs enmascaran el valor.",
+      "ejemplo": "ES-1234-5678",
+      "aliases": [],
+      "skills": [],
+      "sensible": true,
+      "hash": "pelo-sur-tarjeta-v1"
+    },
+    {
+      "id": "reserva_prueba.cuando",
+      "ancla": "_reserva_prueba.cuando_",
+      "etiqueta": "Reserva de prueba · cuándo",
+      "claveMongo": "cuando",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "2026-10-23T10:00:00+02:00",
+      "descripcion": "Momento de la reserva de prueba (ISO-8601).",
+      "formato": "datetime",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "pelo-sur-reserva_prueba-cuando"
+    },
+    {
+      "id": "reserva_prueba.estado",
+      "ancla": "_reserva_prueba.estado_",
+      "etiqueta": "Reserva de prueba · estado",
+      "claveMongo": "estado",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "cancelada",
+      "descripcion": "Estado: pendiente | confirmada | cancelada | por_cancelar.",
+      "formato": "enum:pendiente|confirmada|cancelada|por_cancelar",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "pelo-sur-reserva_prueba-estado"
+    },
+    {
+      "id": "reserva_prueba.cancelada_en",
+      "ancla": "_reserva_prueba.cancelada_en_",
+      "etiqueta": "Reserva de prueba · cancelada en",
+      "claveMongo": "cancelada_en",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "2026-10-23T10:15:00+02:00",
+      "descripcion": "Cuándo se canceló la reserva de prueba.",
+      "formato": "datetime",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "pelo-sur-reserva_prueba-cancelada_en"
+    },
+    {
+      "id": "reserva_prueba.nota",
+      "ancla": "_reserva_prueba.nota_",
+      "etiqueta": "Reserva de prueba · nota",
+      "claveMongo": "nota",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "Probada vía Booksy; cancelada en el panel del software",
+      "descripcion": "Nota de seguimiento de la reserva de prueba.",
+      "formato": "",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "pelo-sur-reserva_prueba-nota"
+    },
+    {
+      "id": "campos.0.nombre",
+      "ancla": "_campos.0.nombre_",
+      "ejemplo": "Nombre",
+      "etiqueta": "Campo 0 · nombre",
+      "claveMongo": "0.nombre",
+      "coleccion": "formularios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Familia indexada campos.N.* → proyección Mongo array.",
+      "aliases": [],
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "sensible": false,
+      "hash": "pelo-sur-campos-0-nombre"
+    },
+    {
+      "id": "campos.0.selector",
+      "ancla": "_campos.0.selector_",
+      "ejemplo": "#client-name",
+      "etiqueta": "Campo 0 · selector",
+      "claveMongo": "0.selector",
+      "coleccion": "formularios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Familia indexada campos.N.* → proyección Mongo array.",
+      "aliases": [],
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "sensible": false,
+      "hash": "pelo-sur-campos-0-selector"
+    },
+    {
+      "id": "campos.1.nombre",
+      "ancla": "_campos.1.nombre_",
+      "ejemplo": "Teléfono",
+      "etiqueta": "Campo 1 · nombre",
+      "claveMongo": "1.nombre",
+      "coleccion": "formularios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Familia indexada campos.N.* → proyección Mongo array.",
+      "aliases": [],
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "sensible": false,
+      "hash": "pelo-sur-campos-1-nombre"
+    },
+    {
+      "id": "campos.1.selector",
+      "ancla": "_campos.1.selector_",
+      "ejemplo": "#client-phone",
+      "etiqueta": "Campo 1 · selector",
+      "claveMongo": "1.selector",
+      "coleccion": "formularios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Familia indexada campos.N.* → proyección Mongo array.",
+      "aliases": [],
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "sensible": false,
+      "hash": "pelo-sur-campos-1-selector"
     }
   ]
 }

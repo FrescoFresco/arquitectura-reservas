@@ -63,7 +63,9 @@ function payloadHashAncla(c) {
   return [
     c.ancla || '', c.etiqueta || '', c.claveMongo || '', c.coleccion || '',
     c.baseDatos || '', c.tipo || '', c.obligatorio ? '1' : '0',
+    c.sensible ? '1' : '0',
     c.formato || '', c.descripcion || '', c.ejemplo || '',
+    (c.aliases || []).join(','),
     (c.skills || []).join(',')
   ].join('|');
 }
@@ -72,8 +74,70 @@ function payloadHashMongo(c) {
   return [
     c.campo || '', c.baseDatos || '', c.coleccion || '', c.clave || '',
     c.bsonType || '', c.obligatorio ? '1' : '0',
-    c.descripcion || '', c.ancla || ''
+    c.descripcion || '', c.ancla || '',
+    c.proyeccionMongo || '', JSON.stringify(c.proyeccionElemento || {})
   ].join('|');
+}
+
+function normalizarAliasesLista(list) {
+  const raw = Array.isArray(list)
+    ? list
+    : String(list || '').split(/[\n,]+/);
+  const out = [];
+  const seen = new Set();
+  raw.forEach(function (item) {
+    let a = String(item || '').trim().replace(/^_+|_+$/g, '');
+    if (!a) return;
+    const key = a.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(a);
+  });
+  return out;
+}
+
+function claveCatalogoEscritura() {
+  try {
+    return (
+      localStorage.getItem('AGENTE_CLAVE') ||
+      localStorage.getItem('ARQ_AGENTE_CLAVE') ||
+      ''
+    ).trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+function guardarClaveCatalogo(clave) {
+  try {
+    if (clave) localStorage.setItem('AGENTE_CLAVE', clave);
+  } catch (e) {}
+}
+
+function apiFetchAuth(path, opts) {
+  const init = Object.assign({}, opts || {});
+  const headers = Object.assign({}, init.headers || {});
+  const clave = claveCatalogoEscritura();
+  if (clave) {
+    headers.Authorization = 'Bearer ' + clave;
+  }
+  init.headers = headers;
+  return apiFetch(path, init);
+}
+
+function asegurarClaveCatalogo() {
+  const existing = claveCatalogoEscritura();
+  if (existing) return Promise.resolve(existing);
+  return apiFetch('/v1/invites', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  }).then(function (data) {
+    const clave = data && data.invite && data.invite.clave;
+    if (!clave) throw new Error('No se pudo crear invite de catálogo.');
+    guardarClaveCatalogo(clave);
+    return clave;
+  });
 }
 
 function anclasCanonicasTexto(list) {
@@ -754,6 +818,11 @@ function normalizeCampo(item) {
   if (!ancla && item.id) ancla = '_' + item.id.trim() + '_';
   if (ancla.charAt(0) !== '_') ancla = '_' + ancla;
   if (ancla.charAt(ancla.length - 1) !== '_') ancla = ancla + '_';
+  const aliases = normalizarAliasesLista(item.aliases);
+  const observaciones = Array.isArray(item.observaciones) ? item.observaciones : [];
+  const valorActual = typeof item.valorActual === 'string'
+    ? item.valorActual.trim()
+    : (typeof item.valor_actual === 'string' ? item.valor_actual.trim() : '');
   const out = {
     id: item.id.trim(),
     ancla: ancla,
@@ -763,9 +832,13 @@ function normalizeCampo(item) {
     baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : 'arquitectura_reservas',
     tipo: typeof item.tipo === 'string' ? item.tipo.trim() : 'string',
     obligatorio: !!item.obligatorio,
+    sensible: !!(item.sensible === true || item.sensible === 1 || item.sensible === '1'),
     formato: typeof item.formato === 'string' ? item.formato.trim() : '',
     descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim() : '',
     ejemplo: typeof item.ejemplo === 'string' ? item.ejemplo.trim() : '',
+    aliases: aliases,
+    observaciones: observaciones,
+    valorActual: valorActual,
     skills: Array.isArray(item.skills)
       ? item.skills.map(function (s) { return String(s || '').trim(); }).filter(Boolean)
       : []
@@ -939,6 +1012,15 @@ function normalizeMongoCampo(item) {
   let ancla = typeof item.ancla === 'string' ? item.ancla.trim() : '';
   if (ancla && ancla.charAt(0) !== '_') ancla = '_' + ancla;
   if (ancla && ancla.charAt(ancla.length - 1) !== '_') ancla = ancla + '_';
+  let proyeccionElemento = {};
+  if (item.proyeccionElemento && typeof item.proyeccionElemento === 'object') {
+    proyeccionElemento = item.proyeccionElemento;
+  } else if (typeof item.proyeccionElemento === 'string' && item.proyeccionElemento.trim()) {
+    try { proyeccionElemento = JSON.parse(item.proyeccionElemento); } catch (e) { proyeccionElemento = {}; }
+  }
+  const proyeccionMongo = typeof item.proyeccionMongo === 'string'
+    ? item.proyeccionMongo.trim()
+    : (typeof item.proyeccion_mongo === 'string' ? item.proyeccion_mongo.trim() : '');
   const out = {
     id: id,
     campo: campo,
@@ -948,7 +1030,9 @@ function normalizeMongoCampo(item) {
     bsonType: typeof item.bsonType === 'string' ? item.bsonType.trim() : 'string',
     obligatorio: !!item.obligatorio,
     descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim() : '',
-    ancla: ancla
+    ancla: ancla,
+    proyeccionMongo: proyeccionMongo,
+    proyeccionElemento: proyeccionElemento
   };
   const hash = normalizarHash(item.hash);
   out.hash = hash || hashFnvHex(payloadHashMongo(out));
@@ -1072,14 +1156,21 @@ function cerrarFichaMongo() {
 }
 
 function cargarMongo() {
-  fetch('catalogo/campos-mongodb/index.json', { cache: 'no-store' })
-    .then(function (res) {
-      if (!res.ok) throw new Error('http');
-      return res.json();
-    })
+  apiFetch('/v1/mongo')
     .then(function (data) {
       state.mongo.remotos = normalizeMongoIndice(data);
       state.mongo.indexError = false;
+    })
+    .catch(function () {
+      return fetch('catalogo/campos-mongodb/index.json', { cache: 'no-store' })
+        .then(function (res) {
+          if (!res.ok) throw new Error('http');
+          return res.json();
+        })
+        .then(function (data) {
+          state.mongo.remotos = normalizeMongoIndice(data);
+          state.mongo.indexError = false;
+        });
     })
     .catch(function () {
       state.mongo.remotos = [];
@@ -1140,6 +1231,12 @@ function abrirDialogoEditarMongo(id) {
   form.obligatorio.checked = !!campo.obligatorio;
   form.descripcion.value = campo.descripcion || '';
   form.ancla.value = campo.ancla || '';
+  if (form.proyeccionMongo) form.proyeccionMongo.value = campo.proyeccionMongo || '';
+  if (form.proyeccionElemento) {
+    form.proyeccionElemento.value = campo.proyeccionElemento && Object.keys(campo.proyeccionElemento).length
+      ? JSON.stringify(campo.proyeccionElemento, null, 2)
+      : '';
+  }
   const err = document.getElementById('mongoError');
   if (err) err.textContent = '';
   dlg.showModal();
@@ -1169,8 +1266,18 @@ function onSubmitMongo(e) {
     if (error) error.textContent = 'Colección y clave son obligatorias.';
     return;
   }
+  let proyeccionElemento = {};
+  if (form.proyeccionElemento && form.proyeccionElemento.value.trim()) {
+    try {
+      proyeccionElemento = JSON.parse(form.proyeccionElemento.value.trim());
+    } catch (e) {
+      if (error) error.textContent = 'Elemento proyección: JSON inválido.';
+      return;
+    }
+  }
+  const editandoMongo = form.dataset.mode === 'edit';
   const campo = normalizeMongoCampo({
-    id: form.dataset.mode === 'edit' && form.dataset.id ? form.dataset.id : undefined,
+    id: editandoMongo && form.dataset.id ? form.dataset.id : undefined,
     campo: coleccion + '.' + clave,
     baseDatos: form.baseDatos.value.trim() || 'arquitectura_reservas',
     coleccion: coleccion,
@@ -1178,37 +1285,67 @@ function onSubmitMongo(e) {
     bsonType: form.bsonType.value.trim() || 'string',
     obligatorio: !!form.obligatorio.checked,
     descripcion: form.descripcion.value.trim(),
-    ancla: form.ancla.value.trim()
+    ancla: form.ancla.value.trim(),
+    proyeccionMongo: form.proyeccionMongo ? form.proyeccionMongo.value.trim() : '',
+    proyeccionElemento: proyeccionElemento
   });
   if (!campo) {
     if (error) error.textContent = 'No se pudo crear el campo.';
     return;
   }
-  const store = leerMongoStore();
-  store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
-  store.campos.push(campo);
-  store.eliminados = (store.eliminados || []).filter(function (xid) { return xid !== campo.id; });
-  try {
+  const finalizarLocal = function () {
+    const store = leerMongoStore();
+    store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
+    store.campos.push(campo);
+    store.eliminados = (store.eliminados || []).filter(function (xid) { return xid !== campo.id; });
     guardarMongoStore(store);
-  } catch (err) {
-    if (error) error.textContent = err.message || 'No se pudo guardar.';
-    return;
-  }
-  document.getElementById('dlgMongo').close();
-  resetFormMongoMode(form, 'add');
-  refrescarMongo();
-  abrirFichaMongo(campo.id);
+    document.getElementById('dlgMongo').close();
+    resetFormMongoMode(form, 'add');
+    refrescarMongo();
+    abrirFichaMongo(campo.id);
+  };
+  asegurarClaveCatalogo()
+    .then(function () {
+      const path = editandoMongo ? '/v1/mongo/' + encodeURIComponent(campo.id) : '/v1/mongo';
+      return apiFetchAuth(path, {
+        method: editandoMongo ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(campo)
+      });
+    })
+    .then(function (data) {
+      const saved = normalizeMongoCampo((data && data.campo) || campo);
+      if (saved) Object.assign(campo, saved);
+      document.getElementById('dlgMongo').close();
+      resetFormMongoMode(form, 'add');
+      cargarMongo();
+      setTimeout(function () { abrirFichaMongo(campo.id); }, 200);
+    })
+    .catch(function (err) {
+      try {
+        finalizarLocal();
+      } catch (e2) {
+        if (error) error.textContent = (err && err.message) || 'No se pudo guardar.';
+      }
+    });
 }
 
 function cargarCampos() {
-  fetch('catalogo/campos-ancla/index.json', { cache: 'no-store' })
-    .then(function (res) {
-      if (!res.ok) throw new Error('http');
-      return res.json();
-    })
+  apiFetch('/v1/anclas')
     .then(function (data) {
       state.campos.remotos = normalizeCamposIndice(data);
       state.campos.indexError = false;
+    })
+    .catch(function () {
+      return fetch('catalogo/campos-ancla/index.json', { cache: 'no-store' })
+        .then(function (res) {
+          if (!res.ok) throw new Error('http');
+          return res.json();
+        })
+        .then(function (data) {
+          state.campos.remotos = normalizeCamposIndice(data);
+          state.campos.indexError = false;
+        });
     })
     .catch(function () {
       state.campos.remotos = [];
@@ -1270,6 +1407,8 @@ function abrirDialogoEditarCampo(id) {
   form.formato.value = campo.formato || '';
   form.descripcion.value = campo.descripcion || '';
   form.ejemplo.value = campo.ejemplo || '';
+  if (form.aliases) form.aliases.value = Array.isArray(campo.aliases) ? campo.aliases.join('\n') : '';
+  if (form.sensible) form.sensible.checked = !!campo.sensible;
   form.skills.value = Array.isArray(campo.skills) ? campo.skills.join('\n') : '';
   const err = document.getElementById('campoError');
   if (err) err.textContent = '';
@@ -1316,9 +1455,11 @@ function onSubmitCampo(e) {
     baseDatos: form.baseDatos.value.trim() || 'arquitectura_reservas',
     tipo: form.tipo.value.trim() || 'string',
     obligatorio: !!form.obligatorio.checked,
+    sensible: !!(form.sensible && form.sensible.checked),
     formato: form.formato.value.trim(),
     descripcion: form.descripcion.value.trim(),
     ejemplo: form.ejemplo.value.trim(),
+    aliases: form.aliases ? form.aliases.value : '',
     skills: form.skills.value.split(/[\n,]+/).map(function (s) { return s.trim(); }).filter(Boolean)
   });
   if (!campo) {
@@ -1326,20 +1467,41 @@ function onSubmitCampo(e) {
     return;
   }
   campo.hash = hashFnvHex(payloadHashAncla(campo));
-  const store = leerCamposStore();
-  store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
-  store.campos.push(campo);
-  store.eliminados = (store.eliminados || []).filter(function (xid) { return xid !== campo.id; });
-  try {
+  const finalizarLocal = function () {
+    const store = leerCamposStore();
+    store.campos = store.campos.filter(function (c) { return !(c && c.id === campo.id); });
+    store.campos.push(campo);
+    store.eliminados = (store.eliminados || []).filter(function (xid) { return xid !== campo.id; });
     guardarCamposStore(store);
-  } catch (err) {
-    if (error) error.textContent = err.message || 'No se pudo guardar.';
-    return;
-  }
-  document.getElementById('dlgCampo').close();
-  resetFormCampoMode(form, 'add');
-  refrescarCampos();
-  abrirFichaCampo(campo.id);
+    document.getElementById('dlgCampo').close();
+    resetFormCampoMode(form, 'add');
+    refrescarCampos();
+    abrirFichaCampo(campo.id);
+  };
+  asegurarClaveCatalogo()
+    .then(function () {
+      const path = editando ? '/v1/anclas/' + encodeURIComponent(campo.id) : '/v1/anclas';
+      return apiFetchAuth(path, {
+        method: editando ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(campo)
+      });
+    })
+    .then(function (data) {
+      const saved = normalizeCampo((data && data.campo) || campo);
+      if (saved) Object.assign(campo, saved);
+      document.getElementById('dlgCampo').close();
+      resetFormCampoMode(form, 'add');
+      cargarCampos();
+      setTimeout(function () { abrirFichaCampo(campo.id); }, 200);
+    })
+    .catch(function (err) {
+      try {
+        finalizarLocal();
+      } catch (e2) {
+        if (error) error.textContent = (err && err.message) || 'No se pudo guardar.';
+      }
+    });
 }
 
 function textoDeVersionActual(v) {
