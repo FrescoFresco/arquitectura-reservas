@@ -38,12 +38,19 @@ function extractClave(c: { req: { header: (n: string) => string | undefined } })
 }
 
 app.use('*', async (c, next) => {
-  const ui = c.env.PUBLIC_UI_ORIGIN || 'https://frescofresco.github.io';
+  const ui = c.env.PUBLIC_UI_ORIGIN || 'https://campos-ancla.web-legal-es.workers.dev';
   const extra = (c.env.CORS_ORIGINS || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const origins = new Set([ui, 'http://127.0.0.1:8787', 'http://localhost:8787', ...extra]);
+  // github.io solo durante el cutover; la UI primaria es Cloudflare (Workers Assets / Pages).
+  const origins = new Set([
+    ui,
+    'https://frescofresco.github.io',
+    'http://127.0.0.1:8787',
+    'http://localhost:8787',
+    ...extra,
+  ]);
   const mw = cors({
     origin: (origin) => (origin && origins.has(origin) ? origin : ui),
     allowHeaders: ['Content-Type', 'Authorization', 'X-Agente-Clave'],

@@ -24,12 +24,13 @@ Lo que sigue describe la página publicada en la raíz, que no cambia.
 
 Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualquier persona con acceso de escritura al repositorio puede clonarlo, editar `index.html` y publicar los cambios con un push a `main`.
 
-## Sitio publicado
+## Sitio publicado (producción = Cloudflare)
 
-- **GitHub Pages:** https://frescofresco.github.io/arquitectura-reservas/
-- **Repositorio:** https://github.com/FrescoFresco/arquitectura-reservas
+- **Panel UI:** https://campos-ancla.web-legal-es.workers.dev/
+- **API Worker:** https://campos-ancla-api.web-legal-es.workers.dev
+- **Repositorio (código):** https://github.com/FrescoFresco/arquitectura-reservas
 
-El sitio se sirve desde la rama `main`, carpeta raíz (`/`). Tras un push a `main`, Pages se actualiza solo (suele tardar uno o dos minutos).
+Despliegue UI: `npm run deploy:ui`. Despliegue API: `npm run deploy`. GitHub Pages (`frescofresco.github.io`) queda solo como legado durante el cutover; no es el host de producción.
 
 El menú principal tiene dos destinos: **Catálogos** y **Documentación**. En escritorio es una barra lateral izquierda; en pantalla estrecha queda fija abajo. Dentro de Catálogos hay tres pestañas: **Skills**, **Campos ancla** y **Campos MongoDB**. Dentro de Documentación hay una pestaña, **API**.
 
@@ -78,9 +79,13 @@ git commit -m "Actualiza arquitectura de reservas"
 git push origin main
 ```
 
-4. Esperar a que GitHub Pages reconstruya. Recarga https://frescofresco.github.io/arquitectura-reservas/ (si no ves el cambio, prueba recarga forzada).
+4. Publicar el panel en Cloudflare:
 
-No hace falta configurar nada extra: con push a `main`, Pages se actualiza solo.
+```bash
+npm run deploy:ui
+```
+
+Recarga https://campos-ancla.web-legal-es.workers.dev/ (recarga forzada si hace falta).
 
 ## Dar acceso a otra persona
 

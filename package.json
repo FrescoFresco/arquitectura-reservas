@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "build:ui": "node scripts/build-ui.mjs",
+    "deploy:ui": "npm run build:ui && wrangler deploy -c wrangler.ui.jsonc",
+    "deploy:pages": "npm run build:ui && wrangler pages deploy dist-ui --project-name=campos-ancla",
     "db:migrate:local": "wrangler d1 migrations apply campos-ancla-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply campos-ancla-db --remote",
     "db:seed:local": "node scripts/seed-d1.mjs --local",

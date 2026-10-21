@@ -4324,11 +4324,20 @@ function apiFetch(path, opts) {
   });
 }
 
+const UI_PROD_BASE = 'https://campos-ancla.web-legal-es.workers.dev/';
+const API_PROD_BASE = 'https://campos-ancla-api.web-legal-es.workers.dev';
+
 function textoInstruccionesInvite(clave) {
-  const base = (typeof location !== 'undefined' && location.origin)
-    ? location.origin + (location.pathname.replace(/\/[^/]*$/, '/') || '/')
-    : 'https://frescofresco.github.io/arquitectura-reservas/';
-  const apiBase = apiBaseUrl();
+  const onLocalHost =
+    typeof location !== 'undefined' &&
+    /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || '');
+  // En prod el invite siempre apunta a Cloudflare; nunca a 127.0.0.1 ni a github.io.
+  const base = onLocalHost
+    ? UI_PROD_BASE
+    : typeof location !== 'undefined' && location.origin
+      ? location.origin.replace(/\/$/, '') + '/'
+      : UI_PROD_BASE;
+  const apiBase = onLocalHost ? API_PROD_BASE : apiBaseUrl();
   const apiDoc = base + 'documentacion/api.md';
   const apiUi = base + '#documentacion';
   return [

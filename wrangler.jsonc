@@ -10,7 +10,8 @@
     }
   },
   "vars": {
-    "PUBLIC_UI_ORIGIN": "https://frescofresco.github.io"
+    "PUBLIC_UI_ORIGIN": "https://campos-ancla.web-legal-es.workers.dev",
+    "CORS_ORIGINS": "https://frescofresco.github.io"
   },
   "d1_databases": [
     {

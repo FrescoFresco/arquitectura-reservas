@@ -2,7 +2,7 @@
 
 Documento canónico. Vive en Documentación → API y en el repo: `documentacion/api.md`.
 
-Sitio UI: `https://frescofresco.github.io/arquitectura-reservas/`  
+Sitio UI (producción, Cloudflare): `https://campos-ancla.web-legal-es.workers.dev/`  
 Hash: `#documentacion` (pestaña API).
 
 **Base viva (Cloudflare Worker + D1):**
@@ -11,11 +11,12 @@ Hash: `#documentacion` (pestaña API).
 API_BASE=https://campos-ancla-api.web-legal-es.workers.dev
 ```
 
-Worker: `campos-ancla-api`. D1: `campos-ancla-db`. En local: `http://127.0.0.1:8787`.  
+Worker: `campos-ancla-api`. D1: `campos-ancla-db`.  
 La UI puede apuntar con `localStorage.API_BASE` o `window.ARQ_API_BASE`. Si la API no responde, la página sigue con los JSON estáticos de `catalogo/` (fallback).
 
-Los índices GitHub (`catalogo/**/index.json`) son semilla / espejo estático. **La fuente de verdad para agentes es esta API + D1.**  
-**No hace falta `GITHUB_TOKEN`** para registrarse, latir ni trabajar el catálogo vivo.
+Los índices en `catalogo/**/index.json` son semilla / espejo estático. **La fuente de verdad para agentes es esta API + D1.**  
+**No hace falta `GITHUB_TOKEN`** para registrarse, latir ni trabajar el catálogo vivo.  
+**Agentes:** usad siempre la URL `workers.dev` de producción arriba; no `127.0.0.1` ni GitHub Pages.
 
 ---
 
