@@ -205,18 +205,25 @@ Content-Type: application/json
   "skill_id": "descubrir-negocio",
   "visto_en": "web"
 }
+→ guarda valor `+34699111222` (E.164) y puede devolver `e164Normalizado: true`
 ```
+
+Si el valor no se puede normalizar a E.164 → `400`.
 
 ```
 GET {API_BASE}/v1/anclas/:id/valores?negocio_id=pelo-sur
 GET {API_BASE}/v1/anclas/:id?negocio_id=pelo-sur
 ```
 
-`POST|PUT /v1/anclas` **rechaza** `observaciones` / `valorActual` en el body (usa el endpoint de observaciones).
+`POST|PUT /v1/anclas` **rechaza** `observaciones` / `valorActual` en el body (usa el endpoint de observaciones). En la ficha, `ejemplo` con formato E.164 también se normaliza.
+
+### E.164 (teléfono)
+
+Si `formato` declara `E.164` / `e164`, al guardar observación o `ejemplo` la API **normaliza** (`+34 699 111 222` → `+34699111222`) o **rechaza** con `400`. Aplica a valores por `negocio_id` (no hay `valorActual` en la ficha).
 
 ### Sensible (clase, no valor de cliente)
 
-`"sensible": true` en la **definición** del ancla (o formato con `sensible`) enmascara `ejemplo` en listados públicos. Para campos de formulario, la clase va en la proyección array (`campos.N.sensible`), **sin** guardar el valor PII del cliente. No existe ancla `_cliente.tarjeta_sanitaria_`.
+`"sensible": true` en la **definición** del ancla (o formato con `sensible`) enmascara `ejemplo` en listados públicos. Para campos de formulario, la clase va en la proyección array (`version.recorrido.campos.N.sensible`), **sin** guardar el valor PII del cliente. No existe ancla `_cliente.tarjeta_sanitaria_`.
 
 ### PII en URLs (strict por defecto)
 
@@ -237,13 +244,13 @@ Anclas convencionales (sin entidad Ejecución en este slice):
 | `_reserva_prueba.cancelada_en_` | cuándo se canceló |
 | `_reserva_prueba.nota_` | seguimiento |
 
-### Proyección Mongo `campos.N` → array
+### Lista canónica de campos (X1) — `versiones.recorrido.campos`
 
-Plantillas de catálogo: `_campos.N.nombre_`, `_campos.N.selector_`, `_campos.N.sensible_` (no anclas fijas `campos.0` / `campos.1`).
+**Un solo sitio:** la lista de campos del formulario vive en la **versión del recorrido** (`versiones.recorrido.campos`). No existe `formularios.campos` ni plantillas `_campos.N_*` en `formularios`.
 
-En el campo Mongo: `"proyeccionMongo": "array"` + `"proyeccionElemento": { "nombre": "campos.N.nombre", "selector": "campos.N.selector", "sensible": "campos.N.sensible" }`.
+Plantillas: `_version.recorrido.campos.N_` (lista), `_version.recorrido.campos.N.nombre_`, `_version.recorrido.campos.N.selector_`, `_version.recorrido.campos.N.sensible_`.
 
-Helper:
+Campo Mongo: `"proyeccionMongo": "array"` + elemento con esas rutas. Helper:
 
 ```
 POST {API_BASE}/v1/helpers/proyeccion-array
@@ -251,28 +258,18 @@ Authorization: Bearer inv_…
 Content-Type: application/json
 
 {
-  "ruta_ancla": "campos.N",
-  "elemento": {
-    "nombre": "campos.N.nombre",
-    "selector": "campos.N.selector",
-    "sensible": "campos.N.sensible"
-  },
+  "mongo_id": "versiones-recorrido-campos",
   "valores": {
-    "campos.0.nombre": "Nombre",
-    "campos.0.selector": "#client-name",
-    "campos.0.sensible": "false",
-    "campos.1.nombre": "Teléfono",
-    "campos.1.selector": "#client-phone",
-    "campos.1.sensible": "false",
-    "campos.2.nombre": "Tarjeta sanitaria",
-    "campos.2.selector": "#health-card",
-    "campos.2.sensible": "true"
+    "version.recorrido.campos.0.nombre": "Nombre",
+    "version.recorrido.campos.0.selector": "#client-name",
+    "version.recorrido.campos.0.sensible": "false",
+    "version.recorrido.campos.1.nombre": "Teléfono",
+    "version.recorrido.campos.1.selector": "#client-phone",
+    "version.recorrido.campos.1.sensible": "false"
   }
 }
-→ { "ok": true, "clave": "campos", "campos": [ { "nombre": "Nombre", "selector": "#client-name", "sensible": "false" }, … ] }
+→ { "ok": true, "clave": "version.recorrido.campos", "array": [ … ] }
 ```
-
-También acepta `"mongo_id": "formularios-campos"` para tomar la proyección del catálogo Mongo.
 
 ---
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Upsert / migrate Pelo Sur + auditoría N1–N5 into remote D1 via HTTP API
+ * Upsert / migrate Pelo Sur + auditoría X1/X5/X2 (lista canónica recorrido,
+ * índice `_version.recorrido.campos.N_`, E.164) into remote D1 via HTTP API
  * without wiping existing agentes/invites.
  *
  * Usage:
@@ -38,7 +39,6 @@ async function ensureClave() {
 
 async function upsertAncla(clave, campo) {
   const headers = { Authorization: `Bearer ${clave}` };
-  // Strip negocio values — definition only
   const body = { ...campo };
   delete body.observaciones;
   delete body.valorActual;
@@ -67,7 +67,7 @@ async function deleteAncla(clave, id) {
     console.log('DELETE ancla', id);
   } catch (e) {
     if (e.status === 404) {
-      console.log('skip delete (404)', id);
+      console.log('skip delete ancla (404)', id);
       return;
     }
     throw e;
@@ -87,6 +87,20 @@ async function upsertMongo(clave, campo) {
     if (e.status === 404) {
       await api('/v1/mongo', { method: 'POST', headers, body: JSON.stringify(campo) });
       console.log('POST mongo', campo.id);
+      return;
+    }
+    throw e;
+  }
+}
+
+async function deleteMongo(clave, id) {
+  const headers = { Authorization: `Bearer ${clave}` };
+  try {
+    await api('/v1/mongo/' + encodeURIComponent(id), { method: 'DELETE', headers });
+    console.log('DELETE mongo', id);
+  } catch (e) {
+    if (e.status === 404) {
+      console.log('skip delete mongo (404)', id);
       return;
     }
     throw e;
@@ -137,53 +151,129 @@ async function seedObservacion(clave, anclaId, body) {
   console.log('OBS', anclaId, body.negocio_id, body.valor);
 }
 
-const DELETE_IDS = [
+function e164(raw) {
+  let s = String(raw || '')
+    .trim()
+    .replace(/[\s\-().]/g, '');
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (!/^\+[1-9]\d{7,14}$/.test(s)) return null;
+  return s;
+}
+
+/** X2: reescribe historial teléfono a E.164 vía D1 (POST solo añade). */
+async function migratePhoneE164ViaD1() {
+  const { spawnSync } = await import('node:child_process');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+  const existing = await api(
+    '/v1/anclas/negocio.telefono/valores?negocio_id=' + encodeURIComponent('pelo-sur')
+  ).catch(() => ({ observaciones: [], valorActual: '' }));
+  const obs = existing.observaciones || [];
+  if (!obs.length) {
+    console.log('X2: sin observaciones pelo-sur/telefono aún');
+    return { seeded: false };
+  }
+  let changed = false;
+  const next = obs.map((o) => {
+    const n = e164(o.valor);
+    if (!n) return o;
+    if (n !== o.valor) changed = true;
+    return { ...o, valor: n };
+  });
+  const valorActual = next.length ? next[next.length - 1].valor : '';
+  if (!changed && valorActual === (existing.valorActual || '')) {
+    console.log('X2: teléfono pelo-sur ya E.164');
+    return { seeded: false, already: true };
+  }
+  const obsJson = JSON.stringify(next).replace(/'/g, "''");
+  const valorEsc = String(valorActual).replace(/'/g, "''");
+  const sql = `UPDATE ancla_valores_negocio SET observaciones = '${obsJson}', valor_actual = '${valorEsc}', updated_at = datetime('now') WHERE negocio_id = 'pelo-sur' AND ancla_id = 'negocio.telefono';`;
+  const r = spawnSync(
+    'npx',
+    ['wrangler', 'd1', 'execute', 'campos-ancla-db', '--remote', '--command', sql],
+    { cwd: root, encoding: 'utf8', env: process.env }
+  );
+  if (r.status !== 0) {
+    console.error(r.stdout || '', r.stderr || '');
+    throw new Error('D1 E.164 migrate failed');
+  }
+  console.log('X2: normalizado historial teléfono pelo-sur →', valorActual);
+  return { seeded: true, valorActual };
+}
+
+const DELETE_ANCLA_IDS = [
   'contacto.telefono',
   'cliente.tarjeta_sanitaria',
   'campos.0.nombre',
   'campos.0.selector',
   'campos.1.nombre',
   'campos.1.selector',
+  // X1: lista duplicada en formularios — canónico = version.recorrido.campos
+  'campos.N.nombre',
+  'campos.N.selector',
+  'campos.N.sensible',
+];
+
+const DELETE_MONGO_IDS = [
+  'formularios-campos',
+  'versiones-recorrido-campos-N-selector',
 ];
 
 const anclas = [
   {
-    id: 'campos.N.nombre',
-    ancla: '_campos.N.nombre_',
+    id: 'version.recorrido.campos.N',
+    ancla: '_version.recorrido.campos.N_',
+    etiqueta: 'Campo N del recorrido (lista)',
+    claveMongo: 'recorrido.campos',
+    coleccion: 'versiones',
+    tipo: 'array',
+    formato: 'proyeccion-array',
+    ejemplo: '[{nombre, selector, sensible}]',
+    descripcion:
+      'Ancla de lista (X1/X5): índice de versiones.recorrido.campos. Plantillas: nombre, selector, sensible.',
+    skills: ['mapear-recorrido', 'generar-script'],
+    aliases: [],
+    sensible: false,
+  },
+  {
+    id: 'version.recorrido.campos.N.nombre',
+    ancla: '_version.recorrido.campos.N.nombre_',
     etiqueta: 'Campo N · nombre',
-    claveMongo: 'campos.N.nombre',
-    coleccion: 'formularios',
+    claveMongo: 'recorrido.campos.N.nombre',
+    coleccion: 'versiones',
     tipo: 'string',
-    ejemplo: 'Nombre',
-    descripcion: 'Plantilla: nombre del campo N. Índices solo en valores / proyección array.',
+    ejemplo: 'Teléfono',
+    descripcion: 'Plantilla: nombre del campo N en la versión del recorrido (lista canónica).',
     skills: ['mapear-recorrido'],
     aliases: [],
     sensible: false,
   },
   {
-    id: 'campos.N.selector',
-    ancla: '_campos.N.selector_',
+    id: 'version.recorrido.campos.N.selector',
+    ancla: '_version.recorrido.campos.N.selector_',
     etiqueta: 'Campo N · selector',
-    claveMongo: 'campos.N.selector',
-    coleccion: 'formularios',
+    claveMongo: 'recorrido.campos.N.selector',
+    coleccion: 'versiones',
     tipo: 'string',
-    ejemplo: '#client-name',
-    descripcion: 'Plantilla: selector del campo N. Índices solo en valores / proyección array.',
-    skills: ['mapear-recorrido'],
+    formato: 'playwright-locator',
+    ejemplo: '#client-phone',
+    descripcion: 'Selector Playwright del campo N (lista canónica en versiones.recorrido.campos).',
+    skills: ['mapear-recorrido', 'generar-script'],
     aliases: [],
     sensible: false,
   },
   {
-    id: 'campos.N.sensible',
-    ancla: '_campos.N.sensible_',
+    id: 'version.recorrido.campos.N.sensible',
+    ancla: '_version.recorrido.campos.N.sensible_',
     etiqueta: 'Campo N · sensible (clase)',
-    claveMongo: 'campos.N.sensible',
-    coleccion: 'formularios',
+    claveMongo: 'recorrido.campos.N.sensible',
+    coleccion: 'versiones',
     tipo: 'boolean',
     formato: 'clase',
     ejemplo: 'true',
-    descripcion:
-      'Clase del campo del formulario (sensible). Nunca persistir el valor PII del cliente; solo la marca.',
+    descripcion: 'Clase sensible del campo N. Nunca persistir el valor PII del cliente.',
     skills: ['mapear-recorrido'],
     aliases: [],
     sensible: false,
@@ -238,8 +328,11 @@ const anclas = [
 async function main() {
   const clave = await ensureClave();
 
-  for (const id of DELETE_IDS) {
+  for (const id of DELETE_ANCLA_IDS) {
     await deleteAncla(clave, id);
+  }
+  for (const id of DELETE_MONGO_IDS) {
+    await deleteMongo(clave, id);
   }
 
   for (const a of anclas) await upsertAncla(clave, a);
@@ -256,7 +349,7 @@ async function main() {
       formato: 'E.164',
       ejemplo: '+34699111222',
       descripcion:
-        'Teléfono público del local (canónico). Alias: contacto.telefono, telefono_local. Valores por negocio_id.',
+        'Teléfono público del local (canónico). Alias: contacto.telefono, telefono_local. Valores E.164 por negocio_id.',
       sensible: false,
     });
   } catch (e) {
@@ -274,22 +367,41 @@ async function main() {
     console.warn('skip proceso.url_inicio', e.message);
   }
 
-  // N2: historial teléfono Pelo Sur → por negocio_id (no en ficha)
+  // X1: lista canónica en versiones.recorrido.campos
+  await upsertMongo(clave, {
+    id: 'versiones-recorrido-campos',
+    campo: 'versiones.recorrido.campos',
+    baseDatos: 'arquitectura_reservas',
+    coleccion: 'versiones',
+    clave: 'recorrido.campos',
+    bsonType: 'array',
+    obligatorio: false,
+    descripcion:
+      'Lista canónica de campos del formulario en la versión del recorrido (X1). No usar formularios.campos.',
+    ancla: '_version.recorrido.campos.N_',
+    proyeccionMongo: 'array',
+    proyeccionElemento: {
+      nombre: 'version.recorrido.campos.N.nombre',
+      selector: 'version.recorrido.campos.N.selector',
+      sensible: 'version.recorrido.campos.N.sensible',
+    },
+  });
+
+  // Teléfono: seed si vacío; si hay filas, normalizar E.164 en D1
   const phoneHistory = [
     {
-      valor: '+34 612 000 111',
+      valor: '+34612000111',
       url: 'https://pelosur.es/contacto',
       timestamp: '2026-10-13T10:00:00.000Z',
       visto_en: 'web',
     },
     {
-      valor: '+34 699 111 222',
+      valor: '+34699111222',
       url: 'https://pelosur.es/contacto',
       timestamp: '2026-10-17T16:30:00.000Z',
       visto_en: 'web',
     },
   ];
-  // Re-seed: append both (idempotent enough for demo; valores grow if re-run)
   const existing = await api(
     '/v1/anclas/negocio.telefono/valores?negocio_id=' + encodeURIComponent('pelo-sur')
   ).catch(() => ({ observaciones: [] }));
@@ -302,37 +414,19 @@ async function main() {
       });
     }
   } else {
-    console.log('OBS pelo-sur/negocio.telefono ya tiene', existing.observaciones.length, 'filas');
+    await migratePhoneE164ViaD1();
   }
-
-  await upsertMongo(clave, {
-    id: 'formularios-campos',
-    campo: 'formularios.campos',
-    baseDatos: 'arquitectura_reservas',
-    coleccion: 'formularios',
-    clave: 'campos',
-    bsonType: 'array',
-    obligatorio: false,
-    descripcion: 'Proyección array: campos.N.* → [{nombre, selector, sensible}, …].',
-    ancla: '_campos.N_',
-    proyeccionMongo: 'array',
-    proyeccionElemento: {
-      nombre: 'campos.N.nombre',
-      selector: 'campos.N.selector',
-      sensible: 'campos.N.sensible',
-    },
-  });
 
   await upsertProyecto(clave, {
     id: 'pelo-sur',
     nombre: 'Pelo Sur',
-    descripcion: 'Salón ficticio — aliases, valores por negocio, clase sensible, reserva de prueba.',
+    descripcion: 'Salón ficticio — lista canónica en versiones.recorrido.campos, E.164.',
     markdown:
-      '# Pelo Sur\n\nProyecto de catálogo. Teléfono canónico `_negocio.telefono_` (alias contacto.telefono).\n',
+      '# Pelo Sur\n\nLista de campos del formulario: `_version.recorrido.campos.N_*` (no formularios). Teléfono E.164 `_negocio.telefono_`.\n',
     skills: ['descubrir-negocio', 'mapear-recorrido', 'diagnosticar-alerta'],
   });
 
-  console.log('Upsert auditoría N1–N5 OK →', API);
+  console.log('Upsert auditoría X1/X5/X2 OK →', API);
 }
 
 main().catch((e) => {

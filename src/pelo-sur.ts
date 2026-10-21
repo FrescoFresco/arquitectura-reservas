@@ -125,6 +125,34 @@ export function looksLikeUrlAncla(campo: {
   return /(^|\.)url(_|$|\.)/.test(id) || id.endsWith('.url') || id.includes('url_');
 }
 
+/** True when formato declares E.164 (acepta "E.164", "e164", …). */
+export function looksLikeE164Ancla(campo: { formato?: string }): boolean {
+  const formato = String(campo.formato || '')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  return formato.includes('e.164') || formato.includes('e164');
+}
+
+/**
+ * Normaliza a E.164 estricto: `+` + país + dígitos, sin espacios.
+ * Ej.: `+34 699 111 222` → `+34699111222`. Rechaza si no se puede.
+ */
+export function normalizeE164(
+  raw: string
+): { ok: true; value: string; changed: boolean } | { ok: false; error: string } {
+  const input = String(raw || '').trim();
+  if (!input) return { ok: false, error: 'Teléfono vacío.' };
+  let s = input.replace(/[\s\-().]/g, '');
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (!s.startsWith('+')) {
+    return { ok: false, error: 'E.164 requiere prefijo internacional (+…), ej. +34699111222.' };
+  }
+  if (!/^\+[1-9]\d{7,14}$/.test(s)) {
+    return { ok: false, error: 'Teléfono no es E.164 válido (ej. +34699111222).' };
+  }
+  return { ok: true, value: s, changed: s !== input };
+}
+
 export function isPiiQueryKey(key: string): boolean {
   const k = String(key || '')
     .trim()
@@ -252,13 +280,34 @@ export function normalizeObservaciones(list: unknown): Observacion[] {
 export function appendObservacion(
   prev: Observacion[],
   body: Record<string, unknown>,
-  opts?: { scrubUrlValue?: boolean; strictPii?: boolean }
-): { observaciones: Observacion[]; valorActual: string; piiError?: string; piiRedactado?: boolean } {
+  opts?: { scrubUrlValue?: boolean; strictPii?: boolean; normalizeE164?: boolean }
+): {
+  observaciones: Observacion[];
+  valorActual: string;
+  piiError?: string;
+  piiRedactado?: boolean;
+  e164Error?: string;
+  e164Normalizado?: boolean;
+} {
   let valor = String(body.valor ?? '').trim();
   if (!valor) return { observaciones: prev, valorActual: prev.length ? prev[prev.length - 1].valor : '' };
 
   let url = body.url != null ? String(body.url).trim() : '';
   let piiRedactado = false;
+  let e164Normalizado = false;
+
+  if (opts?.normalizeE164) {
+    const phone = normalizeE164(valor);
+    if (!phone.ok) {
+      return {
+        observaciones: prev,
+        valorActual: prev.length ? prev[prev.length - 1].valor : '',
+        e164Error: phone.error,
+      };
+    }
+    if (phone.changed) e164Normalizado = true;
+    valor = phone.value;
+  }
 
   if (opts?.scrubUrlValue) {
     const scrubbed = scrubPiiFromUrl(valor, { strict: opts.strictPii });
@@ -299,7 +348,7 @@ export function appendObservacion(
   if (body.fuente != null) obs.fuente = String(body.fuente);
 
   const observaciones = prev.concat([obs]);
-  return { observaciones, valorActual: valor, piiRedactado };
+  return { observaciones, valorActual: valor, piiRedactado, e164Normalizado };
 }
 
 /**

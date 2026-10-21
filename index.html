@@ -505,7 +505,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <ul>
 <li><strong>Proyecto ↔ Skill (N:M)</strong> — un proyecto contiene una o más skills; una skill puede estar en uno o más proyectos.</li>
 <li><strong>Skill → Campo ancla (1:N)</strong> — una skill declara uno o más campos ancla.</li>
-<li><strong>Ancla → Campo Mongo (0..1)</strong> — un campo ancla puede enlazar a un campo Mongo (opcional). Con <code>proyeccionMongo: array</code> agrupa <code>campos.N.*</code> en un array BSON.</li>
+<li><strong>Ancla → Campo Mongo (0..1)</strong> — un campo ancla puede enlazar a un campo Mongo (opcional). Con <code>proyeccionMongo: array</code> agrupa <code>version.recorrido.campos.N.*</code> en un array BSON (lista canónica del recorrido).</li>
 <li><strong>Sin anclas huérfanas</strong> — todo hecho de un negocio (p. ej. Pelo Sur) entra como skill del proyecto; no persistir anclas sueltas fuera del catálogo.</li>
 <li><strong>Agente</strong> — invite + registro + latido; trabaja vía API, no con la UI.</li>
 <li><strong>Fundamento</strong> — bloque conceptual en Documentación con el que se describe el sistema.</li>
@@ -688,11 +688,11 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <label>Proyección Mongo
 <select name="proyeccionMongo">
 <option value="">—</option>
-<option value="array">array (campos.N.* → [{…}])</option>
+<option value="array">array (recorrido.campos.N.* → [{…}])</option>
 </select>
 </label>
 <label>Elemento proyección (JSON)
-<textarea name="proyeccionElemento" rows="3" placeholder='{"nombre":"campos.N.nombre","selector":"campos.N.selector"}'></textarea>
+<textarea name="proyeccionElemento" rows="3" placeholder='{"nombre":"version.recorrido.campos.N.nombre","selector":"version.recorrido.campos.N.selector","sensible":"version.recorrido.campos.N.sensible"}'></textarea>
 </label>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="mongoCancelar">Cancelar</button>

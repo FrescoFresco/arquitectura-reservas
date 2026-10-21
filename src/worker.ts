@@ -7,9 +7,11 @@ import {
   canonicalFromAncla,
   defaultStrictPii,
   findAliasConflicts,
+  looksLikeE164Ancla,
   looksLikeUrlAncla,
   maskSensitive,
   normalizeAliasList,
+  normalizeE164,
   normalizeObservaciones,
   parseJsonObject,
   proyectarArrayN,
@@ -619,7 +621,9 @@ app.post('/v1/anclas/:id/observaciones', async (c) => {
   const result = appendObservacion(prevValores.observaciones, body, {
     scrubUrlValue: looksLikeUrlAncla(mapped),
     strictPii: strict,
+    normalizeE164: looksLikeE164Ancla(mapped),
   });
+  if (result.e164Error) return jsonError(c, 400, result.e164Error);
   if (result.piiError) return jsonError(c, 400, result.piiError);
   const ts = nowIso();
   await c.env.DB.prepare(
@@ -636,6 +640,7 @@ app.post('/v1/anclas/:id/observaciones', async (c) => {
   return c.json({
     ok: true,
     piiRedactado: result.piiRedactado || undefined,
+    e164Normalizado: result.e164Normalizado || undefined,
     negocio_id: negocioId,
     ancla_id: id,
     ...valores,
@@ -672,10 +677,10 @@ app.post('/v1/helpers/proyeccion-array', async (c) => {
     if (m.proyeccionMongo === 'array') {
       if (!ruta && m.ancla) {
         const canon = canonicalFromAncla(m.ancla);
-        // `_campos.N_` → `campos.N` (no añadir otro `.N`)
+        // `_version.recorrido.campos.N_` → `version.recorrido.campos.N` (no añadir otro `.N`)
         ruta = /\.N\b/.test(canon) ? canon.replace(/\.\d+\b/g, '.N') : canon.replace(/\.\d+.*$/, '') + '.N';
       }
-      ruta = ruta || 'campos.N';
+      ruta = ruta || 'version.recorrido.campos.N';
       if (!elemento && Object.keys(m.proyeccionElemento).length) elemento = m.proyeccionElemento;
     }
   }
@@ -1264,6 +1269,11 @@ async function prepareAnclaPersistAsync(
       campo.ejemplo = scrubbed.url;
       piiRedactado = true;
     }
+  }
+  if (looksLikeE164Ancla(campo) && campo.ejemplo) {
+    const phone = normalizeE164(campo.ejemplo);
+    if (!phone.ok) return { error: phone.error };
+    campo.ejemplo = phone.value;
   }
   return { campo, piiRedactado };
 }

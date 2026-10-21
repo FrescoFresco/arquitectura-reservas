@@ -160,22 +160,80 @@
       "hash": "cd1bc38d018249389c6ac17edb2529f7db04f80e616f880e716c7523905ee28e"
     },
     {
+      "id": "version.recorrido.campos.N",
+      "ancla": "_version.recorrido.campos.N_",
+      "etiqueta": "Campo N del recorrido (lista)",
+      "claveMongo": "recorrido.campos",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "array",
+      "obligatorio": false,
+      "formato": "proyeccion-array",
+      "descripcion": "Ancla de lista (X1/X5): índice de la proyección array versiones.recorrido.campos. Plantillas hijas: nombre, selector, sensible.",
+      "ejemplo": "[{nombre, selector, sensible}]",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x1-version-recorrido-campos-N"
+    },
+    {
+      "id": "version.recorrido.campos.N.nombre",
+      "ancla": "_version.recorrido.campos.N.nombre_",
+      "etiqueta": "Campo N · nombre",
+      "claveMongo": "recorrido.campos.N.nombre",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Plantilla: nombre del campo N en la versión del recorrido (lista canónica; no formularios.campos).",
+      "ejemplo": "Teléfono",
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x1-version-recorrido-campos-N-nombre"
+    },
+    {
       "id": "version.recorrido.campos.N.selector",
       "ancla": "_version.recorrido.campos.N.selector_",
-      "etiqueta": "Selector del campo",
+      "etiqueta": "Campo N · selector",
       "claveMongo": "recorrido.campos.N.selector",
       "coleccion": "versiones",
       "baseDatos": "arquitectura_reservas",
       "tipo": "string",
       "obligatorio": true,
       "formato": "playwright-locator",
-      "descripcion": "Selector de Playwright que encuentra el campo de forma única.",
-      "ejemplo": "getByLabel('Email')",
+      "descripcion": "Selector de Playwright del campo N (lista canónica en la versión del recorrido).",
+      "ejemplo": "#client-phone",
       "skills": [
         "mapear-recorrido",
         "generar-script"
       ],
       "hash": "0516b8222d3004f6703688a50aac9f182b7629397629867d74e4c39ada15c364"
+    },
+    {
+      "id": "version.recorrido.campos.N.sensible",
+      "ancla": "_version.recorrido.campos.N.sensible_",
+      "etiqueta": "Campo N · sensible (clase)",
+      "claveMongo": "recorrido.campos.N.sensible",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "boolean",
+      "obligatorio": false,
+      "formato": "clase",
+      "descripcion": "Clase del campo N: true si el input es sensible. Nunca guardar el valor PII del cliente; solo la marca.",
+      "ejemplo": "true",
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x1-version-recorrido-campos-N-sensible"
     },
     {
       "id": "version.recorrido.boton_confirmar.selector",
@@ -338,63 +396,6 @@
       ],
       "sensible": false,
       "hash": "pelo-sur-reserva_prueba-nota"
-    },
-    {
-      "id": "campos.N.nombre",
-      "ancla": "_campos.N.nombre_",
-      "etiqueta": "Campo N · nombre",
-      "claveMongo": "campos.N.nombre",
-      "coleccion": "formularios",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": false,
-      "formato": "",
-      "descripcion": "Plantilla: nombre del campo N del formulario. Índices solo en valores / proyección array.",
-      "ejemplo": "Nombre",
-      "aliases": [],
-      "skills": [
-        "mapear-recorrido"
-      ],
-      "sensible": false,
-      "hash": "audit-n1-campos-N-nombre"
-    },
-    {
-      "id": "campos.N.selector",
-      "ancla": "_campos.N.selector_",
-      "etiqueta": "Campo N · selector",
-      "claveMongo": "campos.N.selector",
-      "coleccion": "formularios",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": false,
-      "formato": "",
-      "descripcion": "Plantilla: selector del campo N. Índices solo en valores / proyección array.",
-      "ejemplo": "#client-name",
-      "aliases": [],
-      "skills": [
-        "mapear-recorrido"
-      ],
-      "sensible": false,
-      "hash": "audit-n1-campos-N-selector"
-    },
-    {
-      "id": "campos.N.sensible",
-      "ancla": "_campos.N.sensible_",
-      "etiqueta": "Campo N · sensible (clase)",
-      "claveMongo": "campos.N.sensible",
-      "coleccion": "formularios",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "boolean",
-      "obligatorio": false,
-      "formato": "clase",
-      "descripcion": "Clase del campo del formulario: true si el input es sensible (p. ej. tarjeta). Nunca guardar el valor PII del cliente; solo la marca.",
-      "ejemplo": "true",
-      "aliases": [],
-      "skills": [
-        "mapear-recorrido"
-      ],
-      "sensible": false,
-      "hash": "audit-n3-campos-N-sensible"
     }
   ]
 }
