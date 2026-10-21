@@ -34,6 +34,46 @@ npm run deploy:ui
 
 Equivale a `npm run build:ui` (arma `dist-ui/`) + `wrangler deploy -c wrangler.ui.jsonc`.
 
+## MongoDB Atlas (URI solo en secrets)
+
+El Worker habla con Atlas con el **driver oficial `mongodb`** (TCP). No uses Data API. No pegues la URI en el chat ni en la UI.
+
+| Secret / var | Obligatorio | Dónde |
+|--------------|-------------|--------|
+| `MONGODB_URI` | sí, para escribir | Cursor **Environment Secrets** + `npx wrangler secret put MONGODB_URI` (Worker `campos-ancla-api`) |
+| `MONGODB_DB` | no | default `arquitectura_reservas` (coincide con `baseDatos` del catálogo). Opcional: `wrangler secret put MONGODB_DB` o var |
+
+```bash
+# Tras crear el cluster en Atlas y copiar la SRV:
+npx wrangler secret put MONGODB_URI
+# (pega la URI en el prompt; no la commits)
+npm run deploy
+```
+
+Comprobar (sin filtrar secretos):
+
+```bash
+curl -s https://campos-ancla-api.web-legal-es.workers.dev/health
+# → { "ok": true, "service": "campos-ancla-api", "mongo": "configured" | "disconnected" }
+
+curl -s https://campos-ancla-api.web-legal-es.workers.dev/v1/mongo/status
+# → { "ok": true, "configured": true|false, "connected": true|false|null, "db": "arquitectura_reservas" }
+```
+
+Sync (invite Bearer; proyección anclas → colección `negocios`):
+
+```bash
+curl -s -X POST https://campos-ancla-api.web-legal-es.workers.dev/v1/mongo/sync/negocio \
+  -H "Authorization: Bearer inv_…" -H "Content-Type: application/json" \
+  -d '{"negocio_id":"pelo-sur"}'
+
+curl -s -X POST https://campos-ancla-api.web-legal-es.workers.dev/v1/mongo/sync/proyecto \
+  -H "Authorization: Bearer inv_…" -H "Content-Type: application/json" \
+  -d '{"proyecto_id":"pelo-sur"}'
+```
+
+Sin `MONGODB_URI`, esos POST responden **503** `configure MONGODB_URI`. El panel solo muestra «URI configurada: sí/no».
+
 ## CORS
 
 `PUBLIC_UI_ORIGIN` apunta al panel en Cloudflare. `CORS_ORIGINS` puede incluir `https://frescofresco.github.io` solo durante el cutover. Tras abandonar GitHub Pages como host, quitar ese origen.

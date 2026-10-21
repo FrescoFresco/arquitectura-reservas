@@ -9,6 +9,9 @@
       "enabled": true
     }
   },
+  // Secrets (no commits): MONGODB_URI (required for Atlas writes), optional MONGODB_DB.
+  //   npx wrangler secret put MONGODB_URI
+  //   npx wrangler secret put MONGODB_DB   # default arquitectura_reservas
   "vars": {
     "PUBLIC_UI_ORIGIN": "https://campos-ancla.web-legal-es.workers.dev",
     "CORS_ORIGINS": "https://frescofresco.github.io"

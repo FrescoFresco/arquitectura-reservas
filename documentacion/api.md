@@ -285,6 +285,32 @@ Content-Type: application/json
 
 ---
 
+## 6c. MongoDB Atlas (conexión + sync)
+
+Driver: **`mongodb`** oficial en el Worker (TCP; no Data API). Secret `MONGODB_URI` (wrangler / Cursor env). Opcional `MONGODB_DB` (default `arquitectura_reservas`).
+
+```
+GET  {API_BASE}/health
+→ { "ok": true, "service": "campos-ancla-api", "mongo": "configured" | "disconnected" }
+
+GET  {API_BASE}/v1/mongo/status
+→ { "ok": true, "configured": true|false, "connected": true|false, "db": "arquitectura_reservas" }
+
+POST {API_BASE}/v1/mongo/sync/negocio
+Authorization: Bearer inv_…
+{ "negocio_id": "pelo-sur" }
+→ upsert en colección `negocios` desde ancla_valores_negocio (nombre, telefono, url, zona_horaria)
+
+POST {API_BASE}/v1/mongo/sync/proyecto
+Authorization: Bearer inv_…
+{ "proyecto_id": "pelo-sur", "negocio_id"? }
+→ mismo upsert; `negocio_id` por defecto = `proyecto_id`
+```
+
+Sin URI: escrituras → **503** `{ "error": "configure MONGODB_URI" }`. Nunca se devuelve la URI.
+
+---
+
 ## 7. CORS / UI
 
 Origen de producción del panel: `https://campos-ancla.web-legal-es.workers.dev`.  

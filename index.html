@@ -207,6 +207,11 @@ dialog::backdrop{background:#17212f66}
 .api-doc hr{border:0;border-top:1px solid #e5eaf1;margin:20px 0}
 .doc-mongodb{padding:0 0 28px}
 .doc-mongodb .doc-subtabs{margin:0 0 14px}
+.mongo-conn-status{margin:0 0 12px;font-size:13px;color:#24334a}
+.mongo-conn-status code{font-size:12px}
+.mongo-conn-status.is-yes{color:#1b6b3a}
+.mongo-conn-status.is-no{color:#677488}
+.mongo-conn-status.is-err{color:#9b2c2c}
 .md-table-wrap{overflow:auto;margin:0 0 16px;border:1px solid #e5eaf1;border-radius:10px}
 .md-table-wrap table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.45}
 .md-table-wrap th,.md-table-wrap td{padding:8px 10px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top}
@@ -299,6 +304,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div id="campos-ancla-root"></div>
 </div>
 <div role="tabpanel" id="panel-campos-mongodb" data-catalogo="campos-mongodb" hidden>
+<p id="mongoCatalogConnStatus" class="nota mongo-conn-status" aria-live="polite">URI configurada: …</p>
 <div id="campos-mongodb-root"></div>
 </div>
 </section>
@@ -527,6 +533,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div id="apiDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando el contrato API…</p></div>
 </div>
 <div class="doc doc-mongodb" role="tabpanel" id="panel-mongodb" data-doc="mongodb" hidden>
+<p id="mongoConnStatus" class="nota mongo-conn-status" aria-live="polite">URI configurada: …</p>
 <div class="catalogo-tabs doc-subtabs" id="mongoDocTabs" role="tablist" aria-label="MongoDB"></div>
 <div id="mongoDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando documentación MongoDB…</p></div>
 </div>
@@ -927,7 +934,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script src="proyectos-ui.js?v=20261020z"></script>
 <script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261021vis2"></script>
+<script src="catalogo-ui.js?v=20261021mongo1"></script>
 
 </body>
 </html>
