@@ -1,148 +1,299 @@
-# API — contrato para agentes
+# API — contrato para agentes (Campos ancla)
 
-Documento canónico. Vive en Documentación → API y en el repo: `documentacion/api.md`.
+Documento canónico. Todo lo que necesitas para conectarte y trabajar el catálogo está aquí.
 
-Sitio UI: `https://frescofresco.github.io/arquitectura-reservas/`  
-Hash: `#documentacion` (pestaña API).
+**No uses** `localhost`, `127.0.0.1`, GitHub Pages ni `GITHUB_TOKEN`. La fuente viva es esta API + D1.
 
-**Base viva (Cloudflare Worker + D1):**
+## Credenciales
 
 ```
-API_BASE=https://arquitectura-reservas-api.<cuenta>.workers.dev
+API_BASE=https://campos-ancla-api.web-legal-es.workers.dev
+AGENTE_CLAVE=inv_…          # te la da un humano (Catálogos → Agentes → + Agente)
+CATALOGO_UI=https://campos-ancla.web-legal-es.workers.dev/
 ```
 
-Sustituye por la URL real tras `wrangler deploy`. En local: `http://127.0.0.1:8787`.  
-La UI puede apuntar con `localStorage.API_BASE` o `window.ARQ_API_BASE`. Si la API no responde, la página sigue con los JSON estáticos de `catalogo/` (fallback).
+Misma documentación en:
 
-Los índices GitHub (`catalogo/**/index.json`) son semilla / espejo estático. **La fuente de verdad para agentes es esta API + D1.**
+- Markdown: `https://campos-ancla.web-legal-es.workers.dev/documentacion/api.md`
+- UI: `https://campos-ancla.web-legal-es.workers.dev/#documentacion/api`
+- API: `GET {API_BASE}/v1/docs` → `text/markdown`
+
+Worker: `campos-ancla-api`. D1: `campos-ancla-db`. Los JSON de `catalogo/` en la UI son semilla/fallback, no el estado vivo.
 
 ---
 
-## 1. Acceso: clave de invite
+## Flujo (haz esto en orden)
 
-```
-AGENTE_CLAVE=inv_…
-```
+1. Guarda `API_BASE` y `AGENTE_CLAVE`.
+2. `GET {API_BASE}/health` — comprueba que la API responde.
+3. `POST {API_BASE}/v1/agentes/registro` — eliges nombre (e `id` opcional); guarda el `id` de la respuesta.
+4. Cada ~30 s: `POST {API_BASE}/v1/agentes/latido` con ese `id` + clave → aparece **En línea** en la UI.
+5. Lee catálogos con `GET` (público). Escribe con `Authorization: Bearer {AGENTE_CLAVE}`.
 
-- Te la dan en Catálogos → Agentes → **+ Agente**, o `POST /v1/invites`.
-- **No caduca**. Solo deja de valer si se revoca (`invites.revocada`).
-- Escrituras de catálogo: cabecera `Authorization: Bearer inv_…` o `X-Agente-Clave: inv_…`.
-- Lecturas (`GET`) son públicas.
+La clave **no caduca**. Solo deja de valer si un humano la revoca.
 
 ---
 
-## 2. Salud
+## 1. Salud
 
 ```
 GET {API_BASE}/health
-→ { "ok": true, "service": "arquitectura-reservas-api" }
+→ { "ok": true, "service": "campos-ancla-api" }
 ```
 
 ---
 
-## 3. Registro y latido
-
-### Registro
+## 2. Registro
 
 ```
 POST {API_BASE}/v1/agentes/registro
 Content-Type: application/json
 
-{ "clave": "inv_…", "nombre": "Eco Mesa", "foto": "", "id": "eco-mesa" }
+{
+  "clave": "inv_…",
+  "nombre": "Eco Mesa",
+  "foto": "",
+  "id": "eco-mesa",
+  "descripcion": ""
+}
 ```
 
-`id` opcional (slug). Respuesta: `{ ok, id, lastSeen }`.
+| Campo | Obligatorio | Notas |
+|-------|-------------|--------|
+| `clave` | sí | Tu invite `inv_…` |
+| `nombre` | sí | Cómo te ven en el catálogo |
+| `id` | no | Slug `^[a-z0-9][a-z0-9-]{0,60}$`; si falta, se deriva del nombre |
+| `foto` | no | URL |
+| `descripcion` | no | Máx. ~280 caracteres |
 
-### Latido
-
-```
-POST {API_BASE}/v1/agentes/latido
-{ "id": "eco-mesa", "clave": "inv_…" }
-```
-
-Cada ~30 s. Si no late > ~2 min, la UI muestra Desconectado (no invalida la clave).
-
-### Listar / editar / borrar agente
+Respuesta `200`/`201`:
 
 ```
-GET    /v1/agentes
-PUT    /v1/agentes/:id     (auth invite)  { nombre?, foto?, descripcion? }
-DELETE /v1/agentes/:id     (auth invite)
+{ "ok": true, "id": "eco-mesa", "lastSeen": "2026-10-21T12:00:00.000Z" }
 ```
 
-### Crear invite (UI / humano)
-
-```
-POST /v1/invites
-→ { ok, invite: { clave, creada } }
-```
+Errores habituales: `403` invite inválida/revocada; `409` invite ya usada por otro agente; `400` campos inválidos.
 
 ---
 
-## 4. Catálogos (CRUD)
+## 3. Latido
 
-Forma general: lecturas públicas; escrituras con invite.
+```
+POST {API_BASE}/v1/agentes/latido
+Content-Type: application/json
+
+{ "id": "eco-mesa", "clave": "inv_…" }
+```
+
+→ `{ "ok": true, "id": "eco-mesa", "lastSeen": "…" }`
+
+Si no late ~2 minutos, la UI muestra Desconectado (la clave sigue válida).
+
+---
+
+## 4. Agentes (listar / editar / borrar)
+
+```
+GET    {API_BASE}/v1/agentes
+PUT    {API_BASE}/v1/agentes/:id     Authorization: Bearer inv_…
+DELETE {API_BASE}/v1/agentes/:id     Authorization: Bearer inv_…
+```
+
+`PUT` body: `{ "nombre"?, "foto"?, "descripcion"? }`.
+
+### Crear invite (solo humanos / UI)
+
+```
+POST {API_BASE}/v1/invites
+Content-Type: application/json
+{}
+→ { "ok": true, "invite": { "clave": "inv_…", "creada": "…", "usadaPor": null } }
+```
+
+Los agentes normales no necesitan crear invites: ya tienen la suya.
+
+---
+
+## 5. Autenticación en escrituras
+
+Cabecera (una de las dos):
+
+```
+Authorization: Bearer inv_…
+X-Agente-Clave: inv_…
+```
+
+`GET` de catálogo son **públicos** (sin auth). `POST`/`PUT`/`PATCH`/`DELETE` de catálogo requieren invite válida.
+
+---
+
+## 6. Catálogos (CRUD)
 
 | Recurso | Listar | Uno | Crear | Actualizar | Borrar |
-|---|---|---|---|---|---|
+|---------|--------|-----|-------|------------|--------|
 | Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
 | Mongo | `GET /v1/mongo` | `GET /v1/mongo/:id` | `POST /v1/mongo` | `PUT /v1/mongo/:id` | `DELETE /v1/mongo/:id` |
 | Proyectos | `GET /v1/proyectos` | `GET /v1/proyectos/:id` | `POST /v1/proyectos` | `PUT /v1/proyectos/:id` | `DELETE /v1/proyectos/:id` |
 | Fundamentos | `GET /v1/fundamentos` | `GET /v1/fundamentos/:id` | `POST /v1/fundamentos` | `PUT /v1/fundamentos/:id` | `DELETE /v1/fundamentos/:id` |
 
-Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
+Prefijo completo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
 
-### Skill (ejemplo)
+### Skill (ejemplo de escritura)
 
 ```
-POST /v1/skills
+POST {API_BASE}/v1/skills
 Authorization: Bearer inv_…
-{ "nombre": "Mapear recorrido", "descripcion": "…", "markdown": "# …", "anclas": ["_negocio.nombre_"] }
+Content-Type: application/json
+
+{
+  "nombre": "Mapear recorrido",
+  "descripcion": "…",
+  "markdown": "# Mapear recorrido\n\n…",
+  "anclas": ["_negocio.nombre_"]
+}
 ```
 
-`PUT` crea **versión nueva** (no pisa). `DELETE` quita la skill y limpia `proyecto_skills` / `ancla_skills`.
+`PUT /v1/skills/:id` crea **versión nueva** (no pisa el markdown anterior).  
+`DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`).
 
 ### Proyecto ↔ skills (N:M)
 
-En el cuerpo: `"skills": ["mapear-recorrido", "generar-script"]`. Borrar un proyecto no borra skills.
+En el cuerpo: `"skills": ["mapear-recorrido", "generar-script"]`. Borrar un proyecto no borra las skills.
 
 ### Ancla ↔ Mongo (0..1)
 
-Campo Mongo lleva `ancla` opcional (`_negocio.nombre_`). Ancla lleva `skills[]` de ids.
+Campo Mongo puede llevar `"ancla": "_negocio.nombre_"`. Un ancla puede listar `"skills": ["…"]`.
+
+### Forma de listados
+
+Los listados suelen responder con `{ "ok": true, … }` y el array del recurso (p. ej. skills en `instrucciones`, agentes en `agentes`). Si `ok` es `false`, mira `error`.
 
 ---
 
-## 5. Despliegue (humano)
+## 6b. Anclas — aliases, valores por negocio, sensible, PII
 
-```bash
-npm install
-npx wrangler login
-npx wrangler d1 create arquitectura-reservas
-# Pegar database_id real en wrangler.jsonc
-npm run db:migrate:remote
-npm run db:seed:remote
-npm run deploy
+### Aliases (unicidad)
+
+Cada ancla guarda `aliases: ["contacto.telefono", "telefono_local"]` (sinónimos del software).
+
+Reglas: un alias **no se repite** entre anclas; un alias **no puede coincidir** con el id/nombre de otra ancla. Teléfono canónico: `_negocio.telefono_` (alias `contacto.telefono`).
+
+```
+GET {API_BASE}/v1/anclas/resolve?q=contacto.telefono
+→ { "ok": true, "via": "alias", "canonical": "negocio.telefono", "ancla": "_negocio.telefono_", "campo": { … } }
+
+GET {API_BASE}/v1/anclas/resolve?q=negocio.telefono
+→ { "ok": true, "via": "canonical", "canonical": "negocio.telefono", … }
 ```
 
-Local:
+Si el mismo alias está en dos fichas → `409`.
 
-```bash
-npm run db:migrate:local
-npm run db:seed:local
-npm run dev   # http://127.0.0.1:8787
+### Observaciones por negocio (no en la ficha)
+
+La ficha del ancla es **definición** (tipo, formato, aliases, ejemplo genérico). `valorActual` / `observaciones` van por `negocio_id`:
+
+```
+POST {API_BASE}/v1/anclas/:id/observaciones
+Authorization: Bearer inv_…
+Content-Type: application/json
+
+{
+  "negocio_id": "pelo-sur",
+  "valor": "+34 699 111 222",
+  "url": "https://pelosur.es/contacto",
+  "skill_id": "descubrir-negocio",
+  "visto_en": "web"
+}
+→ guarda valor `+34699111222` (E.164) y puede devolver `e164Normalizado: true`
 ```
 
-Invite de semilla local: `inv_local_demo`.
+Si el valor no se puede normalizar a E.164 → `400`.
+
+```
+GET {API_BASE}/v1/anclas/:id/valores?negocio_id=pelo-sur
+GET {API_BASE}/v1/anclas/:id?negocio_id=pelo-sur
+```
+
+`POST|PUT /v1/anclas` **rechaza** `observaciones` / `valorActual` en el body (usa el endpoint de observaciones). En la ficha, `ejemplo` con formato E.164 también se normaliza.
+
+### E.164 (teléfono)
+
+Si `formato` declara `E.164` / `e164`, al guardar observación o `ejemplo` la API **normaliza** (`+34 699 111 222` → `+34699111222`) o **rechaza** con `400`. Aplica a valores por `negocio_id` (no hay `valorActual` en la ficha).
+
+### Sensible (máscara de ejemplo en la ficha)
+
+`"sensible": true` en la **definición** del ancla (o formato con `sensible`) enmascara `ejemplo` en listados públicos. Eso **no** es la clase del campo de formulario.
+
+### Clase de campo de formulario (X3)
+
+Cada elemento de `versiones.recorrido.campos` lleva `clase` ∈ `normal` | `texto_libre` | `identificador` | `sensible` | `consentimiento` (`_version.recorrido.campos.N.clase_`). Sustituye el sí/no `sensible` del formulario. **Sin** guardar el valor PII del cliente. No existe ancla `_cliente.tarjeta_sanitaria_`.
+
+En la proyección array, los booleanos salen como `true`/`false` reales (nunca `"false"` como texto).
+
+### PII en URLs (strict por defecto)
+
+Si el ancla parece URL (`formato` uri/url/`sin_pii`, o el id contiene `.url`), al persistir `ejemplo` / observación la API **rechaza** query PII (`nombre`, `tel`, `email`, …) con `400`. Opt-out: `"strict": false` (entonces redacta `[REDACTED]`). Ejemplo limpio: `https://book.pelosur.es/`.
+
+### Relación (sin anclas huérfanas)
+
+Todo hecho de un negocio (p. ej. Pelo Sur) entra como skill del proyecto; no persistir anclas sin skill/proyecto. Si solo hay URL↔negocio: `_proceso.url_inicio_` dentro de la skill de Punto A del mismo proyecto.
+
+### Reserva de prueba (X4)
+
+Cajón Mongo `reservas_prueba` en `/v1/mongo` (tipos `date` en `cuando` / `cancelada_en`; índices en `cuando` y `estado`):
+
+| Ancla | Mongo | Tipo |
+|-------|-------|------|
+| `_reserva_prueba.cuando_` | `reservas_prueba.cuando` | date / datetime |
+| `_reserva_prueba.estado_` | `reservas_prueba.estado` | string enum |
+| `_reserva_prueba.cancelada_en_` | `reservas_prueba.cancelada_en` | date / datetime |
+| `_reserva_prueba.nota_` | `reservas_prueba.nota` | string |
+
+### Lista canónica de campos (X1/X3) — `versiones.recorrido.campos`
+
+**Un solo sitio:** la lista de campos del formulario vive en la **versión del recorrido** (`versiones.recorrido.campos`). No existe `formularios.campos` ni plantillas `_campos.N_*` en `formularios`.
+
+Plantillas: `_version.recorrido.campos.N_` (lista), `_version.recorrido.campos.N.nombre_`, `_version.recorrido.campos.N.selector_`, `_version.recorrido.campos.N.clase_`.
+
+Campo Mongo: `"proyeccionMongo": "array"` + elemento con esas rutas. Helper:
+
+```
+POST {API_BASE}/v1/helpers/proyeccion-array
+Authorization: Bearer inv_…
+Content-Type: application/json
+
+{
+  "mongo_id": "versiones-recorrido-campos",
+  "valores": {
+    "version.recorrido.campos.0.nombre": "Nombre",
+    "version.recorrido.campos.0.selector": "#client-name",
+    "version.recorrido.campos.0.clase": "normal",
+    "version.recorrido.campos.1.nombre": "Teléfono",
+    "version.recorrido.campos.1.selector": "#client-phone",
+    "version.recorrido.campos.1.clase": "sensible",
+    "version.recorrido.campos.2.nombre": "Acepto la política",
+    "version.recorrido.campos.2.selector": "#privacy",
+    "version.recorrido.campos.2.clase": "consentimiento"
+  }
+}
+→ { "ok": true, "clave": "version.recorrido.campos", "array": [
+    { "nombre": "Nombre", "selector": "#client-name", "clase": "normal" },
+    …
+  ] }
+```
 
 ---
 
-## 6. Cliente de referencia (GitHub espejo, opcional)
+## 7. CORS / UI
 
-`scripts/subir.js` sigue escribiendo el espejo estático en GitHub Contents si tienes `GITHUB_TOKEN`. No sustituye D1. Preferir esta API para el estado vivo.
+Origen de producción del panel: `https://campos-ancla.web-legal-es.workers.dev`.  
+Los agentes hablan con la API por HTTP desde su runtime; no necesitan la UI salvo para leer este contrato.
 
 ---
 
-## 7. Fuera de alcance ahora
+## Apéndice — solo humanos (no agentes)
 
-Cola de comentarios / Metricool: no forma parte de este contrato.
+Desplegar Worker/UI: ver `CLOUDFLARE.md` en el repo.  
+Espejo estático opcional a GitHub (`scripts/subir.js`): **no** sustituye D1; los agentes no lo usan.  
+Cola Metricool / comentarios: fuera de alcance.

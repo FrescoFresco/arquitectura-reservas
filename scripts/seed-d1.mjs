@@ -13,7 +13,7 @@ import { spawnSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const remote = process.argv.includes('--remote');
 const flag = remote ? '--remote' : '--local';
-const dbName = 'arquitectura-reservas';
+const dbName = 'campos-ancla-db';
 
 function readJson(rel) {
   return JSON.parse(readFileSync(join(root, rel), 'utf8'));
@@ -66,8 +66,11 @@ async function main() {
 
   const anclasIdx = readJson('catalogo/campos-ancla/index.json');
   for (const c of anclasIdx.campos || []) {
+    const aliases = JSON.stringify(Array.isArray(c.aliases) ? c.aliases : []);
+    // N2: ficha = definición; valores/observaciones van en ancla_valores_negocio.
+    const sensible = c.sensible ? 1 : 0;
     stmts.push(
-      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.ancla)}', '${esc(c.etiqueta || '')}', '${esc(c.claveMongo || '')}', '${esc(c.coleccion || '')}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.tipo || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.formato || '')}', '${esc(c.descripcion || '')}', '${esc(c.ejemplo || '')}', '${esc(c.hash || '')}', '${now}', '${now}');`
+      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.ancla)}', '${esc(c.etiqueta || '')}', '${esc(c.claveMongo || '')}', '${esc(c.coleccion || '')}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.tipo || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.formato || '')}', '${esc(c.descripcion || '')}', '${esc(c.ejemplo || '')}', '${esc(c.hash || '')}', '${esc(aliases)}', '[]', '', ${sensible}, '${now}', '${now}');`
     );
     for (const sid of c.skills || []) {
       stmts.push(`INSERT OR IGNORE INTO ancla_skills (ancla_id, skill_id) VALUES ('${esc(c.id)}', '${esc(sid)}');`);
@@ -76,8 +79,11 @@ async function main() {
 
   const mongoIdx = readJson('catalogo/campos-mongodb/index.json');
   for (const c of mongoIdx.campos || []) {
+    const proyeccion = esc(c.proyeccionMongo || '');
+    const elemento = esc(JSON.stringify(c.proyeccionElemento || {}));
+    const indices = esc(JSON.stringify(Array.isArray(c.indices) ? c.indices : []));
     stmts.push(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.campo)}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.coleccion || '')}', '${esc(c.clave || '')}', '${esc(c.bsonType || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.descripcion || '')}', '${esc(c.ancla || '')}', '${esc(c.hash || '')}', '${now}', '${now}');`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.campo)}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.coleccion || '')}', '${esc(c.clave || '')}', '${esc(c.bsonType || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.descripcion || '')}', '${esc(c.ancla || '')}', '${esc(c.hash || '')}', '${proyeccion}', '${elemento}', '${indices}', '${now}', '${now}');`
     );
   }
 

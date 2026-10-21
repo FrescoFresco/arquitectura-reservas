@@ -3,6 +3,7 @@ node_modules/
 .dev.vars
 .seed-tmp.sql
 worker-configuration.d.ts
+dist-ui/
 *.log
 .DS_Store
 .playwright-mcp/

@@ -21,6 +21,26 @@
           "hash": "c17c81a1c86383495e0690f0ddd79f6fcfb42304df5ed5a2e03f155cebceb687"
         }
       ]
+    },
+    {
+      "id": "pelo-sur",
+      "nombre": "Pelo Sur",
+      "descripcion": "Salón ficticio — aliases, valores por negocio, clase sensible, reserva de prueba.",
+      "skills": [
+        "descubrir-negocio",
+        "mapear-recorrido",
+        "diagnosticar-alerta"
+      ],
+      "hash": "pelo-sur-proyecto-v1",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-21",
+          "ruta": "catalogo/proyectos/pelo-sur/v1.md",
+          "nombreArchivo": "v1.md",
+          "hash": "pelo-sur-proyecto-md-v1"
+        }
+      ]
     }
   ]
 }

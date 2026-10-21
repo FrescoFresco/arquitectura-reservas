@@ -1,5 +1,24 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+// Bundled via wrangler rules (Text) — same canonical contract as Documentación → API.
+import apiDocsMd from '../documentacion/api.md';
+import {
+  appendObservacion,
+  canonicalFromAncla,
+  defaultStrictPii,
+  findAliasConflicts,
+  looksLikeE164Ancla,
+  looksLikeUrlAncla,
+  maskSensitive,
+  normalizeAliasList,
+  normalizeE164,
+  normalizeObservaciones,
+  parseJsonArray,
+  parseJsonObject,
+  proyectarArrayN,
+  scrubPiiFromUrl,
+  type Observacion,
+} from './pelo-sur';
 
 export type Env = {
   DB: D1Database;
@@ -38,12 +57,19 @@ function extractClave(c: { req: { header: (n: string) => string | undefined } })
 }
 
 app.use('*', async (c, next) => {
-  const ui = c.env.PUBLIC_UI_ORIGIN || 'https://frescofresco.github.io';
+  const ui = c.env.PUBLIC_UI_ORIGIN || 'https://campos-ancla.web-legal-es.workers.dev';
   const extra = (c.env.CORS_ORIGINS || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const origins = new Set([ui, 'http://127.0.0.1:8787', 'http://localhost:8787', ...extra]);
+  // github.io solo durante el cutover; la UI primaria es Cloudflare (Workers Assets / Pages).
+  const origins = new Set([
+    ui,
+    'https://frescofresco.github.io',
+    'http://127.0.0.1:8787',
+    'http://localhost:8787',
+    ...extra,
+  ]);
   const mw = cors({
     origin: (origin) => (origin && origins.has(origin) ? origin : ui),
     allowHeaders: ['Content-Type', 'Authorization', 'X-Agente-Clave'],
@@ -52,7 +78,16 @@ app.use('*', async (c, next) => {
   return mw(c, next);
 });
 
-app.get('/health', (c) => c.json({ ok: true, service: 'arquitectura-reservas-api' }));
+app.get('/health', (c) => c.json({ ok: true, service: 'campos-ancla-api' }));
+
+/** Canonical agent contract (same markdown as UI Documentación → API). */
+app.get('/v1/docs', (c) =>
+  c.text(String(apiDocsMd), 200, {
+    'Content-Type': 'text/markdown; charset=utf-8',
+    'Cache-Control': 'public, max-age=60',
+  })
+);
+app.get('/docs', (c) => c.redirect('/v1/docs', 302));
 
 /** Public catalog reads — no auth. */
 app.get('/v1/skills', async (c) => {
@@ -78,18 +113,101 @@ app.get('/v1/skills/:id', async (c) => {
 });
 
 app.get('/v1/anclas', async (c) => {
+  const reveal = await mayRevealSensitive(c);
   const rows = await c.env.DB.prepare('SELECT * FROM anclas ORDER BY ancla').all();
   const out = [];
   for (const row of rows.results || []) {
-    out.push(await hydrateAncla(c.env.DB, row as Record<string, unknown>));
+    out.push(await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal }));
   }
   return c.json({ ok: true, id: 'campos-ancla', nombre: 'Campos ancla', campos: out });
+});
+
+/**
+ * Resolve alias or canonical name → ancla. Public.
+ * Canonical id wins over alias when both match (avoids alias=`negocio.telefono` colliding with id).
+ * Duplicate aliases across anclas → 409.
+ */
+app.get('/v1/anclas/resolve', async (c) => {
+  const q = String(c.req.query('q') || c.req.query('alias') || '')
+    .trim()
+    .replace(/^_+|_+$/g, '');
+  if (!q) return jsonError(c, 400, 'Falta q o alias.');
+  const reveal = await mayRevealSensitive(c);
+  const rows = await c.env.DB.prepare('SELECT * FROM anclas').all();
+  const needle = q.toLowerCase();
+  type Hit = { row: Record<string, unknown>; mapped: ReturnType<typeof mapAnclaRow> };
+  const aliasHits: Hit[] = [];
+  let idHit: Hit | null = null;
+  for (const row of rows.results || []) {
+    const mapped = mapAnclaRow(row as Record<string, unknown>);
+    const canon = canonicalFromAncla(mapped.ancla).toLowerCase();
+    const id = mapped.id.toLowerCase();
+    const aliases = mapped.aliases.map((a) => a.toLowerCase());
+    if (aliases.includes(needle)) {
+      aliasHits.push({ row: row as Record<string, unknown>, mapped });
+    }
+    if (!idHit && (canon === needle || id === needle)) {
+      idHit = { row: row as Record<string, unknown>, mapped };
+    }
+  }
+  if (aliasHits.length > 1) {
+    return jsonError(
+      c,
+      409,
+      'Alias ambiguo («' + q + '»): ' + aliasHits.map((h) => h.mapped.id).join(', ')
+    );
+  }
+  // Prefer canonical id match over alias (N4: alias must not collide with another name).
+  const hit = idHit || aliasHits[0] || null;
+  if (!hit) return jsonError(c, 404, 'Ningún ancla coincide con ese alias o canónico.');
+  const via = idHit ? 'canonical' : 'alias';
+  return c.json({
+    ok: true,
+    query: q,
+    via,
+    canonical: canonicalFromAncla(hit.mapped.ancla),
+    ancla: hit.mapped.ancla,
+    campo: await hydrateAncla(c.env.DB, hit.row, { reveal }),
+  });
 });
 
 app.get('/v1/anclas/:id', async (c) => {
   const row = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(c.req.param('id')).first();
   if (!row) return jsonError(c, 404, 'Ancla no encontrada.');
-  return c.json({ ok: true, campo: await hydrateAncla(c.env.DB, row as Record<string, unknown>) });
+  const reveal = await mayRevealSensitive(c);
+  const negocioId = String(c.req.query('negocio_id') || '').trim();
+  const campo = await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal });
+  if (negocioId) {
+    const valores = await loadValoresNegocio(c.env.DB, negocioId, String(row.id), {
+      mask: !!campo.sensible && !reveal,
+    });
+    return c.json({
+      ok: true,
+      campo: { ...campo, ...valores, negocio_id: negocioId },
+    });
+  }
+  return c.json({ ok: true, campo });
+});
+
+/** Valores / historial por negocio (N2). Definición del ancla no guarda valorActual. */
+app.get('/v1/anclas/:id/valores', async (c) => {
+  const id = c.req.param('id');
+  const negocioId = String(c.req.query('negocio_id') || '').trim();
+  if (!negocioId) return jsonError(c, 400, 'Falta negocio_id.');
+  const row = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'Ancla no encontrada.');
+  const mapped = mapAnclaRow(row as Record<string, unknown>);
+  const reveal = await mayRevealSensitive(c);
+  const valores = await loadValoresNegocio(c.env.DB, negocioId, id, {
+    mask: mapped.sensible && !reveal,
+  });
+  return c.json({
+    ok: true,
+    negocio_id: negocioId,
+    ancla_id: id,
+    ancla: mapped.ancla,
+    ...valores,
+  });
 });
 
 app.get('/v1/mongo', async (c) => {
@@ -396,13 +514,14 @@ app.delete('/v1/skills/:id', async (c) => {
 
 app.post('/v1/anclas', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-  const campo = normalizeAnclaBody(body);
-  if (!campo) return jsonError(c, 400, 'ancla/id inválidos.');
+  const prepared = await prepareAnclaPersistAsync(c.env.DB, body);
+  if ('error' in prepared) return jsonError(c, 400, prepared.error);
+  const campo = prepared.campo;
   const ts = nowIso();
   try {
     await c.env.DB.prepare(
-      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         campo.id,
@@ -417,6 +536,10 @@ app.post('/v1/anclas', async (c) => {
         campo.descripcion,
         campo.ejemplo,
         campo.hash,
+        JSON.stringify(campo.aliases),
+        '[]',
+        '',
+        campo.sensible ? 1 : 0,
         ts,
         ts
       )
@@ -425,7 +548,15 @@ app.post('/v1/anclas', async (c) => {
     return jsonError(c, 409, 'Ya existe ese ancla.');
   }
   await replaceAnclaSkills(c.env.DB, campo.id, campo.skills);
-  return c.json({ ok: true, campo: await hydrateAncla(c.env.DB, { ...campo, obligatorio: campo.obligatorio ? 1 : 0 }) }, 201);
+  const row = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(campo.id).first();
+  return c.json(
+    {
+      ok: true,
+      piiRedactado: prepared.piiRedactado || undefined,
+      campo: await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal: true }),
+    },
+    201
+  );
 });
 
 app.put('/v1/anclas/:id', async (c) => {
@@ -433,12 +564,15 @@ app.put('/v1/anclas/:id', async (c) => {
   const prev = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
   if (!prev) return jsonError(c, 404, 'Ancla no encontrada.');
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-  const merged = normalizeAnclaBody({ ...mapAnclaRow(prev as Record<string, unknown>), ...body, id });
-  if (!merged) return jsonError(c, 400, 'Datos inválidos.');
+  const prevMapped = mapAnclaRow(prev as Record<string, unknown>);
+  const prepared = await prepareAnclaPersistAsync(c.env.DB, { ...prevMapped, ...body, id }, id);
+  if ('error' in prepared) return jsonError(c, 400, prepared.error);
+  const merged = prepared.campo;
   const ts = nowIso();
   await c.env.DB.prepare(
     `UPDATE anclas SET ancla = ?, etiqueta = ?, clave_mongo = ?, coleccion = ?, base_datos = ?, tipo = ?,
-     obligatorio = ?, formato = ?, descripcion = ?, ejemplo = ?, hash = ?, updated_at = ? WHERE id = ?`
+     obligatorio = ?, formato = ?, descripcion = ?, ejemplo = ?, hash = ?, aliases = ?, observaciones = ?,
+     valor_actual = ?, sensible = ?, updated_at = ? WHERE id = ?`
   )
     .bind(
       merged.ancla,
@@ -452,18 +586,108 @@ app.put('/v1/anclas/:id', async (c) => {
       merged.descripcion,
       merged.ejemplo,
       merged.hash,
+      JSON.stringify(merged.aliases),
+      '[]',
+      '',
+      merged.sensible ? 1 : 0,
       ts,
       id
     )
     .run();
   if (body.skills) await replaceAnclaSkills(c.env.DB, id, merged.skills);
-  return c.json({ ok: true, campo: await hydrateAncla(c.env.DB, { id, ...merged, obligatorio: merged.obligatorio ? 1 : 0 }) });
+  const row = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
+  return c.json({
+    ok: true,
+    piiRedactado: prepared.piiRedactado || undefined,
+    campo: await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal: true }),
+  });
+});
+
+/**
+ * Append observación por negocio (N2). No se escribe en la ficha global del ancla.
+ * Body: { negocio_id, valor, url?, … }. URL/sin_pii: strict por defecto.
+ */
+app.post('/v1/anclas/:id/observaciones', async (c) => {
+  const id = c.req.param('id');
+  const prev = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
+  if (!prev) return jsonError(c, 404, 'Ancla no encontrada.');
+  const mapped = mapAnclaRow(prev as Record<string, unknown>);
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const negocioId = String(body.negocio_id || body.negocioId || '').trim();
+  if (!negocioId) return jsonError(c, 400, 'Falta negocio_id (los valores van por negocio, no en la ficha ancla).');
+  const strictExplicit = body.strict === true || body.strict_pii === true;
+  const strictOff = body.strict === false || body.strict_pii === false;
+  const strict = strictExplicit || (!strictOff && defaultStrictPii(mapped));
+  const prevValores = await loadValoresNegocio(c.env.DB, negocioId, id);
+  const result = appendObservacion(prevValores.observaciones, body, {
+    scrubUrlValue: looksLikeUrlAncla(mapped),
+    strictPii: strict,
+    normalizeE164: looksLikeE164Ancla(mapped),
+  });
+  if (result.e164Error) return jsonError(c, 400, result.e164Error);
+  if (result.piiError) return jsonError(c, 400, result.piiError);
+  const ts = nowIso();
+  await c.env.DB.prepare(
+    `INSERT INTO ancla_valores_negocio (negocio_id, ancla_id, observaciones, valor_actual, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(negocio_id, ancla_id) DO UPDATE SET
+       observaciones = excluded.observaciones,
+       valor_actual = excluded.valor_actual,
+       updated_at = excluded.updated_at`
+  )
+    .bind(negocioId, id, JSON.stringify(result.observaciones), result.valorActual, ts)
+    .run();
+  const valores = await loadValoresNegocio(c.env.DB, negocioId, id);
+  return c.json({
+    ok: true,
+    piiRedactado: result.piiRedactado || undefined,
+    e164Normalizado: result.e164Normalizado || undefined,
+    negocio_id: negocioId,
+    ancla_id: id,
+    ...valores,
+    campo: {
+      ...(await hydrateAncla(c.env.DB, prev as Record<string, unknown>, { reveal: true })),
+      ...valores,
+      negocio_id: negocioId,
+    },
+  });
 });
 
 app.delete('/v1/anclas/:id', async (c) => {
   const id = c.req.param('id');
   await c.env.DB.prepare('DELETE FROM anclas WHERE id = ?').bind(id).run();
   return c.json({ ok: true, deleted: id });
+});
+
+/** Helper: flat campos.N.* → array BSON projection. */
+app.post('/v1/helpers/proyeccion-array', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    ruta_ancla?: string;
+    elemento?: Record<string, string>;
+    valores?: Record<string, string>;
+    mongo_id?: string;
+  };
+  let ruta = body.ruta_ancla;
+  let elemento = body.elemento;
+  if (body.mongo_id) {
+    const mongo = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE id = ?')
+      .bind(body.mongo_id)
+      .first();
+    if (!mongo) return jsonError(c, 404, 'Campo Mongo no encontrado.');
+    const m = mapMongo(mongo as Record<string, unknown>);
+    if (m.proyeccionMongo === 'array') {
+      if (!ruta && m.ancla) {
+        const canon = canonicalFromAncla(m.ancla);
+        // `_version.recorrido.campos.N_` → `version.recorrido.campos.N` (no añadir otro `.N`)
+        ruta = /\.N\b/.test(canon) ? canon.replace(/\.\d+\b/g, '.N') : canon.replace(/\.\d+.*$/, '') + '.N';
+      }
+      ruta = ruta || 'version.recorrido.campos.N';
+      if (!elemento && Object.keys(m.proyeccionElemento).length) elemento = m.proyeccionElemento;
+    }
+  }
+  const out = proyectarArrayN({ ruta_ancla: ruta, elemento, valores: body.valores || {} });
+  if (!out.ok) return jsonError(c, 400, out.error);
+  return c.json({ ok: true, clave: out.clave, [out.clave]: out.array, array: out.array });
 });
 
 app.post('/v1/mongo', async (c) => {
@@ -473,8 +697,8 @@ app.post('/v1/mongo', async (c) => {
   const ts = nowIso();
   try {
     await c.env.DB.prepare(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         campo.id,
@@ -487,6 +711,9 @@ app.post('/v1/mongo', async (c) => {
         campo.descripcion,
         campo.ancla,
         campo.hash,
+        campo.proyeccionMongo,
+        JSON.stringify(campo.proyeccionElemento),
+        JSON.stringify(campo.indices || []),
         ts,
         ts
       )
@@ -507,7 +734,7 @@ app.put('/v1/mongo/:id', async (c) => {
   const ts = nowIso();
   await c.env.DB.prepare(
     `UPDATE campos_mongo SET campo = ?, base_datos = ?, coleccion = ?, clave = ?, bson_type = ?,
-     obligatorio = ?, descripcion = ?, ancla = ?, hash = ?, updated_at = ? WHERE id = ?`
+     obligatorio = ?, descripcion = ?, ancla = ?, hash = ?, proyeccion_mongo = ?, proyeccion_elemento = ?, indices = ?, updated_at = ? WHERE id = ?`
   )
     .bind(
       merged.campo,
@@ -519,6 +746,9 @@ app.put('/v1/mongo/:id', async (c) => {
       merged.descripcion,
       merged.ancla,
       merged.hash,
+      merged.proyeccionMongo,
+      JSON.stringify(merged.proyeccionElemento),
+      JSON.stringify(merged.indices || []),
       ts,
       id
     )
@@ -804,16 +1034,68 @@ async function hydrateSkill(db: D1Database, row: Record<string, unknown>) {
   };
 }
 
-async function hydrateAncla(db: D1Database, row: Record<string, unknown>) {
+async function mayRevealSensitive(c: {
+  req: { method: string; header: (n: string) => string | undefined; query: (n: string) => string | undefined };
+  env: Env;
+}): Promise<boolean> {
+  if (String(c.req.query('reveal') || '') !== '1') return false;
+  const clave = extractClave(c);
+  if (!clave) return false;
+  const inv = await c.env.DB.prepare('SELECT clave, revocada FROM invites WHERE clave = ?')
+    .bind(clave)
+    .first<{ clave: string; revocada: number }>();
+  return !!(inv && !inv.revocada);
+}
+
+async function hydrateAncla(
+  db: D1Database,
+  row: Record<string, unknown>,
+  opts?: { reveal?: boolean }
+) {
   const id = String(row.id);
   const skills = await db.prepare('SELECT skill_id FROM ancla_skills WHERE ancla_id = ?').bind(id).all();
+  const mapped = mapAnclaRow(row);
+  const reveal = !!opts?.reveal;
+  let ejemplo = mapped.ejemplo;
+  if (mapped.sensible && !reveal) {
+    ejemplo = ejemplo ? maskSensitive(ejemplo) : '';
+  }
+  // N2: definición = sin valorActual/observaciones (van por negocio_id).
   return {
-    ...mapAnclaRow(row),
+    ...mapped,
+    ejemplo,
+    valorActual: '',
+    observaciones: [] as Observacion[],
     skills: (skills.results || []).map((r) => (r as { skill_id: string }).skill_id),
   };
 }
 
+async function loadValoresNegocio(
+  db: D1Database,
+  negocioId: string,
+  anclaId: string,
+  opts?: { mask?: boolean }
+): Promise<{ valorActual: string; observaciones: Observacion[] }> {
+  const row = await db
+    .prepare(
+      'SELECT observaciones, valor_actual FROM ancla_valores_negocio WHERE negocio_id = ? AND ancla_id = ?'
+    )
+    .bind(negocioId, anclaId)
+    .first<{ observaciones: string; valor_actual: string }>();
+  const observaciones = normalizeObservaciones(row?.observaciones);
+  let valorActual =
+    String(row?.valor_actual || '').trim() ||
+    (observaciones.length ? observaciones[observaciones.length - 1].valor : '');
+  let obs = observaciones;
+  if (opts?.mask) {
+    valorActual = valorActual ? maskSensitive(valorActual) : '';
+    obs = observaciones.map((o) => ({ ...o, valor: maskSensitive(o.valor) }));
+  }
+  return { valorActual, observaciones: obs };
+}
+
 function mapAnclaRow(row: Record<string, unknown>) {
+  const aliases = normalizeAliasList(row.aliases ?? row.alias);
   return {
     id: String(row.id),
     ancla: String(row.ancla || ''),
@@ -827,6 +1109,11 @@ function mapAnclaRow(row: Record<string, unknown>) {
     descripcion: String(row.descripcion || ''),
     ejemplo: String(row.ejemplo || ''),
     hash: String(row.hash || ''),
+    aliases,
+    // N2: ficha = definición. Valores por negocio en ancla_valores_negocio.
+    observaciones: [] as Observacion[],
+    valorActual: '',
+    sensible: !!(row.sensible === 1 || row.sensible === true || row.sensible === '1'),
   };
 }
 
@@ -842,6 +1129,9 @@ function mapMongo(row: Record<string, unknown>) {
     descripcion: String(row.descripcion || ''),
     ancla: String(row.ancla || ''),
     hash: String(row.hash || ''),
+    proyeccionMongo: String(row.proyeccion_mongo ?? row.proyeccionMongo ?? '').trim(),
+    proyeccionElemento: parseJsonObject(row.proyeccion_elemento ?? row.proyeccionElemento),
+    indices: parseJsonArray(row.indices),
   };
 }
 
@@ -903,6 +1193,17 @@ function normalizeAnclaBody(body: Record<string, unknown>) {
   if (!id) id = ancla.replace(/^_|_$/g, '');
   if (!id) return null;
   const skills = Array.isArray(body.skills) ? body.skills.map(String).filter(Boolean) : [];
+  const aliases = normalizeAliasList(body.aliases ?? body.alias);
+  const formato = String(body.formato || '').trim();
+  // `sensible` en formato = máscara de ficha (flags tipo "uri, sensible").
+  // No aplicar si el cuerpo dice sensible:false, ni dentro de enum:…|sensible|…
+  const explicitOff =
+    body.sensible === false || body.sensible === 0 || body.sensible === '0';
+  const explicitOn =
+    body.sensible === true || body.sensible === 1 || body.sensible === '1';
+  const formatoMarcaSensible =
+    !/^enum:/i.test(formato) && /(^|[,;\s])sensible([,;\s]|$)/i.test(formato);
+  const sensible = explicitOff ? false : explicitOn || formatoMarcaSensible;
   return {
     id,
     ancla,
@@ -912,12 +1213,77 @@ function normalizeAnclaBody(body: Record<string, unknown>) {
     baseDatos: String(body.baseDatos || body.base_datos || 'arquitectura_reservas').trim(),
     tipo: String(body.tipo || 'string').trim(),
     obligatorio: !!(body.obligatorio === true || body.obligatorio === 1 || body.obligatorio === '1'),
-    formato: String(body.formato || '').trim(),
+    formato,
     descripcion: String(body.descripcion || '').trim(),
     ejemplo: String(body.ejemplo || '').trim(),
     skills,
     hash: String(body.hash || ''),
+    aliases,
+    // N2: nunca en la ficha; usar POST …/observaciones con negocio_id.
+    observaciones: [] as Observacion[],
+    valorActual: '',
+    sensible,
   };
+}
+
+async function prepareAnclaPersistAsync(
+  db: D1Database,
+  body: Record<string, unknown>,
+  selfId?: string
+): Promise<
+  | { campo: NonNullable<ReturnType<typeof normalizeAnclaBody>>; piiRedactado?: boolean }
+  | { error: string }
+> {
+  const campo = normalizeAnclaBody(body);
+  if (!campo) return { error: 'ancla/id inválidos.' };
+  const hasObs =
+    (Array.isArray(body.observaciones) && body.observaciones.length > 0) ||
+    (typeof body.observaciones === 'string' && body.observaciones.trim() && body.observaciones.trim() !== '[]');
+  const hasValor =
+    (typeof body.valorActual === 'string' && body.valorActual.trim()) ||
+    (typeof body.valor_actual === 'string' && body.valor_actual.trim());
+  if (hasObs || hasValor) {
+    return {
+      error:
+        'valorActual/observaciones no van en la ficha ancla; usa POST /v1/anclas/:id/observaciones con negocio_id.',
+    };
+  }
+  const rows = await db.prepare('SELECT id, ancla, aliases FROM anclas').all();
+  const catalog = (rows.results || []).map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      ancla: String(row.ancla || ''),
+      aliases: normalizeAliasList(row.aliases),
+    };
+  });
+  const conflict = findAliasConflicts({
+    selfId: selfId || campo.id,
+    aliases: campo.aliases,
+    catalog,
+  });
+  if (conflict) return { error: conflict };
+
+  const strictExplicit = body.strict === true || body.strict_pii === true;
+  const strictOff = body.strict === false || body.strict_pii === false;
+  const strict = strictExplicit || (!strictOff && defaultStrictPii(campo));
+  let piiRedactado = false;
+  if (looksLikeUrlAncla(campo) && campo.ejemplo) {
+    const scrubbed = scrubPiiFromUrl(campo.ejemplo, { strict });
+    if (strict && scrubbed.rejectedKeys.length) {
+      return { error: 'ejemplo URL con PII en query: ' + scrubbed.rejectedKeys.join(', ') };
+    }
+    if (scrubbed.redacted) {
+      campo.ejemplo = scrubbed.url;
+      piiRedactado = true;
+    }
+  }
+  if (looksLikeE164Ancla(campo) && campo.ejemplo) {
+    const phone = normalizeE164(campo.ejemplo);
+    if (!phone.ok) return { error: phone.error };
+    campo.ejemplo = phone.value;
+  }
+  return { campo, piiRedactado };
 }
 
 function normalizeMongoBody(body: Record<string, unknown>) {
@@ -930,16 +1296,33 @@ function normalizeMongoBody(body: Record<string, unknown>) {
   let ancla = String(body.ancla || '').trim();
   if (ancla && ancla[0] !== '_') ancla = '_' + ancla;
   if (ancla && ancla[ancla.length - 1] !== '_') ancla = ancla + '_';
+  const proyeccionMongo = String(body.proyeccionMongo || body.proyeccion_mongo || '').trim();
+  let proyeccionElemento = parseJsonObject(body.proyeccionElemento ?? body.proyeccion_elemento);
+  if (typeof body.proyeccion_elemento === 'string' && body.proyeccion_elemento.trim().startsWith('{')) {
+    proyeccionElemento = parseJsonObject(body.proyeccion_elemento);
+  }
+  if (proyeccionMongo === 'array' && !Object.keys(proyeccionElemento).length && ancla) {
+    const base = canonicalFromAncla(ancla).replace(/\.N$/, '');
+    proyeccionElemento = {
+      nombre: base + '.N.nombre',
+      selector: base + '.N.selector',
+      clase: base + '.N.clase',
+    };
+  }
+  const indices = parseJsonArray(body.indices);
   return {
     id,
     campo,
     baseDatos: String(body.baseDatos || body.base_datos || 'arquitectura_reservas').trim(),
     coleccion: coleccion || campo.split('.')[0],
     clave: clave || campo.split('.').slice(1).join('.'),
-    bsonType: String(body.bsonType || body.bson_type || 'string').trim(),
+    bsonType: String(body.bsonType || body.bson_type || (proyeccionMongo === 'array' ? 'array' : 'string')).trim(),
     obligatorio: !!(body.obligatorio === true || body.obligatorio === 1 || body.obligatorio === '1'),
     descripcion: String(body.descripcion || '').trim(),
     ancla,
     hash: String(body.hash || ''),
+    proyeccionMongo,
+    proyeccionElemento,
+    indices,
   };
 }
