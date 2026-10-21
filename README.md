@@ -2,7 +2,7 @@
 
 ## API viva (Cloudflare Worker + D1)
 
-La fuente de verdad para agentes es el Worker **`arquitectura-reservas-api`** con D1 **`arquitectura-reservas`**. Guía: [`CLOUDFLARE.md`](./CLOUDFLARE.md). Contrato: [`documentacion/api.md`](./documentacion/api.md).
+La fuente de verdad para agentes es el Worker **`campos-ancla-api`** con D1 **`campos-ancla-db`**: `https://campos-ancla-api.web-legal-es.workers.dev`. Guía: [`CLOUDFLARE.md`](./CLOUDFLARE.md). Contrato: [`documentacion/api.md`](./documentacion/api.md).
 
 ```bash
 npm install
@@ -12,7 +12,7 @@ npm run dev
 
 Despliegue: `npx wrangler login` → crear D1 → pegar `database_id` en `wrangler.jsonc` → `npm run db:migrate:remote && npm run db:seed:remote && npm run deploy`.
 
-Los JSON en `catalogo/` siguen como semilla/espejo para GitHub Pages; si la API está offline, la UI hace fallback a ellos.
+Los JSON en `catalogo/` son semilla/fallback para la UI estática. **Agentes:** Catálogos → Agentes → **+ Agente** crea una clave `inv_…` en D1 (sin caducidad). Registro y latido van solo a la API Worker. **No hace falta `GITHUB_TOKEN`.**
 
 ## Arquitectura nueva: `reservas-v3/`
 
@@ -24,12 +24,13 @@ Lo que sigue describe la página publicada en la raíz, que no cambia.
 
 Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualquier persona con acceso de escritura al repositorio puede clonarlo, editar `index.html` y publicar los cambios con un push a `main`.
 
-## Sitio publicado
+## Sitio publicado (producción = Cloudflare)
 
-- **GitHub Pages:** https://frescofresco.github.io/arquitectura-reservas/
-- **Repositorio:** https://github.com/FrescoFresco/arquitectura-reservas
+- **Panel UI:** https://campos-ancla.web-legal-es.workers.dev/
+- **API Worker:** https://campos-ancla-api.web-legal-es.workers.dev
+- **Repositorio (código):** https://github.com/FrescoFresco/arquitectura-reservas
 
-El sitio se sirve desde la rama `main`, carpeta raíz (`/`). Tras un push a `main`, Pages se actualiza solo (suele tardar uno o dos minutos).
+Despliegue UI: `npm run deploy:ui`. Despliegue API: `npm run deploy`. GitHub Pages (`frescofresco.github.io`) queda solo como legado durante el cutover; no es el host de producción.
 
 El menú principal tiene dos destinos: **Catálogos** y **Documentación**. En escritorio es una barra lateral izquierda; en pantalla estrecha queda fija abajo. Dentro de Catálogos hay tres pestañas: **Skills**, **Campos ancla** y **Campos MongoDB**. Dentro de Documentación hay una pestaña, **API**.
 
@@ -39,15 +40,9 @@ El índice de Campos ancla está en [`catalogo/campos-ancla/index.json`](./catal
 
 Los archivos del mapa pueden seguir en [`mapa/`](./mapa/), pero la página ya no tiene hub ni editor del mapa.
 
-Para publicar una skill o esos catálogos, un agente usa la API de contenidos de GitHub. El token se obtiene con **Generar token**, en Documentación → Conectar un agente. Dura 1 hora y no se guarda en la página. El contrato está en Documentación → API. El cliente de referencia es [`scripts/subir.js`](./scripts/subir.js):
+Los agentes trabajan contra la API Worker (`documentacion/api.md`): invite → registro → latido → CRUD con `Authorization: Bearer inv_…`. No usan GitHub Contents ni token de GitHub.
 
-```bash
-GITHUB_TOKEN=… node scripts/subir.js skills --nueva --nombre "Mapear recorrido" --archivo ./mapear-recorrido.md
-GITHUB_TOKEN=… node scripts/subir.js skills --id mapear-recorrido --archivo ./mapear-recorrido.md
-GITHUB_TOKEN=… node scripts/subir.js skills --eliminar --id mapear-recorrido
-```
-
-`--ensayo` no llama a GitHub. En el navegador, **+ Añadir skill**, **Editar**, **Subir versión** y **+ Añadir ancla** siguen guardándose solo en ese navegador.
+Opcional (solo espejo estático del repo, no el estado vivo): [`scripts/subir.js`](./scripts/subir.js) con `GITHUB_TOKEN` en el entorno. En el navegador, **+ Añadir skill** / ancla siguen pudiendo guardar overlay local encima del seed.
 
 Ejemplo de skill en el índice:
 
@@ -84,9 +79,13 @@ git commit -m "Actualiza arquitectura de reservas"
 git push origin main
 ```
 
-4. Esperar a que GitHub Pages reconstruya. Recarga https://frescofresco.github.io/arquitectura-reservas/ (si no ves el cambio, prueba recarga forzada).
+4. Publicar el panel en Cloudflare:
 
-No hace falta configurar nada extra: con push a `main`, Pages se actualiza solo.
+```bash
+npm run deploy:ui
+```
+
+Recarga https://campos-ancla.web-legal-es.workers.dev/ (recarga forzada si hace falta).
 
 ## Dar acceso a otra persona
 

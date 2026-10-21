@@ -13,7 +13,7 @@ import { spawnSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const remote = process.argv.includes('--remote');
 const flag = remote ? '--remote' : '--local';
-const dbName = 'arquitectura-reservas';
+const dbName = 'campos-ancla-db';
 
 function readJson(rel) {
   return JSON.parse(readFileSync(join(root, rel), 'utf8'));

@@ -21,6 +21,7 @@ const LS_AGENTES = 'arquitectura-reservas.catalogo.agentes';
 const LS_FUNDAMENTOS = 'arquitectura-reservas.catalogo.fundamentos';
 const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const AGENTE_LATIDO_MS = 120000;
+const AGENTE_POLL_MS = 4000;
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function esHashHex(h) {
@@ -123,7 +124,10 @@ const state = {
     remotos: [],
     lista: [],
     abiertoId: null,
-    inviteActual: null
+    inviteActual: null,
+    lastSyncAt: null,
+    pollTimer: null,
+    pollInflight: false
   },
   fundamentos: {
     ready: false,
@@ -1917,7 +1921,7 @@ function eliminarProyecto(id) {
   pintarProyectos();
 }
 
-function eliminarAgente(id) {
+function eliminarAgenteLocal(id) {
   const store = leerAgentesStore();
   store.agentes = (store.agentes || []).filter(function (a) { return !(a && a.id === id); });
   if ((store.eliminados || []).indexOf(id) < 0) {
@@ -1931,6 +1935,24 @@ function eliminarAgente(id) {
   }
   refrescarAgentes();
   pintarAgentes();
+  sincronizarAgentesSilencioso();
+}
+
+function eliminarAgente(id) {
+  const ag = state.agentes.lista.find(function (a) { return a.id === id; });
+  const clave = (ag && ag.inviteUsada) || state.agentes.inviteActual || '';
+  const finish = function () { eliminarAgenteLocal(id); };
+  if (!clave) {
+    finish();
+    return;
+  }
+  apiFetch('/v1/agentes/' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + clave }
+  }).then(finish).catch(function () {
+    // Si la API falla, al menos se oculta en este navegador.
+    finish();
+  });
 }
 
 function eliminarFundamento(id) {
@@ -2303,12 +2325,15 @@ function seleccionarCatalogo(id) {
   if (id === 'agentes') {
     refrescarAgentes();
     pintarAgentes();
+    arrancarPollAgentes();
+  } else {
+    detenerPollAgentes();
   }
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
 }
 
-function seleccionarDoc(id) {
+function seleccionarDoc(id, opts) {
   const existe = DOCUMENTOS.some(function (doc) { return doc.id === id; });
   if (!existe) return;
   state.docId = id;
@@ -2318,8 +2343,21 @@ function seleccionarDoc(id) {
     pintarFundamentos();
   }
   if (id === 'api') cargarDocumentoApi();
+  if (!(opts && opts.skipHash) && typeof history !== 'undefined' && history.replaceState) {
+    const next = '#documentacion/' + id;
+    if (location.hash !== next) history.replaceState(null, '', next);
+  }
   const tab = document.getElementById('tab-' + id);
-  if (tab) tab.focus();
+  if (tab && !(opts && opts.skipFocus)) tab.focus();
+}
+
+function aplicarHashDocumentacion() {
+  const h = (location.hash || '').replace(/^#/, '');
+  if (h !== 'documentacion' && h.indexOf('documentacion/') !== 0) return;
+  const parts = h.split('/');
+  const docId = parts[1] || 'api';
+  if (typeof window.abrirDestino === 'function') window.abrirDestino('documentacion');
+  seleccionarDoc(docId, { skipHash: true, skipFocus: true });
 }
 
 function teclasPestana(e, selector, actual, elegir) {
@@ -4125,9 +4163,26 @@ function onSubmitEditarAgente(e) {
     if (actual.descripcion) entrada.descripcion = actual.descripcion;
     guardarAgentesLocal(store);
     document.getElementById('dlgEditarAgente').close();
-    refrescarAgentes();
-    pintarAgentes();
-    if (state.agentes.abiertoId === id) renderAgenteReader();
+    const clave = (actual.inviteUsada || state.agentes.inviteActual || '').trim();
+    const afterLocal = function () {
+      sincronizarAgentesSilencioso().then(function () {
+        if (state.agentes.abiertoId === id) renderAgenteReader();
+      });
+    };
+    if (clave) {
+      apiFetch('/v1/agentes/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + clave
+        },
+        body: JSON.stringify({ nombre: nombre, foto: foto })
+      }).then(afterLocal).catch(afterLocal);
+    } else {
+      refrescarAgentes();
+      pintarAgentes();
+      if (state.agentes.abiertoId === id) renderAgenteReader();
+    }
   } catch (err) {
     if (error) error.textContent = err.message;
   }
@@ -4245,6 +4300,67 @@ function refrescarAgentes() {
   state.agentes.lista = mergeAgentes(state.agentes.remotos, store.agentes, store.eliminados);
 }
 
+function textoAgentesActualizado() {
+  const t = state.agentes.lastSyncAt;
+  if (!t) return '';
+  const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (s < 6) return 'Actualizado ahora';
+  if (s < 60) return 'Actualizado hace ' + s + ' s';
+  const m = Math.floor(s / 60);
+  return 'Actualizado hace ' + m + ' min';
+}
+
+function agentesCatalogoVisible() {
+  if (state.catalogoId !== 'agentes') return false;
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+  const cat = document.getElementById('catalogos');
+  if (cat && cat.hidden) return false;
+  return true;
+}
+
+function detenerPollAgentes() {
+  if (state.agentes.pollTimer) {
+    clearInterval(state.agentes.pollTimer);
+    state.agentes.pollTimer = null;
+  }
+}
+
+/** Silent in-place refresh from GET /v1/agentes — no loading spinner. */
+function sincronizarAgentesSilencioso() {
+  if (state.agentes.pollInflight) return Promise.resolve(state.agentes.lista);
+  state.agentes.pollInflight = true;
+  return apiFetch('/v1/agentes')
+    .then(function (data) {
+      state.agentes.remotos = normalizeAgentesIndice(data);
+      state.agentes.indexError = false;
+      state.agentes.fuente = 'api';
+    })
+    .catch(function () {
+      /* Keep last known list; still recompute En línea from lastSeen. */
+    })
+    .then(function () {
+      state.agentes.pollInflight = false;
+      state.agentes.lastSyncAt = Date.now();
+      refrescarAgentes();
+      if (state.agentes.abiertoId) renderAgenteReader();
+      pintarAgentes();
+      return state.agentes.lista;
+    });
+}
+
+function arrancarPollAgentes() {
+  detenerPollAgentes();
+  if (!agentesCatalogoVisible()) return;
+  sincronizarAgentesSilencioso();
+  state.agentes.pollTimer = setInterval(function () {
+    if (!agentesCatalogoVisible()) {
+      detenerPollAgentes();
+      return;
+    }
+    sincronizarAgentesSilencioso();
+  }, AGENTE_POLL_MS);
+}
+
 function agentesBridge() {
   return {
     getSnapshot: function () {
@@ -4255,7 +4371,8 @@ function agentesBridge() {
         ready: state.agentes.ready,
         indexError: state.agentes.indexError,
         agentes: state.agentes.lista,
-        abierta: abierta ? { id: abierta.id } : null
+        abierta: abierta ? { id: abierta.id } : null,
+        syncLabel: textoAgentesActualizado()
       };
     },
     darAcceso: function () { abrirDialogoDarAcceso(); },
@@ -4284,44 +4401,72 @@ function apiBaseUrl() {
     const ls = localStorage.getItem('API_BASE') || localStorage.getItem('ARQ_API_BASE');
     if (ls) return String(ls).replace(/\/$/, '');
   } catch (e) {}
-  return 'http://127.0.0.1:8787';
+  if (typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || '')) {
+    return 'http://127.0.0.1:8787';
+  }
+  return 'https://campos-ancla-api.web-legal-es.workers.dev';
+}
+
+function apiFetch(path, opts) {
+  const base = apiBaseUrl();
+  const init = Object.assign({ cache: 'no-store' }, opts || {});
+  init.headers = Object.assign({ Accept: 'application/json' }, init.headers || {});
+  return fetch(base + path, init).then(function (res) {
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (!res.ok || (data && data.ok === false)) {
+        const err = new Error((data && data.error) || ('API HTTP ' + res.status));
+        err.status = res.status;
+        err.data = data;
+        throw err;
+      }
+      return data;
+    });
+  });
+}
+
+const UI_PROD_BASE = 'https://campos-ancla.web-legal-es.workers.dev/';
+const API_PROD_BASE = 'https://campos-ancla-api.web-legal-es.workers.dev';
+
+function urlsProdParaInvite() {
+  const onLocalHost =
+    typeof location !== 'undefined' &&
+    /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || '');
+  const base = onLocalHost
+    ? UI_PROD_BASE
+    : typeof location !== 'undefined' && location.origin
+      ? location.origin.replace(/\/$/, '') + '/'
+      : UI_PROD_BASE;
+  const apiBase = onLocalHost ? API_PROD_BASE : apiBaseUrl();
+  return { base: base, apiBase: apiBase };
 }
 
 function textoInstruccionesInvite(clave) {
-  const base = (typeof location !== 'undefined' && location.origin)
-    ? location.origin + (location.pathname.replace(/\/[^/]*$/, '/') || '/')
-    : 'https://frescofresco.github.io/arquitectura-reservas/';
-  const apiBase = apiBaseUrl();
-  const apiDoc = base + 'documentacion/api.md';
-  const apiUi = base + '#documentacion';
+  // Invite = acceso + apuntar al contrato. Todo el detalle vive en Documentación → API.
+  const urls = urlsProdParaInvite();
+  const apiDoc = urls.base + 'documentacion/api.md';
+  const apiUi = urls.base + '#documentacion/api';
+  const apiDocsEndpoint = urls.apiBase + '/v1/docs';
   return [
-    '# Acceso al catálogo (Arquitectura reservas)',
+    '# Campos ancla — acceso de agente',
     '',
-    'Te han concedido acceso. Conserva esta clave.',
+    'Te han dado acceso. Conserva esta clave. No uses localhost ni GITHUB_TOKEN.',
     '',
+    'API_BASE=' + urls.apiBase,
     'AGENTE_CLAVE=' + clave,
-    'API_BASE=' + apiBase,
-    'CATALOGO_UI=' + base,
+    'CATALOGO_UI=' + urls.base,
     '',
-    '## Clave',
-    'Sin caducidad. Solo deja de valer si alguien la revoca a mano.',
-    '',
-    '## Contrato API (léelo entero)',
-    'Documentación → API, o:',
-    apiUi,
+    '## 1. Lee el contrato API (obligatorio; ahí está todo)',
     apiDoc,
+    'UI: ' + apiUi,
+    'o: GET ' + apiDocsEndpoint,
     '',
-    '## Registro + latido (API viva / D1)',
-    'curl -s -X POST \"$API_BASE/v1/agentes/registro\" -H \"Content-Type: application/json\" \\',
-    '  -d \'{\"clave\":\"' + clave + '\",\"nombre\":\"Mi agente\",\"foto\":\"\"}\'',
-    'curl -s -X POST \"$API_BASE/v1/agentes/latido\" -H \"Content-Type: application/json\" \\',
-    '  -d \'{\"id\":\"<id>\",\"clave\":\"' + clave + '\"}\'',
+    '## 2. Conéctate según ese documento',
+    'Registro: POST $API_BASE/v1/agentes/registro  { clave, nombre, foto?, id? }',
+    'Latido (~30 s): POST $API_BASE/v1/agentes/latido  { id, clave }',
+    'Lecturas de catálogo: GET $API_BASE/v1/… (públicas).',
+    'Escrituras: Authorization: Bearer $AGENTE_CLAVE.',
     '',
-    '## Prueba en el navegador del catálogo (fallback local)',
-    'const r = window.AgentesCatalogo.registrar({ clave: \"' + clave + '\", nombre: \"Mi agente\", foto: \"\" })',
-    'window.AgentesCatalogo.latido({ id: r.id, clave: \"' + clave + '\" })',
-    '',
-    'CRUD de catálogos: GET públicos; escrituras con Authorization: Bearer $AGENTE_CLAVE.'
+    'La clave no caduca. La fuente viva es Cloudflare Worker + D1.'
   ].join('\n');
 }
 
@@ -4349,6 +4494,14 @@ function cargarDocumentoApi() {
     });
 }
 
+function cacheInviteLocal(clave, creada) {
+  const store = leerAgentesStore();
+  if (!store.invites.some(function (i) { return i && i.clave === clave; })) {
+    store.invites.push({ clave: clave, creada: creada || new Date().toISOString(), usadaPor: null });
+    try { guardarAgentesLocal(store); } catch (e) {}
+  }
+}
+
 function abrirDialogoDarAcceso() {
   const dlg = document.getElementById('dlgDarAcceso');
   const err = document.getElementById('darAccesoError');
@@ -4356,57 +4509,85 @@ function abrirDialogoDarAcceso() {
   const texto = document.getElementById('darAccesoTexto');
   if (!dlg || !claveNodo || !texto) return;
   if (err) err.textContent = '';
-  const clave = generarClaveInvite();
-  const store = leerAgentesStore();
-  store.invites.push({ clave: clave, creada: new Date().toISOString(), usadaPor: null });
-  try {
-    guardarAgentesLocal(store);
-  } catch (e) {
-    if (err) err.textContent = e.message;
-    return;
-  }
-  state.agentes.inviteActual = clave;
-  claveNodo.textContent = clave;
-  texto.value = textoInstruccionesInvite(clave);
+  claveNodo.textContent = '…';
+  texto.value = 'Creando clave API en ' + apiBaseUrl() + ' …';
   dlg.showModal();
-  texto.focus();
-  texto.select();
+  apiFetch('/v1/invites', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  }).then(function (data) {
+    const inv = data && data.invite;
+    const clave = inv && inv.clave;
+    if (!clave) throw new Error('La API no devolvió una clave.');
+    cacheInviteLocal(clave, inv.creada);
+    state.agentes.inviteActual = clave;
+    claveNodo.textContent = clave;
+    texto.value = textoInstruccionesInvite(clave);
+    texto.focus();
+    texto.select();
+    sincronizarAgentesSilencioso();
+    if (state.catalogoId === 'agentes') arrancarPollAgentes();
+  }).catch(function (e) {
+    claveNodo.textContent = '—';
+    texto.value = '';
+    if (err) {
+      err.textContent = (e && e.message)
+        ? (e.message + ' Comprueba API_BASE (' + apiBaseUrl() + '). Sin API no se crea la clave.')
+        : 'No se pudo crear la clave en la API.';
+    }
+  });
 }
 
-function copiarInstruccionesAcceso() {
-  const texto = document.getElementById('darAccesoTexto');
-  const err = document.getElementById('darAccesoError');
-  if (!texto) return;
-  const body = texto.value || '';
+function copiarTextoPortapapeles(body, btnId, errId) {
+  const err = errId ? document.getElementById(errId) : null;
   const done = function () {
-    const btn = document.getElementById('darAccesoCopiar');
+    const btn = btnId ? document.getElementById(btnId) : null;
     if (btn) {
-      const prev = btn.textContent;
+      const prev = btn.getAttribute('data-label') || btn.textContent;
+      btn.setAttribute('data-label', prev);
       btn.textContent = 'Copiado';
       setTimeout(function () { btn.textContent = prev; }, 1400);
     }
   };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(body).then(done).catch(function () {
-      texto.focus();
-      texto.select();
-      try {
-        document.execCommand('copy');
-        done();
-      } catch (e) {
-        if (err) err.textContent = 'No se pudo copiar. Selecciona el texto a mano.';
-      }
-    });
+  const fail = function () {
+    if (err) err.textContent = 'No se pudo copiar. Selecciona el texto a mano.';
+  };
+  if (!body) {
+    fail();
     return;
   }
-  texto.focus();
-  texto.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(body).then(done).catch(fail);
+    return;
+  }
   try {
+    const ta = document.createElement('textarea');
+    ta.value = body;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
     document.execCommand('copy');
+    document.body.removeChild(ta);
     done();
   } catch (e) {
-    if (err) err.textContent = 'No se pudo copiar. Selecciona el texto a mano.';
+    fail();
   }
+}
+
+function copiarInstruccionesAcceso() {
+  const texto = document.getElementById('darAccesoTexto');
+  if (!texto) return;
+  copiarTextoPortapapeles(texto.value || '', 'darAccesoCopiar', 'darAccesoError');
+}
+
+function copiarClaveAcceso() {
+  const claveNodo = document.getElementById('darAccesoClave');
+  const clave = claveNodo ? String(claveNodo.textContent || '').trim() : '';
+  if (!clave || clave === '…' || clave === '—') return;
+  copiarTextoPortapapeles(clave, 'darAccesoCopiarClave', 'darAccesoError');
 }
 
 function slugAgenteDesdeNombre(nombre) {
@@ -4427,70 +4608,77 @@ function slugAgenteDesdeNombre(nombre) {
   return id;
 }
 
+function espejoAgenteLocal(entrada) {
+  const store = leerAgentesStore();
+  store.agentes = (store.agentes || []).filter(function (a) { return !(a && a.id === entrada.id); });
+  store.agentes.push(entrada);
+  const inv = store.invites.find(function (i) { return i && i.clave === entrada.inviteUsada; });
+  if (inv) inv.usadaPor = entrada.id;
+  else if (entrada.inviteUsada) {
+    store.invites.push({
+      clave: entrada.inviteUsada,
+      creada: new Date().toISOString(),
+      usadaPor: entrada.id
+    });
+  }
+  try { guardarAgentesLocal(store); } catch (e) {}
+}
+
 function registrarAgenteApi(opts) {
   const clave = String(opts && opts.clave || '').trim();
   const nombre = String(opts && opts.nombre || '').trim();
   const foto = typeof (opts && opts.foto) === 'string' ? opts.foto.trim() : '';
-  if (!clave || clave.indexOf('inv_') !== 0) throw new Error('Falta una clave de invitación válida.');
-  if (!nombre) throw new Error('Elige un nombre.');
-  const store = leerAgentesStore();
-  const invite = store.invites.find(function (i) { return i && i.clave === clave; });
-  if (!invite) throw new Error('Esa clave no está en este navegador. Genera acceso con + Agente aquí.');
-  if (invite.usadaPor) throw new Error('Esa clave ya la usó el agente ' + invite.usadaPor + '.');
-  const id = opts.id && /^[a-z0-9][a-z0-9-]{0,60}$/i.test(String(opts.id).trim())
-    ? String(opts.id).trim()
-    : slugAgenteDesdeNombre(nombre);
-  if (state.agentes.lista.some(function (a) { return a.id === id; }) ||
-      store.agentes.some(function (a) { return a && a.id === id; })) {
-    throw new Error('Ya existe un agente con el id ' + id + '.');
-  }
-  const ahora = new Date().toISOString();
-  const entrada = {
-    id: id,
-    nombre: nombre,
-    foto: foto,
-    lastSeen: ahora,
-    inviteUsada: clave,
-    demoEnLinea: false,
-    hash: hashFnvHex(id + '|' + nombre + '|' + clave + '|' + ahora)
-  };
-  store.agentes.push(entrada);
-  invite.usadaPor = id;
-  guardarAgentesLocal(store);
-  refrescarAgentes();
-  pintarAgentes();
-  return { id: id, nombre: nombre, lastSeen: ahora };
+  if (!clave || clave.indexOf('inv_') !== 0) return Promise.reject(new Error('Falta una clave de invitación válida.'));
+  if (!nombre) return Promise.reject(new Error('Elige un nombre.'));
+  const body = { clave: clave, nombre: nombre, foto: foto };
+  if (opts && opts.id) body.id = String(opts.id).trim();
+  return apiFetch('/v1/agentes/registro', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function (data) {
+    const id = data.id;
+    const lastSeen = data.lastSeen || new Date().toISOString();
+    espejoAgenteLocal({
+      id: id,
+      nombre: nombre,
+      foto: foto,
+      lastSeen: lastSeen,
+      inviteUsada: clave,
+      demoEnLinea: false,
+      hash: hashFnvHex(id + '|' + nombre + '|' + clave + '|' + lastSeen)
+    });
+    return cargarAgentesDesdeApi().then(function () {
+      return { id: id, nombre: nombre, lastSeen: lastSeen };
+    });
+  });
 }
 
 function latidoAgenteApi(opts) {
   const id = String(opts && opts.id || '').trim();
   const clave = String(opts && opts.clave || '').trim();
-  if (!id || !clave) throw new Error('Faltan id y clave.');
-  const store = leerAgentesStore();
-  let entrada = store.agentes.find(function (a) { return a && a.id === id; });
-  if (!entrada) {
-    refrescarAgentes();
-    const remoto = state.agentes.lista.find(function (a) { return a.id === id; });
-    if (!remoto) throw new Error('No está ese agente.');
-    if (remoto.inviteUsada && remoto.inviteUsada !== clave) throw new Error('Clave incorrecta.');
-    entrada = {
-      id: remoto.id,
-      nombre: remoto.nombre,
-      foto: remoto.foto || '',
-      lastSeen: remoto.lastSeen || '',
-      inviteUsada: remoto.inviteUsada || clave,
-      demoEnLinea: false
-    };
-    store.agentes.push(entrada);
-  }
-  if (entrada.inviteUsada && entrada.inviteUsada !== clave) throw new Error('Clave incorrecta.');
-  entrada.lastSeen = new Date().toISOString();
-  entrada.demoEnLinea = false;
-  guardarAgentesLocal(store);
-  refrescarAgentes();
-  pintarAgentes();
-  if (state.agentes.abiertoId === id) renderAgenteReader();
-  return { id: id, lastSeen: entrada.lastSeen, enLinea: true };
+  if (!id || !clave) return Promise.reject(new Error('Faltan id y clave.'));
+  return apiFetch('/v1/agentes/latido', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: id, clave: clave })
+  }).then(function (data) {
+    const lastSeen = data.lastSeen || new Date().toISOString();
+    const store = leerAgentesStore();
+    let entrada = store.agentes.find(function (a) { return a && a.id === id; });
+    if (!entrada) {
+      entrada = { id: id, nombre: id, foto: '', inviteUsada: clave, demoEnLinea: false };
+      store.agentes.push(entrada);
+    }
+    entrada.lastSeen = lastSeen;
+    entrada.inviteUsada = clave;
+    entrada.demoEnLinea = false;
+    try { guardarAgentesLocal(store); } catch (e) {}
+    return cargarAgentesDesdeApi().then(function () {
+      if (state.agentes.abiertoId === id) renderAgenteReader();
+      return { id: id, lastSeen: lastSeen, enLinea: true };
+    });
+  });
 }
 
 function cerrarAgenteModal() {
@@ -4556,8 +4744,20 @@ function abrirAgente(id) {
   pintarAgentes();
 }
 
-function cargarAgentes() {
-  fetch('catalogo/agentes/index.json', { cache: 'no-store' })
+function cargarAgentesDesdeApi() {
+  return apiFetch('/v1/agentes')
+    .then(function (data) {
+      state.agentes.remotos = normalizeAgentesIndice(data);
+      state.agentes.indexError = false;
+      state.agentes.fuente = 'api';
+      refrescarAgentes();
+      pintarAgentes();
+      return state.agentes.lista;
+    });
+}
+
+function cargarAgentesDesdeSeed() {
+  return fetch('catalogo/agentes/index.json', { cache: 'no-store' })
     .then(function (res) {
       if (!res.ok) throw new Error('http');
       return res.json();
@@ -4565,15 +4765,25 @@ function cargarAgentes() {
     .then(function (data) {
       state.agentes.remotos = normalizeAgentesIndice(data);
       state.agentes.indexError = false;
-    })
+      state.agentes.fuente = 'seed';
+    });
+}
+
+function cargarAgentes() {
+  cargarAgentesDesdeApi()
     .catch(function () {
-      state.agentes.remotos = [];
-      state.agentes.indexError = true;
+      return cargarAgentesDesdeSeed().catch(function () {
+        state.agentes.remotos = [];
+        state.agentes.indexError = true;
+        state.agentes.fuente = 'ninguna';
+      });
     })
     .then(function () {
       state.agentes.ready = true;
+      state.agentes.lastSyncAt = Date.now();
       refrescarAgentes();
       pintarAgentes();
+      if (agentesCatalogoVisible()) arrancarPollAgentes();
     });
 }
 
@@ -4612,13 +4822,40 @@ function wireAgentesUi() {
   });
   const copiar = document.getElementById('darAccesoCopiar');
   if (copiar) copiar.addEventListener('click', copiarInstruccionesAcceso);
+  const copiarClave = document.getElementById('darAccesoCopiarClave');
+  if (copiarClave) copiarClave.addEventListener('click', copiarClaveAcceso);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') detenerPollAgentes();
+    else if (agentesCatalogoVisible()) arrancarPollAgentes();
+  });
+  window.addEventListener('hashchange', function () {
+    aplicarHashDocumentacion();
+    if (agentesCatalogoVisible()) arrancarPollAgentes();
+    else detenerPollAgentes();
+  });
+  aplicarHashDocumentacion();
+  if (typeof window.abrirDestino === 'function') {
+    const abrirPrev = window.abrirDestino;
+    window.abrirDestino = function (id) {
+      abrirPrev(id);
+      if (agentesCatalogoVisible()) arrancarPollAgentes();
+      else detenerPollAgentes();
+    };
+  }
   window.AgentesCatalogo = {
+    apiBase: apiBaseUrl,
     registrar: registrarAgenteApi,
     latido: latidoAgenteApi,
     listar: function () {
-      refrescarAgentes();
-      return state.agentes.lista.map(function (a) {
-        return { id: a.id, nombre: a.nombre, enLinea: a.enLinea, lastSeen: a.lastSeen };
+      return cargarAgentesDesdeApi().then(function (lista) {
+        return (lista || state.agentes.lista).map(function (a) {
+          return { id: a.id, nombre: a.nombre, enLinea: a.enLinea, lastSeen: a.lastSeen };
+        });
+      }).catch(function () {
+        refrescarAgentes();
+        return state.agentes.lista.map(function (a) {
+          return { id: a.id, nombre: a.nombre, enLinea: a.enLinea, lastSeen: a.lastSeen };
+        });
       });
     }
   };

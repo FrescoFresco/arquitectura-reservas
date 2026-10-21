@@ -68,9 +68,11 @@
 .agente-estado{font-weight:700}
 .agente-estado.is-on{color:#0f7a45}
 .agente-estado.is-off{color:#8a6a2b}
-.agente-instrucciones{margin:0;width:100%;min-height:280px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;border:1px solid #d5deec;border-radius:10px;padding:12px;background:#f8fafc;color:#17212f;resize:vertical;white-space:pre-wrap}
-.agente-clave-box{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 0}
-.agente-clave-box code{font-size:12px;background:#edf3ff;color:#315eb6;padding:6px 10px;border-radius:8px;overflow-wrap:anywhere}
+.agente-clave-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 14px}
+.agente-clave-box{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1;min-width:0}
+.agente-clave-box>span{font-size:12px;font-weight:800;color:#677488;text-transform:uppercase;letter-spacing:.06em}
+.agente-clave-box code{font-size:13px;background:#edf3ff;color:#315eb6;padding:8px 12px;border-radius:8px;overflow-wrap:anywhere;font-weight:700}
+.agente-instrucciones{margin:0;width:100%;min-height:300px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.5;border:1px solid #d5deec;border-radius:10px;padding:12px;background:#f8fafc;color:#17212f;resize:vertical;white-space:pre-wrap}
 .btn.version,.btn.ghost{background:white;color:#1c63d5;border:1px solid #c5d4ef}
 .btn.version{display:block;width:100%;margin-top:12px}
 .btn.ver{display:inline-block;margin-top:10px}
@@ -171,6 +173,7 @@ dialog::backdrop{background:#17212f66}
 
 .catalogo-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:nowrap;margin:0 0 16px}
 .catalogo-toolbar .btn{flex:none}
+.agentes-sync{margin-right:auto;font-size:12px;font-weight:600;color:#8a97a8;white-space:nowrap}
 .dlg .reader-tabs{margin:12px 0 0}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
 .editar-anclas-top{justify-content:flex-end}
@@ -796,15 +799,17 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </dialog>
 <dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
 <div class="dlg" id="panelDarAcceso">
-<h3 id="dlgDarAccesoTitulo">Dar acceso a un agente</h3>
-<p class="nota">Copia estas instrucciones y pégalas en el sistema / prompt del otro agente. No creas el agente a mano: él se registra solo con la clave.</p>
+<h3 id="dlgDarAccesoTitulo">Nuevo agente</h3>
+<p class="nota">Se crea una clave en Cloudflare. Copia el bloque y pégalo al agente: lee Documentación → API, se registra y late solo. Sin caducidad. Sin GitHub.</p>
 <p class="form-error" id="darAccesoError" role="alert"></p>
+<div class="agente-clave-row">
 <div class="agente-clave-box">
-<span>Clave API</span>
-<code id="darAccesoClave"></code>
-<span class="origen" style="margin:0">Sin caducidad</span>
+<span>Clave</span>
+<code id="darAccesoClave">…</code>
 </div>
-<label for="darAccesoTexto">Instrucciones (copiar todo)
+<button type="button" class="btn ghost" id="darAccesoCopiarClave">Copiar clave</button>
+</div>
+<label for="darAccesoTexto">Para pegar en el agente
 <textarea id="darAccesoTexto" class="agente-instrucciones" readonly spellcheck="false"></textarea>
 </label>
 <div class="dlg-actions">
@@ -816,7 +821,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgEditarAgente" aria-labelledby="dlgEditarAgenteTitulo">
 <form class="dlg" id="formEditarAgente">
 <h3 id="dlgEditarAgenteTitulo">Editar agente</h3>
-<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="nota">Se guarda en la API (D1) cuando hay clave; si no, solo en este navegador.</p>
 <p class="form-error" id="editarAgenteError" role="alert"></p>
 <label>Nombre
 <input type="text" name="nombre" maxlength="120" autocomplete="off" required>
@@ -860,6 +865,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
   }
   function desdeHash() {
     var h = (location.hash || '').replace(/^#/, '');
+    if (h.indexOf('/') >= 0) h = h.split('/')[0];
     if (h === 'mapa') return 'catalogos';
     return IDS.indexOf(h) < 0 ? 'catalogos' : h;
   }
@@ -883,10 +889,9 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script src="campos-ancla-ui.js?v=20261020z"></script>
 <script src="campos-mongodb-ui.js?v=20261020z"></script>
 <script src="proyectos-ui.js?v=20261020z"></script>
-<script src="agentes-ui.js?v=20261020z"></script>
+<script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261020cf"></script>
-<script src="token-ui.js?v=20261020b"></script>
+<script src="catalogo-ui.js?v=20261021d"></script>
 
 </body>
 </html>

@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+// Bundled via wrangler rules (Text) — same canonical contract as Documentación → API.
+import apiDocsMd from '../documentacion/api.md';
 
 export type Env = {
   DB: D1Database;
@@ -38,12 +40,19 @@ function extractClave(c: { req: { header: (n: string) => string | undefined } })
 }
 
 app.use('*', async (c, next) => {
-  const ui = c.env.PUBLIC_UI_ORIGIN || 'https://frescofresco.github.io';
+  const ui = c.env.PUBLIC_UI_ORIGIN || 'https://campos-ancla.web-legal-es.workers.dev';
   const extra = (c.env.CORS_ORIGINS || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const origins = new Set([ui, 'http://127.0.0.1:8787', 'http://localhost:8787', ...extra]);
+  // github.io solo durante el cutover; la UI primaria es Cloudflare (Workers Assets / Pages).
+  const origins = new Set([
+    ui,
+    'https://frescofresco.github.io',
+    'http://127.0.0.1:8787',
+    'http://localhost:8787',
+    ...extra,
+  ]);
   const mw = cors({
     origin: (origin) => (origin && origins.has(origin) ? origin : ui),
     allowHeaders: ['Content-Type', 'Authorization', 'X-Agente-Clave'],
@@ -52,7 +61,16 @@ app.use('*', async (c, next) => {
   return mw(c, next);
 });
 
-app.get('/health', (c) => c.json({ ok: true, service: 'arquitectura-reservas-api' }));
+app.get('/health', (c) => c.json({ ok: true, service: 'campos-ancla-api' }));
+
+/** Canonical agent contract (same markdown as UI Documentación → API). */
+app.get('/v1/docs', (c) =>
+  c.text(String(apiDocsMd), 200, {
+    'Content-Type': 'text/markdown; charset=utf-8',
+    'Cache-Control': 'public, max-age=60',
+  })
+);
+app.get('/docs', (c) => c.redirect('/v1/docs', 302));
 
 /** Public catalog reads — no auth. */
 app.get('/v1/skills', async (c) => {
