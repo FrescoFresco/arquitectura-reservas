@@ -188,7 +188,8 @@ POST {API_BASE}/v1/proyectos/:id/crear-bd
 POST {API_BASE}/v1/esquemas/:id/crear-bd
 Authorization: Bearer inv_…
 → crea DB/colecciones/índices/$jsonSchema desde campos Mongo de la base de datos
-  Sin URI → { mock:true, dryRun:true, plan, source hint } (URI en Ajustes → Conexiones; default db del schema, p. ej. software_reservas)
+  URI: propia del esquema (pestaña Conexión) → Ajustes → Conexiones → env
+  Sin URI → { mock:true, dryRun:true, plan, source } (default db del schema, p. ej. software_reservas)
 ```
 
 ### Campos MongoDB ↔ base de datos
@@ -340,7 +341,7 @@ Content-Type: application/json
 
 Driver: **`mongodb`** oficial en el Worker (TCP; no Data API).
 
-**Origen de la URI (prioridad):** (1) URI guardada en D1 desde el panel **Ajustes → Conexiones** (AES-GCM con secret `ENCRYPTION_KEY`); (2) fallback secret/env `MONGODB_URI`. Opcional `MONGODB_DB` / campo `db` (default del schema, p. ej. `software_reservas`; no `arquitectura_reservas`).
+**Origen de la URI (prioridad):** (1) URI por Base de datos (`mongo_config_proyecto`, ficha → pestaña **Conexión**); (2) URI global en D1 desde **Ajustes → Conexiones**; (3) fallback secret/env `MONGODB_URI`. Cifrado AES-GCM con `ENCRYPTION_KEY`. Opcional `MONGODB_DB` / campo `db` (default del schema, p. ej. `software_reservas`).
 
 ```
 GET  {API_BASE}/health
@@ -353,11 +354,26 @@ GET  {API_BASE}/v1/mongo/status
 POST {API_BASE}/v1/mongo/config
 Authorization: Bearer inv_…
 { "uri": "mongodb+srv://…", "db"?: "software_reservas", "probeOnly"?: true }
-→ guarda cifrado (o solo prueba si probeOnly). Respuesta: configured/connected/db/source/hint — sin uri
+→ guarda cifrado global (o solo prueba si probeOnly). Respuesta: configured/connected/db/source/hint — sin uri
 
 DELETE {API_BASE}/v1/mongo/config
 Authorization: Bearer inv_…
-→ borra la URI del panel; el secret MONGODB_URI del Worker no se toca
+→ borra la URI global del panel; el secret MONGODB_URI del Worker no se toca
+
+GET  {API_BASE}/v1/proyectos/:id/mongo-config
+GET  {API_BASE}/v1/esquemas/:id/mongo-config
+→ { ok, proyecto, baseDatos, configured, own, connected, db,
+    source: "proyecto"|"stored"|"env"|"none", hint? }
+  # own=true si hay URI propia de este esquema; nunca uri
+
+POST {API_BASE}/v1/proyectos/:id/mongo-config
+Authorization: Bearer inv_…
+{ "uri": "mongodb+srv://…", "db"?: "software_reservas", "probeOnly"?: true }
+→ guarda URI cifrada de este esquema (db por defecto = proyecto.baseDatos)
+
+DELETE {API_BASE}/v1/proyectos/:id/mongo-config
+Authorization: Bearer inv_…
+→ borra URI propia; cae a Ajustes / env
 
 POST {API_BASE}/v1/mongo/sync/negocio
 Authorization: Bearer inv_…
@@ -367,10 +383,10 @@ Authorization: Bearer inv_…
 POST {API_BASE}/v1/mongo/sync/proyecto
 Authorization: Bearer inv_…
 { "proyecto_id": "pelo-sur", "negocio_id"? }
-→ mismo upsert; `negocio_id` por defecto = `proyecto_id`
+→ mismo upsert; usa URI del proyecto si existe; `negocio_id` por defecto = `proyecto_id`
 ```
 
-Sin URI (ni stored ni env): sync → **503** `{ "error": "configure MONGODB_URI" }`. **Nunca** se devuelve la URI en ningún GET.
+Sin URI (ni proyecto, ni stored, ni env): sync → **503** `{ "error": "configure MONGODB_URI" }`. **Nunca** se devuelve la URI en ningún GET.
 
 ---
 
