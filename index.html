@@ -504,22 +504,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones de la base de datos">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCluster" data-proy-tab="cluster" aria-selected="false" aria-controls="proyPanelCluster">Cluster</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDocumento" data-proy-tab="documento" aria-selected="false" aria-controls="proyPanelDocumento">Documento</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabColecciones" data-proy-tab="colecciones" aria-selected="false" aria-controls="proyPanelColecciones">Colecciones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabEmpujar" data-proy-tab="empujar" aria-selected="false" aria-controls="proyPanelEmpujar">Empujar</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabInterno" data-proy-tab="interno" aria-selected="false" aria-controls="proyPanelInterno">Interno</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelResumen" role="tabpanel" aria-labelledby="proyTabResumen">
 <dl class="ancla-ficha-dl" id="proyResumenDl">
 <div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="proyReaderId">—</code></dd></div>
 <div class="ancla-ficha-fila"><dt>Base de datos</dt><dd><code id="proyReaderBaseDatos">—</code></dd></div>
-<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
-<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
-<div class="ancla-ficha-fila" id="proyLegacyFila" hidden><dt>Estado</dt><dd id="proyLegacyNota">Negocio legado (pendiente de borrar como base de datos)</dd></div>
 </dl>
-<p class="historial-titulo" style="margin-top:0.75rem">Cluster</p>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelCluster" role="tabpanel" aria-labelledby="proyTabCluster" hidden>
 <div id="proyClusterLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="proyClusterVacio" hidden>Sin cluster asignado. La URI Atlas vive en el Cluster.</p>
 </div>
@@ -561,6 +561,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
 <div class="proy-empujar-plan" id="proyEmpujarPlan" hidden></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelInterno" role="tabpanel" aria-labelledby="proyTabInterno" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
+<div class="ancla-ficha-fila" id="proyLegacyFila" hidden><dt>Estado</dt><dd id="proyLegacyNota">Negocio legado (pendiente de borrar como base de datos)</dd></div>
+</dl>
 </div>
 </article>
 </dialog>
@@ -1256,7 +1263,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022tabsia1"></script>
+<script src="catalogo-ui.js?v=20261022bdcluster1"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>

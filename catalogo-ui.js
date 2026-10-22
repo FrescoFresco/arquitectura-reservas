@@ -1041,7 +1041,8 @@ function iconoDePestanaFicha(tabId) {
     coleccion: 'coleccion',
     empujar: 'empujar',
     acl: 'acl',
-    ancla: 'ancla'
+    ancla: 'ancla',
+    cluster: 'cluster'
   };
   return mapa[tabId] || null;
 }
@@ -4252,15 +4253,17 @@ function seleccionarProyReaderTab(id) {
   const tabs = document.querySelectorAll('#proyReaderTabs [data-proy-tab]');
   const panels = {
     resumen: document.getElementById('proyPanelResumen'),
+    cluster: document.getElementById('proyPanelCluster'),
     documento: document.getElementById('proyPanelDocumento'),
     colecciones: document.getElementById('proyPanelColecciones'),
     diagrama: document.getElementById('proyPanelDiagrama'),
     campos: document.getElementById('proyPanelCampos'),
     skills: document.getElementById('proyPanelSkills'),
-    empujar: document.getElementById('proyPanelEmpujar')
+    empujar: document.getElementById('proyPanelEmpujar'),
+    interno: document.getElementById('proyPanelInterno')
   };
-  // Compat: nombres antiguos → resumen (agentes/conexión ya no son pestaña de BD)
-  if (id === 'interno' || id === 'conexion' || id === 'agentes') id = 'resumen';
+  // Compat: nombres antiguos (agentes/conexión ya no son pestaña de BD)
+  if (id === 'conexion' || id === 'agentes') id = 'resumen';
   if (id === 'sync') id = 'empujar';
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-proy-tab') === id;
@@ -4272,7 +4275,7 @@ function seleccionarProyReaderTab(id) {
   });
   const proy = proyectoAbierto();
   if (!proy) return;
-  if (id === 'resumen') pintarProyectoCluster(proy);
+  if (id === 'cluster') pintarProyectoCluster(proy);
   if (id === 'documento') pintarVersionProyecto(versionProyectoAbierta(proy));
   if (id === 'colecciones') pintarProyectoColecciones(proy);
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
@@ -4426,7 +4429,6 @@ function renderProyectoReader() {
     }
   }
   seleccionarProyReaderTab('resumen');
-  pintarProyectoCluster(proy);
   pintarVersionProyecto(v);
   renderHistorialProyecto(proy, v);
   openFichaPane(dlg);
