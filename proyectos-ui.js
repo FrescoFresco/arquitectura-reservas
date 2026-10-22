@@ -133,7 +133,74 @@
     );
   }
 
+  function IconoColeccion() {
+    // Lucide: layers — mismo patrón icono de fila de catálogo
+    return e('svg', {
+      className: 'catalogo-fila-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('path', { d: 'M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z' }),
+      e('path', { d: 'M2 12l8.58 3.91a2 2 0 0 0 1.66 0L21 12' }),
+      e('path', { d: 'M2 17l8.58 3.91a2 2 0 0 0 1.66 0L21 17' })
+    );
+  }
+
+  function ColeccionFila(props) {
+    var col = props.coleccion || {};
+    var id = col.id || '—';
+    var desc = col.descripcion || '';
+    var n = props.nCampos;
+    var secundario = desc || 'Colección';
+    if (n != null) {
+      secundario += (desc ? ' · ' : '') + n + (n === 1 ? ' campo' : ' campos');
+    }
+    return e('button', {
+      type: 'button',
+      className: 'catalogo-fila',
+      role: 'listitem',
+      title: desc || id,
+      'aria-label': 'Ver campos de la colección ' + id,
+      onClick: function () {
+        if (typeof props.onAbrir === 'function') props.onAbrir(id);
+      }
+    },
+      e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoColeccion)),
+      e('span', { className: 'catalogo-fila-main' },
+        e('span', { className: 'catalogo-fila-titulo' }, id),
+        e('span', { className: 'catalogo-fila-codigo' }, secundario)
+      ),
+      e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlace))
+    );
+  }
+
+  function ColeccionesLista(props) {
+    var cols = props.colecciones || [];
+    var conteo = props.conteo || {};
+    var emptyMsg = props.emptyMsg || 'Sin colecciones en esta base de datos.';
+    if (!cols.length) {
+      return e('p', { className: 'estado', role: 'status' }, emptyMsg);
+    }
+    return e('div', { className: 'catalogo-lista', role: 'list' },
+      cols.map(function (col) {
+        var id = col && col.id;
+        return e(ColeccionFila, {
+          key: id || Math.random(),
+          coleccion: col,
+          nCampos: id != null && conteo[id] != null ? conteo[id] : null,
+          onAbrir: props.onAbrir
+        });
+      })
+    );
+  }
+
   var reactRoot = null;
+  var coleccionesRoots = {};
 
   function montar(bridge) {
     var root = document.getElementById('proyectos-root');
@@ -142,8 +209,24 @@
     reactRoot.render(e(ProyectosApp, { bridge: bridge }));
   }
 
+  /** Lista de colecciones con el mismo patrón catalogo-fila que Skills/Anclas/Agentes. */
+  function montarColecciones(elOrId, opts) {
+    opts = opts || {};
+    var el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (!el) return;
+    var key = el.id || 'proy-colecciones';
+    if (!coleccionesRoots[key]) coleccionesRoots[key] = ReactDOM.createRoot(el);
+    coleccionesRoots[key].render(e(ColeccionesLista, {
+      colecciones: opts.colecciones || [],
+      conteo: opts.conteo || {},
+      emptyMsg: opts.emptyMsg,
+      onAbrir: opts.onAbrir || null
+    }));
+  }
+
   window.ProyectosUI = {
     montar: montar,
-    refrescar: function (bridge) { montar(bridge); }
+    refrescar: function (bridge) { montar(bridge); },
+    montarColecciones: montarColecciones
   };
 })();

@@ -495,11 +495,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="md-wrap" style="margin-top:1rem"><div class="md" id="proyMd"></div></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelColecciones" role="tabpanel" aria-labelledby="proyTabColecciones" hidden>
-<p class="ancla-ficha-vacio" id="proyColeccionesVacio" hidden>Sin colecciones en esta base de datos.</p>
-<div class="tabla-scroll"><table class="proy-campos-tabla" id="proyColeccionesTabla" hidden>
-<thead><tr><th>Colección</th><th>Descripción</th><th>Campos</th></tr></thead>
-<tbody id="proyColeccionesBody"></tbody>
-</table></div>
+<div id="proyColeccionesLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelDiagrama" role="tabpanel" aria-labelledby="proyTabDiagrama" hidden>
 <p class="ancla-ficha-vacio" id="proyDiagramaEstado">Cargando diagrama…</p>
@@ -508,15 +504,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="proy-er-boxes" id="proyDiagramaBoxes" hidden></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelCampos" role="tabpanel" aria-labelledby="proyTabCampos" hidden>
-<p class="ancla-ficha-vacio" id="proyCamposVacio" hidden>Sin campos Mongo en esta base de datos.</p>
-<div class="tabla-scroll"><table class="proy-campos-tabla" id="proyCamposTabla" hidden>
-<thead><tr><th>Ancla</th><th>Campo Mongo</th><th>Colección</th><th>Tipo</th></tr></thead>
-<tbody id="proyCamposBody"></tbody>
-</table></div>
+<div id="proyCamposLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelAgentes" role="tabpanel" aria-labelledby="proyTabAgentes" hidden>
-<p class="ancla-ficha-vacio" id="proyAgentesVacio" hidden>Ningún agente asignado.</p>
-<div id="proyAgentesLista"></div>
+<div id="proyAgentesLista" class="proy-tab-catalogo"></div>
 </div>
 </article>
 </dialog>
@@ -1061,13 +1052,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 })();
 </script>
 <script src="skills-ui.js?v=20261020y"></script>
-<script src="campos-ancla-ui.js?v=20261022atras1"></script>
-<script src="campos-mongodb-ui.js?v=20261022atras1"></script>
-<script src="proyectos-ui.js?v=20261022atras1"></script>
-<script src="agentes-ui.js?v=20261021d"></script>
+<script src="campos-ancla-ui.js?v=20261022bdtabs1"></script>
+<script src="campos-mongodb-ui.js?v=20261022bdtabs1"></script>
+<script src="proyectos-ui.js?v=20261022bdtabs1"></script>
+<script src="agentes-ui.js?v=20261022bdtabs1"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022atras1"></script>
-<script src="ajustes-ui.js?v=20261022atras1"></script>
+<script src="catalogo-ui.js?v=20261022bdtabs1"></script>
+<script src="ajustes-ui.js?v=20261022bdtabs1"></script>
 
 </body>
 </html>
