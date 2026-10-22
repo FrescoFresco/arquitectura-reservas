@@ -241,7 +241,9 @@ const state = {
     remotos: [],
     lista: [],
     abiertoId: null,
-    initialTab: null
+    initialTab: null,
+    reabrirColeccionKey: null,
+    reabrirColeccionTab: null
   },
   colecciones: {
     ready: false,
@@ -3580,9 +3582,19 @@ function iniciar() {
   });
   const dlgMongoFicha = document.getElementById('dlgMongoFicha');
   if (dlgMongoFicha) dlgMongoFicha.addEventListener('close', function () {
+    const reabrirKey = state.mongo.reabrirColeccionKey;
+    const reabrirTab = state.mongo.reabrirColeccionTab || 'diagrama';
+    state.mongo.reabrirColeccionKey = null;
+    state.mongo.reabrirColeccionTab = null;
     state.mongo.abiertoId = null;
     if (window.CamposMongoUI && window.CamposMongoUI.limpiarFicha) window.CamposMongoUI.limpiarFicha();
     pintarMongo();
+    if (reabrirKey) {
+      setTimeout(function () {
+        abrirFichaColeccion(reabrirKey, { volverA: { tipo: 'catalogo' } });
+        seleccionarColReaderTab(reabrirTab);
+      }, 0);
+    }
   });
   const nuevaArchivo = document.getElementById('nuevaArchivo');
   if (nuevaArchivo) nuevaArchivo.addEventListener('change', function (e) {
@@ -4972,37 +4984,83 @@ function renderMermaidEn(el, fuente, tokenRef) {
     });
 }
 
+function abrirMongoDesdeColeccionDiagrama(campoId) {
+  const colKey = state.colecciones.abiertaKey;
+  if (!campoId) return;
+  if (colKey) {
+    state.colecciones.volverA = null;
+    state.colecciones.navigatingAway = true;
+    state.mongo.reabrirColeccionKey = colKey;
+    state.mongo.reabrirColeccionTab = 'diagrama';
+  }
+  abrirFichaMongo(campoId);
+}
+
+function pintarColeccionDiagramaCampos(col, camposFocus) {
+  const lista = document.getElementById('colDiagramaCamposLista');
+  if (!lista) return;
+  lista.replaceChildren();
+  const campos = Array.isArray(camposFocus) ? camposFocus : [];
+  if (!campos.length) {
+    const vacio = el('p', 'ancla-ficha-vacio', 'Sin campos catalogados en esta colección.');
+    vacio.style.margin = '0';
+    lista.append(vacio);
+    return;
+  }
+  refrescarMongo();
+  campos.forEach(function (f) {
+    const clave = String((f && f.clave) || '').trim() || '?';
+    const bson = String((f && f.bsonType) || 'string').trim() || 'string';
+    const obligatorio = !!(f && f.obligatorio);
+    const match = (state.mongo.lista || []).find(function (c) {
+      if (!c || c.coleccion !== col.id || c.clave !== clave) return false;
+      if (c.proyecto && col.proyectoId && c.proyecto !== col.proyectoId) return false;
+      return true;
+    }) || null;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'col-diagrama-campo' + (obligatorio ? ' is-req' : '') + (match ? '' : ' is-static');
+    btn.setAttribute('role', 'listitem');
+    btn.title = match
+      ? ('Abrir campo Mongo ' + col.id + '.' + clave)
+      : (col.id + '.' + clave);
+    btn.setAttribute('aria-label', btn.title);
+    const claveEl = el('span', 'col-diagrama-campo-clave', clave);
+    const tipoEl = el('span', 'col-diagrama-campo-tipo', bson + (obligatorio ? ' · obligatorio' : ''));
+    btn.append(claveEl, tipoEl);
+    if (match) {
+      btn.addEventListener('click', function () {
+        abrirMongoDesdeColeccionDiagrama(match.id);
+      });
+    } else {
+      btn.disabled = true;
+    }
+    lista.append(btn);
+  });
+}
+
 function cargarColeccionDiagrama(col) {
   const estado = document.getElementById('colDiagramaEstado');
   const render = document.getElementById('colDiagramaRender');
-  const boxes = document.getElementById('colDiagramaBoxes');
+  const split = document.getElementById('colDiagramaSplit');
+  const lista = document.getElementById('colDiagramaCamposLista');
   if (!col || !col.proyectoId) {
     if (estado) {
       estado.hidden = false;
       estado.textContent = 'Sin base de datos padre para dibujar el diagrama.';
     }
-    if (render) {
-      render.hidden = true;
-      render.replaceChildren();
-    }
-    if (boxes) {
-      boxes.hidden = true;
-      boxes.replaceChildren();
-    }
+    if (split) split.hidden = true;
+    if (render) render.replaceChildren();
+    if (lista) lista.replaceChildren();
     return;
   }
   if (estado) {
     estado.hidden = false;
     estado.textContent = 'Cargando diagrama…';
   }
-  if (render) {
-    render.hidden = true;
-    render.replaceChildren();
-  }
-  if (boxes) {
-    boxes.hidden = true;
-    boxes.replaceChildren();
-  }
+  if (split) split.hidden = true;
+  if (render) render.replaceChildren();
+  if (lista) lista.replaceChildren();
   const url = '/v1/proyectos/' + encodeURIComponent(col.proyectoId)
     + '/diagrama?coleccion=' + encodeURIComponent(col.id);
   apiFetch(url)
@@ -5022,36 +5080,17 @@ function cargarColeccionDiagrama(col) {
         return;
       }
       if (estado) estado.hidden = true;
+      if (split) split.hidden = false;
+      const focus = cols.find(function (c) { return c && c.id === col.id; }) || cols[0];
+      pintarColeccionDiagramaCampos(col, (focus && focus.campos) || []);
       if (render) {
         renderMermaidEn(render, d.mermaid || 'erDiagram\n');
-      }
-      if (boxes) {
-        boxes.replaceChildren();
-        cols.forEach(function (c) {
-          const box = el('div', 'proy-er-box', null);
-          box.append(el('h4', null, c.id));
-          const ul = document.createElement('ul');
-          ul.appendChild(el('li', null, '_id · objectid'));
-          (c.campos || []).forEach(function (f) {
-            const label = (f.clave || '?') + ' · ' + (f.bsonType || 'string') + (f.obligatorio ? ' *' : '');
-            ul.appendChild(el('li', null, label));
-          });
-          box.append(ul);
-          boxes.append(box);
-        });
-        if ((d.relaciones || []).length) {
-          const rels = el('p', 'proy-er-rels', null);
-          rels.textContent = (d.relaciones || []).map(function (r) {
-            return (r.desde || '') + ' → ' + (r.hacia || '') + ' (' + (r.tipo || 'N:1') + ')';
-          }).join(' · ');
-          boxes.append(rels);
-        }
-        boxes.hidden = false;
       }
     })
     .catch(function () {
       const abierta = coleccionAbierta();
       if (!abierta || abierta.key !== col.key) return;
+      if (split) split.hidden = true;
       if (estado) {
         estado.hidden = false;
         estado.textContent = 'No se pudo cargar el diagrama de esta colección.';
