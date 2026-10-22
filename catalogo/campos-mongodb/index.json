@@ -102,18 +102,37 @@
       "hijos": []
     },
     {
-      "id": "versiones-recorrido-pasos-N-accion",
-      "campo": "versiones.recorrido.pasos.N.accion",
+      "id": "versiones-recorrido-pasos",
+      "campo": "versiones.recorrido.pasos",
       "baseDatos": "software_reservas",
       "coleccion": "versiones",
-      "clave": "recorrido.pasos.N.accion",
-      "bsonType": "string",
-      "obligatorio": true,
-      "descripcion": "Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…).",
-      "ancla": "_version.recorrido.pasos.N.accion_",
-      "hash": "03983be7ab510b0b728a671942a3172b038609634d1c704ee2f5a1326a583818",
+      "clave": "recorrido.pasos",
+      "bsonType": "array",
+      "obligatorio": false,
+      "descripcion": "Pasos del recorrido como array de objetos {accion, selector, valor}. Sin índice literal N en la clave.",
+      "ancla": "_version.recorrido.pasos_",
+      "hash": "esquemas-bd-recorrido-pasos-array-v1",
       "proyecto": "reservas",
-      "hijos": []
+      "hijos": [
+        {
+          "id": "accion",
+          "clave": "accion",
+          "bsonType": "string",
+          "descripcion": "Qué se hace en este paso (abrir, pulsar, elegir, esperar…)."
+        },
+        {
+          "id": "selector",
+          "clave": "selector",
+          "bsonType": "string",
+          "descripcion": "Selector Playwright; null/omitido si el paso no actúa sobre un elemento."
+        },
+        {
+          "id": "valor",
+          "clave": "valor",
+          "bsonType": "string",
+          "descripcion": "Valor escrito o elegido en el paso, si aplica."
+        }
+      ]
     },
     {
       "id": "versiones-recorrido-campos",
@@ -278,6 +297,89 @@
       "hash": "b24ead9ccba88e2c69fdfedec4dd33742740b34c3c27ad3fd391b787cad12129",
       "proyecto": "reservas",
       "hijos": []
+    },
+    {
+      "id": "clientes-nombre",
+      "campo": "clientes.nombre",
+      "baseDatos": "software_llamadas",
+      "coleccion": "clientes",
+      "clave": "nombre",
+      "bsonType": "string",
+      "obligatorio": true,
+      "descripcion": "Nombre del cliente.",
+      "ancla": "",
+      "hash": "llamadas-clientes-nombre-v1",
+      "proyecto": "llamadas",
+      "hijos": []
+    },
+    {
+      "id": "clientes-telefono",
+      "campo": "clientes.telefono",
+      "baseDatos": "software_llamadas",
+      "coleccion": "clientes",
+      "clave": "telefono",
+      "bsonType": "string",
+      "obligatorio": true,
+      "descripcion": "Teléfono E.164 del cliente.",
+      "ancla": "",
+      "hash": "llamadas-clientes-telefono-v1",
+      "proyecto": "llamadas",
+      "hijos": []
+    },
+    {
+      "id": "llamadas-fecha",
+      "campo": "llamadas.fecha",
+      "baseDatos": "software_llamadas",
+      "coleccion": "llamadas",
+      "clave": "fecha",
+      "bsonType": "date",
+      "obligatorio": true,
+      "descripcion": "Momento de la llamada (BSON date / ISO-8601).",
+      "ancla": "",
+      "hash": "llamadas-fecha-v1",
+      "proyecto": "llamadas",
+      "hijos": []
+    },
+    {
+      "id": "llamadas-resultado",
+      "campo": "llamadas.resultado",
+      "baseDatos": "software_llamadas",
+      "coleccion": "llamadas",
+      "clave": "resultado",
+      "bsonType": "string",
+      "obligatorio": true,
+      "descripcion": "Resultado de la llamada.",
+      "enum": [
+        "contesto",
+        "no_contesto",
+        "cita"
+      ],
+      "ancla": "",
+      "hash": "llamadas-resultado-v1",
+      "proyecto": "llamadas",
+      "hijos": []
+    },
+    {
+      "id": "llamadas-cliente_id",
+      "campo": "llamadas.cliente_id",
+      "baseDatos": "software_llamadas",
+      "coleccion": "llamadas",
+      "clave": "cliente_id",
+      "bsonType": "string",
+      "obligatorio": true,
+      "descripcion": "Referencia al cliente (clientes._id).",
+      "ancla": "",
+      "hash": "llamadas-cliente_id-v1",
+      "proyecto": "llamadas",
+      "hijos": [],
+      "indices": [
+        {
+          "nombre": "idx_llamadas_cliente_id",
+          "keys": {
+            "cliente_id": 1
+          }
+        }
+      ]
     }
   ]
 }

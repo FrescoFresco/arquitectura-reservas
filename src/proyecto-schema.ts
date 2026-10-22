@@ -29,6 +29,8 @@ export type MongoCampoShape = {
   ancla?: string;
   proyecto?: string;
   hijos?: MongoCampoShape[];
+  /** Valores permitidos (p. ej. resultado de llamada). */
+  enum?: string[];
 };
 
 const COL_ID_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -301,10 +303,14 @@ export function buildJsonSchemaForCollection(
         },
       };
     } else {
-      properties[clave] = {
+      const prop: Record<string, unknown> = {
         bsonType: bsonToAtlasBson(bson),
         description: f.descripcion || undefined,
       };
+      if (Array.isArray(f.enum) && f.enum.length) {
+        prop.enum = f.enum.map((v) => String(v));
+      }
+      properties[clave] = prop;
     }
     if (f.obligatorio) required.push(clave.split('.')[0]);
   }

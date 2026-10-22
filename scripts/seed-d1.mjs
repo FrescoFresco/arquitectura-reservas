@@ -84,8 +84,9 @@ async function main() {
     const indices = esc(JSON.stringify(Array.isArray(c.indices) ? c.indices : []));
     const hijos = esc(JSON.stringify(Array.isArray(c.hijos) ? c.hijos : []));
     const proyecto = esc(c.proyecto || 'reservas');
+    const enumJson = esc(JSON.stringify(Array.isArray(c.enum) ? c.enum : []));
     stmts.push(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, proyecto, hijos, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.campo)}', '${esc(c.baseDatos || 'software_reservas')}', '${esc(c.coleccion || '')}', '${esc(c.clave || '')}', '${esc(c.bsonType || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.descripcion || '')}', '${esc(c.ancla || '')}', '${esc(c.hash || '')}', '${proyeccion}', '${elemento}', '${indices}', '${proyecto}', '${hijos}', '${now}', '${now}');`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, proyecto, hijos, enum_json, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.campo)}', '${esc(c.baseDatos || 'software_reservas')}', '${esc(c.coleccion || '')}', '${esc(c.clave || '')}', '${esc(c.bsonType || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.descripcion || '')}', '${esc(c.ancla || '')}', '${esc(c.hash || '')}', '${proyeccion}', '${elemento}', '${indices}', '${proyecto}', '${hijos}', '${enumJson}', '${now}', '${now}');`
     );
   }
 

@@ -59,7 +59,7 @@ export type Env = {
   CORS_ORIGINS?: string;
   /** Atlas / Mongo connection string — wrangler secret fallback (never commit). */
   MONGODB_URI?: string;
-  /** Optional DB name; default arquitectura_reservas (catálogo baseDatos). */
+  /** Optional DB name; default software_reservas (schema reservas). */
   MONGODB_DB?: string;
   /**
    * AES-GCM key material for encrypting the in-app Mongo URI in D1.
@@ -460,7 +460,7 @@ app.get('/v1/proyectos', async (c) => {
     >;
     return mapProyectoRow(row, skillsBy.get(id) || [], versBy.get(id) || []);
   });
-  return c.json({ ok: true, id: 'proyectos', nombre: 'Proyectos', proyectos: out });
+  return c.json({ ok: true, id: 'proyectos', nombre: 'Esquemas de BD', proyectos: out, alias: 'esquemas' });
 });
 
 app.get('/v1/proyectos/:id/diagrama', async (c) => {
@@ -1149,8 +1149,8 @@ app.post('/v1/mongo', async (c) => {
   const ts = nowIso();
   try {
     await c.env.DB.prepare(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, proyecto, hijos, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, proyecto, hijos, enum_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         campo.id,
@@ -1168,6 +1168,7 @@ app.post('/v1/mongo', async (c) => {
         JSON.stringify(campo.indices || []),
         campo.proyecto,
         JSON.stringify(campo.hijos || []),
+        JSON.stringify(Array.isArray((campo as { enum?: string[] }).enum) ? (campo as { enum?: string[] }).enum : []),
         ts,
         ts
       )
@@ -1194,7 +1195,7 @@ app.put('/v1/mongo/:id', async (c) => {
   await c.env.DB.prepare(
     `UPDATE campos_mongo SET campo = ?, base_datos = ?, coleccion = ?, clave = ?, bson_type = ?,
      obligatorio = ?, descripcion = ?, ancla = ?, hash = ?, proyeccion_mongo = ?, proyeccion_elemento = ?, indices = ?,
-     proyecto = ?, hijos = ?, updated_at = ? WHERE id = ?`
+     proyecto = ?, hijos = ?, enum_json = ?, updated_at = ? WHERE id = ?`
   )
     .bind(
       merged.campo,
@@ -1211,6 +1212,7 @@ app.put('/v1/mongo/:id', async (c) => {
       JSON.stringify(merged.indices || []),
       merged.proyecto,
       JSON.stringify(merged.hijos || []),
+      JSON.stringify(Array.isArray((merged as { enum?: string[] }).enum) ? (merged as { enum?: string[] }).enum : []),
       ts,
       id
     )
@@ -1443,13 +1445,17 @@ app.delete('/v1/proyectos/:id', async (c) => {
   const row = await c.env.DB.prepare('SELECT legacy_negocio FROM proyectos WHERE id = ?')
     .bind(id)
     .first<{ legacy_negocio: number }>();
-  if (row && row.legacy_negocio) {
+  const body = (await c.req.json().catch(() => ({}))) as { confirmLegacy?: boolean; confirm?: boolean };
+  const confirmLegacy = body.confirmLegacy === true || body.confirm === true;
+  if (row && row.legacy_negocio && !confirmLegacy) {
     return jsonError(
       c,
       409,
-      'Proyecto legado (negocio). Confirma con el humano antes de borrar; quita legacyNegocio o bórralo tras confirmación explícita.'
+      'Esquema legado (negocio). Tras migrar a negocios, borra con { "confirmLegacy": true }.'
     );
   }
+  await c.env.DB.prepare('DELETE FROM proyecto_skills WHERE proyecto_id = ?').bind(id).run();
+  await c.env.DB.prepare('DELETE FROM proyecto_versions WHERE proyecto_id = ?').bind(id).run();
   await c.env.DB.prepare('DELETE FROM proyectos WHERE id = ?').bind(id).run();
   return c.json({ ok: true, deleted: id });
 });
@@ -1551,7 +1557,17 @@ app.onError((err, c) => {
   return jsonError(c, 500, err instanceof Error ? err.message : 'Error interno.');
 });
 
-export default app;
+/** Alias público: /v1/esquemas → mismos handlers que /v1/proyectos. */
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === '/v1/esquemas' || url.pathname.startsWith('/v1/esquemas/')) {
+      url.pathname = url.pathname.replace(/^\/v1\/esquemas/, '/v1/proyectos');
+      request = new Request(url.toString(), request);
+    }
+    return app.fetch(request, env, ctx);
+  },
+};
 
 /* ——— helpers ——— */
 
@@ -1691,6 +1707,16 @@ async function loadValoresNegocio(
 
 /** Prefer catálogo baseDatos (campos_mongo / anclas) over hard-coded default. */
 async function catalogMongoDbHint(db: D1Database): Promise<string | undefined> {
+  // Prefer schema reservas (software_reservas), no el id del Worker ni arquitectura_reservas.
+  const fromProy = await db
+    .prepare(
+      `SELECT base_datos FROM proyectos
+       WHERE legacy_negocio = 0 AND base_datos IS NOT NULL AND trim(base_datos) != ''
+       ORDER BY CASE id WHEN 'reservas' THEN 0 ELSE 1 END, id
+       LIMIT 1`
+    )
+    .first<{ base_datos: string }>();
+  if (fromProy?.base_datos) return fromProy.base_datos;
   const fromMongo = await db
     .prepare(
       `SELECT base_datos FROM campos_mongo WHERE base_datos IS NOT NULL AND trim(base_datos) != '' LIMIT 1`
@@ -1760,7 +1786,7 @@ function mapAnclaRow(row: Record<string, unknown>) {
     etiqueta: String(row.etiqueta || ''),
     claveMongo: String(row.clave_mongo ?? row.claveMongo ?? ''),
     coleccion: String(row.coleccion || ''),
-    baseDatos: String(row.base_datos ?? row.baseDatos ?? 'arquitectura_reservas'),
+    baseDatos: String(row.base_datos ?? row.baseDatos ?? 'software_reservas'),
     tipo: String(row.tipo || 'string'),
     obligatorio: !!(row.obligatorio === 1 || row.obligatorio === true),
     formato: String(row.formato || ''),
@@ -1787,6 +1813,7 @@ function mapMongo(row: Record<string, unknown>) {
       hijos = [];
     }
   }
+  const enumVals = parseStringList(row.enum_json ?? row.enum ?? row.enumJson);
   return {
     id: String(row.id),
     campo: String(row.campo || ''),
@@ -1803,6 +1830,7 @@ function mapMongo(row: Record<string, unknown>) {
     indices: parseJsonArray(row.indices),
     proyecto: String(row.proyecto || ''),
     hijos,
+    ...(enumVals.length ? { enum: enumVals } : {}),
   };
 }
 
@@ -1927,6 +1955,7 @@ async function prepareMongoPersist(
   if ((bsonType === 'object' || bsonType === 'array') && !Array.isArray(hijos)) {
     return { error: 'object/array requieren hijos[].' };
   }
+  const enumVals = parseStringList(body.enum ?? body.enum_json ?? (base as { enum?: string[] }).enum);
   return {
     campo: {
       ...base,
@@ -1934,6 +1963,7 @@ async function prepareMongoPersist(
       proyecto: proyectoId,
       hijos,
       bsonType,
+      ...(enumVals.length ? { enum: enumVals } : {}),
     },
   };
 }
@@ -1982,7 +2012,7 @@ function normalizeAnclaBody(body: Record<string, unknown>) {
     etiqueta: String(body.etiqueta || '').trim(),
     claveMongo: String(body.claveMongo || body.clave_mongo || id.split('.').pop() || '').trim(),
     coleccion: String(body.coleccion || 'negocios').trim(),
-    baseDatos: String(body.baseDatos || body.base_datos || 'arquitectura_reservas').trim(),
+    baseDatos: String(body.baseDatos || body.base_datos || 'software_reservas').trim(),
     tipo: String(body.tipo || 'string').trim(),
     obligatorio: !!(body.obligatorio === true || body.obligatorio === 1 || body.obligatorio === '1'),
     formato,
@@ -2087,6 +2117,7 @@ function normalizeMongoBody(body: Record<string, unknown>) {
   const bsonType = String(
     body.bsonType || body.bson_type || (proyeccionMongo === 'array' ? 'array' : 'string')
   ).trim();
+  const enumVals = parseStringList(body.enum ?? body.enum_json ?? body.enumJson);
   return {
     id,
     campo,
@@ -2103,5 +2134,6 @@ function normalizeMongoBody(body: Record<string, unknown>) {
     indices,
     proyecto: String(body.proyecto || '').trim(),
     hijos,
+    ...(enumVals.length ? { enum: enumVals } : {}),
   };
 }

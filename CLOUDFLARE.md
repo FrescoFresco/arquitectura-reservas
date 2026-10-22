@@ -48,7 +48,7 @@ El Worker habla con Atlas con el **driver oficial `mongodb`** (TCP). No uses Dat
 |--------------|-------------|--------|
 | `ENCRYPTION_KEY` | sí, para guardar URI desde el panel | `npx wrangler secret put ENCRYPTION_KEY` (Worker `campos-ancla-api`) |
 | `MONGODB_URI` | no (fallback) | Solo si no hay URI en D1; Cursor env + `wrangler secret put MONGODB_URI` |
-| `MONGODB_DB` | no | default `arquitectura_reservas`. Opcional en el form o secret |
+| `MONGODB_DB` | no | default `software_reservas` (schema reservas). Opcional en el form o secret |
 
 ```bash
 # Una vez (cifrado en reposo de la URI del panel):

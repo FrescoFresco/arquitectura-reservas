@@ -134,7 +134,7 @@ X-Agente-Clave: inv_…
 | Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
 | Mongo | `GET /v1/mongo` | `GET /v1/mongo/:id` | `POST /v1/mongo` | `PUT /v1/mongo/:id` | `DELETE /v1/mongo/:id` |
-| Proyectos | `GET /v1/proyectos` | `GET /v1/proyectos/:id` | `POST /v1/proyectos` | `PUT /v1/proyectos/:id` | `DELETE /v1/proyectos/:id` |
+| Esquemas de BD (alias Proyectos) | `GET /v1/proyectos` · `GET /v1/esquemas` | `GET /v1/proyectos/:id` · `/v1/esquemas/:id` | `POST` igual | `PUT` igual | `DELETE` igual |
 | Fundamentos | `GET /v1/fundamentos` | `GET /v1/fundamentos/:id` | `POST /v1/fundamentos` | `PUT /v1/fundamentos/:id` | `DELETE /v1/fundamentos/:id` |
 
 Prefijo completo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
@@ -157,9 +157,9 @@ Content-Type: application/json
 `PUT /v1/skills/:id` crea **versión nueva** (no pisa el markdown anterior).  
 `DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`).
 
-### Proyecto = software (base Mongo propia)
+### Esquemas de BD (= softwares; rutas `/v1/proyectos` y alias `/v1/esquemas`)
 
-Un **proyecto** es un software (`reservas`, `llamadas`, …), no un negocio. Campos:
+En la UI el panel se llama **Esquemas de BD**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico. Un esquema es un software (`reservas`, `llamadas`, …), no un negocio. Campos:
 
 ```json
 {
@@ -175,28 +175,31 @@ Un **proyecto** es un software (`reservas`, `llamadas`, …), no un negocio. Cam
 
 - `PUT` crea **versión nueva**.
 - Cada colección citada en `relaciones` debe existir en `colecciones` (si no → `400`).
-- Negocios legado (`pelo-sur`, `la-mesa-norte`) llevan `legacyNegocio: true` hasta confirmación humana de borrado (`DELETE` → `409`).
+- Negocios (`pelo-sur`, `la-mesa-norte`) viven como documentos del cajón `negocios` del schema `reservas`. Si aún quedan filas legado: `DELETE` con `{ "confirmLegacy": true }`.
 
 ```
 GET  {API_BASE}/v1/proyectos/:id/diagrama
+GET  {API_BASE}/v1/esquemas/:id/diagrama
 → { ok, proyecto, diagrama: { mermaid, colecciones, relaciones, baseDatos } }
   ?format=mermaid → text/plain con el erDiagram
 
 POST {API_BASE}/v1/proyectos/:id/crear-bd
+POST {API_BASE}/v1/esquemas/:id/crear-bd
 Authorization: Bearer inv_…
-→ crea DB/colecciones/índices/$jsonSchema desde campos Mongo del proyecto
-  Sin URI → { mock:true, dryRun:true, plan } (no inventa secretos; URI en Ajustes → Conexiones)
+→ crea DB/colecciones/índices/$jsonSchema desde campos Mongo del esquema
+  Sin URI → { mock:true, dryRun:true, plan, source hint } (URI en Ajustes → Conexiones; default db del schema, p. ej. software_reservas)
 ```
 
-### Campos MongoDB ↔ proyecto
+### Campos MongoDB ↔ esquema
 
-Campo obligatorio `"proyecto": "reservas"`. `baseDatos` se toma del proyecto (no a mano). `coleccion` debe estar en `colecciones` del proyecto. Tipos `object` / `array` admiten `"hijos": […]`.
+Campo obligatorio `"proyecto": "reservas"` (id del esquema). `baseDatos` se toma del esquema (no a mano). `coleccion` debe estar en `colecciones`. Tipos `object` / `array` admiten `"hijos": […]`; `enum` opcional (p. ej. resultado de llamada).
 
 ```
 GET {API_BASE}/v1/mongo?proyecto=reservas
+GET {API_BASE}/v1/mongo?proyecto=llamadas
 ```
 
-### Agentes — permisos por proyecto
+### Agentes — permisos por esquema
 
 ```json
 { "proyectos": ["reservas"], "lee": ["_negocio.telefono_"], "escribe": ["_ejecucion.respuesta.estado_"] }
@@ -204,9 +207,9 @@ GET {API_BASE}/v1/mongo?proyecto=reservas
 
 `PUT /v1/agentes/:id` acepta `proyectos`, `lee`, `escribe`.
 
-### Proyecto ↔ skills (N:M)
+### Esquema ↔ skills (N:M)
 
-En el cuerpo: `"skills": ["mapear-recorrido", "generar-script"]`. Borrar un proyecto no borra las skills.
+En el cuerpo: `"skills": ["mapear-recorrido", "generar-script"]`. Borrar un esquema no borra las skills.
 
 ### Ancla ↔ Mongo (0..1)
 
@@ -336,7 +339,7 @@ Content-Type: application/json
 
 Driver: **`mongodb`** oficial en el Worker (TCP; no Data API).
 
-**Origen de la URI (prioridad):** (1) URI guardada en D1 desde el panel **Ajustes → Conexiones** (AES-GCM con secret `ENCRYPTION_KEY`); (2) fallback secret/env `MONGODB_URI`. Opcional `MONGODB_DB` / campo `db` (default `arquitectura_reservas`).
+**Origen de la URI (prioridad):** (1) URI guardada en D1 desde el panel **Ajustes → Conexiones** (AES-GCM con secret `ENCRYPTION_KEY`); (2) fallback secret/env `MONGODB_URI`. Opcional `MONGODB_DB` / campo `db` (default del schema, p. ej. `software_reservas`; no `arquitectura_reservas`).
 
 ```
 GET  {API_BASE}/health
@@ -348,7 +351,7 @@ GET  {API_BASE}/v1/mongo/status
 
 POST {API_BASE}/v1/mongo/config
 Authorization: Bearer inv_…
-{ "uri": "mongodb+srv://…", "db"?: "arquitectura_reservas", "probeOnly"?: true }
+{ "uri": "mongodb+srv://…", "db"?: "software_reservas", "probeOnly"?: true }
 → guarda cifrado (o solo prueba si probeOnly). Respuesta: configured/connected/db/source/hint — sin uri
 
 DELETE {API_BASE}/v1/mongo/config
