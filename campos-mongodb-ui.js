@@ -103,7 +103,8 @@
       key: 'cerrar',
       type: 'button',
       className: 'icon-btn',
-      'aria-label': 'Cerrar',
+      'aria-label': 'Volver',
+      title: 'Volver',
       onClick: props.onCerrar
     }, '×'));
     return e('div', { className: 'ancla-ficha-acciones' }, nodos);

@@ -25,6 +25,48 @@ const AGENTE_LATIDO_MS = 120000;
 const AGENTE_POLL_MS = 4000;
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
+
+const FICHA_PANE_IDS = [
+  'dlgSkill',
+  'dlgCampoFicha',
+  'dlgMongoFicha',
+  'dlgProyecto',
+  'dlgAgenteFicha',
+  'dlgFundamento'
+];
+
+function syncFichaPaneClass() {
+  const open = FICHA_PANE_IDS.some(function (id) {
+    const d = document.getElementById(id);
+    return !!(d && d.open);
+  });
+  document.documentElement.classList.toggle('ficha-pane-open', open);
+}
+
+function openFichaPane(dlg) {
+  if (!dlg) return;
+  FICHA_PANE_IDS.forEach(function (id) {
+    if (dlg.id && id === dlg.id) return;
+    const other = document.getElementById(id);
+    if (other && other.open) other.close();
+  });
+  if (!dlg.open) {
+    if (typeof dlg.show === 'function') dlg.show();
+    else if (typeof dlg.showModal === 'function') dlg.showModal();
+  }
+  syncFichaPaneClass();
+}
+
+function cerrarTodasFichasPane() {
+  FICHA_PANE_IDS.forEach(function (id) {
+    const d = document.getElementById(id);
+    if (d && d.open) d.close();
+  });
+  syncFichaPaneClass();
+}
+window.cerrarTodasFichasPane = cerrarTodasFichasPane;
+
+
 function esHashHex(h) {
   return typeof h === 'string' && /^[a-f0-9]{16,64}$/i.test(h.trim());
 }
@@ -1013,7 +1055,7 @@ function abrirFichaCampo(id) {
   if (window.CamposAnclaUI && window.CamposAnclaUI.mostrarFicha) {
     window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo, null, extras);
   }
-  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  openFichaPane(dlg);
   pintarCampos();
 }
 
@@ -1034,7 +1076,7 @@ function abrirFichaAncla(texto) {
       window.CamposAnclaUI.mostrarFicha(null, cerrarFichaCampo, 'Este ancla no está en el catálogo Campos ancla.', extras);
     }
   }
-  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  openFichaPane(dlg);
   pintarCampos();
 }
 
@@ -1042,6 +1084,7 @@ function cerrarFichaCampo() {
   state.campos.abiertoId = null;
   const dlg = document.getElementById('dlgCampoFicha');
   if (dlg && dlg.open) dlg.close();
+  syncFichaPaneClass();
   if (window.CamposAnclaUI && window.CamposAnclaUI.limpiarFicha) {
     window.CamposAnclaUI.limpiarFicha();
   }
@@ -1220,7 +1263,7 @@ function abrirFichaMongo(id) {
       extrasFichaMongo(campo)
     );
   }
-  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  openFichaPane(dlg);
   pintarMongo();
 }
 
@@ -1228,6 +1271,7 @@ function cerrarFichaMongo() {
   state.mongo.abiertoId = null;
   const dlg = document.getElementById('dlgMongoFicha');
   if (dlg && dlg.open) dlg.close();
+  syncFichaPaneClass();
   if (window.CamposMongoUI && window.CamposMongoUI.limpiarFicha) window.CamposMongoUI.limpiarFicha();
   pintarMongo();
 }
@@ -2029,7 +2073,7 @@ function renderReader() {
   renderHistorial(ins, v);
   pintarVersion(v);
   pintarReaderAnclas(ins);
-  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  openFichaPane(dlg);
   const nombre = document.getElementById('readerNombre');
   if (nombre) nombre.focus();
 }
@@ -3527,9 +3571,13 @@ function iniciar() {
       pintarSkills();
       return;
     }
-    const dlgCampoFichaEsc = document.getElementById('dlgCampoFicha');
-    if (dlgCampoFichaEsc && dlgCampoFichaEsc.open) {
-      // native dialog handles Escape; close listener clears state
+    const fichaAbierta = FICHA_PANE_IDS.map(function (id) { return document.getElementById(id); })
+      .filter(function (d) { return d && d.open; })
+      .pop();
+    if (fichaAbierta) {
+      e.preventDefault();
+      fichaAbierta.close();
+      syncFichaPaneClass();
       return;
     }
     if (state.historial) {
@@ -3547,6 +3595,12 @@ function iniciar() {
       const boton = document.getElementById('btnHistMapa');
       if (boton) boton.focus();
     }
+  });
+
+  FICHA_PANE_IDS.forEach(function (id) {
+    const d = document.getElementById(id);
+    if (!d) return;
+    d.addEventListener('close', syncFichaPaneClass);
   });
   render();
   cargarSkills();
@@ -4030,7 +4084,7 @@ function renderProyectoReader() {
   pintarVersionProyecto(v);
   pintarProyectoSkillsLista(proy);
   renderHistorialProyecto(proy, v);
-  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  openFichaPane(dlg);
   const nombre = document.getElementById('proyReaderNombre');
   if (nombre) nombre.focus();
 }
@@ -5548,7 +5602,7 @@ function renderAgenteReader() {
       avatar.textContent = String(ag.nombre).trim().charAt(0).toUpperCase() || '?';
     }
   }
-  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  openFichaPane(dlg);
   const nombre = document.getElementById('agenteReaderNombre');
   if (nombre) nombre.focus();
 }
@@ -5980,7 +6034,7 @@ function renderFundamentoReader() {
   seleccionarFundReaderTab('documento');
   renderHistorialFund(f, v);
   pintarVersionFundamento(v);
-  if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  openFichaPane(dlg);
   const nombre = document.getElementById('fundReaderNombre');
   if (nombre) nombre.focus();
 }

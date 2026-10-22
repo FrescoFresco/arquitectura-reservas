@@ -308,6 +308,28 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .tabla-scroll{overflow:auto}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
+/* Ficha a panel completo: hub fijo, detalle ocupa el main */
+dialog.ficha-pane{box-sizing:border-box}
+dialog.ficha-pane[open]{
+  display:flex;flex-direction:column;
+  position:fixed;top:0;right:0;bottom:0;left:232px;
+  width:auto;max-width:none;max-height:none;height:auto;margin:0;
+  border:0;border-radius:0;box-shadow:none;padding:0;
+  background:#fbfdff;overflow:auto;z-index:25;
+}
+dialog.ficha-pane[open]::backdrop{display:none;background:transparent}
+html.ficha-pane-open .layout>section.main{visibility:hidden}
+dialog.ficha-pane[open] .dlg-reader,
+dialog.ficha-pane[open] .ancla-ficha{
+  flex:1;min-height:100%;border:0;border-radius:0;box-shadow:none;background:#fbfdff
+}
+dialog.ficha-pane[open] .md-wrap{max-height:none}
+dialog.ficha-pane[open] #campo-ficha-mount,
+dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
+@media(max-width:800px){
+  dialog.ficha-pane[open]{left:0;bottom:calc(57px + env(safe-area-inset-bottom));z-index:35}
+}
+
 </style>
 </head>
 <body>
@@ -342,7 +364,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div id="campos-mongodb-root"></div>
 </div>
 </section>
-<dialog id="dlgSkill" class="dlg-wide" aria-labelledby="readerNombre">
+<dialog id="dlgSkill" class="dlg-wide ficha-pane" aria-labelledby="readerNombre">
 <article class="reader dlg-reader" id="reader">
 <div class="reader-top">
 <div class="reader-top-titulo">
@@ -371,7 +393,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <button type="button" class="icon-btn" id="btnEliminarSkill" aria-label="Eliminar skill" title="Eliminar">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
-<button type="button" class="icon-btn" id="btnCerrarSkill" aria-label="Cerrar">×</button>
+<button type="button" class="icon-btn" id="btnCerrarSkill" aria-label="Volver" title="Volver">×</button>
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
@@ -397,13 +419,13 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 </article>
 </dialog>
-<dialog id="dlgCampoFicha" class="dlg-wide" aria-label="Ficha del campo ancla">
+<dialog id="dlgCampoFicha" class="dlg-wide ficha-pane" aria-label="Ficha del campo ancla">
 <div id="campo-ficha-mount"></div>
 </dialog>
-<dialog id="dlgMongoFicha" class="dlg-wide" aria-label="Ficha del campo MongoDB">
+<dialog id="dlgMongoFicha" class="dlg-wide ficha-pane" aria-label="Ficha del campo MongoDB">
 <div id="mongo-ficha-mount"></div>
 </dialog>
-<dialog id="dlgProyecto" class="dlg-wide" aria-labelledby="proyReaderNombre">
+<dialog id="dlgProyecto" class="dlg-wide ficha-pane" aria-labelledby="proyReaderNombre">
 <article class="reader dlg-reader" id="proyReader">
 <div class="reader-top">
 <div class="reader-top-titulo">
@@ -430,7 +452,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <button type="button" class="icon-btn" id="btnEliminarProyecto" aria-label="Eliminar base de datos" title="Eliminar">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
-<button type="button" class="icon-btn" id="btnCerrarProyecto" aria-label="Cerrar">×</button>
+<button type="button" class="icon-btn" id="btnCerrarProyecto" aria-label="Volver" title="Volver">×</button>
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones de la base de datos">
@@ -820,7 +842,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </form>
 </dialog>
 
-<dialog id="dlgAgenteFicha" class="dlg-wide" aria-labelledby="agenteReaderNombre">
+<dialog id="dlgAgenteFicha" class="dlg-wide ficha-pane" aria-labelledby="agenteReaderNombre">
 <article class="reader dlg-reader" id="agenteReader">
 <div class="reader-top">
 <div class="reader-top-titulo">
@@ -837,7 +859,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <button type="button" class="icon-btn" id="btnEliminarAgente" aria-label="Eliminar agente" title="Eliminar">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
-<button type="button" class="icon-btn" id="btnCerrarAgente" aria-label="Cerrar">×</button>
+<button type="button" class="icon-btn" id="btnCerrarAgente" aria-label="Volver" title="Volver">×</button>
 </div>
 </div>
 <div class="ancla-ficha-body">
@@ -851,7 +873,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 </article>
 </dialog>
-<dialog id="dlgFundamento" class="dlg-wide" aria-labelledby="fundReaderNombre">
+<dialog id="dlgFundamento" class="dlg-wide ficha-pane" aria-labelledby="fundReaderNombre">
 <article class="reader dlg-reader" id="fundReader">
 <div class="reader-top">
 <div class="reader-top-titulo">
@@ -877,7 +899,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <button type="button" class="icon-btn" id="btnEliminarFundamento" aria-label="Eliminar fundamento" title="Eliminar">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
-<button type="button" class="icon-btn" id="btnCerrarFundamento" aria-label="Cerrar">×</button>
+<button type="button" class="icon-btn" id="btnCerrarFundamento" aria-label="Volver" title="Volver">×</button>
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="fundReaderTabs" role="tablist" aria-label="Secciones del fundamento">
@@ -1015,6 +1037,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
     var n = e.target;
     while (n && n !== hub) {
       if (n.getAttribute && n.getAttribute('data-destino')) {
+        if (typeof window.cerrarTodasFichasPane === 'function') window.cerrarTodasFichasPane();
         abrir(n.getAttribute('data-destino'));
         return;
       }
@@ -1025,13 +1048,13 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 })();
 </script>
 <script src="skills-ui.js?v=20261020y"></script>
-<script src="campos-ancla-ui.js?v=20261021pelo"></script>
-<script src="campos-mongodb-ui.js?v=20261021pelo"></script>
-<script src="proyectos-ui.js?v=20261022colecciones1"></script>
+<script src="campos-ancla-ui.js?v=20261022fullpane1"></script>
+<script src="campos-mongodb-ui.js?v=20261022fullpane1"></script>
+<script src="proyectos-ui.js?v=20261022fullpane1"></script>
 <script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022colecciones1"></script>
-<script src="ajustes-ui.js?v=20261022colecciones1"></script>
+<script src="catalogo-ui.js?v=20261022fullpane1"></script>
+<script src="ajustes-ui.js?v=20261022fullpane1"></script>
 
 </body>
 </html>
