@@ -435,6 +435,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones de la base de datos">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabColecciones" data-proy-tab="colecciones" aria-selected="false" aria-controls="proyPanelColecciones">Colecciones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabAgentes" data-proy-tab="agentes" aria-selected="false" aria-controls="proyPanelAgentes">Agentes</button>
@@ -459,6 +460,13 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div class="ancla-ficha-skills" id="proySkillsLista"></div>
 <p class="ancla-ficha-vacio" id="proySkillsVacio" hidden>Ninguna skill asociada.</p>
 <div class="md-wrap" style="margin-top:1rem"><div class="md" id="proyMd"></div></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelColecciones" role="tabpanel" aria-labelledby="proyTabColecciones" hidden>
+<p class="ancla-ficha-vacio" id="proyColeccionesVacio" hidden>Sin colecciones en esta base de datos.</p>
+<div class="tabla-scroll"><table class="proy-campos-tabla" id="proyColeccionesTabla" hidden>
+<thead><tr><th>Colección</th><th>Descripción</th><th>Campos</th></tr></thead>
+<tbody id="proyColeccionesBody"></tbody>
+</table></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelDiagrama" role="tabpanel" aria-labelledby="proyTabDiagrama" hidden>
 <p class="ancla-ficha-vacio" id="proyDiagramaEstado">Cargando diagrama…</p>
@@ -1019,11 +1027,11 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script src="skills-ui.js?v=20261020y"></script>
 <script src="campos-ancla-ui.js?v=20261021pelo"></script>
 <script src="campos-mongodb-ui.js?v=20261021pelo"></script>
-<script src="proyectos-ui.js?v=20261022basedatos1"></script>
+<script src="proyectos-ui.js?v=20261022colecciones1"></script>
 <script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022basedatos1"></script>
-<script src="ajustes-ui.js?v=20261022basedatos1"></script>
+<script src="catalogo-ui.js?v=20261022colecciones1"></script>
+<script src="ajustes-ui.js?v=20261022colecciones1"></script>
 
 </body>
 </html>
