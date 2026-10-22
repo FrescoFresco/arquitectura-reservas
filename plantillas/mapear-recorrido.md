@@ -4,7 +4,7 @@
 
 ## Versión
 
-1
+2
 
 ## Instrucción
 
@@ -16,6 +16,8 @@ Recorre la web de reserva del negocio desde el punto A (`proceso.url_inicio`) ha
 - Averigua qué sistema de reservas hay detrás (CoverManager, TheFork, un plugin de WordPress, formulario propio…) y anota qué lo demuestra.
 - Recorre los pasos en orden: cada clic, cada elección y cada espera que haga falta para llegar a B.
 - Para cada campo del formulario, di si es obligatorio y cómo lo sabes (asterisco, atributo `required`, error al dejarlo vacío). Usa selectores de Playwright estables (id, name, rol con nombre accesible) y comprueba que encuentran un único elemento.
+- Da a cada campo su **clase**: `identificador` (DNI, NIE, pasaporte), `sensible` (nombre, teléfono, email, datos de salud), `consentimiento` (casilla de privacidad o condiciones), `texto_libre` (comentarios, peticiones) y `normal` (el resto). Un `identificador` no lleva valor de prueba: escribe `null`.
+- Las URL no llevan datos personales en la query (nombre, teléfono, email, DNI…): si la web los pone ahí, escribe la URL sin ellos y explícalo.
 - Si aparece un obstáculo (CAPTCHA, inicio de sesión, pago u otro control que no se debe esquivar), **no lo esquives**: anótalo y para ahí. Un formulario cerrado o sin fechas no es un obstáculo: cuéntalo en la Explicación.
 - Si ves el mensaje de «sin hueco» (por ejemplo, eligiendo un día o una hora sin disponibilidad), cópialo literal. Si no lo ves, escribe `null`.
 - Si `proceso.url_inicio` no es la URL donde empieza de verdad la reserva, escribe la correcta.
@@ -26,10 +28,10 @@ Recorre la web de reserva del negocio desde el punto A (`proceso.url_inicio`) ha
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `negocio.nombre` | texto | Nombre comercial del local, tal como lo ve el cliente. |
-| `negocio.url` | url | Web principal del local. |
+| `negocio.url` | url_sin_pii | Web principal del local. |
 | `negocio.zona_horaria` | zona_horaria | Zona horaria IANA del local; todas las horas de reserva se interpretan en ella. |
-| `negocio.telefono` | telefono | Teléfono público del local, con prefijo internacional. |
-| `proceso.url_inicio` | url | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
+| `negocio.telefono` | telefono | Teléfono público del local en formato E.164 (+34928565098). |
+| `proceso.url_inicio` | url_sin_pii | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
 | `proceso.alcance` | enum: hasta_B, completo | Hasta dónde se permite llegar: hasta_B (formulario relleno, sin confirmar) o completo (confirmar con la compuerta abierta). |
 <!-- /generado:entrada -->
 
@@ -48,17 +50,18 @@ Recorre la web de reserva del negocio desde el punto A (`proceso.url_inicio`) ha
 <!-- generado:campos -->
 | Campo | Tipo | Nivel | Descripción |
 |---|---|---|---|
-| `proceso.url_inicio` | url | blindado | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
+| `proceso.url_inicio` | url_sin_pii | blindado | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
 | `version.recorrido.sistema.nombre` | texto | estable | Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, un plugin de WordPress, formulario propio…). |
 | `version.recorrido.sistema.evidencia` | texto_largo | estable | Qué se vio en la página (dominios, scripts, clases, iframes) que permite afirmar el sistema. |
 | `version.recorrido.llega_a_b` | booleano | estable | true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista. |
 | `version.recorrido.pasos.N.accion` | texto | blindado | Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…). |
 | `version.recorrido.pasos.N.selector` | texto | estable | Selector de Playwright del elemento sobre el que se actúa; null si el paso no actúa sobre un elemento. |
-| `version.recorrido.pasos.N.url` | url | estable | URL de la página en la que ocurre el paso. |
+| `version.recorrido.pasos.N.url` | url_sin_pii | estable | URL de la página en la que ocurre el paso. |
 | `version.recorrido.campos.N.nombre` | texto | blindado | Etiqueta visible del campo del formulario. |
 | `version.recorrido.campos.N.selector` | texto | blindado | Selector de Playwright que encuentra el campo de forma única. |
 | `version.recorrido.campos.N.control` | enum: texto, email, telefono, numero, fecha, hora, select, checkbox, radio, textarea, otro | estable | Tipo de control con el que se rellena el campo. |
 | `version.recorrido.campos.N.obligatorio` | booleano | blindado | true si la web no deja avanzar sin este campo. |
+| `version.recorrido.campos.N.clase` | enum: normal, texto_libre, identificador, sensible, consentimiento | blindado | Qué clase de dato pide el campo: identificador (DNI, NIE, pasaporte), sensible (nombre, teléfono, email, salud), consentimiento (casilla de privacidad o condiciones), texto_libre (comentarios) y normal (el resto). Un identificador no lleva valor de prueba; cada consentimiento exige un parámetro const: true en la función. |
 | `version.recorrido.campos.N.evidencia` | texto | estable | Cómo se sabe si es obligatorio: asterisco, atributo required, mensaje de error al dejarlo vacío… |
 | `version.recorrido.campos.N.valor_prueba` | texto | estable | Valor de prueba con el que se rellenó al mapear. |
 | `version.recorrido.obstaculos.N.tipo` | enum: captcha, login, pago, otro | blindado | Control que no se esquiva: se anota y se para. |

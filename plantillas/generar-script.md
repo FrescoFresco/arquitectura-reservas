@@ -4,7 +4,7 @@
 
 ## Versión
 
-1
+2
 
 ## Instrucción
 
@@ -32,7 +32,10 @@ export async function confirmar(page) { … }
 - `type: "object"` con `properties`, `required` y `additionalProperties: false`;
 - una `description` en español por parámetro, que el agente de voz leerá;
 - un `examples` con un valor de prueba;
-- la fecha con `format: "date"` (AAAA-MM-DD, día local del negocio) y la hora con `pattern` HH:MM.
+- la fecha con `format: "date"` (AAAA-MM-DD, día local del negocio) y la hora con `pattern` HH:MM;
+- por cada campo de clase `consentimiento`, un parámetro `const: true` que el agente de voz pregunte al cliente; el script se niega a seguir sin él. El gestor no guarda un JSON Schema que no lo tenga.
+
+Los campos de clase `sensible`, `identificador` o `texto_libre` se rellenan con `params` y su valor nunca se registra con `registrar`.
 
 Lo propio de este formulario (alérgenos, trona, zona…) va aquí como parámetro, no al catálogo.
 
@@ -44,18 +47,19 @@ Lo propio de este formulario (alérgenos, trona, zona…) va aquí como parámet
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `negocio.zona_horaria` | zona_horaria | Zona horaria IANA del local; todas las horas de reserva se interpretan en ella. |
-| `proceso.url_inicio` | url | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
+| `proceso.url_inicio` | url_sin_pii | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
 | `proceso.alcance` | enum: hasta_B, completo | Hasta dónde se permite llegar: hasta_B (formulario relleno, sin confirmar) o completo (confirmar con la compuerta abierta). |
 | `version.recorrido.sistema.nombre` | texto | Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, un plugin de WordPress, formulario propio…). |
 | `version.recorrido.sistema.evidencia` | texto_largo | Qué se vio en la página (dominios, scripts, clases, iframes) que permite afirmar el sistema. |
 | `version.recorrido.llega_a_b` | booleano | true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista. |
 | `version.recorrido.pasos.N.accion` | texto | Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…). |
 | `version.recorrido.pasos.N.selector` | texto | Selector de Playwright del elemento sobre el que se actúa; null si el paso no actúa sobre un elemento. |
-| `version.recorrido.pasos.N.url` | url | URL de la página en la que ocurre el paso. |
+| `version.recorrido.pasos.N.url` | url_sin_pii | URL de la página en la que ocurre el paso. |
 | `version.recorrido.campos.N.nombre` | texto | Etiqueta visible del campo del formulario. |
 | `version.recorrido.campos.N.selector` | texto | Selector de Playwright que encuentra el campo de forma única. |
 | `version.recorrido.campos.N.control` | enum: texto, email, telefono, numero, fecha, hora, select, checkbox, radio, textarea, otro | Tipo de control con el que se rellena el campo. |
 | `version.recorrido.campos.N.obligatorio` | booleano | true si la web no deja avanzar sin este campo. |
+| `version.recorrido.campos.N.clase` | enum: normal, texto_libre, identificador, sensible, consentimiento | Qué clase de dato pide el campo: identificador (DNI, NIE, pasaporte), sensible (nombre, teléfono, email, salud), consentimiento (casilla de privacidad o condiciones), texto_libre (comentarios) y normal (el resto). Un identificador no lleva valor de prueba; cada consentimiento exige un parámetro const: true en la función. |
 | `version.recorrido.campos.N.evidencia` | texto | Cómo se sabe si es obligatorio: asterisco, atributo required, mensaje de error al dejarlo vacío… |
 | `version.recorrido.campos.N.valor_prueba` | texto | Valor de prueba con el que se rellenó al mapear. |
 | `version.recorrido.obstaculos.N.tipo` | enum: captcha, login, pago, otro | Control que no se esquiva: se anota y se para. |

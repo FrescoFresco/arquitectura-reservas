@@ -39,8 +39,12 @@ test('comprobar detecta definiciones mal hechas', () => {
     def('version.e', 'texto', 'flexible'),
     def('version.f', 'texto', 'estable', { estado: 'obsoleto' }),
     def('version.a.hijo', 'texto', 'estable'),
+    def('version.g', 'texto', 'estable', { alias: ['version.a'] }),
+    def('version.h', 'texto', 'estable', { alias: ['viejo_h'] }),
+    def('version.i', 'texto', 'estable', { alias: ['viejo_h', 'lista.N.i'] }),
+    def('version.j', 'texto', 'estable', { alias: 'no-es-lista' }),
   ]);
-  for (const trozo of ['id repetido', 'colección conocida', 'tipo desconocido', 'enum necesita valores', 'flexible va con tipo json', 'obsoleto sin sustituido_por', 'campo y contenedor']) {
+  for (const trozo of ['id repetido', 'colección conocida', 'tipo desconocido', 'enum necesita valores', 'flexible va con tipo json', 'obsoleto sin sustituido_por', 'campo y contenedor', 'es el id de otro campo', 'ya es de version.h', 'mismas listas (N)', 'alias debe ser una lista']) {
     assert.ok(errores.some((e) => e.includes(trozo)), `falta el error «${trozo}»:\n${errores.join('\n')}`);
   }
 });

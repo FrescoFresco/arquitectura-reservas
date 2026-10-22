@@ -15,6 +15,12 @@ export const COLECCIONES = {
 const NIVELES = ['blindado', 'estable', 'flexible'];
 const ESTADOS = ['activo', 'propuesto', 'obsoleto'];
 const ISO_CON_ZONA = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+const EMAIL = /[^@\s]+@[^@\s]+\.[a-z]{2,}/i;
+// Palabras que delatan un dato personal en el nombre de un parámetro de la query (customer_email, tel, dni…).
+const PALABRAS_PII = new Set(
+  'nombre name firstname lastname apellido apellidos tel telefono phone mobile movil email mail correo tarjeta card dni nif nie passport pasaporte ssn dob nacimiento identidad cliente'.split(' '),
+);
+const esClavePii = (clave) => clave.toLowerCase().split(/[_\-.\s]+/).some((p) => PALABRAS_PII.has(p));
 
 function exigir(ok, mensaje) {
   if (!ok) throw new Error(mensaje);
@@ -24,18 +30,22 @@ function exigir(ok, mensaje) {
 export const TIPOS = {
   texto: { esquema: () => ({ bsonType: 'string', minLength: 1 }), leer: (t) => t },
   texto_largo: { esquema: () => ({ bsonType: 'string' }), leer: (t) => t },
-  url: {
+  url_sin_pii: {
     esquema: () => ({ bsonType: 'string', pattern: '^https?://' }),
     leer: (t) => {
       exigir(URL.canParse(t) && /^https?:$/.test(new URL(t).protocol), `«${t}» no es una URL http(s)`);
+      const pii = [...new URL(t).searchParams].filter(([k, v]) => esClavePii(k) || EMAIL.test(v)).map(([k]) => k);
+      exigir(!pii.length, `«${t}» lleva datos personales en la query (${pii.join(', ')}): quítalos`);
       return t;
     },
   },
+  // E.164: «+34 928 565 098» → «+34928565098»; «0034…» → «+34…».
   telefono: {
-    esquema: () => ({ bsonType: 'string', pattern: '^\\+[0-9][0-9 ]{6,}$' }),
+    esquema: () => ({ bsonType: 'string', pattern: '^\\+[1-9][0-9]{7,14}$' }),
     leer: (t) => {
-      exigir(/^\+[0-9][0-9 ]{6,}$/.test(t), `«${t}» no es un teléfono con prefijo (+34 …)`);
-      return t;
+      const e164 = t.replace(/[\s\-().]/g, '').replace(/^00/, '+');
+      exigir(/^\+[1-9]\d{7,14}$/.test(e164), `«${t}» no es un teléfono E.164 con prefijo internacional (+34928565098)`);
+      return e164;
     },
   },
   zona_horaria: {
@@ -120,6 +130,20 @@ export function comprobar(defs) {
     if (typeof d.sensible !== 'boolean') e('sensible debe ser true o false');
     if (d.tipo === 'enum' && !(Array.isArray(d.valores) && d.valores.length)) e('un enum necesita valores');
     if ((d.tipo === 'json') !== (d.nivel === 'flexible')) e('flexible va con tipo json, y json con flexible');
+    if (d.alias !== undefined && !(Array.isArray(d.alias) && d.alias.every((a) => /^[a-z_][a-z_0-9]*(\.([a-z_0-9]+|N))*$/.test(a)))) {
+      e('alias debe ser una lista de rutas (minúsculas, puntos y N)');
+    }
+  }
+  // Un alias apunta a un solo campo, no coincide con ningún id y tiene las mismas listas (N) que su campo.
+  const duenos = new Map();
+  const cuentaN = (r) => r.split('.').filter((s) => s === 'N').length;
+  for (const d of defs) {
+    for (const a of Array.isArray(d.alias) ? d.alias : []) {
+      if (ids.has(a)) errores.push(`${d.id}: el alias «${a}» es el id de otro campo`);
+      if (duenos.has(a)) errores.push(`${d.id}: el alias «${a}» ya es de ${duenos.get(a)}`);
+      if (cuentaN(a) !== cuentaN(d.id)) errores.push(`${d.id}: el alias «${a}» no tiene las mismas listas (N) que el campo`);
+      duenos.set(a, d.id);
+    }
   }
   for (const d of defs) {
     if (d.estado === 'obsoleto' && !ids.has(d.sustituido_por)) errores.push(`${d.id}: obsoleto sin sustituido_por válido`);

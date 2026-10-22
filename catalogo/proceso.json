@@ -11,7 +11,7 @@
   },
   {
     "id": "proceso.url_inicio",
-    "tipo": "url",
+    "tipo": "url_sin_pii",
     "nivel": "blindado",
     "descripcion": "Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script.",
     "escribe": ["manual", "mapear-recorrido"],

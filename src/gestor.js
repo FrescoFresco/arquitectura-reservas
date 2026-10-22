@@ -49,25 +49,41 @@ export function anclas(salida) {
   return { anclas: lista, errores };
 }
 
+// Si `ruta` es un alias del catálogo, devuelve la ruta canónica con los mismos números de lista.
+export function resolverAlias(ruta, defs) {
+  const d = defs.find((x) => x.alias?.includes(patron(ruta)));
+  if (!d) return null;
+  const nums = ruta.split('.').filter((s) => /^\d+$/.test(s));
+  return d.id
+    .split('.')
+    .map((s) => (s === 'N' ? nums.shift() : s))
+    .join('.');
+}
+
 export function validar(lista, defs, plantilla) {
   const mapa = new Map(defs.map((d) => [d.id, d]));
   const valores = [];
   const propuestas = [];
   const errores = [];
+  const alias = [];
   const vistas = new Set();
   const conocidas = [];
-  for (const { ruta, texto } of lista) {
-    if (vistas.has(ruta)) {
-      errores.push(`${ruta}: repetido`);
-      continue;
-    }
-    vistas.add(ruta);
-    if (ruta.startsWith('propuesta.')) {
-      const r = ruta.slice('propuesta.'.length);
-      if (mapa.has(patron(r))) errores.push(`${ruta}: ${r} ya existe en el catálogo; escríbelo sin «propuesta.»`);
+  for (const { ruta: escrita, texto } of lista) {
+    if (escrita.startsWith('propuesta.')) {
+      const r = escrita.slice('propuesta.'.length);
+      const canon = mapa.has(patron(r)) ? r : resolverAlias(r, defs);
+      if (canon) errores.push(`${escrita}: ${r} ya existe en el catálogo${canon !== r ? ` como alias de ${canon}` : ''}; escríbelo sin «propuesta.»`);
       else propuestas.push({ ruta: r, valor: texto });
       continue;
     }
+    const canon = mapa.has(patron(escrita)) ? null : resolverAlias(escrita, defs);
+    if (canon) alias.push({ de: escrita, a: canon });
+    const ruta = canon ?? escrita;
+    if (vistas.has(ruta)) {
+      errores.push(`${ruta}: repetido${canon ? ` (llega también por el alias ${escrita})` : ''}`);
+      continue;
+    }
+    vistas.add(ruta);
     const d = mapa.get(patron(ruta));
     if (!d) {
       errores.push(`${ruta}: no existe en el catálogo; si hace falta, propónlo como _propuesta.${ruta}_`);
@@ -93,8 +109,26 @@ export function validar(lista, defs, plantilla) {
       errores.push(`${ruta}: ${e.message}`);
     }
   }
-  errores.push(...revisarListas(conocidas, defs));
-  return { valores, propuestas, errores };
+  errores.push(...revisarListas(conocidas, defs), ...revisarIdentificadores(valores));
+  return { valores, propuestas, errores, alias };
+}
+
+// Un campo de clase identificador (DNI, NIE, pasaporte) nunca lleva valor de prueba: podría ser el de alguien real.
+function revisarIdentificadores(valores) {
+  const valor = new Map(valores.map((v) => [v.ruta, v.valor]));
+  return valores
+    .filter((v) => /\.campos\.\d+\.clase$/.test(v.ruta) && v.valor === 'identificador')
+    .map((v) => v.ruta.replace(/clase$/, 'valor_prueba'))
+    .filter((r) => valor.get(r) != null)
+    .map((r) => `${r}: un campo de clase identificador no lleva valor de prueba; escribe null`);
+}
+
+// Cada campo de clase consentimiento exige que la función pida esa aceptación al cliente: un parámetro const: true.
+export function revisarConsentimiento(campos = [], parametros) {
+  const consentimientos = campos.filter((c) => c.clase === 'consentimiento').length;
+  const constTrue = Object.values(parametros?.properties ?? {}).filter((p) => p.const === true).length;
+  if (constTrue >= consentimientos) return null;
+  return `version.funcion.parametros: el recorrido tiene ${consentimientos} campo(s) de consentimiento y el JSON Schema solo ${constTrue} parámetro(s) con const: true; el cliente tiene que aceptarlo`;
 }
 
 // Listas numeradas 1..n sin huecos, y cada elemento con sus campos blindados.
@@ -218,18 +252,19 @@ export function leer(base) {
   let explicacion = '';
   let valores = [];
   let propuestas = [];
+  let alias = [];
   let errores;
   try {
     const s = separar(respuesta);
     explicacion = s.explicacion;
     const a = anclas(s.salida);
     const v = validar(a.anclas, cargar(), meta.plantilla);
-    ({ valores, propuestas } = v);
+    ({ valores, propuestas, alias } = v);
     errores = [...a.errores, ...v.errores];
   } catch (e) {
     errores = [e.message];
   }
-  return { meta, entrada, respuesta, explicacion, valores, propuestas, errores, entendido: anidar(valores) };
+  return { meta, entrada, respuesta, explicacion, valores, propuestas, alias, errores, entendido: anidar(valores) };
 }
 
 async function escribir(db, meta, entendido) {
@@ -237,8 +272,12 @@ async function escribir(db, meta, entendido) {
   const otras = Object.keys(entendido).filter((k) => !destino[k]);
   if (otras.length) throw new Error(`una plantilla no escribe en ${otras.join(', ')}`);
   if (entendido.version) {
-    const v = await db.collection('versiones').findOne({ _id: meta.id_version }, { projection: { estado: 1 } });
+    const v = await db.collection('versiones').findOne({ _id: meta.id_version }, { projection: { estado: 1, recorrido: 1 } });
     if (v && v.estado !== 'borrador') throw new Error(`la versión ${meta.id_version} está ${v.estado}; solo se modifica un borrador`);
+    if (entendido.version.funcion?.parametros) {
+      const error = revisarConsentimiento((entendido.version.recorrido ?? v?.recorrido)?.campos, entendido.version.funcion.parametros);
+      if (error) throw new Error(error);
+    }
   }
   // ponytail: sin transacción entre colecciones (Mongo local sin réplica); se escribe primero la versión,
   // que es lo que más puede fallar. Con un replica set, envolverlo en una sesión con transacción.
@@ -357,6 +396,7 @@ function mostrar(r) {
     const t = valor instanceof Date ? valor.toISOString() : typeof valor === 'object' && valor ? JSON.stringify(valor) : String(valor);
     console.log(`  ${ruta} = ${t.length > 90 ? t.slice(0, 87).replace(/\s+/g, ' ') + '…' : t.replace(/\s+/g, ' ')}`);
   }
+  if (r.alias?.length) console.log(`\nAlias resueltos: ${r.alias.map((x) => `${x.de} → ${x.a}`).join(', ')}`);
   console.log(`\nPropuestas (${r.propuestas.length}):`);
   for (const p of r.propuestas) console.log(`  ${p.ruta} = ${p.valor.slice(0, 80)}`);
   console.log(`\nErrores (${r.errores.length}):`);

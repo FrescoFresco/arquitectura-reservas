@@ -70,10 +70,10 @@ export function documentacion(defs) {
   const partes = ['# Catálogo de campos ancla', '', '> Generado por `npm run generar` desde `catalogo/`. No lo edites a mano.'];
   for (const [raiz, c] of Object.entries(COLECCIONES)) {
     partes.push('', `## ${raiz} → colección \`${c.nombre}\` (ids \`${c.prefijo}-…\`)`, '');
-    partes.push('| Campo | Tipo | Nivel | Escribe | Lee | Sensible | Estado | Descripción |', '|---|---|---|---|---|---|---|---|');
+    partes.push('| Campo | Tipo | Nivel | Escribe | Lee | Sensible | Estado | Alias | Descripción |', '|---|---|---|---|---|---|---|---|---|');
     for (const d of defs.filter((d) => d.id.startsWith(raiz + '.'))) {
       const estado = d.estado === 'obsoleto' ? `obsoleto → \`${d.sustituido_por}\`` : d.estado;
-      partes.push(`| \`${d.id}\` | ${tipo(d)} | ${d.nivel} | ${d.escribe.join(', ')} | ${d.lee.join(', ')} | ${d.sensible ? 'sí' : 'no'} | ${estado} | ${d.descripcion} |`);
+      partes.push(`| \`${d.id}\` | ${tipo(d)} | ${d.nivel} | ${d.escribe.join(', ')} | ${d.lee.join(', ')} | ${d.sensible ? 'sí' : 'no'} | ${estado} | ${(d.alias ?? []).map((a) => `\`${a}\``).join(', ')} | ${d.descripcion} |`);
     }
   }
   return partes.join('\n') + '\n';

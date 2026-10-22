@@ -52,7 +52,7 @@
   },
   {
     "id": "ejecucion.ultima_url",
-    "tipo": "url",
+    "tipo": "url_sin_pii",
     "nivel": "estable",
     "descripcion": "URL en la que estaba el navegador al terminar.",
     "escribe": ["ejecutor"],

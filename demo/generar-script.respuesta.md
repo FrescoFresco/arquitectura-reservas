@@ -1,23 +1,26 @@
 ## Explicación
 
-Segunda versión del script para el borrador `ver-rincon-del-amazonas-1`. La primera falló al probarla hasta B (ejecución `ejec-mvgk504k`, `fallo_recorrido`).
+Script y JSON Schema de `ver-rincon-del-amazonas-1` con la plantilla generar-script v2, sobre el recorrido del segundo mapeo (v2, con la clase de cada campo). El recorrido no ha cambiado, así que el script es el mismo que ya llegaba a B de forma estable. Es la versión que espera a que no quede ninguna petición AJAX del plugin antes de elegir mesa y comprueba que la mesa queda seleccionada.
 
-**Qué falló.** Pulsó la mesa 1 mientras seguía en curso una petición AJAX `abs_get_booking_options` lanzada al elegir los comensales. Al llegar tarde, esa respuesta repintó el plano y borró la selección; el botón «Continue» (`[data-abs-map-continue]`) dejó de estar visible y el clic agotó el tiempo.
+**Pasos.** El script sigue los 11 pasos del recorrido.
+1. Fecha: espera las horas del día por AJAX.
+2. Hora: si la pedida no se ofrece, devuelve `sin_hueco` con las 3 más cercanas como alternativas.
+3. Comensales.
+4. Abre el plano y espera a que cargue.
+5. Mesa: elige la primera elegible (recommended, available o limited); si no hay ninguna, devuelve `sin_hueco`.
+6. «Continue».
+7. Datos del cliente, siempre con `fill` y sin Enter.
+8. Casilla de privacidad.
+9. B: si aparece un CAPTCHA, devuelve `error` / `obstaculo`; si no, comprueba que el formulario es válido y que «Confirm reservation» está a la vista, y devuelve `disponible`.
 
-**Qué cambia.** Todo lo demás es igual que en la primera versión: los mismos 11 pasos del recorrido, los mismos parámetros y la misma regla de no pulsar nunca «Confirm reservation».
-- Un vigilante cuenta las peticiones a `admin-ajax.php` en curso, y `calma()` sondea hasta que no queda ninguna.
-- Se usa en tres momentos: tras cargar las horas, tras elegir hora y comensales (esperando además la respuesta `abs_get_booking_options`) y tras abrir el plano.
-- El sondeo es de 100 ms y no es una pausa fija: termina en cuanto la web deja de cargar.
-- Tras pulsar la mesa, el script comprueba que «Continue» aparece, que es la prueba de que la selección se quedó. Si no aparece, espera a la calma y repite una vez; si vuelve a fallar, lanza un error.
+Nunca pulsa confirmar; `confirmar(page)` es solo para la fase con compuerta.
 
-Probado 4 veces hasta B con el seguro de confirmación activo (3 sin ventana y 1 con navegador visible y maximizado): las 4 devolvieron `disponible`.
+**Reglas de clase (v2).**
+- **Consentimiento.** El recorrido tiene un campo de clase `consentimiento`, la casilla «I have read and accept the Privacy Policy and Booking Terms». La función lo pide con `acepta_privacidad` (`const: true`), que el agente de voz tiene que preguntar, y el script lanza un error sin ese `true`.
+- **Sensible y texto libre.** Nombre, email y teléfono (`sensible`) y el mensaje (`texto_libre`) se rellenan desde `params`, y ninguna llamada a `registrar` escribe su valor. La traza solo recoge fecha, hora, comensales y el estado del plano, que son campos `normal`.
+- **Campo oculto.** El honeypot `abs_company_website` no se toca.
 
-El resto del comportamiento:
-- Si la hora pedida no se ofrece, devuelve `sin_hueco` con las 3 horas más cercanas.
-- Si no hay mesas elegibles, devuelve `sin_hueco`.
-- Si aparece un CAPTCHA, devuelve `error` / `obstaculo`.
-- Nunca toca el campo oculto `abs_company_website` (honeypot).
-- Exige `acepta_privacidad = true`.
+**Parámetros.** fecha, hora (franjas de 15 minutos), personas (1 a 8; más de 8, por teléfono), nombre, email, teléfono, el mensaje opcional (máximo 500 caracteres) y `acepta_privacidad`.
 
 ## Salida
 

@@ -102,7 +102,7 @@
   },
   {
     "id": "version.recorrido.pasos.N.url",
-    "tipo": "url",
+    "tipo": "url_sin_pii",
     "nivel": "estable",
     "descripcion": "URL de la página en la que ocurre el paso.",
     "escribe": ["mapear-recorrido"],
@@ -146,6 +146,17 @@
     "tipo": "booleano",
     "nivel": "blindado",
     "descripcion": "true si la web no deja avanzar sin este campo.",
+    "escribe": ["mapear-recorrido"],
+    "lee": ["generar-script"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "version.recorrido.campos.N.clase",
+    "tipo": "enum",
+    "valores": ["normal", "texto_libre", "identificador", "sensible", "consentimiento"],
+    "nivel": "blindado",
+    "descripcion": "Qué clase de dato pide el campo: identificador (DNI, NIE, pasaporte), sensible (nombre, teléfono, email, salud), consentimiento (casilla de privacidad o condiciones), texto_libre (comentarios) y normal (el resto). Un identificador no lleva valor de prueba; cada consentimiento exige un parámetro const: true en la función.",
     "escribe": ["mapear-recorrido"],
     "lee": ["generar-script"],
     "sensible": false,

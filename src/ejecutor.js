@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { parseArgs } from 'node:util';
 import { createInterface } from 'node:readline/promises';
-import { cargar } from './catalogo.js';
+import { cargar, TIPOS } from './catalogo.js';
 
 const valores = (id) => cargar().find((d) => d.id === id).valores;
 
@@ -114,8 +114,16 @@ export async function ejecutar(db, idVersion, { soloAprobada = false, pausa = fa
     registrar(`Error: ${e.message.split('\n')[0]}`);
     respuesta = { estado: 'error', referencia: null, alternativas: [], motivo: 'fallo_recorrido' };
   }
-  const url = page?.url();
+  let url = page?.url();
   await navegador.close();
+  if (/^https?:/.test(url ?? '')) {
+    try {
+      TIPOS.url_sin_pii.leer(url);
+    } catch {
+      url = new URL(url).origin + new URL(url).pathname;
+      registrar('La última URL llevaba datos personales en la query: se guarda sin ella');
+    }
+  }
 
   const ejecucion = {
     _id: `ejec-${Date.now().toString(36)}`,
