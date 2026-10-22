@@ -16,6 +16,7 @@ const files = [
   'campos-ancla-ui.js',
   'campos-mongodb-ui.js',
   'catalogo-ui.js',
+  'clusters-ui.js',
   'colecciones-ui.js',
   'fundamentos-ui.js',
   'proyectos-ui.js',

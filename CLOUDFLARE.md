@@ -36,27 +36,27 @@ Equivale a `npm run build:ui` (arma `dist-ui/`) + `wrangler deploy -c wrangler.u
 
 ## Proyectos = softwares
 
-Cada proyecto de catálogo es un **software** con `baseDatos` propia (p. ej. `software_reservas`). Los negocios viven como documentos Mongo en la colección `negocios`, no como proyectos. Migración D1: `0006_proyectos_software.sql`. Crear la base Atlas: `POST /v1/proyectos/:id/crear-bd` (URI desde la pestaña **Conexión** de esa Base de datos; sin URI responde plan en seco).
+Cada proyecto de catálogo es un **software** con `baseDatos` propia (p. ej. `software_reservas`) y `clusterId` hacia un **Cluster**. Los negocios viven como documentos Mongo en la colección `negocios`, no como proyectos. Migraciones D1: `0006_proyectos_software.sql`, `0009_clusters.sql`. Crear la base Atlas: `POST /v1/proyectos/:id/crear-bd` (URI del Cluster; sin URI responde plan en seco).
 
-## MongoDB Atlas (por Base de datos)
+## MongoDB Atlas (por Cluster)
 
 El Worker habla con Atlas con el **driver oficial `mongodb`** (TCP). No uses Data API. **No pegues la URI en el chat.**
 
-**Producto:** ficha **Base de datos → Conexión** → `POST /v1/proyectos/:id/mongo-config`. Se cifra en D1 (`mongo_config_proyecto`, AES-GCM) con secret `ENCRYPTION_KEY`. La URI **nunca** se reexpone en GET. **No hay** pestaña Ajustes → Conexiones ni URI global de producto.
+**Producto:** ficha **Cluster → Conexión** → `POST /v1/clusters/:id/mongo-config`. Se cifra en D1 (`mongo_config_cluster`, AES-GCM) con secret `ENCRYPTION_KEY`. La URI **nunca** se reexpone en GET. **No hay** pestaña Ajustes → Conexiones ni URI por Base de datos.
 
 | Secret / var | Obligatorio | Dónde |
 |--------------|-------------|--------|
-| `ENCRYPTION_KEY` | sí, para guardar URI por esquema | `npx wrangler secret put ENCRYPTION_KEY` (Worker `campos-ancla-api`) |
-| `MONGODB_URI` | no (solo ops) | health / status / sync sin proyecto; **no** sustituye la URI de la ficha |
-| `MONGODB_DB` | no | default `software_reservas` (schema reservas). Opcional en el form o secret |
+| `ENCRYPTION_KEY` | sí, para guardar URI del cluster | `npx wrangler secret put ENCRYPTION_KEY` (Worker `campos-ancla-api`) |
+| `MONGODB_URI` | no (solo ops) | health / status / sync sin proyecto; **no** sustituye la URI del cluster |
+| `MONGODB_DB` | no | default `software_reservas` (schema reservas) |
 
 ```bash
-# Una vez (cifrado en reposo de la URI por esquema):
+# Una vez (cifrado en reposo de la URI del cluster):
 npx wrangler secret put ENCRYPTION_KEY
 # Opcional ops (no producto):
 npx wrangler secret put MONGODB_URI
 npm run deploy
-npm run db:migrate:remote   # incluye mongo_config_proyecto
+npm run db:migrate:remote   # incluye clusters + mongo_config_cluster
 ```
 
 Comprobar (sin filtrar secretos):
@@ -68,8 +68,8 @@ curl -s https://campos-ancla-api.web-legal-es.workers.dev/health
 curl -s https://campos-ancla-api.web-legal-es.workers.dev/v1/mongo/status
 # → ops: { configured, connected, db, source: "env"|"none", hint? }
 
-curl -s https://campos-ancla-api.web-legal-es.workers.dev/v1/proyectos/reservas/mongo-config
-# → producto: { configured, own, connected, db, source: "proyecto"|"none", hint? }
+curl -s https://campos-ancla-api.web-legal-es.workers.dev/v1/clusters/atlas-principal/mongo-config
+# → producto: { configured, own, connected, db, source: "cluster"|"none", hint? }
 ```
 
 Sync (invite Bearer; proyección anclas → colección `negocios`):
@@ -84,7 +84,7 @@ curl -s -X POST https://campos-ancla-api.web-legal-es.workers.dev/v1/mongo/sync/
   -d '{"proyecto_id":"reservas"}'
 ```
 
-Sin URI propia del esquema, `crear-bd` / `sync/proyecto` fallan en claro (503 o plan en seco). Documentación → MongoDB es solo lectura.
+Sin URI del cluster, `crear-bd` / `sync/proyecto` fallan en claro (503 o plan en seco). Documentación → MongoDB es solo lectura.
 
 ## CORS
 

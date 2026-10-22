@@ -32,11 +32,11 @@ import {
   type MongoEnv,
 } from './mongo';
 import {
-  clearProyectoStoredUri,
+  clearClusterStoredUri,
   isValidMongoUri,
-  loadProyectoStoredUri,
-  readProyectoMongoMeta,
-  saveProyectoStoredUri,
+  loadClusterStoredUri,
+  readClusterMongoMeta,
+  saveClusterStoredUri,
   type MongoConfigMeta,
 } from './mongo-config';
 import {
@@ -74,66 +74,124 @@ type ResolvedMongo = {
   decryptError?: string;
 };
 
+const DEFAULT_CLUSTER_ID = 'atlas-principal';
+
+async function ensureDefaultCluster(db: D1Database): Promise<string> {
+  const existing = await db
+    .prepare('SELECT id FROM clusters WHERE id = ?')
+    .bind(DEFAULT_CLUSTER_ID)
+    .first<{ id: string }>();
+  if (existing?.id) return existing.id;
+  const any = await db.prepare('SELECT id FROM clusters ORDER BY nombre LIMIT 1').first<{ id: string }>();
+  if (any?.id) return any.id;
+  const ts = nowIso();
+  await db
+    .prepare(
+      'INSERT INTO clusters (id, nombre, descripcion, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    .bind(
+      DEFAULT_CLUSTER_ID,
+      'Cluster Atlas',
+      'Cluster por defecto.',
+      '',
+      ts,
+      ts
+    )
+    .run();
+  return DEFAULT_CLUSTER_ID;
+}
+
+async function resolveClusterIdForProyecto(
+  db: D1Database,
+  proyectoId: string
+): Promise<string | null> {
+  const row = await db
+    .prepare('SELECT cluster_id FROM proyectos WHERE id = ?')
+    .bind(proyectoId)
+    .first<{ cluster_id: string | null }>();
+  if (!row) return null;
+  const cid = String(row.cluster_id || '').trim();
+  return cid || null;
+}
+
 /**
  * URI resolution (never exposes the URI):
- * - With proyectoId (crear-bd, sync/proyecto, ficha Conexión): **only** that schema's
- *   URI in `mongo_config_proyecto`. No global D1 / Ajustes fallback; no env fallback
- *   for product writes — missing URI → not configured (fail clearly).
- * - Without proyectoId (health / status / sync/negocio): ops-only `MONGODB_URI` env.
- *   Global `mongo_config` (ex Ajustes → Conexiones) is no longer in the product path.
+ * - With proyectoId (crear-bd, sync/proyecto): URI of that schema's **cluster**
+ *   (`mongo_config_cluster` via `proyectos.cluster_id`). No Ajustes global; no env
+ *   fallback for product writes — missing URI → not configured (fail clearly).
+ * - With clusterId directly (ficha Cluster → Conexión): same table.
+ * - Without proyecto/cluster (health / status / sync/negocio): ops-only `MONGODB_URI`.
  */
 async function resolveRuntimeMongo(
   env: Env,
   dbHint?: string,
-  proyectoId?: string
+  proyectoId?: string,
+  clusterId?: string
 ): Promise<ResolvedMongo> {
   let decryptError: string | undefined;
   const proyId = String(proyectoId || '').trim();
+  let cid = String(clusterId || '').trim();
 
-  if (proyId) {
-    const proyMeta = await readProyectoMongoMeta(env.DB, proyId);
-    if (proyMeta?.present) {
-      let proyUri: string | undefined;
-      let proyDb: string | undefined;
-      let hint = proyMeta.hint || '';
+  if (proyId && !cid) {
+    cid = (await resolveClusterIdForProyecto(env.DB, proyId)) || '';
+  }
+
+  if (cid) {
+    const clusterMeta = await readClusterMongoMeta(env.DB, cid);
+    if (clusterMeta?.present) {
+      let clusterUri: string | undefined;
+      let clusterDb: string | undefined;
+      let hint = clusterMeta.hint || '';
       try {
-        const loaded = await loadProyectoStoredUri(env.DB, env.ENCRYPTION_KEY, proyId);
+        const loaded = await loadClusterStoredUri(env.DB, env.ENCRYPTION_KEY, cid);
         if (loaded) {
-          proyUri = loaded.uri;
-          proyDb = loaded.db;
+          clusterUri = loaded.uri;
+          clusterDb = loaded.db;
           hint = loaded.hint || hint;
         }
       } catch (err) {
         decryptError = err instanceof Error ? err.message : 'decrypt failed';
       }
-      if (proyUri) {
+      if (clusterUri) {
         const mongoEnv: MongoEnv = {
-          MONGODB_URI: proyUri,
-          MONGODB_DB: proyDb || env.MONGODB_DB,
+          MONGODB_URI: clusterUri,
+          MONGODB_DB: clusterDb || env.MONGODB_DB,
         };
         return {
           env: mongoEnv,
           meta: {
             configured: true,
-            source: 'proyecto',
+            source: 'cluster',
             hint,
-            db: resolveMongoDbName(mongoEnv, dbHint || proyDb),
+            db: resolveMongoDbName(mongoEnv, dbHint || clusterDb),
           },
           decryptError,
         };
       }
-      // Row present but undecryptable — still "configured" for UI (never leak URI).
       return {
         env: {},
         meta: {
           configured: true,
-          source: 'proyecto',
-          hint: proyMeta.hint || '',
-          db: proyMeta.dbName || resolveMongoDbName(env, dbHint),
+          source: 'cluster',
+          hint: clusterMeta.hint || '',
+          db: clusterMeta.dbName || resolveMongoDbName(env, dbHint),
         },
         decryptError: decryptError || 'ENCRYPTION_KEY missing',
       };
     }
+    return {
+      env: {},
+      meta: {
+        configured: false,
+        source: 'none',
+        hint: '',
+        db: resolveMongoDbName(env, dbHint),
+      },
+    };
+  }
+
+  if (proyId) {
+    // Proyecto sin cluster_id: no hay URI de producto.
     return {
       env: {},
       meta: {
@@ -446,7 +504,7 @@ app.get('/v1/proyectos', async (c) => {
   // Batch hydrate versions + skills to keep list GETs under D1 statement pressure.
   const rows = await c.env.DB.prepare(
     `SELECT id, nombre, descripcion, hash, created_at, updated_at,
-            base_datos, colecciones, relaciones, agentes_json, legacy_negocio
+            base_datos, colecciones, relaciones, agentes_json, legacy_negocio, cluster_id
      FROM proyectos ORDER BY nombre`
   ).all();
   const ids = (rows.results || []).map((r) => String((r as { id: string }).id));
@@ -517,18 +575,19 @@ app.get('/v1/proyectos/:id/diagrama', async (c) => {
 
 /**
  * Estado de conexión Mongo de una Base de datos (sin URI).
- * Solo URI propia del esquema; sin fallback a global/env de producto.
+ * La URI vive en el Cluster del esquema; este GET es solo lectura de estado.
+ * Escritura: /v1/clusters/:id/mongo-config.
  */
 app.get('/v1/proyectos/:id/mongo-config', async (c) => {
   const id = c.req.param('id');
-  const row = await c.env.DB.prepare('SELECT id, base_datos FROM proyectos WHERE id = ?')
+  const row = await c.env.DB.prepare('SELECT id, base_datos, cluster_id FROM proyectos WHERE id = ?')
     .bind(id)
-    .first<{ id: string; base_datos: string | null }>();
+    .first<{ id: string; base_datos: string | null; cluster_id: string | null }>();
   if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
   const baseDatos = String(row.base_datos || '').trim();
-  const proyMeta = await readProyectoMongoMeta(c.env.DB, id);
+  const clusterId = String(row.cluster_id || '').trim();
+  const clusterMeta = clusterId ? await readClusterMongoMeta(c.env.DB, clusterId) : null;
   const resolved = await resolveRuntimeMongo(c.env, baseDatos || undefined, id);
-  const own = !!proyMeta?.present;
   let connected = false;
   let probeError: string | undefined;
   if (resolved.meta.configured && mongoUriConfigured(resolved.env)) {
@@ -540,16 +599,70 @@ app.get('/v1/proyectos/:id/mongo-config', async (c) => {
     ok: true,
     proyecto: id,
     baseDatos: baseDatos || resolved.meta.db,
+    clusterId: clusterId || null,
     configured: resolved.meta.configured,
-    own,
+    own: false,
     connected,
     db: resolved.meta.db,
     source: resolved.meta.source,
     ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
     ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
     ...(probeError ? { error: probeError } : {}),
-    updatedAt: proyMeta?.updatedAt || undefined,
+    updatedAt: clusterMeta?.updatedAt || undefined,
+    deprecatedWrite:
+      'La URI se guarda en el Cluster. Usa GET|POST|DELETE /v1/clusters/:clusterId/mongo-config.',
   });
+});
+
+app.get('/v1/clusters', async (c) => {
+  const rows = await c.env.DB.prepare(
+    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM clusters ORDER BY nombre'
+  ).all();
+  const out = [];
+  for (const row of rows.results || []) {
+    out.push(await hydrateCluster(c.env.DB, row as Record<string, unknown>));
+  }
+  return c.json({ ok: true, id: 'clusters', nombre: 'Clusters', clusters: out });
+});
+
+app.get('/v1/clusters/:id/mongo-config', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT id FROM clusters WHERE id = ?')
+    .bind(id)
+    .first<{ id: string }>();
+  if (!row) return jsonError(c, 404, 'Cluster no encontrado.');
+  const clusterMeta = await readClusterMongoMeta(c.env.DB, id);
+  const resolved = await resolveRuntimeMongo(c.env, undefined, undefined, id);
+  let connected = false;
+  let probeError: string | undefined;
+  if (resolved.meta.configured && mongoUriConfigured(resolved.env)) {
+    const status = await probeMongoStatus(resolved.env, resolved.meta.db);
+    connected = status.connected ? true : false;
+    if (status.error) probeError = status.error;
+  }
+  return c.json({
+    ok: true,
+    cluster: id,
+    configured: resolved.meta.configured,
+    own: !!clusterMeta?.present,
+    connected,
+    db: resolved.meta.db,
+    source: resolved.meta.source,
+    ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
+    ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
+    ...(probeError ? { error: probeError } : {}),
+    updatedAt: clusterMeta?.updatedAt || undefined,
+  });
+});
+
+app.get('/v1/clusters/:id', async (c) => {
+  const row = await c.env.DB.prepare(
+    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM clusters WHERE id = ?'
+  )
+    .bind(c.req.param('id'))
+    .first();
+  if (!row) return jsonError(c, 404, 'Cluster no encontrado.');
+  return c.json({ ok: true, cluster: await hydrateCluster(c.env.DB, row as Record<string, unknown>) });
 });
 
 app.get('/v1/proyectos/:id', async (c) => {
@@ -1245,6 +1358,188 @@ app.delete('/v1/mongo/:id', async (c) => {
   return c.json({ ok: true, deleted: c.req.param('id') });
 });
 
+app.post('/v1/clusters', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    id?: string;
+    nombre?: string;
+    descripcion?: string;
+  };
+  const nombre = String(body.nombre || '').trim();
+  if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
+  const id = String(body.id || slugId(nombre)).trim();
+  if (!ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
+  const descripcion = String(body.descripcion || '').trim().slice(0, 280);
+  const ts = nowIso();
+  const hash = await sha256Hex(id + '|' + nombre + '|' + descripcion);
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO clusters (id, nombre, descripcion, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+      .bind(id, nombre, descripcion, hash, ts, ts)
+      .run();
+  } catch {
+    return jsonError(c, 409, 'Ya existe ese cluster.');
+  }
+  return c.json(
+    {
+      ok: true,
+      cluster: await hydrateCluster(
+        c.env.DB,
+        (await c.env.DB.prepare(
+          'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM clusters WHERE id = ?'
+        )
+          .bind(id)
+          .first()) as Record<string, unknown>
+      ),
+    },
+    201
+  );
+});
+
+app.put('/v1/clusters/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare(
+    'SELECT id, nombre, descripcion FROM clusters WHERE id = ?'
+  )
+    .bind(id)
+    .first<{ id: string; nombre: string; descripcion: string }>();
+  if (!row) return jsonError(c, 404, 'Cluster no encontrado.');
+  const body = (await c.req.json().catch(() => ({}))) as {
+    nombre?: string;
+    descripcion?: string;
+  };
+  const nombre = String(body.nombre != null ? body.nombre : row.nombre).trim();
+  if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
+  const descripcion = String(
+    body.descripcion != null ? body.descripcion : row.descripcion || ''
+  )
+    .trim()
+    .slice(0, 280);
+  const ts = nowIso();
+  const hash = await sha256Hex(id + '|' + nombre + '|' + descripcion);
+  await c.env.DB.prepare(
+    'UPDATE clusters SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?'
+  )
+    .bind(nombre, descripcion, hash, ts, id)
+    .run();
+  return c.json({
+    ok: true,
+    cluster: await hydrateCluster(
+      c.env.DB,
+      (await c.env.DB.prepare(
+        'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM clusters WHERE id = ?'
+      )
+        .bind(id)
+        .first()) as Record<string, unknown>
+    ),
+  });
+});
+
+app.post('/v1/clusters/:id/mongo-config', async (c) => {
+  const id = c.req.param('id');
+  const clusterRow = await c.env.DB.prepare('SELECT id FROM clusters WHERE id = ?')
+    .bind(id)
+    .first<{ id: string }>();
+  if (!clusterRow) return jsonError(c, 404, 'Cluster no encontrado.');
+  const key = (c.env.ENCRYPTION_KEY || '').trim();
+  if (!key) {
+    return c.json(
+      {
+        ok: false,
+        error: 'ENCRYPTION_KEY missing',
+        hint: 'Define el secret ENCRYPTION_KEY en el Worker (wrangler secret put ENCRYPTION_KEY).',
+      },
+      503
+    );
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    uri?: string;
+    db?: string;
+    dbName?: string;
+    probeOnly?: boolean;
+  };
+  const uri = String(body.uri || '').trim();
+  const dbName = String(body.db || body.dbName || '').trim();
+  if (!uri) return jsonError(c, 400, 'Falta uri.');
+  if (!isValidMongoUri(uri)) {
+    return jsonError(c, 400, 'URI inválida (usa mongodb:// o mongodb+srv:// con usuario@host).');
+  }
+  const probeEnv: MongoEnv = {
+    MONGODB_URI: uri,
+    MONGODB_DB: dbName || c.env.MONGODB_DB,
+  };
+  const status = await probeMongoStatus(probeEnv, dbName || undefined);
+  if (body.probeOnly) {
+    return c.json({
+      ok: true,
+      probed: true,
+      cluster: id,
+      configured: false,
+      own: false,
+      connected: status.connected,
+      db: status.db,
+      ...(status.error ? { error: status.error } : {}),
+    });
+  }
+  const saved = await saveClusterStoredUri(c.env.DB, key, id, uri, dbName || undefined);
+  return c.json({
+    ok: true,
+    cluster: id,
+    configured: true,
+    own: true,
+    connected: status.connected,
+    db: saved.db || status.db,
+    source: 'cluster' as const,
+    hint: saved.hint,
+    updatedAt: saved.updatedAt,
+    ...(status.error ? { error: status.error } : {}),
+  });
+});
+
+app.delete('/v1/clusters/:id/mongo-config', async (c) => {
+  const id = c.req.param('id');
+  const clusterRow = await c.env.DB.prepare('SELECT id FROM clusters WHERE id = ?')
+    .bind(id)
+    .first<{ id: string }>();
+  if (!clusterRow) return jsonError(c, 404, 'Cluster no encontrado.');
+  await clearClusterStoredUri(c.env.DB, id);
+  const resolved = await resolveRuntimeMongo(c.env, undefined, undefined, id);
+  return c.json({
+    ok: true,
+    cleared: true,
+    cluster: id,
+    configured: resolved.meta.configured,
+    own: false,
+    connected: false,
+    db: resolved.meta.db,
+    source: resolved.meta.source,
+    ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
+  });
+});
+
+app.delete('/v1/clusters/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT id FROM clusters WHERE id = ?')
+    .bind(id)
+    .first<{ id: string }>();
+  if (!row) return jsonError(c, 404, 'Cluster no encontrado.');
+  const linked = await c.env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM proyectos WHERE cluster_id = ?'
+  )
+    .bind(id)
+    .first<{ n: number }>();
+  if (linked && Number(linked.n) > 0) {
+    return jsonError(
+      c,
+      409,
+      'El cluster tiene bases de datos asociadas. Reasigna o bórralas antes.'
+    );
+  }
+  await c.env.DB.prepare('DELETE FROM mongo_config_cluster WHERE cluster_id = ?').bind(id).run();
+  await c.env.DB.prepare('DELETE FROM clusters WHERE id = ?').bind(id).run();
+  return c.json({ ok: true, deleted: id });
+});
+
 app.post('/v1/proyectos', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
   const nombre = String(body.nombre || '').trim();
@@ -1253,14 +1548,24 @@ app.post('/v1/proyectos', async (c) => {
   if (!ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
   const shape = normalizeProyectoSoftwareBody(body, { id, nombre });
   if ('error' in shape) return jsonError(c, 400, shape.error);
+  let clusterId = String(body.clusterId || body.cluster_id || '').trim();
+  if (clusterId) {
+    if (!ID_RE.test(clusterId)) return jsonError(c, 400, 'cluster_id inválido.');
+    const cl = await c.env.DB.prepare('SELECT id FROM clusters WHERE id = ?')
+      .bind(clusterId)
+      .first();
+    if (!cl) return jsonError(c, 400, 'Cluster no encontrado.');
+  } else {
+    clusterId = await ensureDefaultCluster(c.env.DB);
+  }
   const markdown = String(body.markdown || '');
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
   try {
     await c.env.DB.prepare(
       `INSERT INTO proyectos (id, nombre, descripcion, hash, created_at, updated_at,
-        base_datos, colecciones, relaciones, agentes_json, legacy_negocio)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        base_datos, colecciones, relaciones, agentes_json, legacy_negocio, cluster_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         id,
@@ -1273,7 +1578,8 @@ app.post('/v1/proyectos', async (c) => {
         JSON.stringify(shape.colecciones),
         JSON.stringify(shape.relaciones),
         JSON.stringify(shape.agentes),
-        shape.legacyNegocio ? 1 : 0
+        shape.legacyNegocio ? 1 : 0,
+        clusterId
       )
       .run();
   } catch {
@@ -1314,6 +1620,21 @@ app.put('/v1/proyectos/:id', async (c) => {
     { id, nombre: String(body.nombre ?? prev.nombre).trim() }
   );
   if ('error' in shape) return jsonError(c, 400, shape.error);
+  let clusterId = String(
+    body.clusterId != null || body.cluster_id != null
+      ? body.clusterId ?? body.cluster_id
+      : (row as { cluster_id?: string }).cluster_id || ''
+  ).trim();
+  if (body.clusterId != null || body.cluster_id != null) {
+    if (!clusterId) return jsonError(c, 400, 'cluster_id vacío.');
+    if (!ID_RE.test(clusterId)) return jsonError(c, 400, 'cluster_id inválido.');
+    const cl = await c.env.DB.prepare('SELECT id FROM clusters WHERE id = ?')
+      .bind(clusterId)
+      .first();
+    if (!cl) return jsonError(c, 400, 'Cluster no encontrado.');
+  } else if (!clusterId) {
+    clusterId = await ensureDefaultCluster(c.env.DB);
+  }
   const max = await c.env.DB.prepare(
     'SELECT COALESCE(MAX(numero), 0) AS m FROM proyecto_versions WHERE proyecto_id = ?'
   )
@@ -1338,12 +1659,14 @@ app.put('/v1/proyectos/:id', async (c) => {
       relaciones: shape.relaciones,
       agentes: shape.agentes,
       skills: shape.skills,
+      clusterId,
     }) || id + '|' + numero
   );
   const ts = nowIso();
   await c.env.DB.prepare(
     `UPDATE proyectos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?,
-     base_datos = ?, colecciones = ?, relaciones = ?, agentes_json = ?, legacy_negocio = ? WHERE id = ?`
+     base_datos = ?, colecciones = ?, relaciones = ?, agentes_json = ?, legacy_negocio = ?,
+     cluster_id = ? WHERE id = ?`
   )
     .bind(
       shape.nombre,
@@ -1355,6 +1678,7 @@ app.put('/v1/proyectos/:id', async (c) => {
       JSON.stringify(shape.relaciones),
       JSON.stringify(shape.agentes),
       shape.legacyNegocio ? 1 : 0,
+      clusterId,
       id
     )
     .run();
@@ -1374,97 +1698,46 @@ app.put('/v1/proyectos/:id', async (c) => {
   });
 });
 
-/**
- * Guardar / probar URI Mongo de una Base de datos (cifrada en D1). Nunca ecoa la URI.
- * Auth: invite Bearer. Body: { uri, db?, probeOnly? }.
- * Si `db` vacío → usa proyecto.baseDatos.
- */
+/** Deprecated: la URI vive en el Cluster. */
 app.post('/v1/proyectos/:id/mongo-config', async (c) => {
   const id = c.req.param('id');
-  const proyRow = await c.env.DB.prepare('SELECT id, base_datos FROM proyectos WHERE id = ?')
+  const proyRow = await c.env.DB.prepare('SELECT id, cluster_id FROM proyectos WHERE id = ?')
     .bind(id)
-    .first<{ id: string; base_datos: string | null }>();
+    .first<{ id: string; cluster_id: string | null }>();
   if (!proyRow) return jsonError(c, 404, 'Proyecto no encontrado.');
-  const key = (c.env.ENCRYPTION_KEY || '').trim();
-  if (!key) {
-    return c.json(
-      {
-        ok: false,
-        error: 'ENCRYPTION_KEY missing',
-        hint: 'Define el secret ENCRYPTION_KEY en el Worker (wrangler secret put ENCRYPTION_KEY).',
-      },
-      503
-    );
-  }
-  const body = (await c.req.json().catch(() => ({}))) as {
-    uri?: string;
-    db?: string;
-    dbName?: string;
-    probeOnly?: boolean;
-  };
-  const uri = String(body.uri || '').trim();
-  const baseDatos = String(proyRow.base_datos || '').trim();
-  const dbName = String(body.db || body.dbName || '').trim() || baseDatos;
-  if (!uri) return jsonError(c, 400, 'Falta uri.');
-  if (!isValidMongoUri(uri)) {
-    return jsonError(c, 400, 'URI inválida (usa mongodb:// o mongodb+srv:// con usuario@host).');
-  }
-  const probeEnv: MongoEnv = {
-    MONGODB_URI: uri,
-    MONGODB_DB: dbName || c.env.MONGODB_DB,
-  };
-  const status = await probeMongoStatus(probeEnv, dbName || undefined);
-  if (body.probeOnly) {
-    return c.json({
-      ok: true,
-      probed: true,
-      proyecto: id,
-      baseDatos: baseDatos || status.db,
-      configured: false,
-      own: false,
-      connected: status.connected,
-      db: status.db,
-      ...(status.error ? { error: status.error } : {}),
-    });
-  }
-  const saved = await saveProyectoStoredUri(c.env.DB, key, id, uri, dbName || undefined);
-  return c.json({
-    ok: true,
-    proyecto: id,
-    baseDatos: baseDatos || saved.db,
-    configured: true,
-    own: true,
-    connected: status.connected,
-    db: saved.db || status.db,
-    source: 'proyecto' as const,
-    hint: saved.hint,
-    updatedAt: saved.updatedAt,
-    ...(status.error ? { error: status.error } : {}),
-  });
+  const clusterId = String(proyRow.cluster_id || '').trim();
+  return c.json(
+    {
+      ok: false,
+      error: 'gone',
+      hint: clusterId
+        ? `La URI se guarda en el Cluster. Usa POST /v1/clusters/${clusterId}/mongo-config.`
+        : 'La URI se guarda en el Cluster. Asigna cluster_id al esquema y usa /v1/clusters/:id/mongo-config.',
+      clusterId: clusterId || null,
+    },
+    410
+  );
 });
 
-/** Borra la URI propia de esta Base de datos (sin caer a URI global). */
+/** Deprecated: la URI vive en el Cluster. */
 app.delete('/v1/proyectos/:id/mongo-config', async (c) => {
   const id = c.req.param('id');
-  const proyRow = await c.env.DB.prepare('SELECT id, base_datos FROM proyectos WHERE id = ?')
+  const proyRow = await c.env.DB.prepare('SELECT id, cluster_id FROM proyectos WHERE id = ?')
     .bind(id)
-    .first<{ id: string; base_datos: string | null }>();
+    .first<{ id: string; cluster_id: string | null }>();
   if (!proyRow) return jsonError(c, 404, 'Proyecto no encontrado.');
-  const baseDatos = String(proyRow.base_datos || '').trim();
-  await clearProyectoStoredUri(c.env.DB, id);
-  const resolved = await resolveRuntimeMongo(c.env, baseDatos || undefined, id);
-  return c.json({
-    ok: true,
-    cleared: true,
-    proyecto: id,
-    baseDatos: baseDatos || resolved.meta.db,
-    configured: resolved.meta.configured,
-    own: false,
-    connected: false,
-    db: resolved.meta.db,
-    source: resolved.meta.source,
-    ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
-  });
+  const clusterId = String(proyRow.cluster_id || '').trim();
+  return c.json(
+    {
+      ok: false,
+      error: 'gone',
+      hint: clusterId
+        ? `La URI se borra en el Cluster. Usa DELETE /v1/clusters/${clusterId}/mongo-config.`
+        : 'La URI se borra en el Cluster (/v1/clusters/:id/mongo-config).',
+      clusterId: clusterId || null,
+    },
+    410
+  );
 });
 
 app.post('/v1/proyectos/:id/crear-bd', async (c) => {
@@ -1536,7 +1809,7 @@ app.post('/v1/proyectos/:id/crear-bd', async (c) => {
       },
       hint: mongoUriConfigured(resolved.env)
         ? undefined
-        : 'Sin URI Mongo: plan en seco. Configura la pestaña Conexión de esta Base de datos y vuelve a llamar.',
+        : 'Sin URI Mongo: plan en seco. Configura la pestaña Conexión del Cluster de esta Base de datos y vuelve a llamar.',
       created: [],
       updated: [],
       indexes: [],
@@ -1971,12 +2244,14 @@ function mapProyectoRow(
   const colecciones = parseColecciones(row.colecciones);
   const relaciones = parseRelaciones(row.relaciones);
   const agentes = parseStringList(row.agentes_json ?? row.agentes);
+  const clusterId = String(row.cluster_id ?? row.clusterId ?? '').trim();
   return {
     id: String(row.id),
     nombre: row.nombre,
     descripcion: row.descripcion || '',
     hash: row.hash || '',
     baseDatos: String(row.base_datos ?? row.baseDatos ?? '').trim(),
+    clusterId: clusterId || null,
     colecciones,
     relaciones,
     agentes,
@@ -1984,6 +2259,32 @@ function mapProyectoRow(
     skills,
     versiones,
   };
+}
+
+function mapClusterRow(row: Record<string, unknown>, proyectos: unknown[]) {
+  return {
+    id: String(row.id),
+    nombre: String(row.nombre || ''),
+    descripcion: String(row.descripcion || ''),
+    hash: String(row.hash || ''),
+    createdAt: String(row.created_at || row.createdAt || ''),
+    updatedAt: String(row.updated_at || row.updatedAt || ''),
+    proyectos,
+  };
+}
+
+async function hydrateCluster(db: D1Database, row: Record<string, unknown>) {
+  const id = String(row.id);
+  const proyRows = await db
+    .prepare(
+      'SELECT id, nombre, descripcion, hash, base_datos, colecciones, relaciones, agentes_json, legacy_negocio, cluster_id FROM proyectos WHERE cluster_id = ? ORDER BY nombre'
+    )
+    .bind(id)
+    .all();
+  const proyectos = (proyRows.results || []).map((r) =>
+    mapProyectoRow(r as Record<string, unknown>, [], [])
+  );
+  return mapClusterRow(row, proyectos);
 }
 
 async function hydrateProyecto(db: D1Database, row: Record<string, unknown>) {
