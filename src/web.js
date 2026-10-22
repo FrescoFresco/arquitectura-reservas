@@ -22,7 +22,39 @@ const seccion = (md, titulo) => {
   return m[1].trim();
 };
 
-export function pagina() {
+// Ficha de cada base en el panel: clave (URI de Atlas), estado y las subpestañas Esquema y Datos.
+const fichaPanel = (esquema) => `<div class="panel-ficha">
+<div class="panel-fila"><label for="panel-base"><strong>Base de datos</strong></label><select id="panel-base"></select><input id="panel-nueva-base" placeholder="Otra base (nombre)" aria-label="Nombre de otra base"><button type="button" id="panel-anadir">Añadir</button></div>
+<div class="panel-fila"><label for="panel-uri"><strong>Conexión (URI de Atlas)</strong></label><input id="panel-uri" type="password" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/"><button type="button" id="panel-guardar">Guardar</button><button type="button" id="panel-probar">Probar</button><button type="button" id="panel-borrar">Borrar</button></div>
+<div id="panel-aviso-conexion"></div><div id="panel-estado"></div>
+</div>
+<div class="panel-sub"><button type="button" data-ir="datos" class="activo">Datos</button><button type="button" data-ir="esquema">Esquema</button></div>
+<div data-sub="datos"><div id="panel-datos"></div></div>
+<div data-sub="esquema" hidden>${esquema}</div>`;
+
+const CSS_PANEL = `<style>
+:root { --error: #b3261e; }
+@media (prefers-color-scheme: dark) { :root { --error: #f28b82; } }
+.panel-ficha, .panel-editor { background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+.panel-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+.panel-fila input, #panel-base, textarea { font: inherit; padding: 5px 8px; border: 1px solid var(--borde); border-radius: 4px; background: var(--fondo); color: var(--texto); min-width: 0; }
+#panel-uri, #panel-filtro { flex: 1 1 260px; font-family: ui-monospace, monospace; font-size: 13px; }
+textarea { width: 100%; font: 12.5px/1.4 ui-monospace, monospace; }
+button { font: inherit; padding: 5px 10px; border: 1px solid var(--borde); border-radius: 4px; background: var(--panel); color: var(--texto); cursor: pointer; }
+button.activo { border-color: var(--acento); color: var(--acento); font-weight: 600; }
+button.peligro { color: var(--error); }
+button:disabled { opacity: 0.5; cursor: default; }
+.panel-sub { display: flex; gap: 6px; margin: 12px 0; }
+.panel-datos { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 16px; }
+@media (max-width: 700px) { .panel-datos { grid-template-columns: 1fr; } }
+.panel-colecciones { list-style: none; padding: 0; margin: 0; }
+.panel-colecciones li { margin-bottom: 6px; }
+.panel-error { color: var(--error); }
+.panel-ok { color: var(--acento); }
+.panel-doc pre { max-height: 360px; }
+</style>`;
+
+export function pagina({ panel } = {}) {
   const orden = Object.keys(COLECCIONES);
   const defs = cargar().sort((a, b) => orden.indexOf(a.id.split('.')[0]) - orden.indexOf(b.id.split('.')[0]));
   const activos = defs.filter((d) => d.estado === 'activo');
@@ -78,7 +110,7 @@ export function pagina() {
   const pestanas = [
     ['skills', 'Skills', `<p class="nota">Las plantillas que sigue cada agente. Sus tablas «Entrada» y «Campos ancla» salen del catálogo.</p>${skills}`],
     ['campos-ancla', 'Campos ancla', `<p class="nota">El catálogo único: ${defs.length} campos. «MongoDB» es la ruta que se escribe en una consulta (colección.campo).</p>${campos}`],
-    ['base-de-datos', 'Base de datos', `<p class="nota">Cinco colecciones. Sus validadores los genera <code>npm run generar</code> desde el catálogo: blindado = obligatorio; estable = puede faltar o ser null; flexible = contenedor libre.</p>${colecciones}<h2>Diagrama</h2><div id="diagrama" class="diagrama" data-mermaid="${esc(diagrama(defs))}"></div>`],
+    ['base-de-datos', 'Base de datos', ((esquema) => (panel ? fichaPanel(esquema) : esquema))(`<p class="nota">Cinco colecciones. Sus validadores los genera <code>npm run generar</code> desde el catálogo: blindado = obligatorio; estable = puede faltar o ser null; flexible = contenedor libre.</p>${colecciones}<h2>Diagrama</h2><div id="diagrama" class="diagrama" data-mermaid="${esc(diagrama(defs))}"></div>`)],
     ['agentes', 'Agentes', `<p class="nota">Qué skill (o parte del código) escribe y lee cada campo. Una plantilla solo puede escribir los campos que la nombran en «escribe»; el gestor rechaza el resto.</p>${agentes}`],
     ['fundamentos', 'Fundamentos', `<div class="md" data-md="${esc(fundamentos)}"></div>`],
     ['documentacion', 'Documentación', `<div class="md" data-md="${esc(documentacion)}"></div>`],
@@ -89,7 +121,8 @@ export function pagina() {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reservas: arquitectura</title>
+${panel ? `<meta name="panel-token" content="${panel.token}">
+` : ''}<title>Reservas: arquitectura</title>
 <style>
 :root { --fondo: #fbfbf9; --texto: #1d1f21; --suave: #5f6368; --borde: #dcdcd6; --panel: #ffffff; --acento: #2f6f4f; --codigo: #f1f1ec; }
 @media (prefers-color-scheme: dark) { :root { --fondo: #16181a; --texto: #e6e6e3; --suave: #9aa0a6; --borde: #33363a; --panel: #1e2124; --acento: #7cc39b; --codigo: #262a2e; } }
@@ -122,11 +155,12 @@ details > :not(summary) { margin: 0 12px 12px; }
 .diagrama { overflow-x: auto; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; padding: 12px; }
 footer { max-width: 1200px; margin: 0 auto; padding: 0 16px 24px; color: var(--suave); font-size: 13px; }
 </style>
-</head>
+${panel ? `${CSS_PANEL}
+` : ''}</head>
 <body>
 <header>
 <h1>Reservas: arquitectura</h1>
-<p>Consulta de solo lectura, generada con <code>npm run web</code> a partir de los ficheros del repositorio.</p>
+${panel ? '<p>Panel local: la web del repositorio y, en «Base de datos», tus datos de MongoDB. Solo en este ordenador.</p>' : '<p>Consulta de solo lectura, generada con <code>npm run web</code> a partir de los ficheros del repositorio.</p>'}
 <nav role="tablist">${pestanas.map(([id, nombre]) => `<a role="tab" href="#${id}" aria-controls="${id}">${nombre}</a>`).join('')}</nav>
 </header>
 <main>${pestanas.map(([id, nombre, html]) => `<section id="${id}" role="tabpanel" aria-label="${nombre}" hidden>${html}</section>`).join('')}</main>
@@ -148,7 +182,9 @@ function mostrar() {
 addEventListener('hashchange', mostrar);
 mostrar();
 </script>
-</body>
+${panel ? `<script>
+${leer('src/panel-cliente.js')}</script>
+` : ''}</body>
 </html>
 `;
 }

@@ -22,6 +22,29 @@ La arquitectura en una frase: **los agentes juzgan; el código calcula, ejecuta 
 
 GitHub Pages la publica desde la raíz de `main` en <https://frescofresco.github.io/arquitectura-reservas/>. También se puede abrir el fichero directamente en el navegador. Se regenera con `npm run web`.
 
+## Panel
+
+Para manejar los datos de MongoDB desde la web, en tu ordenador. Es la misma web, servida en <http://localhost:3000> por un pequeño servidor Node que hace de puente con Atlas.
+
+1. `git pull`
+2. `npm install`
+3. `npm run panel`. Se abre el navegador en la pestaña «Base de datos».
+
+Después, en la ficha de tu base de datos, pega la URI de Atlas en **Conexión (URI de Atlas)** y pulsa **Guardar**.
+- **Dónde se guarda:** en `conexiones.local.json`, una por base de datos. Ese fichero está en `.gitignore` y nunca sale de tu ordenador.
+- **Qué muestra la ficha:** solo el host de la URI, si conecta y a qué base apunta.
+- **Respaldo:** si una base no tiene clave, se usa `MONGODB_URI` del `.env`.
+- **Fuera del panel:** el gestor, el ejecutor y la demo usan la misma clave.
+
+En la subpestaña **Datos** de la ficha:
+- **Colecciones y documentos:** cada colección con su número de documentos. Sus documentos, de 20 en 20, se pueden filtrar con JSON (por ejemplo `{"zona_horaria": "Atlantic/Canary"}`) y abrir completos.
+- **Crear, editar y borrar:** solo en `negocios` y `procesos`. El resto de colecciones las escriben los agentes, el ejecutor y la aprobación, y en el panel son de solo lectura.
+  - Crear y editar pasan por el gestor, como un alta manual: teléfono en E.164, URL sin datos personales y solo los campos que escribe «manual». Después vuelve a comprobarlo el validador de MongoDB. Si algo no cumple, el panel dice qué y por qué.
+  - Para borrar hay que escribir el `_id`. No se borra un documento al que apunte otro, por ejemplo un negocio con procesos.
+- **Validador e índices:** los de cada colección, para consultar.
+
+El panel solo escucha en este ordenador (`127.0.0.1`) y se para con Ctrl+C. La web publicada en GitHub Pages sigue siendo de solo lectura.
+
 ## Repetir la demo
 
 ### Lo que necesitas
@@ -109,7 +132,8 @@ Después ejecuta la versión aprobada hasta B con el navegador visible y se qued
 
 | Síntoma | Qué hacer |
 |---|---|
-| `Faltan MONGODB_URI y MONGODB_DB` | No existe `.env`: haz el paso 2 |
+| `Falta MONGODB_DB en .env` | No existe `.env`: haz el paso 2 |
+| `La base … no tiene clave` | Pega la URI en su ficha del panel, o pon `MONGODB_URI` en `.env` |
 | `connect ECONNREFUSED` o `querySrv` | Revisa la URI. En Atlas, comprueba que tu IP está en *Network Access* |
 | `Chromium distribution 'msedge' is not found` | Pon `NAVEGADOR=chrome`, o `NAVEGADOR=chromium` y `npx playwright install chromium` |
 | `Ningún proceso tiene una versión aprobada` | Haz los pasos 5 y 6 |
@@ -146,7 +170,10 @@ src/
   cargar-demo.js    carga demo/ a través del gestor
   demo.js           npm run demo
   web.js            genera index.html
-  db.js             conexión a MongoDB
+  db.js             conexión a MongoDB con la clave de cada base
+  conexiones.js     guarda, lee y enmascara las claves (conexiones.local.json)
+  panel.js          npm run panel: servidor local y puente con MongoDB
+  panel-cliente.js  la parte de la web que solo existe en el panel
 test/               pruebas (npm test)
 index.html          web de consulta (generada con npm run web)
 ```
@@ -158,6 +185,7 @@ index.html          web de consulta (generada con npm run web)
 | `npm run generar` | Validadores en MongoDB, tablas de plantillas, `docs/catalogo.md` y `docs/esquema.md` |
 | `npm run esquema` | Solo `docs/esquema.md` (no necesita base) |
 | `npm run web` | `index.html` (no necesita base) |
+| `npm run panel` | La web con el panel de datos en <http://localhost:3000> |
 | `npm run semilla` | Datos iniciales a mano, por el gestor |
 | `npm run cargar-demo` | Recorrido y script de la demo, por el gestor |
 | `npm run gestor -- preparar <plantilla> --proceso proc-… \| --version ver-…` | Prepara la Entrada de una plantilla en `trabajo/` |
