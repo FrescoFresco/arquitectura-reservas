@@ -32,10 +32,14 @@ import {
   type MongoEnv,
 } from './mongo';
 import {
+  clearProyectoStoredUri,
   clearStoredUri,
   isValidMongoUri,
+  loadProyectoStoredUri,
   loadStoredUri,
+  readProyectoMongoMeta,
   readStoredMeta,
+  saveProyectoStoredUri,
   saveStoredUri,
   type MongoConfigMeta,
 } from './mongo-config';
@@ -74,12 +78,67 @@ type ResolvedMongo = {
   decryptError?: string;
 };
 
-/** Prefer D1-stored encrypted URI; else env MONGODB_URI. Never exposes the URI. */
-async function resolveRuntimeMongo(env: Env, dbHint?: string): Promise<ResolvedMongo> {
+/**
+ * Prefer per-proyecto URI (if proyectoId), else global D1 URI, else env MONGODB_URI.
+ * Never exposes the URI.
+ */
+async function resolveRuntimeMongo(
+  env: Env,
+  dbHint?: string,
+  proyectoId?: string
+): Promise<ResolvedMongo> {
+  let decryptError: string | undefined;
+  const proyId = String(proyectoId || '').trim();
+
+  if (proyId) {
+    const proyMeta = await readProyectoMongoMeta(env.DB, proyId);
+    if (proyMeta?.present) {
+      let proyUri: string | undefined;
+      let proyDb: string | undefined;
+      let hint = proyMeta.hint || '';
+      try {
+        const loaded = await loadProyectoStoredUri(env.DB, env.ENCRYPTION_KEY, proyId);
+        if (loaded) {
+          proyUri = loaded.uri;
+          proyDb = loaded.db;
+          hint = loaded.hint || hint;
+        }
+      } catch (err) {
+        decryptError = err instanceof Error ? err.message : 'decrypt failed';
+      }
+      if (proyUri) {
+        const mongoEnv: MongoEnv = {
+          MONGODB_URI: proyUri,
+          MONGODB_DB: proyDb || env.MONGODB_DB,
+        };
+        return {
+          env: mongoEnv,
+          meta: {
+            configured: true,
+            source: 'proyecto',
+            hint,
+            db: resolveMongoDbName(mongoEnv, dbHint || proyDb),
+          },
+          decryptError,
+        };
+      }
+      // Row present but undecryptable — still "configured" for UI (never leak URI).
+      return {
+        env: {},
+        meta: {
+          configured: true,
+          source: 'proyecto',
+          hint: proyMeta.hint || '',
+          db: proyMeta.dbName || resolveMongoDbName(env, dbHint),
+        },
+        decryptError: decryptError || 'ENCRYPTION_KEY missing',
+      };
+    }
+  }
+
   const storedMeta = await readStoredMeta(env.DB);
   let storedUri: string | undefined;
   let storedDb: string | undefined;
-  let decryptError: string | undefined;
   let hint = '';
 
   if (storedMeta?.present) {
@@ -493,6 +552,43 @@ app.get('/v1/proyectos/:id/diagrama', async (c) => {
     proyecto: id,
     ...(coleccionQ ? { coleccion: coleccionQ } : {}),
     diagrama,
+  });
+});
+
+/**
+ * Estado de conexión Mongo de una Base de datos (sin URI).
+ * Incluye si hay URI propia del proyecto o si cae a la global / env.
+ */
+app.get('/v1/proyectos/:id/mongo-config', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT id, base_datos FROM proyectos WHERE id = ?')
+    .bind(id)
+    .first<{ id: string; base_datos: string | null }>();
+  if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
+  const baseDatos = String(row.base_datos || '').trim();
+  const proyMeta = await readProyectoMongoMeta(c.env.DB, id);
+  const resolved = await resolveRuntimeMongo(c.env, baseDatos || undefined, id);
+  const own = !!proyMeta?.present;
+  let connected = false;
+  let probeError: string | undefined;
+  if (resolved.meta.configured && mongoUriConfigured(resolved.env)) {
+    const status = await probeMongoStatus(resolved.env, resolved.meta.db);
+    connected = status.connected ? true : false;
+    if (status.error) probeError = status.error;
+  }
+  return c.json({
+    ok: true,
+    proyecto: id,
+    baseDatos: baseDatos || resolved.meta.db,
+    configured: resolved.meta.configured,
+    own,
+    connected,
+    db: resolved.meta.db,
+    source: resolved.meta.source,
+    ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
+    ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
+    ...(probeError ? { error: probeError } : {}),
+    updatedAt: proyMeta?.updatedAt || undefined,
   });
 });
 
@@ -1097,10 +1193,6 @@ app.post('/v1/mongo/sync/negocio', async (c) => {
  * Map proyecto id → negocio_id (default: same id) and upsert negocios.
  */
 app.post('/v1/mongo/sync/proyecto', async (c) => {
-  const resolved = await resolveRuntimeMongo(c.env);
-  if (!mongoUriConfigured(resolved.env)) {
-    return c.json(mongoNotConfiguredError(), 503);
-  }
   const body = (await c.req.json().catch(() => ({}))) as {
     proyecto_id?: string;
     proyectoId?: string;
@@ -1117,6 +1209,11 @@ app.post('/v1/mongo/sync/proyecto', async (c) => {
     .bind(proyectoId)
     .first<{ id: string; nombre: string }>();
   if (!proyecto) return jsonError(c, 404, 'Proyecto no encontrado.');
+
+  const resolved = await resolveRuntimeMongo(c.env, undefined, proyectoId);
+  if (!mongoUriConfigured(resolved.env)) {
+    return c.json(mongoNotConfiguredError(), 503);
+  }
 
   const negocioId = String(body.negocio_id || body.negocioId || proyectoId).trim();
   if (!ID_RE.test(negocioId)) return jsonError(c, 400, 'negocio_id inválido.');
@@ -1361,6 +1458,99 @@ app.put('/v1/proyectos/:id', async (c) => {
   });
 });
 
+/**
+ * Guardar / probar URI Mongo de una Base de datos (cifrada en D1). Nunca ecoa la URI.
+ * Auth: invite Bearer. Body: { uri, db?, probeOnly? }.
+ * Si `db` vacío → usa proyecto.baseDatos.
+ */
+app.post('/v1/proyectos/:id/mongo-config', async (c) => {
+  const id = c.req.param('id');
+  const proyRow = await c.env.DB.prepare('SELECT id, base_datos FROM proyectos WHERE id = ?')
+    .bind(id)
+    .first<{ id: string; base_datos: string | null }>();
+  if (!proyRow) return jsonError(c, 404, 'Proyecto no encontrado.');
+  const key = (c.env.ENCRYPTION_KEY || '').trim();
+  if (!key) {
+    return c.json(
+      {
+        ok: false,
+        error: 'ENCRYPTION_KEY missing',
+        hint: 'Define el secret ENCRYPTION_KEY en el Worker (wrangler secret put ENCRYPTION_KEY).',
+      },
+      503
+    );
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    uri?: string;
+    db?: string;
+    dbName?: string;
+    probeOnly?: boolean;
+  };
+  const uri = String(body.uri || '').trim();
+  const baseDatos = String(proyRow.base_datos || '').trim();
+  const dbName = String(body.db || body.dbName || '').trim() || baseDatos;
+  if (!uri) return jsonError(c, 400, 'Falta uri.');
+  if (!isValidMongoUri(uri)) {
+    return jsonError(c, 400, 'URI inválida (usa mongodb:// o mongodb+srv:// con usuario@host).');
+  }
+  const probeEnv: MongoEnv = {
+    MONGODB_URI: uri,
+    MONGODB_DB: dbName || c.env.MONGODB_DB,
+  };
+  const status = await probeMongoStatus(probeEnv, dbName || undefined);
+  if (body.probeOnly) {
+    return c.json({
+      ok: true,
+      probed: true,
+      proyecto: id,
+      baseDatos: baseDatos || status.db,
+      configured: false,
+      own: false,
+      connected: status.connected,
+      db: status.db,
+      ...(status.error ? { error: status.error } : {}),
+    });
+  }
+  const saved = await saveProyectoStoredUri(c.env.DB, key, id, uri, dbName || undefined);
+  return c.json({
+    ok: true,
+    proyecto: id,
+    baseDatos: baseDatos || saved.db,
+    configured: true,
+    own: true,
+    connected: status.connected,
+    db: saved.db || status.db,
+    source: 'proyecto' as const,
+    hint: saved.hint,
+    updatedAt: saved.updatedAt,
+    ...(status.error ? { error: status.error } : {}),
+  });
+});
+
+/** Borra la URI propia de esta Base de datos (cae a Ajustes / env). */
+app.delete('/v1/proyectos/:id/mongo-config', async (c) => {
+  const id = c.req.param('id');
+  const proyRow = await c.env.DB.prepare('SELECT id, base_datos FROM proyectos WHERE id = ?')
+    .bind(id)
+    .first<{ id: string; base_datos: string | null }>();
+  if (!proyRow) return jsonError(c, 404, 'Proyecto no encontrado.');
+  const baseDatos = String(proyRow.base_datos || '').trim();
+  await clearProyectoStoredUri(c.env.DB, id);
+  const resolved = await resolveRuntimeMongo(c.env, baseDatos || undefined, id);
+  return c.json({
+    ok: true,
+    cleared: true,
+    proyecto: id,
+    baseDatos: baseDatos || resolved.meta.db,
+    configured: resolved.meta.configured,
+    own: false,
+    connected: false,
+    db: resolved.meta.db,
+    source: resolved.meta.source,
+    ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
+  });
+});
+
 app.post('/v1/proyectos/:id/crear-bd', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
@@ -1411,7 +1601,7 @@ app.post('/v1/proyectos/:id/crear-bd', async (c) => {
 
   const body = (await c.req.json().catch(() => ({}))) as { dryRun?: boolean; mock?: boolean };
   const dryRun = body.dryRun === true;
-  const resolved = await resolveRuntimeMongo(c.env, proy.baseDatos);
+  const resolved = await resolveRuntimeMongo(c.env, proy.baseDatos, id);
 
   if (dryRun || body.mock === true || !mongoUriConfigured(resolved.env)) {
     return c.json({
@@ -1420,6 +1610,7 @@ app.post('/v1/proyectos/:id/crear-bd', async (c) => {
       mock: !mongoUriConfigured(resolved.env) || body.mock === true,
       dryRun: dryRun || !mongoUriConfigured(resolved.env),
       db: proy.baseDatos,
+      source: resolved.meta.source,
       plan: {
         collections: plans.map((p) => ({
           id: p.id,
@@ -1429,7 +1620,7 @@ app.post('/v1/proyectos/:id/crear-bd', async (c) => {
       },
       hint: mongoUriConfigured(resolved.env)
         ? undefined
-        : 'Sin URI Mongo: plan en seco. Configura Ajustes → Conexiones o MONGODB_URI y vuelve a llamar.',
+        : 'Sin URI Mongo: plan en seco. Configura la pestaña Conexión de esta Base de datos, Ajustes → Conexiones o MONGODB_URI.',
       created: [],
       updated: [],
       indexes: [],

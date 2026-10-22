@@ -490,6 +490,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabColecciones" data-proy-tab="colecciones" aria-selected="false" aria-controls="proyPanelColecciones">Colecciones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabConexion" data-proy-tab="conexion" aria-selected="false" aria-controls="proyPanelConexion">Conexión</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabAgentes" data-proy-tab="agentes" aria-selected="false" aria-controls="proyPanelAgentes">Agentes</button>
 </div>
@@ -522,6 +523,29 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <pre class="proy-mermaid-src" id="proyDiagramaMermaid" hidden></pre>
 <div class="proy-diagrama-render" id="proyDiagramaRender" hidden></div>
 <div class="proy-er-boxes" id="proyDiagramaBoxes" hidden></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelConexion" role="tabpanel" aria-labelledby="proyTabConexion" hidden>
+<div class="proy-conexion">
+<p class="ajustes-lead" id="proyConexionAyuda">Cadena de conexión Atlas (<code>mongodb+srv://…</code>) para esta base Mongo. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Si no hay URI propia, se usa la de Ajustes → Conexiones.</p>
+<div class="ajustes-status-row">
+<span id="proyConexionStatus" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
+<p id="proyConexionHint" class="ajustes-hint">La URI guardada no se vuelve a mostrar.</p>
+</div>
+<form class="ajustes-form" id="formProyConexion" autocomplete="off">
+<label>URI de conexión
+<input type="password" id="proyConexionUri" name="uri" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/" required>
+</label>
+<label>Nombre de base
+<input type="text" id="proyConexionDb" name="db" autocomplete="off" spellcheck="false" placeholder="software_reservas">
+</label>
+<div class="ajustes-actions">
+<button type="submit" class="btn primary" id="proyConexionGuardar">Guardar</button>
+<button type="button" class="btn ghost" id="proyConexionProbar">Probar</button>
+<button type="button" class="btn ghost" id="proyConexionBorrar">Borrar</button>
+</div>
+<p id="proyConexionMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
+</form>
+</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelCampos" role="tabpanel" aria-labelledby="proyTabCampos" hidden>
 <div id="proyCamposLista" class="proy-tab-catalogo"></div>
@@ -1124,7 +1148,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022diag1"></script>
+<script src="catalogo-ui.js?v=20261022conn1"></script>
 <script src="ajustes-ui.js?v=20261022col1"></script>
 
 </body>

@@ -4006,6 +4006,7 @@ function seleccionarProyReaderTab(id) {
     resumen: document.getElementById('proyPanelResumen'),
     colecciones: document.getElementById('proyPanelColecciones'),
     diagrama: document.getElementById('proyPanelDiagrama'),
+    conexion: document.getElementById('proyPanelConexion'),
     campos: document.getElementById('proyPanelCampos'),
     agentes: document.getElementById('proyPanelAgentes')
   };
@@ -4023,6 +4024,7 @@ function seleccionarProyReaderTab(id) {
   if (!proy) return;
   if (id === 'colecciones') pintarProyectoColecciones(proy);
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
+  if (id === 'conexion') cargarProyectoConexion(proy);
   if (id === 'campos') pintarProyectoCampos(proy);
   if (id === 'agentes') pintarProyectoAgentes(proy);
 }
@@ -4460,7 +4462,7 @@ async function onCrearBaseDatosProyecto() {
     if (!data || data.ok === false) throw new Error((data && data.error) || 'Error');
     if (msg) {
       if (data.mock || data.dryRun) {
-        msg.textContent = 'Plan listo (sin URI Mongo). Configura Ajustes → Conexiones y vuelve a pulsar. Base: ' + (data.db || proy.baseDatos);
+        msg.textContent = 'Plan listo (sin URI Mongo). Configura la pestaña Conexión (o Ajustes → Conexiones) y vuelve a pulsar. Base: ' + (data.db || proy.baseDatos);
       } else {
         const created = (data.created || []).join(', ') || 'ninguna nueva';
         msg.textContent = 'Base ' + (data.db || '') + ' lista. Colecciones creadas: ' + created + '.';
@@ -4474,6 +4476,240 @@ async function onCrearBaseDatosProyecto() {
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+function proyConexionSetBusy(busy) {
+  ['proyConexionGuardar', 'proyConexionProbar', 'proyConexionBorrar'].forEach(function (id) {
+    const n = document.getElementById(id);
+    if (n) n.disabled = !!busy;
+  });
+}
+
+function proyConexionSetMsg(text, kind) {
+  const n = document.getElementById('proyConexionMsg');
+  if (!n) return;
+  n.textContent = text || '';
+  n.classList.remove('is-ok', 'is-err', 'is-info');
+  if (kind) n.classList.add(kind);
+}
+
+function pintarProyectoConexionStatus(data, proy) {
+  const badge = document.getElementById('proyConexionStatus');
+  const hintEl = document.getElementById('proyConexionHint');
+  const ayuda = document.getElementById('proyConexionAyuda');
+  if (!badge) return;
+  const configured = !!(data && data.configured);
+  const own = !!(data && data.own);
+  const connected = data && data.connected;
+  const source = (data && data.source) || 'none';
+  const hint = (data && data.hint) || '';
+  const db = (data && (data.db || data.baseDatos)) || (proy && proy.baseDatos) || '';
+
+  badge.classList.remove('is-yes', 'is-no', 'is-err');
+  let label = 'Sin configurar';
+  if (configured) {
+    if (own) label = 'URI propia';
+    else if (source === 'stored') label = 'Usa Ajustes (global)';
+    else if (source === 'env') label = 'Usa secret del Worker';
+    else label = 'Configurada';
+    if (connected === true) label += ' · conectada';
+    else if (connected === false) label += ' · sin conexión al cluster';
+    badge.classList.add(connected === false ? 'is-err' : 'is-yes');
+  } else {
+    badge.classList.add('is-no');
+  }
+  badge.textContent = label;
+
+  const extra = [];
+  if (configured && hint) extra.push('pista ' + hint);
+  if (db) extra.push('db ' + db);
+  if (own) extra.push('guardada en esta Base de datos');
+  else if (source === 'stored') extra.push('heredada de Ajustes → Conexiones');
+  else if (source === 'env') extra.push('vía secret del Worker');
+  if (hintEl) {
+    hintEl.textContent = extra.length ? extra.join(' · ') : 'La URI guardada no se vuelve a mostrar.';
+  }
+  if (ayuda && proy && proy.baseDatos) {
+    ayuda.innerHTML =
+      'Cadena de conexión Atlas (<code>mongodb+srv://…</code>) para la base Mongo <code>' +
+      String(proy.baseDatos).replace(/</g, '') +
+      '</code>. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Si no hay URI propia, se usa la de Ajustes → Conexiones.';
+  }
+
+  const uriInput = document.getElementById('proyConexionUri');
+  if (uriInput) {
+    uriInput.value = '';
+    uriInput.placeholder = own
+      ? 'URI propia ya configurada — pega una nueva solo para reemplazar'
+      : 'mongodb+srv://usuario:contraseña@cluster…/';
+  }
+  const dbInput = document.getElementById('proyConexionDb');
+  if (dbInput) {
+    dbInput.value = db || '';
+    dbInput.placeholder = (proy && proy.baseDatos) || 'software_reservas';
+  }
+}
+
+function cargarProyectoConexion(proy) {
+  const badge = document.getElementById('proyConexionStatus');
+  if (!proy || !proy.id) return;
+  proyConexionSetMsg('');
+  if (badge) {
+    badge.textContent = 'Consultando…';
+    badge.classList.remove('is-yes', 'is-no', 'is-err');
+  }
+  const dbInput = document.getElementById('proyConexionDb');
+  if (dbInput && proy.baseDatos && !dbInput.value) dbInput.value = proy.baseDatos;
+  fetch(apiBaseUrl() + '/v1/proyectos/' + encodeURIComponent(proy.id) + '/mongo-config', {
+    cache: 'no-store'
+  })
+    .then(function (res) {
+      return res.json().then(function (data) {
+        return { res: res, data: data || {} };
+      });
+    })
+    .then(function (pack) {
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="conexion"].is-on');
+      if (!tabOn) return;
+      if (!pack.res.ok) throw new Error((pack.data && pack.data.error) || 'error');
+      // Defensa: la API nunca debe devolver uri; si llegara, no la usamos ni la mostramos.
+      if (pack.data && Object.prototype.hasOwnProperty.call(pack.data, 'uri')) {
+        delete pack.data.uri;
+      }
+      pintarProyectoConexionStatus(pack.data, proy);
+    })
+    .catch(function () {
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      pintarProyectoConexionStatus({ configured: false, connected: false, source: 'none', own: false }, proy);
+      proyConexionSetMsg('No se pudo consultar el estado de conexión.', 'is-err');
+    });
+}
+
+function leerFormProyConexion() {
+  const uriEl = document.getElementById('proyConexionUri');
+  const dbEl = document.getElementById('proyConexionDb');
+  const proy = proyectoAbierto();
+  return {
+    uri: uriEl ? String(uriEl.value || '').trim() : '',
+    db: (dbEl ? String(dbEl.value || '').trim() : '') || (proy && proy.baseDatos) || ''
+  };
+}
+
+function onGuardarProyConexion(e) {
+  if (e) e.preventDefault();
+  const proy = proyectoAbierto();
+  if (!proy || !proy.id) return;
+  const form = leerFormProyConexion();
+  if (!form.uri) {
+    proyConexionSetMsg('Pega la URI de Atlas para guardar.', 'is-err');
+    return;
+  }
+  proyConexionSetBusy(true);
+  proyConexionSetMsg('Guardando…', 'is-info');
+  asegurarClaveCatalogo()
+    .then(function () {
+      return apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/mongo-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uri: form.uri, db: form.db || undefined })
+      });
+    })
+    .then(function (data) {
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'No se pudo guardar');
+      if (data.uri) delete data.uri;
+      const uriInput = document.getElementById('proyConexionUri');
+      if (uriInput) uriInput.value = '';
+      pintarProyectoConexionStatus(data, proy);
+      proyConexionSetMsg(
+        data.connected
+          ? 'Guardada y conectada. La URI ya no se muestra.'
+          : 'Guardada. El cluster no responde aún (revisa red/Atlas); la URI no se reexpone.',
+        data.connected ? 'is-ok' : 'is-info'
+      );
+    })
+    .catch(function (err) {
+      proyConexionSetMsg(err && err.message ? err.message : 'Error al guardar', 'is-err');
+    })
+    .then(function () {
+      proyConexionSetBusy(false);
+    });
+}
+
+function onProbarProyConexion(e) {
+  if (e) e.preventDefault();
+  const proy = proyectoAbierto();
+  if (!proy || !proy.id) return;
+  const form = leerFormProyConexion();
+  if (!form.uri) {
+    proyConexionSetMsg('Pega una URI para probar (no se guarda).', 'is-err');
+    return;
+  }
+  proyConexionSetBusy(true);
+  proyConexionSetMsg('Probando conexión…', 'is-info');
+  asegurarClaveCatalogo()
+    .then(function () {
+      return apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/mongo-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uri: form.uri,
+          db: form.db || undefined,
+          probeOnly: true
+        })
+      });
+    })
+    .then(function (data) {
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'Prueba fallida');
+      if (data.uri) delete data.uri;
+      if (data.connected) {
+        proyConexionSetMsg('Conexión OK (no se ha guardado).', 'is-ok');
+      } else {
+        proyConexionSetMsg(
+          'No alcanza el cluster: ' + ((data && data.error) || 'sin detalle'),
+          'is-err'
+        );
+      }
+    })
+    .catch(function (err) {
+      proyConexionSetMsg(err && err.message ? err.message : 'Error al probar', 'is-err');
+    })
+    .then(function () {
+      proyConexionSetBusy(false);
+    });
+}
+
+function onBorrarProyConexion(e) {
+  if (e) e.preventDefault();
+  const proy = proyectoAbierto();
+  if (!proy || !proy.id) return;
+  if (!window.confirm('¿Borrar la URI propia de esta Base de datos? Seguirá pudiendo usarse la de Ajustes → Conexiones.')) {
+    return;
+  }
+  proyConexionSetBusy(true);
+  proyConexionSetMsg('Borrando…', 'is-info');
+  asegurarClaveCatalogo()
+    .then(function () {
+      return apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/mongo-config', {
+        method: 'DELETE'
+      });
+    })
+    .then(function (data) {
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'No se pudo borrar');
+      if (data.uri) delete data.uri;
+      const uriInput = document.getElementById('proyConexionUri');
+      if (uriInput) uriInput.value = '';
+      pintarProyectoConexionStatus(data, proy);
+      proyConexionSetMsg('URI propia borrada.', 'is-ok');
+    })
+    .catch(function (err) {
+      proyConexionSetMsg(err && err.message ? err.message : 'Error al borrar', 'is-err');
+    })
+    .then(function () {
+      proyConexionSetBusy(false);
+    });
 }
 
 function abrirProyecto(id, numero) {
@@ -5346,6 +5582,12 @@ function wireProyectosUi() {
     if (!btn) return;
     seleccionarProyReaderTab(btn.getAttribute('data-proy-tab'));
   });
+  const formProyConexion = document.getElementById('formProyConexion');
+  if (formProyConexion) formProyConexion.addEventListener('submit', onGuardarProyConexion);
+  const proyConexionProbar = document.getElementById('proyConexionProbar');
+  if (proyConexionProbar) proyConexionProbar.addEventListener('click', onProbarProyConexion);
+  const proyConexionBorrar = document.getElementById('proyConexionBorrar');
+  if (proyConexionBorrar) proyConexionBorrar.addEventListener('click', onBorrarProyConexion);
   const editarProyTabs = document.getElementById('editarProyTabs');
   if (editarProyTabs) editarProyTabs.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-editar-proy-tab]');
