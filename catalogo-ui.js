@@ -1,6 +1,7 @@
 'use strict';
 
 const CATALOGOS = [
+  { id: 'clusters', nombre: 'Clusters', icono: 'cluster' },
   { id: 'proyectos', nombre: 'Base de datos', icono: 'proyecto' },
   { id: 'colecciones', nombre: 'Colecciones', icono: 'coleccion' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
@@ -30,6 +31,7 @@ const FICHA_PANE_IDS = [
   'dlgSkill',
   'dlgCampoFicha',
   'dlgMongoFicha',
+  'dlgCluster',
   'dlgProyecto',
   'dlgColeccion',
   'dlgAgenteFicha',
@@ -254,6 +256,13 @@ const state = {
     tab: 'resumen',
     diagramaToken: 0,
     _mermaidPromise: null
+  },
+  clusters: {
+    ready: false,
+    indexError: false,
+    lista: [],
+    abiertoId: null,
+    tab: 'resumen'
   },
   proyectos: {
     ready: false,
@@ -872,6 +881,22 @@ function svgPestanaCatalogo(tipo) {
       svgPath('M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6'),
       svgPath('M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6')
     );
+  } else if (tipo === 'cluster') {
+    // Lucide: server
+    (function () {
+      const ns2 = 'http://www.w3.org/2000/svg';
+      [['2', '2'], ['2', '14']].forEach(function (xy) {
+        const r = document.createElementNS(ns2, 'rect');
+        r.setAttribute('width', '20');
+        r.setAttribute('height', '8');
+        r.setAttribute('x', xy[0]);
+        r.setAttribute('y', xy[1]);
+        r.setAttribute('rx', '2');
+        r.setAttribute('ry', '2');
+        svg.append(r);
+      });
+    })();
+    svg.append(svgLine('6', '6', '6.01', '6'), svgLine('6', '18', '6.01', '18'));
   } else if (tipo === 'proyecto') {
     // Lucide: folder
     svg.append(
@@ -2389,6 +2414,14 @@ function abrirDialogoEliminar(opts) {
       }
     }
   }
+  if (opts.tipo === 'cluster') {
+    const cl = (state.clusters.lista || []).find(function (c) { return c.id === opts.id; });
+    if (!cl) return;
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el cluster?';
+    if (opts.aviso == null) {
+      opts.aviso = 'Solo se puede borrar si no tiene Bases de datos asociadas. La URI cifrada del cluster también se elimina.';
+    }
+  }
   if (opts.tipo === 'proyecto') {
     const proy = state.proyectos.lista.find(function (p) { return p.id === opts.id; });
     if (!proy) return;
@@ -2624,7 +2657,7 @@ async function onSubmitNueva(e) {
   }
 }
 
-function onSubmitEliminar(e) {
+async function onSubmitEliminar(e) {
   e.preventDefault();
   const form = e.currentTarget;
   const error = document.getElementById('eliminarError');
@@ -2636,6 +2669,7 @@ function onSubmitEliminar(e) {
     if (tipo === 'skill') eliminarBloque(id);
     else if (tipo === 'ancla') eliminarCampoAncla(id);
     else if (tipo === 'mongo') eliminarCampoMongo(id);
+    else if (tipo === 'cluster') await eliminarCluster(id);
     else if (tipo === 'proyecto') eliminarProyecto(id);
     else if (tipo === 'agente') eliminarAgente(id);
     else if (tipo === 'fundamento') eliminarFundamento(id);
@@ -2711,6 +2745,7 @@ function seleccionarCatalogo(id) {
   if (id === 'skills') cargarSkills();
   if (id === 'campos-ancla') cargarCampos();
   if (id === 'campos-mongodb') cargarMongo();
+  if (id === 'clusters') cargarClusters();
   if (id === 'proyectos') cargarProyectos();
   if (id === 'colecciones') cargarColecciones();
   // Agentes vive en Ajustes; al cambiar de catálogo se para el poll si Ajustes no está visible.
@@ -3733,6 +3768,8 @@ function iniciar() {
   cargarSkills();
   cargarCampos();
   cargarMongo();
+  cargarClusters();
+  wireClustersUi();
   cargarProyectos();
   wireProyectosUi();
   wireColeccionesUi();
@@ -3823,6 +3860,7 @@ function normalizeProyecto(item, versionFn) {
     agentes: Array.isArray(item.agentes)
       ? item.agentes.map(function (a) { return String(a || '').trim(); }).filter(Boolean)
       : [],
+    clusterId: String(item.clusterId || item.cluster_id || '').trim() || null,
     legacyNegocio: !!(item.legacyNegocio === true || item.legacyNegocio === 1 || item.legacy_negocio === 1)
   };
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
@@ -3866,6 +3904,9 @@ function conMetaProyecto(destino, fuente) {
   if (Array.isArray(fuente.colecciones)) destino.colecciones = fuente.colecciones.slice();
   if (Array.isArray(fuente.relaciones)) destino.relaciones = fuente.relaciones.slice();
   if (Array.isArray(fuente.agentes)) destino.agentes = fuente.agentes.slice();
+  if (fuente.clusterId != null || fuente.cluster_id != null) {
+    destino.clusterId = String(fuente.clusterId || fuente.cluster_id || '').trim() || null;
+  }
   if (fuente.legacyNegocio != null) destino.legacyNegocio = !!fuente.legacyNegocio;
   return destino;
 }
@@ -4000,12 +4041,11 @@ function seleccionarProyReaderTab(id) {
     resumen: document.getElementById('proyPanelResumen'),
     colecciones: document.getElementById('proyPanelColecciones'),
     diagrama: document.getElementById('proyPanelDiagrama'),
-    conexion: document.getElementById('proyPanelConexion'),
     campos: document.getElementById('proyPanelCampos'),
     agentes: document.getElementById('proyPanelAgentes')
   };
   // Compat: nombres antiguos → resumen
-  if (id === 'documento' || id === 'skills' || id === 'interno') id = 'resumen';
+  if (id === 'documento' || id === 'skills' || id === 'interno' || id === 'conexion') id = 'resumen';
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-proy-tab') === id;
     btn.classList.toggle('is-on', on);
@@ -4016,9 +4056,9 @@ function seleccionarProyReaderTab(id) {
   });
   const proy = proyectoAbierto();
   if (!proy) return;
+  if (id === 'resumen') pintarProyectoCluster(proy);
   if (id === 'colecciones') pintarProyectoColecciones(proy);
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
-  if (id === 'conexion') cargarProyectoConexion(proy);
   if (id === 'campos') pintarProyectoCampos(proy);
   if (id === 'agentes') pintarProyectoAgentes(proy);
 }
@@ -4211,6 +4251,7 @@ function renderProyectoReader() {
     }
   }
   seleccionarProyReaderTab('resumen');
+  pintarProyectoCluster(proy);
   pintarVersionProyecto(v);
   pintarProyectoSkillsLista(proy);
   renderHistorialProyecto(proy, v);
@@ -4515,7 +4556,7 @@ async function onCrearBaseDatosProyecto() {
     if (!data || data.ok === false) throw new Error((data && data.error) || 'Error');
     if (msg) {
       if (data.mock || data.dryRun) {
-        msg.textContent = 'Plan listo (sin URI Mongo). Configura la pestaña Conexión de esta Base de datos y vuelve a pulsar. Base: ' + (data.db || proy.baseDatos);
+        msg.textContent = 'Plan listo (sin URI Mongo). Configura la pestaña Conexión del Cluster y vuelve a pulsar. Base: ' + (data.db || proy.baseDatos);
       } else {
         const created = (data.created || []).join(', ') || 'ninguna nueva';
         msg.textContent = 'Base ' + (data.db || '') + ' lista. Colecciones creadas: ' + created + '.';
@@ -4531,40 +4572,382 @@ async function onCrearBaseDatosProyecto() {
   }
 }
 
-function proyConexionSetBusy(busy) {
-  ['proyConexionGuardar', 'proyConexionProbar', 'proyConexionBorrar'].forEach(function (id) {
+function pintarProyectoCluster(proy) {
+  const mount = document.getElementById('proyClusterLista');
+  const vacio = document.getElementById('proyClusterVacio');
+  if (!mount) return;
+  const cid = proy && proy.clusterId ? String(proy.clusterId) : '';
+  const cl = cid
+    ? (state.clusters.lista || []).find(function (c) { return c.id === cid; })
+    : null;
+  if (!cid || !cl) {
+    mount.replaceChildren();
+    if (vacio) {
+      vacio.hidden = false;
+      vacio.textContent = cid
+        ? 'Cluster ' + cid + ' (carga el catálogo Clusters).'
+        : 'Sin cluster asignado. La URI Atlas vive en el Cluster.';
+    }
+    return;
+  }
+  if (vacio) vacio.hidden = true;
+  if (!window.ClustersUI || typeof window.ClustersUI.montarLista !== 'function') {
+    mount.textContent = cl.nombre + ' (' + cl.id + ')';
+    return;
+  }
+  window.ClustersUI.montarLista(mount, {
+    getSnapshot: function () {
+      return {
+        ready: true,
+        indexError: false,
+        clusters: [cl],
+        abierta: state.clusters.abiertoId === cl.id ? { id: cl.id } : null
+      };
+    },
+    añadirCluster: function () {},
+    abrirCluster: function (id) { abrirCluster(id); }
+  }, { emptyMsg: 'Sin cluster.' });
+}
+
+function clusterAbierto() {
+  if (!state.clusters.abiertoId) return null;
+  return (state.clusters.lista || []).find(function (c) {
+    return c.id === state.clusters.abiertoId;
+  }) || null;
+}
+
+function normalizeCluster(item) {
+  if (!item || typeof item !== 'object') return null;
+  if (typeof item.id !== 'string' || !item.id.trim()) return null;
+  if (typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
+  return {
+    id: item.id.trim(),
+    nombre: item.nombre.trim(),
+    descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim().slice(0, 280) : '',
+    hash: typeof item.hash === 'string' ? item.hash : '',
+    proyectos: Array.isArray(item.proyectos) ? item.proyectos : [],
+    nProyectos: Array.isArray(item.proyectos) ? item.proyectos.length : 0
+  };
+}
+
+function normalizeClustersIndice(data) {
+  const list = Array.isArray(data) ? data : (data && Array.isArray(data.clusters) ? data.clusters : []);
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (item) {
+    const cl = normalizeCluster(item);
+    if (!cl || seen.has(cl.id)) return;
+    seen.add(cl.id);
+    out.push(cl);
+  });
+  return out.sort(function (a, b) {
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+}
+
+function clustersBridge() {
+  return {
+    getSnapshot: function () {
+      const abierta = state.clusters.abiertoId
+        ? (state.clusters.lista || []).find(function (c) { return c.id === state.clusters.abiertoId; }) || null
+        : null;
+      return {
+        ready: state.clusters.ready,
+        indexError: state.clusters.indexError,
+        clusters: state.clusters.lista || [],
+        abierta: abierta ? { id: abierta.id } : null
+      };
+    },
+    añadirCluster: function () { abrirDialogoNuevoCluster(); },
+    abrirCluster: function (id) {
+      if (state.clusters.abiertoId === id) {
+        const dlg = document.getElementById('dlgCluster');
+        if (dlg && dlg.open) {
+          cerrarClusterModal();
+          return;
+        }
+      }
+      abrirCluster(id);
+    }
+  };
+}
+
+function pintarClusters() {
+  if (window.ClustersUI && typeof window.ClustersUI.refrescar === 'function') {
+    window.ClustersUI.refrescar(clustersBridge());
+  }
+}
+
+function cargarClusters() {
+  apiFetch('/v1/clusters')
+    .then(function (data) {
+      state.clusters.lista = normalizeClustersIndice(data);
+      state.clusters.indexError = false;
+    })
+    .catch(function () {
+      state.clusters.lista = [];
+      state.clusters.indexError = true;
+    })
+    .then(function () {
+      state.clusters.ready = true;
+      pintarClusters();
+      const proy = proyectoAbierto();
+      if (proy) pintarProyectoCluster(proy);
+    });
+}
+
+function cerrarClusterModal() {
+  const dlg = document.getElementById('dlgCluster');
+  if (dlg && dlg.open) {
+    dlg.close();
+    return;
+  }
+  state.clusters.abiertoId = null;
+  state.clusters.tab = 'resumen';
+  pintarClusters();
+}
+
+function seleccionarClusterReaderTab(id) {
+  const tabs = document.querySelectorAll('#clusterReaderTabs [data-cluster-tab]');
+  const panels = {
+    resumen: document.getElementById('clusterPanelResumen'),
+    conexion: document.getElementById('clusterPanelConexion'),
+    bases: document.getElementById('clusterPanelBases')
+  };
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-cluster-tab') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  Object.keys(panels).forEach(function (key) {
+    if (panels[key]) panels[key].hidden = key !== id;
+  });
+  state.clusters.tab = id;
+  const cl = clusterAbierto();
+  if (!cl) return;
+  if (id === 'conexion') cargarClusterConexion(cl);
+  if (id === 'bases') pintarClusterBases(cl);
+}
+
+function pintarClusterBases(cl) {
+  const mount = document.getElementById('clusterBasesLista');
+  if (!mount || !cl) return;
+  const proyecs = (state.proyectos.lista || []).filter(function (p) {
+    return p && p.clusterId === cl.id;
+  });
+  if (!window.ProyectosUI || typeof window.ProyectosUI.montarLista !== 'function') {
+    mount.textContent = proyecs.length
+      ? proyecs.map(function (p) { return p.nombre; }).join(', ')
+      : 'Sin bases de datos.';
+    return;
+  }
+  window.ProyectosUI.montarLista(mount, {
+    getSnapshot: function () {
+      return {
+        ready: true,
+        indexError: false,
+        proyectos: proyecs,
+        abierta: null
+      };
+    },
+    añadirProyecto: function () {},
+    abrirProyecto: function (id) { abrirProyecto(id); }
+  }, { emptyMsg: 'Ninguna base de datos en este cluster.' });
+}
+
+function renderClusterReader() {
+  const dlg = document.getElementById('dlgCluster');
+  const cl = clusterAbierto();
+  if (!cl) {
+    state.clusters.abiertoId = null;
+    if (dlg && dlg.open) dlg.close();
+    return;
+  }
+  const nombre = document.getElementById('clusterReaderNombre');
+  if (nombre) nombre.textContent = cl.nombre;
+  const sub = document.getElementById('clusterReaderSub');
+  if (sub) sub.textContent = cl.id;
+  const idEl = document.getElementById('clusterReaderId');
+  if (idEl) idEl.textContent = cl.id || '—';
+  const desc = document.getElementById('clusterReaderDesc');
+  if (desc) desc.textContent = cl.descripcion || '—';
+  const bases = document.getElementById('clusterResumenBases');
+  if (bases) {
+    const n = (state.proyectos.lista || []).filter(function (p) {
+      return p && p.clusterId === cl.id;
+    }).length;
+    bases.textContent = n ? String(n) : '0';
+  }
+  seleccionarClusterReaderTab(state.clusters.tab || 'resumen');
+  openFichaPane(dlg);
+  if (nombre) nombre.focus();
+}
+
+function abrirCluster(id) {
+  const cl = (state.clusters.lista || []).find(function (c) { return c.id === id; });
+  if (!cl) return;
+  state.clusters.abiertoId = id;
+  state.clusters.tab = 'resumen';
+  renderClusterReader();
+  pintarClusters();
+}
+
+function abrirDialogoNuevoCluster() {
+  const dlg = document.getElementById('dlgNuevoCluster');
+  const form = document.getElementById('formNuevoCluster');
+  if (!dlg || !form) return;
+  form.reset();
+  const err = document.getElementById('nuevoClusterError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  if (form.nombre) form.nombre.focus();
+}
+
+function onSubmitNuevoCluster(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const error = document.getElementById('nuevoClusterError');
+  if (error) error.textContent = '';
+  const nombre = form.nombre.value.trim();
+  if (!nombre) {
+    if (error) error.textContent = 'Escribe un nombre.';
+    return;
+  }
+  const idRaw = form.id && form.id.value ? String(form.id.value).trim() : '';
+  const body = {
+    nombre: nombre,
+    descripcion: form.descripcion.value.trim().slice(0, 280)
+  };
+  if (idRaw) body.id = idRaw;
+  const submit = form.querySelector('[type="submit"]');
+  if (submit) submit.disabled = true;
+  asegurarClaveCatalogo()
+    .then(function () {
+      return apiFetchAuth('/v1/clusters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    })
+    .then(function (data) {
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'No se pudo crear');
+      document.getElementById('dlgNuevoCluster').close();
+      return cargarClusters().then(function () {
+        const id = data.cluster && data.cluster.id;
+        if (id) abrirCluster(id);
+      });
+    })
+    .catch(function (err) {
+      if (error) error.textContent = err && err.message ? err.message : 'Error al crear';
+    })
+    .then(function () {
+      if (submit) submit.disabled = false;
+    });
+}
+
+function abrirDialogoEditarCluster(id) {
+  const cl = (state.clusters.lista || []).find(function (c) { return c.id === id; });
+  if (!cl) return;
+  const dlg = document.getElementById('dlgEditarCluster');
+  const form = document.getElementById('formEditarCluster');
+  if (!dlg || !form) return;
+  form.reset();
+  form.dataset.id = id;
+  form.nombre.value = cl.nombre || '';
+  form.descripcion.value = cl.descripcion || '';
+  const err = document.getElementById('editarClusterError');
+  if (err) err.textContent = '';
+  dlg.showModal();
+  if (form.nombre) form.nombre.focus();
+}
+
+function onSubmitEditarCluster(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const id = form.dataset.id;
+  const error = document.getElementById('editarClusterError');
+  if (error) error.textContent = '';
+  if (!id) return;
+  const nombre = form.nombre.value.trim();
+  if (!nombre) {
+    if (error) error.textContent = 'Escribe un nombre.';
+    return;
+  }
+  const submit = form.querySelector('[type="submit"]');
+  if (submit) submit.disabled = true;
+  asegurarClaveCatalogo()
+    .then(function () {
+      return apiFetchAuth('/v1/clusters/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: nombre,
+          descripcion: form.descripcion.value.trim().slice(0, 280)
+        })
+      });
+    })
+    .then(function (data) {
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'No se pudo guardar');
+      document.getElementById('dlgEditarCluster').close();
+      return cargarClusters().then(function () {
+        if (state.clusters.abiertoId === id) renderClusterReader();
+      });
+    })
+    .catch(function (err) {
+      if (error) error.textContent = err && err.message ? err.message : 'Error al guardar';
+    })
+    .then(function () {
+      if (submit) submit.disabled = false;
+    });
+}
+
+function eliminarCluster(id) {
+  return asegurarClaveCatalogo()
+    .then(function () {
+      return apiFetchAuth('/v1/clusters/' + encodeURIComponent(id), { method: 'DELETE' });
+    })
+    .then(function (data) {
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'No se pudo eliminar');
+      if (state.clusters.abiertoId === id) {
+        state.clusters.abiertoId = null;
+        const dlg = document.getElementById('dlgCluster');
+        if (dlg && dlg.open) dlg.close();
+      }
+      return cargarClusters();
+    });
+}
+
+function clusterConexionSetBusy(busy) {
+  ['clusterConexionGuardar', 'clusterConexionProbar', 'clusterConexionBorrar'].forEach(function (id) {
     const n = document.getElementById(id);
     if (n) n.disabled = !!busy;
   });
 }
 
-function proyConexionSetMsg(text, kind) {
-  const n = document.getElementById('proyConexionMsg');
+function clusterConexionSetMsg(text, kind) {
+  const n = document.getElementById('clusterConexionMsg');
   if (!n) return;
   n.textContent = text || '';
   n.classList.remove('is-ok', 'is-err', 'is-info');
   if (kind) n.classList.add(kind);
 }
 
-function pintarProyectoConexionStatus(data, proy) {
-  const badge = document.getElementById('proyConexionStatus');
-  const hintEl = document.getElementById('proyConexionHint');
-  const ayuda = document.getElementById('proyConexionAyuda');
+function pintarClusterConexionStatus(data, cl) {
+  const badge = document.getElementById('clusterConexionStatus');
+  const hintEl = document.getElementById('clusterConexionHint');
   if (!badge) return;
   const configured = !!(data && data.configured);
   const own = !!(data && data.own);
   const connected = data && data.connected;
   const source = (data && data.source) || 'none';
   const hint = (data && data.hint) || '';
-  const db = (data && (data.db || data.baseDatos)) || (proy && proy.baseDatos) || '';
 
   badge.classList.remove('is-yes', 'is-no', 'is-err');
   let label = 'Sin configurar';
   if (configured) {
-    if (own || source === 'proyecto') label = 'URI propia';
-    else label = 'Configurada';
+    label = own || source === 'cluster' ? 'URI del cluster' : 'Configurada';
     if (connected === true) label += ' · conectada';
-    else if (connected === false) label += ' · sin conexión al cluster';
+    else if (connected === false) label += ' · sin conexión';
     badge.classList.add(connected === false ? 'is-err' : 'is-yes');
   } else {
     badge.classList.add('is-no');
@@ -4573,45 +4956,31 @@ function pintarProyectoConexionStatus(data, proy) {
 
   const extra = [];
   if (configured && hint) extra.push('pista ' + hint);
-  if (db) extra.push('db ' + db);
-  if (own || source === 'proyecto') extra.push('guardada en esta Base de datos');
+  if (own || source === 'cluster') extra.push('guardada en este cluster');
   if (hintEl) {
     hintEl.textContent = extra.length
       ? extra.join(' · ')
-      : 'Sin URI propia: las operaciones Mongo de esta Base de datos fallan (no hay URI global).';
-  }
-  if (ayuda && proy && proy.baseDatos) {
-    ayuda.innerHTML =
-      'Cadena de conexión Atlas (<code>mongodb+srv://…</code>) para la base Mongo <code>' +
-      String(proy.baseDatos).replace(/</g, '') +
-      '</code>. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Sin URI propia, las operaciones Mongo fallan (no hay URI global en Ajustes).';
+      : 'Sin URI: las Bases de datos de este cluster no pueden hablar con Atlas.';
   }
 
-  const uriInput = document.getElementById('proyConexionUri');
+  const uriInput = document.getElementById('clusterConexionUri');
   if (uriInput) {
     uriInput.value = '';
     uriInput.placeholder = own
-      ? 'URI propia ya configurada — pega una nueva solo para reemplazar'
+      ? 'URI ya configurada — pega una nueva solo para reemplazar'
       : 'mongodb+srv://usuario:contraseña@cluster…/';
-  }
-  const dbInput = document.getElementById('proyConexionDb');
-  if (dbInput) {
-    dbInput.value = db || '';
-    dbInput.placeholder = (proy && proy.baseDatos) || 'software_reservas';
   }
 }
 
-function cargarProyectoConexion(proy) {
-  const badge = document.getElementById('proyConexionStatus');
-  if (!proy || !proy.id) return;
-  proyConexionSetMsg('');
+function cargarClusterConexion(cl) {
+  const badge = document.getElementById('clusterConexionStatus');
+  if (!cl || !cl.id) return;
+  clusterConexionSetMsg('');
   if (badge) {
     badge.textContent = 'Consultando…';
     badge.classList.remove('is-yes', 'is-no', 'is-err');
   }
-  const dbInput = document.getElementById('proyConexionDb');
-  if (dbInput && proy.baseDatos && !dbInput.value) dbInput.value = proy.baseDatos;
-  fetch(apiBaseUrl() + '/v1/proyectos/' + encodeURIComponent(proy.id) + '/mongo-config', {
+  fetch(apiBaseUrl() + '/v1/clusters/' + encodeURIComponent(cl.id) + '/mongo-config', {
     cache: 'no-store'
   })
     .then(function (res) {
@@ -4620,61 +4989,57 @@ function cargarProyectoConexion(proy) {
       });
     })
     .then(function (pack) {
-      const abierta = proyectoAbierto();
-      if (!abierta || abierta.id !== proy.id) return;
-      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="conexion"].is-on');
+      const abierta = clusterAbierto();
+      if (!abierta || abierta.id !== cl.id) return;
+      const tabOn = document.querySelector('#clusterReaderTabs [data-cluster-tab="conexion"].is-on');
       if (!tabOn) return;
       if (!pack.res.ok) throw new Error((pack.data && pack.data.error) || 'error');
-      // Defensa: la API nunca debe devolver uri; si llegara, no la usamos ni la mostramos.
       if (pack.data && Object.prototype.hasOwnProperty.call(pack.data, 'uri')) {
         delete pack.data.uri;
       }
-      pintarProyectoConexionStatus(pack.data, proy);
+      pintarClusterConexionStatus(pack.data, cl);
     })
     .catch(function () {
-      const abierta = proyectoAbierto();
-      if (!abierta || abierta.id !== proy.id) return;
-      pintarProyectoConexionStatus({ configured: false, connected: false, source: 'none', own: false }, proy);
-      proyConexionSetMsg('No se pudo consultar el estado de conexión.', 'is-err');
+      const abierta = clusterAbierto();
+      if (!abierta || abierta.id !== cl.id) return;
+      pintarClusterConexionStatus({ configured: false, connected: false, source: 'none', own: false }, cl);
+      clusterConexionSetMsg('No se pudo consultar el estado de conexión.', 'is-err');
     });
 }
 
-function leerFormProyConexion() {
-  const uriEl = document.getElementById('proyConexionUri');
-  const dbEl = document.getElementById('proyConexionDb');
-  const proy = proyectoAbierto();
+function leerFormClusterConexion() {
+  const uriEl = document.getElementById('clusterConexionUri');
   return {
-    uri: uriEl ? String(uriEl.value || '').trim() : '',
-    db: (dbEl ? String(dbEl.value || '').trim() : '') || (proy && proy.baseDatos) || ''
+    uri: uriEl ? String(uriEl.value || '').trim() : ''
   };
 }
 
-function onGuardarProyConexion(e) {
+function onGuardarClusterConexion(e) {
   if (e) e.preventDefault();
-  const proy = proyectoAbierto();
-  if (!proy || !proy.id) return;
-  const form = leerFormProyConexion();
+  const cl = clusterAbierto();
+  if (!cl || !cl.id) return;
+  const form = leerFormClusterConexion();
   if (!form.uri) {
-    proyConexionSetMsg('Pega la URI de Atlas para guardar.', 'is-err');
+    clusterConexionSetMsg('Pega la URI de Atlas para guardar.', 'is-err');
     return;
   }
-  proyConexionSetBusy(true);
-  proyConexionSetMsg('Guardando…', 'is-info');
+  clusterConexionSetBusy(true);
+  clusterConexionSetMsg('Guardando…', 'is-info');
   asegurarClaveCatalogo()
     .then(function () {
-      return apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/mongo-config', {
+      return apiFetchAuth('/v1/clusters/' + encodeURIComponent(cl.id) + '/mongo-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uri: form.uri, db: form.db || undefined })
+        body: JSON.stringify({ uri: form.uri })
       });
     })
     .then(function (data) {
       if (!data || data.ok === false) throw new Error((data && data.error) || 'No se pudo guardar');
       if (data.uri) delete data.uri;
-      const uriInput = document.getElementById('proyConexionUri');
+      const uriInput = document.getElementById('clusterConexionUri');
       if (uriInput) uriInput.value = '';
-      pintarProyectoConexionStatus(data, proy);
-      proyConexionSetMsg(
+      pintarClusterConexionStatus(data, cl);
+      clusterConexionSetMsg(
         data.connected
           ? 'Guardada y conectada. La URI ya no se muestra.'
           : 'Guardada. El cluster no responde aún (revisa red/Atlas); la URI no se reexpone.',
@@ -4682,84 +5047,80 @@ function onGuardarProyConexion(e) {
       );
     })
     .catch(function (err) {
-      proyConexionSetMsg(err && err.message ? err.message : 'Error al guardar', 'is-err');
+      clusterConexionSetMsg(err && err.message ? err.message : 'Error al guardar', 'is-err');
     })
     .then(function () {
-      proyConexionSetBusy(false);
+      clusterConexionSetBusy(false);
     });
 }
 
-function onProbarProyConexion(e) {
+function onProbarClusterConexion(e) {
   if (e) e.preventDefault();
-  const proy = proyectoAbierto();
-  if (!proy || !proy.id) return;
-  const form = leerFormProyConexion();
+  const cl = clusterAbierto();
+  if (!cl || !cl.id) return;
+  const form = leerFormClusterConexion();
   if (!form.uri) {
-    proyConexionSetMsg('Pega una URI para probar (no se guarda).', 'is-err');
+    clusterConexionSetMsg('Pega una URI para probar (no se guarda).', 'is-err');
     return;
   }
-  proyConexionSetBusy(true);
-  proyConexionSetMsg('Probando conexión…', 'is-info');
+  clusterConexionSetBusy(true);
+  clusterConexionSetMsg('Probando conexión…', 'is-info');
   asegurarClaveCatalogo()
     .then(function () {
-      return apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/mongo-config', {
+      return apiFetchAuth('/v1/clusters/' + encodeURIComponent(cl.id) + '/mongo-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uri: form.uri,
-          db: form.db || undefined,
-          probeOnly: true
-        })
+        body: JSON.stringify({ uri: form.uri, probeOnly: true })
       });
     })
     .then(function (data) {
       if (!data || data.ok === false) throw new Error((data && data.error) || 'Prueba fallida');
       if (data.uri) delete data.uri;
       if (data.connected) {
-        proyConexionSetMsg('Conexión OK (no se ha guardado).', 'is-ok');
+        clusterConexionSetMsg('Conexión OK (no se ha guardado).', 'is-ok');
       } else {
-        proyConexionSetMsg(
+        clusterConexionSetMsg(
           'No alcanza el cluster: ' + ((data && data.error) || 'sin detalle'),
           'is-err'
         );
       }
     })
     .catch(function (err) {
-      proyConexionSetMsg(err && err.message ? err.message : 'Error al probar', 'is-err');
+      clusterConexionSetMsg(err && err.message ? err.message : 'Error al probar', 'is-err');
     })
     .then(function () {
-      proyConexionSetBusy(false);
+      clusterConexionSetBusy(false);
     });
 }
 
-function onBorrarProyConexion(e) {
+function onBorrarClusterConexion(e) {
   if (e) e.preventDefault();
-  const proy = proyectoAbierto();
-  if (!proy || !proy.id) return;
-  if (!window.confirm('¿Borrar la URI propia de esta Base de datos? Sin ella, las operaciones Mongo de este esquema fallarán.')) {
+  const cl = clusterAbierto();
+  if (!cl || !cl.id) return;
+  if (!window.confirm('¿Borrar la URI de este cluster? Las Bases de datos vinculadas dejarán de poder hablar con Atlas.')) {
     return;
   }
-  proyConexionSetBusy(true);
-  proyConexionSetMsg('Borrando…', 'is-info');
+  clusterConexionSetBusy(true);
+  clusterConexionSetMsg('Borrando…', 'is-info');
   asegurarClaveCatalogo()
     .then(function () {
-      return apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/mongo-config', {
+      return apiFetchAuth('/v1/clusters/' + encodeURIComponent(cl.id) + '/mongo-config', {
         method: 'DELETE'
       });
     })
     .then(function (data) {
       if (!data || data.ok === false) throw new Error((data && data.error) || 'No se pudo borrar');
       if (data.uri) delete data.uri;
-      const uriInput = document.getElementById('proyConexionUri');
+      const uriInput = document.getElementById('clusterConexionUri');
       if (uriInput) uriInput.value = '';
-      pintarProyectoConexionStatus(data, proy);
-      proyConexionSetMsg('URI propia borrada.', 'is-ok');
+      pintarClusterConexionStatus(data, cl);
+      clusterConexionSetMsg('URI del cluster borrada.', 'is-ok');
     })
     .catch(function (err) {
-      proyConexionSetMsg(err && err.message ? err.message : 'Error al borrar', 'is-err');
+      clusterConexionSetMsg(err && err.message ? err.message : 'Error al borrar', 'is-err');
     })
     .then(function () {
-      proyConexionSetBusy(false);
+      clusterConexionSetBusy(false);
     });
 }
 
@@ -5595,6 +5956,53 @@ function wireColeccionesUi() {
   if (dlg) dlg.addEventListener('close', alCerrarFichaColeccion);
 }
 
+function wireClustersUi() {
+  const btnCerrar = document.getElementById('btnCerrarCluster');
+  if (btnCerrar) btnCerrar.addEventListener('click', cerrarClusterModal);
+  const btnAtras = document.getElementById('btnAtrasCluster');
+  if (btnAtras) btnAtras.addEventListener('click', function () { atrasDesdeFicha(cerrarClusterModal); });
+  const btnEditar = document.getElementById('btnEditarCluster');
+  if (btnEditar) btnEditar.addEventListener('click', function () {
+    if (!state.clusters.abiertoId) return;
+    abrirDialogoEditarCluster(state.clusters.abiertoId);
+  });
+  const btnEliminar = document.getElementById('btnEliminarCluster');
+  if (btnEliminar) btnEliminar.addEventListener('click', function () {
+    if (!state.clusters.abiertoId) return;
+    abrirDialogoEliminar({ tipo: 'cluster', id: state.clusters.abiertoId });
+  });
+  const tabs = document.getElementById('clusterReaderTabs');
+  if (tabs) tabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-cluster-tab]');
+    if (!btn) return;
+    seleccionarClusterReaderTab(btn.getAttribute('data-cluster-tab'));
+  });
+  const formConexion = document.getElementById('formClusterConexion');
+  if (formConexion) formConexion.addEventListener('submit', onGuardarClusterConexion);
+  const btnProbar = document.getElementById('clusterConexionProbar');
+  if (btnProbar) btnProbar.addEventListener('click', onProbarClusterConexion);
+  const btnBorrar = document.getElementById('clusterConexionBorrar');
+  if (btnBorrar) btnBorrar.addEventListener('click', onBorrarClusterConexion);
+  const formNuevo = document.getElementById('formNuevoCluster');
+  if (formNuevo) formNuevo.addEventListener('submit', onSubmitNuevoCluster);
+  const nuevoCancel = document.getElementById('nuevoClusterCancelar');
+  if (nuevoCancel) nuevoCancel.addEventListener('click', function () {
+    document.getElementById('dlgNuevoCluster').close();
+  });
+  const formEditar = document.getElementById('formEditarCluster');
+  if (formEditar) formEditar.addEventListener('submit', onSubmitEditarCluster);
+  const editarCancel = document.getElementById('editarClusterCancelar');
+  if (editarCancel) editarCancel.addEventListener('click', function () {
+    document.getElementById('dlgEditarCluster').close();
+  });
+  const dlg = document.getElementById('dlgCluster');
+  if (dlg) dlg.addEventListener('close', function () {
+    state.clusters.abiertoId = null;
+    state.clusters.tab = 'resumen';
+    pintarClusters();
+  });
+}
+
 function wireProyectosUi() {
   const btnCerrar = document.getElementById('btnCerrarProyecto');
   if (btnCerrar) btnCerrar.addEventListener('click', cerrarProyectoModal);
@@ -5634,12 +6042,6 @@ function wireProyectosUi() {
     if (!btn) return;
     seleccionarProyReaderTab(btn.getAttribute('data-proy-tab'));
   });
-  const formProyConexion = document.getElementById('formProyConexion');
-  if (formProyConexion) formProyConexion.addEventListener('submit', onGuardarProyConexion);
-  const proyConexionProbar = document.getElementById('proyConexionProbar');
-  if (proyConexionProbar) proyConexionProbar.addEventListener('click', onProbarProyConexion);
-  const proyConexionBorrar = document.getElementById('proyConexionBorrar');
-  if (proyConexionBorrar) proyConexionBorrar.addEventListener('click', onBorrarProyConexion);
   const editarProyTabs = document.getElementById('editarProyTabs');
   if (editarProyTabs) editarProyTabs.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-editar-proy-tab]');
@@ -6232,7 +6634,7 @@ function refrescarMongoConnStatus() {
       if (configured && connected === true) text += ' · conectada';
       if (configured && connected === false) text += ' · no alcanza el cluster';
       if (db) text += ' · db ' + db;
-      text += ' — por Base de datos → Conexión' + (data.source === 'env' ? ' (ops: secret Worker)' : '');
+      text += ' — por Cluster → Conexión' + (data.source === 'env' ? ' (ops: secret Worker)' : '');
       targets.forEach(function (n) {
         n.textContent = text;
         n.classList.add(configured ? (connected === false ? 'is-err' : 'is-yes') : 'is-no');
@@ -6247,7 +6649,7 @@ function refrescarMongoConnStatus() {
           const text =
             'URI configurada: ' +
             (configured ? 'sí' : 'no') +
-            ' — por Base de datos → Conexión';
+            ' — por Cluster → Conexión';
           targets.forEach(function (n) {
             n.textContent = text;
             n.classList.add(configured ? 'is-yes' : 'is-no');

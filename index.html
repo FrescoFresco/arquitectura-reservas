@@ -375,7 +375,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="layout">
 <section class="main catalogos" id="catalogos" aria-label="Catálogos">
 <div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
-<div role="tabpanel" id="panel-proyectos" data-catalogo="proyectos">
+<div role="tabpanel" id="panel-clusters" data-catalogo="clusters">
+<div id="clusters-root"></div>
+</div>
+<div role="tabpanel" id="panel-proyectos" data-catalogo="proyectos" hidden>
 <div id="proyectos-root"></div>
 </div>
 <div role="tabpanel" id="panel-colecciones" data-catalogo="colecciones" hidden>
@@ -491,7 +494,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabColecciones" data-proy-tab="colecciones" aria-selected="false" aria-controls="proyPanelColecciones">Colecciones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabConexion" data-proy-tab="conexion" aria-selected="false" aria-controls="proyPanelConexion">Conexión</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabAgentes" data-proy-tab="agentes" aria-selected="false" aria-controls="proyPanelAgentes">Agentes</button>
 </div>
@@ -505,6 +507,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Agentes</dt><dd id="proyResumenAgentes">—</dd></div>
 <div class="ancla-ficha-fila" id="proyLegacyFila" hidden><dt>Estado</dt><dd id="proyLegacyNota">Negocio legado (pendiente de borrar como base de datos)</dd></div>
 </dl>
+<p class="historial-titulo" style="margin-top:0.75rem">Cluster</p>
+<div id="proyClusterLista" class="proy-tab-catalogo"></div>
+<p class="ancla-ficha-vacio" id="proyClusterVacio" hidden>Sin cluster asignado. La URI Atlas vive en el Cluster.</p>
 <p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
 <div class="editar-anclas-top" style="margin-top:0.75rem">
 <span class="historial-titulo">Skills</span>
@@ -532,29 +537,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelConexion" role="tabpanel" aria-labelledby="proyTabConexion" hidden>
-<div class="proy-conexion">
-<p class="ajustes-lead" id="proyConexionAyuda">Cadena de conexión Atlas (<code>mongodb+srv://…</code>) para esta base Mongo. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Sin URI propia de esta Base de datos, las operaciones Mongo fallan (no hay URI global en Ajustes).</p>
-<div class="ajustes-status-row">
-<span id="proyConexionStatus" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
-<p id="proyConexionHint" class="ajustes-hint">La URI guardada no se vuelve a mostrar.</p>
-</div>
-<form class="ajustes-form" id="formProyConexion" autocomplete="off">
-<label>URI de conexión
-<input type="password" id="proyConexionUri" name="uri" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/" required>
-</label>
-<label>Nombre de base
-<input type="text" id="proyConexionDb" name="db" autocomplete="off" spellcheck="false" placeholder="software_reservas">
-</label>
-<div class="ajustes-actions">
-<button type="submit" class="btn primary" id="proyConexionGuardar">Guardar</button>
-<button type="button" class="btn ghost" id="proyConexionProbar">Probar</button>
-<button type="button" class="btn ghost" id="proyConexionBorrar">Borrar</button>
-</div>
-<p id="proyConexionMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
-</form>
-</div>
-</div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelCampos" role="tabpanel" aria-labelledby="proyTabCampos" hidden>
 <div id="proyCamposLista" class="proy-tab-catalogo"></div>
 </div>
@@ -562,6 +544,99 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div id="proyAgentesLista" class="proy-tab-catalogo"></div>
 </div>
 </article>
+</dialog>
+<dialog id="dlgCluster" class="dlg-wide ficha-pane" aria-labelledby="clusterReaderNombre">
+<article class="reader dlg-reader" id="clusterReader">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasCluster"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></span>
+<div>
+<h3 id="clusterReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="clusterReaderSub" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<button type="button" class="icon-btn" id="btnEditarCluster" aria-label="Editar cluster" title="Editar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarCluster" aria-label="Eliminar cluster" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+</button>
+<button type="button" class="icon-btn ficha-cerrar-legacy" id="btnCerrarCluster" aria-label="Atrás" title="Atrás" hidden>×</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="clusterReaderTabs" role="tablist" aria-label="Secciones del cluster">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="clusterTabResumen" data-cluster-tab="resumen" aria-selected="true" aria-controls="clusterPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="clusterTabConexion" data-cluster-tab="conexion" aria-selected="false" aria-controls="clusterPanelConexion">Conexión</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="clusterTabBases" data-cluster-tab="bases" aria-selected="false" aria-controls="clusterPanelBases">Bases de datos</button>
+</div>
+<div class="reader-panel ancla-ficha-body" id="clusterPanelResumen" role="tabpanel" aria-labelledby="clusterTabResumen">
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="clusterReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Descripción</dt><dd id="clusterReaderDesc">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Bases de datos</dt><dd id="clusterResumenBases">—</dd></div>
+</dl>
+</div>
+<div class="reader-panel ancla-ficha-body" id="clusterPanelConexion" role="tabpanel" aria-labelledby="clusterTabConexion" hidden>
+<div class="proy-conexion">
+<p class="ajustes-lead" id="clusterConexionAyuda">Cadena de conexión Atlas (<code>mongodb+srv://…</code>) de este cluster. La comparten todas las Bases de datos vinculadas. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Sin URI, las operaciones Mongo de las bases de este cluster fallan (no hay URI global en Ajustes).</p>
+<div class="ajustes-status-row">
+<span id="clusterConexionStatus" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
+<p id="clusterConexionHint" class="ajustes-hint">La URI guardada no se vuelve a mostrar.</p>
+</div>
+<form class="ajustes-form" id="formClusterConexion" autocomplete="off">
+<label>URI de conexión
+<input type="password" id="clusterConexionUri" name="uri" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/" required>
+</label>
+<div class="ajustes-actions">
+<button type="submit" class="btn primary" id="clusterConexionGuardar">Guardar</button>
+<button type="button" class="btn ghost" id="clusterConexionProbar">Probar</button>
+<button type="button" class="btn ghost" id="clusterConexionBorrar">Borrar</button>
+</div>
+<p id="clusterConexionMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
+</form>
+</div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="clusterPanelBases" role="tabpanel" aria-labelledby="clusterTabBases" hidden>
+<div id="clusterBasesLista" class="proy-tab-catalogo"></div>
+</div>
+</article>
+</dialog>
+<dialog id="dlgNuevoCluster" aria-labelledby="dlgNuevoClusterTitulo">
+<form class="dlg" id="formNuevoCluster">
+<h3 id="dlgNuevoClusterTitulo">Añadir cluster</h3>
+<p class="form-error" id="nuevoClusterError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Cluster Atlas">
+</label>
+<label>Id (opcional)
+<input type="text" name="id" maxlength="60" pattern="[a-z0-9][a-z0-9-]{0,60}" autocomplete="off" placeholder="atlas-eu">
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off" placeholder="Texto corto">
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevoClusterCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Crear cluster</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarCluster" aria-labelledby="dlgEditarClusterTitulo">
+<form class="dlg" id="formEditarCluster">
+<h3 id="dlgEditarClusterTitulo">Editar cluster</h3>
+<p class="form-error" id="editarClusterError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required>
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off">
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarClusterCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
 </dialog>
 <dialog id="dlgColeccion" class="dlg-wide ficha-pane" aria-labelledby="colReaderNombre">
 <article class="reader dlg-reader" id="colReader">
@@ -1131,17 +1206,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="skills-ui.js?v=20261022tabs2"></script>
 <script src="campos-ancla-ui.js?v=20261022tabs2"></script>
 <script src="campos-mongodb-ui.js?v=20261022tabs2"></script>
-<script src="proyectos-ui.js?v=20261022colbd1"></script>
+<script src="clusters-ui.js?v=20261022cluster1"></script>
+<script src="proyectos-ui.js?v=20261022cluster1"></script>
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<<<<<<< HEAD
-<script src="catalogo-ui.js?v=20261022ajag1"></script>
+<script src="catalogo-ui.js?v=20261022cluster1"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
-=======
-<script src="catalogo-ui.js?v=20261022bdicon1"></script>
-<script src="ajustes-ui.js?v=20261022col1"></script>
->>>>>>> origin/cursor/diagrama-bd-colecciones-iconos-0fd2
 
 </body>
 </html>

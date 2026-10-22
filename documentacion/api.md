@@ -134,6 +134,7 @@ X-Agente-Clave: inv_…
 | Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
 | Mongo | `GET /v1/mongo` | `GET /v1/mongo/:id` | `POST /v1/mongo` | `PUT /v1/mongo/:id` | `DELETE /v1/mongo/:id` |
+| Clusters | `GET /v1/clusters` | `GET /v1/clusters/:id` | `POST /v1/clusters` | `PUT /v1/clusters/:id` | `DELETE /v1/clusters/:id` |
 | Base de datos (API: proyectos / alias esquemas) | `GET /v1/proyectos` · `GET /v1/esquemas` | `GET /v1/proyectos/:id` · `/v1/esquemas/:id` | `POST` igual | `PUT` igual | `DELETE` igual |
 | Fundamentos | `GET /v1/fundamentos` | `GET /v1/fundamentos/:id` | `POST /v1/fundamentos` | `PUT /v1/fundamentos/:id` | `DELETE /v1/fundamentos/:id` |
 
@@ -157,15 +158,33 @@ Content-Type: application/json
 `PUT /v1/skills/:id` crea **versión nueva** (no pisa el markdown anterior).  
 `DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`).
 
+### Clusters (URI Atlas)
+
+Modelo: **Cluster → Bases de datos → Colecciones → Campos**. La URI Atlas vive en el Cluster (`mongo_config_cluster`), no en cada Base de datos. Catálogo top-level **Clusters** (ficha Resumen / Conexión / Bases de datos).
+
+```json
+{ "id": "atlas-principal", "nombre": "Cluster Atlas", "descripcion": "…" }
+```
+
+```
+GET|POST|PUT|DELETE {API_BASE}/v1/clusters[/:id]
+GET|POST|DELETE     {API_BASE}/v1/clusters/:id/mongo-config
+→ { ok, cluster, configured, own, connected, db, source: "cluster"|"none", hint? }
+  # nunca uri; POST body { uri, probeOnly? }
+```
+
+`DELETE` de un cluster con bases asociadas → `409`. Migración: esquemas sin cluster → `atlas-principal`; URIs de `mongo_config_proyecto` se suben al cluster.
+
 ### Base de datos (= softwares; rutas `/v1/proyectos` y alias `/v1/esquemas`)
 
-En la UI el panel se llama **Base de datos**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico (no se renombran las rutas). Cada entrada es un software (`reservas`, `llamadas`, …), no un negocio. La ficha tiene pestañas Resumen → **Colecciones** → Diagrama → Campos → Agentes (`colecciones[]` con `id` + `descripcion`). Además hay un catálogo top-level **Colecciones** (todas las colecciones de todas las bases; ficha con Campos Mongo filtrados). No hay ruta `/v1/colecciones`: la UI las ensambla desde proyectos + mongo. Campos:
+En la UI el panel se llama **Base de datos**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico (no se renombran las rutas). Cada entrada es un software (`reservas`, `llamadas`, …), no un negocio. Campo `clusterId` (cluster padre). La ficha tiene pestañas Resumen → **Colecciones** → Diagrama → Campos → Agentes (`colecciones[]` con `id` + `descripcion`). Además hay un catálogo top-level **Colecciones** (todas las colecciones de todas las bases; ficha con Campos Mongo filtrados). No hay ruta `/v1/colecciones`: la UI las ensambla desde proyectos + mongo. Campos:
 
 ```json
 {
   "id": "reservas",
   "nombre": "Software de reservas",
   "baseDatos": "software_reservas",
+  "clusterId": "atlas-principal",
   "colecciones": [{ "id": "negocios", "descripcion": "…" }],
   "relaciones": [{ "desde": "reservas.negocio_id", "hacia": "negocios._id", "tipo": "N:1" }],
   "skills": ["descubrir-negocio"],
@@ -188,7 +207,7 @@ POST {API_BASE}/v1/proyectos/:id/crear-bd
 POST {API_BASE}/v1/esquemas/:id/crear-bd
 Authorization: Bearer inv_…
 → crea DB/colecciones/índices/$jsonSchema desde campos Mongo de la base de datos
-  URI: solo la propia del esquema (pestaña Conexión). Sin fallback a URI global ni a env.
+  URI: la del Cluster del esquema. Sin fallback a URI global ni a env.
   Sin URI → { mock:true, dryRun:true, plan, source } (default db del schema, p. ej. software_reservas)
 ```
 
@@ -342,8 +361,8 @@ Content-Type: application/json
 Driver: **`mongodb`** oficial en el Worker (TCP; no Data API).
 
 **Origen de la URI:**
-- Contexto de Base de datos (`crear-bd`, `sync/proyecto`, ficha → **Conexión**): solo `mongo_config_proyecto` (AES-GCM + `ENCRYPTION_KEY`). **Sin** URI global ni fallback a env.
-- Sin contexto de proyecto (`/health`, `/v1/mongo/status`, `sync/negocio`): secret ops `MONGODB_URI` (no es producto / Ajustes).
+- Contexto de Base de datos / Cluster (`crear-bd`, `sync/proyecto`, ficha Cluster → **Conexión**): URI del cluster (`mongo_config_cluster` vía `proyectos.cluster_id`). **Sin** URI global ni fallback a env.
+- Sin contexto (`/health`, `/v1/mongo/status`, `sync/negocio`): secret ops `MONGODB_URI` (no es producto / Ajustes).
 - Opcional `MONGODB_DB` / campo `db` (default del schema, p. ej. `software_reservas`).
 
 ```
@@ -356,22 +375,13 @@ GET  {API_BASE}/v1/mongo/status
 
 POST {API_BASE}/v1/mongo/config   # deprecated → 410
 DELETE {API_BASE}/v1/mongo/config  # deprecated → 410
-→ la URI global (ex Ajustes → Conexiones) ya no forma parte del producto
 
-GET  {API_BASE}/v1/proyectos/:id/mongo-config
-GET  {API_BASE}/v1/esquemas/:id/mongo-config
-→ { ok, proyecto, baseDatos, configured, own, connected, db,
-    source: "proyecto"|"none", hint? }
-  # own=true si hay URI propia de este esquema; nunca uri
+GET  {API_BASE}/v1/clusters/:id/mongo-config
+POST {API_BASE}/v1/clusters/:id/mongo-config   # { uri, probeOnly? }
+DELETE {API_BASE}/v1/clusters/:id/mongo-config
 
-POST {API_BASE}/v1/proyectos/:id/mongo-config
-Authorization: Bearer inv_…
-{ "uri": "mongodb+srv://…", "db"?: "software_reservas", "probeOnly"?: true }
-→ guarda URI cifrada de este esquema (db por defecto = proyecto.baseDatos)
-
-DELETE {API_BASE}/v1/proyectos/:id/mongo-config
-Authorization: Bearer inv_…
-→ borra URI propia; sin fallback a URI global
+GET  {API_BASE}/v1/proyectos/:id/mongo-config   # solo estado (lee el cluster); escritura → 410
+POST|DELETE {API_BASE}/v1/proyectos/:id/mongo-config  # deprecated → 410
 
 POST {API_BASE}/v1/mongo/sync/negocio
 Authorization: Bearer inv_…
@@ -380,11 +390,11 @@ Authorization: Bearer inv_…
 
 POST {API_BASE}/v1/mongo/sync/proyecto
 Authorization: Bearer inv_…
-{ "proyecto_id": "pelo-sur", "negocio_id"? }
-→ mismo upsert; usa URI del proyecto si existe; `negocio_id` por defecto = `proyecto_id`
+{ "proyecto_id": "reservas", "negocio_id"? }
+→ mismo upsert; usa URI del cluster del esquema; `negocio_id` por defecto = `proyecto_id`
 ```
 
-Sin URI (ni proyecto, ni stored, ni env): sync → **503** `{ "error": "configure MONGODB_URI" }`. **Nunca** se devuelve la URI en ningún GET.
+Sin URI de cluster (ni ops env): sync → **503** `{ "error": "configure MONGODB_URI" }`. **Nunca** se devuelve la URI en ningún GET.
 
 ---
 

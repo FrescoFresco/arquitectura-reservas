@@ -10,7 +10,7 @@
     }
   },
   // Secrets (no commits):
-  //   ENCRYPTION_KEY — AES key material for per-schema Mongo URI in D1 (ficha → Conexión)
+  //   ENCRYPTION_KEY — AES key material for Cluster Mongo URI in D1 (Cluster → Conexión)
   //   MONGODB_URI    — ops-only; not a product Ajustes / global fallback
   //   MONGODB_DB     — optional default software_reservas
   //   npx wrangler secret put ENCRYPTION_KEY
