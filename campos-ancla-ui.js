@@ -299,14 +299,7 @@
         onClick: props.onEliminar
       }, e(IconoPapelera)));
     }
-    nodos.push(e('button', {
-      key: 'cerrar',
-      type: 'button',
-      className: 'icon-btn',
-      'aria-label': 'Volver',
-      title: 'Volver',
-      onClick: props.onCerrar
-    }, '×'));
+    // Atrás vive en la barra superior del dialog (.ficha-atras-bar), no aquí.
     return e('div', { className: 'ancla-ficha-acciones' }, nodos);
   }
 
