@@ -35,11 +35,13 @@
   // ---------- Ficha: base y clave ----------
 
   async function cargarBases(elegir) {
-    const { bases } = await api('GET', '/bases');
+    const { bases, avisos } = await api('GET', '/bases');
     const nombres = bases.map((b) => b.nombre);
     if (elegir && !nombres.includes(elegir)) nombres.push(elegir);
     estado.base = elegir || (nombres.includes(estado.base) ? estado.base : nombres[0]) || null;
     $('#panel-base').replaceChildren(...nombres.map((n) => el('option', { value: n, textContent: n, selected: n === estado.base })));
+    for (const id of ['#panel-guardar', '#panel-probar', '#panel-borrar']) $(id).disabled = !estado.base;
+    $('#panel-avisos').replaceChildren(...avisos.map((a) => el('p', { className: 'panel-aviso', textContent: '⚠ ' + a })));
     await mostrarEstado();
   }
 
@@ -88,7 +90,15 @@
           el('li', {}, boton(`${c.nombre} (${c.documentos})`, () => abrirColeccion(c), c.nombre === estado.coleccion?.nombre ? 'activo' : ''), el('span', { className: 'nota', textContent: c.editable ? ' editable' : ' solo lectura' })),
         ),
       );
-      caja.replaceChildren(el('div', { className: 'panel-datos' }, el('div', {}, el('h3', { textContent: 'Colecciones' }), lista), el('div', { id: 'panel-coleccion' })));
+      const ayuda = el('p', { className: 'nota panel-ayuda' },
+        'Cómo se usa: pulsa una colección de la izquierda para ver sus documentos. Para filtrar, escribe JSON en «Filtro», por ejemplo ',
+        el('code', { textContent: '{"nombre": "Rincón del Amazonas"}' }),
+        ', y pulsa Buscar (o Enter). En las colecciones editables (negocios y procesos), «Nuevo documento» abre el editor con una plantilla; Guardar lo valida y lo crea.',
+      );
+      const derecha = el('div', { id: 'panel-coleccion' },
+        el('p', { className: 'nota', textContent: colecciones.length ? '← Elige una colección para ver sus documentos.' : 'Esta base no tiene colecciones todavía: npm run generar crea las del catálogo con sus validadores.' }),
+      );
+      caja.replaceChildren(ayuda, el('div', { className: 'panel-datos' }, el('div', {}, el('h3', { textContent: 'Colecciones' }), lista), derecha));
       const actual = colecciones.find((c) => c.nombre === estado.coleccion?.nombre);
       if (actual) abrirColeccion(actual, true);
     } catch (e) {

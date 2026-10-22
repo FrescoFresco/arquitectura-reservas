@@ -26,15 +26,15 @@ const seccion = (md, titulo) => {
 const fichaPanel = (esquema) => `<div class="panel-ficha">
 <div class="panel-fila"><label for="panel-base"><strong>Base de datos</strong></label><select id="panel-base"></select><input id="panel-nueva-base" placeholder="Otra base (nombre)" aria-label="Nombre de otra base"><button type="button" id="panel-anadir">Añadir</button></div>
 <div class="panel-fila"><label for="panel-uri"><strong>Conexión (URI de Atlas)</strong></label><input id="panel-uri" type="password" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/"><button type="button" id="panel-guardar">Guardar</button><button type="button" id="panel-probar">Probar</button><button type="button" id="panel-borrar">Borrar</button></div>
-<div id="panel-aviso-conexion"></div><div id="panel-estado"></div>
+<div id="panel-avisos"></div><div id="panel-aviso-conexion"></div><div id="panel-estado"></div>
 </div>
 <div class="panel-sub"><button type="button" data-ir="datos" class="activo">Datos</button><button type="button" data-ir="esquema">Esquema</button></div>
 <div data-sub="datos"><div id="panel-datos"></div></div>
 <div data-sub="esquema" hidden>${esquema}</div>`;
 
 const CSS_PANEL = `<style>
-:root { --error: #b3261e; }
-@media (prefers-color-scheme: dark) { :root { --error: #f28b82; } }
+:root { --error: #b3261e; --aviso: #8a5a00; }
+@media (prefers-color-scheme: dark) { :root { --error: #f28b82; --aviso: #f6c26b; } }
 .panel-ficha, .panel-editor { background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; padding: 12px; margin-bottom: 12px; }
 .panel-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
 .panel-fila input, #panel-base, textarea { font: inherit; padding: 5px 8px; border: 1px solid var(--borde); border-radius: 4px; background: var(--fondo); color: var(--texto); min-width: 0; }
@@ -51,6 +51,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .panel-colecciones li { margin-bottom: 6px; }
 .panel-error { color: var(--error); }
 .panel-ok { color: var(--acento); }
+.panel-aviso { color: var(--aviso); }
+.panel-ayuda { max-width: 860px; }
 .panel-doc pre { max-height: 360px; }
 </style>`;
 

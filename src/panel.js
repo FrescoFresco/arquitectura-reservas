@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { MongoClient, BSON } from 'mongodb';
 import { pagina } from './web.js';
 import { cargar, COLECCIONES } from './catalogo.js';
-import { leerConexiones, guardarConexion, borrarConexion, claveDe, enmascarar, NOMBRE_BASE } from './conexiones.js';
+import { leerConexiones, guardarConexion, borrarConexion, claveDe, enmascarar, nombreValido, baseActual, clavesIgnoradas } from './conexiones.js';
 import { raizEditable, crearManual, editarManual, borrarManual, Rechazo } from './gestor.js';
 
 const { EJSON } = BSON;
@@ -41,10 +41,13 @@ export function crearPanel() {
   };
 
   const bases = () =>
-    [...new Set([process.env.MONGODB_DB, ...Object.keys(leerConexiones())].filter(Boolean))].map((nombre) => {
+    [...new Set([baseActual(), ...Object.keys(leerConexiones())])].map((nombre) => {
       const { uri, origen } = claveDe(nombre);
       return { nombre, host: enmascarar(uri), origen };
     });
+
+  const avisos = () =>
+    clavesIgnoradas().map((b) => `conexiones.local.json tiene una clave para «${b}», que no es el nombre de ninguna base: se ignora. Pega la URI en la ficha de tu base y borra esa entrada del fichero.`);
 
   async function estado(base) {
     const { uri, origen } = claveDe(base);
@@ -62,8 +65,8 @@ export function crearPanel() {
   async function api(metodo, partes, cuerpo, url) {
     const [recurso, base, sub, coleccion, que, id] = partes;
     if (recurso !== 'bases') throw new Peticion('ruta desconocida');
-    if (!base) return { bases: bases() };
-    if (!NOMBRE_BASE.test(base)) throw new Peticion(`«${base}» no es un nombre de base válido`);
+    if (!base) return { bases: bases(), avisos: avisos() };
+    if (!nombreValido(base)) throw new Peticion(`«${base}» no es un nombre de base válido: elige una base en la ficha`);
 
     if (sub === 'estado' && metodo === 'GET') return estado(base);
     if (sub === 'conexion' && metodo === 'POST') {
@@ -168,6 +171,7 @@ export function crearPanel() {
   return {
     servidor,
     token,
+    avisos,
     async cerrar() {
       await new Promise((r) => servidor.close(r));
       for (const c of clientes.values()) await c.then((x) => x.close(), () => {});
@@ -181,14 +185,17 @@ function abrirNavegador(url) {
 }
 
 if (import.meta.main) {
-  const { servidor } = crearPanel();
+  const i = process.argv.indexOf('--puerto');
+  const puerto = i > 0 ? Number(process.argv[i + 1]) : 3000;
+  const { servidor, avisos } = crearPanel();
   servidor.on('error', (e) => {
-    console.error(e.code === 'EADDRINUSE' ? 'El puerto 3000 está ocupado: ¿ya tienes el panel abierto en otra terminal?' : e.message);
+    console.error(e.code === 'EADDRINUSE' ? `El puerto ${puerto} está ocupado: ¿ya tienes el panel abierto en otra terminal?` : e.message);
     process.exit(1);
   });
-  servidor.listen(3000, '127.0.0.1', () => {
-    const url = 'http://localhost:3000/#base-de-datos';
-    console.log(`Panel en ${url}  (Ctrl+C para pararlo)`);
+  servidor.listen(puerto, '127.0.0.1', () => {
+    const url = `http://localhost:${servidor.address().port}/#base-de-datos`;
+    console.log(`Panel en ${url}  (Ctrl+C para pararlo) · base por defecto: ${baseActual()}`);
+    for (const a of avisos()) console.warn(`Aviso: ${a}`);
     if (!process.argv.includes('--sin-navegador')) abrirNavegador(url);
   });
 }
