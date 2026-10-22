@@ -1,129 +1,170 @@
 # Arquitectura de reservas
 
-## API viva (Cloudflare Worker + D1)
+Un agente de voz reservará mesas en la web de reserva que ya tiene cada restaurante, mediante un script de Playwright. En esta primera fase el script llega a **B** y se para: el formulario relleno, sin errores y con el botón de confirmar a la vista. **Nunca pulsa confirmar ni envía una reserva.**
 
-La fuente de verdad para agentes es el Worker **`campos-ancla-api`** con D1 **`campos-ancla-db`**: `https://campos-ancla-api.web-legal-es.workers.dev`. Guía: [`CLOUDFLARE.md`](./CLOUDFLARE.md). Contrato: [`documentacion/api.md`](./documentacion/api.md).
+El negocio de la primera fase es Rincón del Amazonas (Puerto de Mogán), en <https://restaurantmogan.com/reservation/>. El plan y sus principios están en [CLAUDE.md](CLAUDE.md).
 
-```bash
-npm install
-npm run db:migrate:local && npm run db:seed:local
-npm run dev
-```
+La arquitectura en una frase: **los agentes juzgan; el código calcula, ejecuta y guarda.**
+- **Catálogo:** un único catálogo de campos ([catalogo/](catalogo/)) define cada dato. De él salen los validadores de MongoDB, las tablas de las plantillas, la documentación y la web.
+- **Agentes:** siguen una plantilla ([plantillas/](plantillas/)) y entregan un `.md`.
+- **Gestor:** valida ese `.md` contra el catálogo y lo guarda en MongoDB, registrando cada trabajo en `corridas`.
+- **Ejecutor:** corre el script aprobado hasta B.
 
-Despliegue: `npx wrangler login` → crear D1 → pegar `database_id` en `wrangler.jsonc` → `npm run db:migrate:remote && npm run db:seed:remote && npm run deploy`.
+## Consultar sin instalar nada
 
-Los JSON en `catalogo/` son semilla/fallback para la UI estática. **Agentes:** Catálogos → Agentes → **+ Agente** crea una clave `inv_…` en D1 (sin caducidad). Registro y latido van solo a la API Worker. **No hace falta `GITHUB_TOKEN`.**
+[index.html](index.html) es una página de solo lectura. Tiene seis pestañas:
+- **Skills:** las plantillas;
+- **Campos ancla:** el catálogo, con la ruta de cada campo en MongoDB;
+- **Base de datos:** colecciones, validadores y diagrama;
+- **Agentes:** qué skill escribe y lee cada campo;
+- **Fundamentos:** los principios;
+- **Documentación:** la práctica de MongoDB.
 
-## Arquitectura nueva: `reservas-v3/`
+GitHub Pages la publica desde la raíz de `main` en <https://frescofresco.github.io/arquitectura-reservas/>. También se puede abrir el fichero directamente en el navegador. Se regenera con `npm run web`.
 
-La primera fase del sistema nuevo está en [`reservas-v3/`](./reservas-v3/): el catálogo de campos ancla, el gestor, las plantillas de agente y el ejecutor que rellena la web del restaurante hasta B, sin confirmar nunca. Para repetir la prueba hasta B con Rincón del Amazonas, sigue [reservas-v3/README.md](./reservas-v3/README.md#repetir-la-prueba). El plan y sus principios están en [reservas-v3/CLAUDE.md](./reservas-v3/CLAUDE.md).
+## Repetir la demo
 
-Lo que sigue describe la página publicada en la raíz, que no cambia.
+### Lo que necesitas
 
----
+| Qué | Cómo comprobarlo |
+|---|---|
+| Node.js 24.2 o superior | `node --version` |
+| Acceso a la base compartida `Prueba_software` (Atlas), o un MongoDB local | La URI te la da quien administra el proyecto en Atlas |
+| Microsoft Edge o Google Chrome | Si no tienes ninguno, usa el Chromium de Playwright (paso 2) |
 
-Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualquier persona con acceso de escritura al repositorio puede clonarlo, editar `index.html` y publicar los cambios con un push a `main`.
+### Pasos
 
-## Sitio publicado (producción = Cloudflare)
+Todos los comandos se lanzan desde la raíz del repositorio.
 
-- **Panel UI:** https://campos-ancla.web-legal-es.workers.dev/
-- **API Worker:** https://campos-ancla-api.web-legal-es.workers.dev
-- **Repositorio (código):** https://github.com/FrescoFresco/arquitectura-reservas
-
-Despliegue UI: `npm run deploy:ui`. Despliegue API: `npm run deploy`. GitHub Pages (`frescofresco.github.io`) queda solo como legado durante el cutover; no es el host de producción.
-
-El menú principal tiene dos destinos: **Catálogos** y **Documentación**. En escritorio es una barra lateral izquierda; en pantalla estrecha queda fija abajo. Dentro de Catálogos hay tres pestañas: **Skills**, **Campos ancla** y **Campos MongoDB**. Dentro de Documentación hay una pestaña, **API**.
-
-El índice de Skills está en [`catalogo/skills/index.json`](./catalogo/skills/index.json). Cada skill lleva `id`, `nombre`, `versiones` y, si hace falta, `descripcion` y `anclas` (nombres completos como `_negocio.nombre_`). Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio, `hash` (SHA-256 del contenido cuando aplica) y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga. La cuadrícula de Skills se renderiza con React (CDN). En cada tarjeta: historial, editar (versión nueva al guardar si hubo cambios), subir versión (documento completo) y eliminar; el título abre la skill en popup. Las cápsulas de anclas abren la ficha de Campos ancla.
-
-El índice de Campos ancla está en [`catalogo/campos-ancla/index.json`](./catalogo/campos-ancla/index.json). Cada celda muestra el ancla completo; al pulsarla se abre un popup con pestañas Definición / Mongo / Skills. Campos MongoDB está en [`catalogo/campos-mongodb/index.json`](./catalogo/campos-mongodb/index.json): celdas `colección.clave` y ficha con bsonType y ancla enlazada. Ambos índices incluyen `hash` estable por campo.
-
-Los archivos del mapa pueden seguir en [`mapa/`](./mapa/), pero la página ya no tiene hub ni editor del mapa.
-
-Los agentes trabajan contra la API Worker (`documentacion/api.md`): invite → registro → latido → CRUD con `Authorization: Bearer inv_…`. No usan GitHub Contents ni token de GitHub.
-
-Opcional (solo espejo estático del repo, no el estado vivo): [`scripts/subir.js`](./scripts/subir.js) con `GITHUB_TOKEN` en el entorno. En el navegador, **+ Añadir skill** / ancla siguen pudiendo guardar overlay local encima del seed.
-
-Ejemplo de skill en el índice:
-
-```json
-{
-  "id": "mapear-recorrido",
-  "nombre": "Mapear recorrido",
-  "descripcion": "Recorre la web de reserva desde A hasta B.",
-  "anclas": ["_negocio.nombre_", "_proceso.url_inicio_"],
-  "versiones": [
-    { "numero": 1, "fecha": "2026-10-20", "ruta": "catalogo/skills/mapear-recorrido/v1.md" }
-  ]
-}
-```
-
-**+ Añadir skill** crea otra skill. **Subir versión** añade una versión a esa skill. Las dos guardan el archivo en el `localStorage` de ese navegador, encima del índice. No hacen commit ni actualizan GitHub.
-
-## Cómo editar
-
-1. Clonar el repositorio:
+**1. Clonar e instalar**
 
 ```bash
 git clone https://github.com/FrescoFresco/arquitectura-reservas.git
 cd arquitectura-reservas
+npm install
 ```
 
-2. Abrir y modificar `index.html` (editor local, VS Code, Cursor, etc.). Puedes previsualizarlo abriendo el archivo en el navegador.
+**2. Configurar.** Copia `.env.example` como `.env` y rellena la URI:
+- Mac o Linux: `cp .env.example .env`
+- Windows PowerShell: `Copy-Item .env.example .env`
 
-3. Guardar, hacer commit y push a `main`:
+```
+MONGODB_URI=mongodb+srv://…            # la de Atlas, o mongodb://127.0.0.1:27017 en local
+MONGODB_DB=Prueba_software
+NAVEGADOR=msedge                       # msedge, chrome o chromium
+```
+
+Con `NAVEGADOR=chromium`, descarga antes el navegador: `npx playwright install chromium`. El `.env` nunca se sube a git.
+
+**3. Comprobar que todo funciona**
 
 ```bash
-git add index.html
-git commit -m "Actualiza arquitectura de reservas"
-git push origin main
+npm test
 ```
 
-4. Publicar el panel en Cloudflare:
+**4. Preparar la base (solo si está vacía, por ejemplo en local).** En `Prueba_software` ya está hecho.
 
 ```bash
-npm run deploy:ui
+npm run generar
+npm run semilla
+npm run cargar-demo
 ```
 
-Recarga https://campos-ancla.web-legal-es.workers.dev/ (recarga forzada si hace falta).
+- `generar` crea las cinco colecciones con sus validadores. También regenera las tablas de las plantillas, `docs/catalogo.md` y `docs/esquema.md`.
+- `semilla` da de alta los negocios y el proceso de Rincón del Amazonas, a través del gestor.
+- `cargar-demo` pasa por el gestor las respuestas del agente guardadas en [demo/](demo/): el recorrido y el script. Imprime el id de la versión, normalmente `ver-rincon-del-amazonas-1`.
 
-## Dar acceso a otra persona
-
-Para que un compañero pueda editar y hacer push (sin hacer el repo privado ni compartir contraseñas):
-
-1. En GitHub: **Settings → Collaborators → Add people → Invite** (elige permiso **Write** / push), o desde la terminal:
+**5. Probar la versión hasta B**
 
 ```bash
-gh repo add-collaborator USUARIO_GITHUB --permission push
+npm run ejecutar -- --version ver-rincon-del-amazonas-1
 ```
 
-2. Esa persona acepta la invitación (le llega por email o en https://github.com/FrescoFresco/arquitectura-reservas/invitations).
+Se abre el navegador, rellena el formulario con datos de prueba (fecha dentro de 3 días, 20:00, 2 personas) y se para en B. Termina con `"estado":"disponible"` y guarda la ejecución en `ejecuciones`.
 
-3. Luego clona, edita `index.html`, hace commit y push como arriba.
-
-No invites a nadie concreto hasta tener su handle de GitHub.
-
-## Importar datos en MongoDB
-
-Los JSON de importación siguen en el repositorio: [`arquitectura-reservas-mongo-import.zip`](./arquitectura-reservas-mongo-import.zip). El sitio publicado no enlaza estas descargas.
-
-Dentro hay un `.json` (array Extended JSON) por colección: `negocios`, `procesos`, `software`, `integraciones`, `observaciones`, `justificantes`, `funciones`, `scripts`, `canales`, `ejecuciones`. Base lógica: `arquitectura_reservas`.
-
-- **Atlas:** Add Data → Import JSON file → eliges la colección
-- **Compass:** Import data → eliges el archivo de esa colección
-
-Los mismos JSON sueltos están en [`mongo-import/`](./mongo-import/).
-
-### Avanzado: seed mongosh
-
-[`seed-arquitectura-reservas.js`](./seed-arquitectura-reservas.js) crea la base y hace upsert por `_id` en un comando:
+**6. Aprobarla.** Lo hace una persona; si ya está aprobada, salta al paso 7.
 
 ```bash
-mongosh "mongodb://localhost:27017" seed-arquitectura-reservas.js
+npm run gestor -- aprobar ver-rincon-del-amazonas-1 --por "Tu nombre"
 ```
 
-## Visibilidad
+Solo aprueba si hay una ejecución que llegó a B después del último cambio de la versión.
 
-Este repositorio es **público**: cualquiera puede ver el código y el sitio en Pages. Solo quienes sean colaboradores (o tengan permisos en la org/cuenta) pueden hacer push.
+**7. La demo**
 
-Si en el futuro quisieras hacerlo privado: **Settings → General → Danger Zone → Change repository visibility**. En privado, Pages sigue siendo usable para quien tenga acceso al repo; para editar hace falta invitación de colaborador (o permisos equivalentes).
+```bash
+npm run demo
+```
+
+Primero muestra el recorrido guardado:
+- los pasos;
+- los campos, con su clase, si son obligatorios y la evidencia;
+- los obstáculos;
+- el botón de confirmar;
+- la función.
+
+Después ejecuta la versión aprobada hasta B con el navegador visible y se queda ahí hasta que pulses Enter.
+
+### Si algo falla
+
+| Síntoma | Qué hacer |
+|---|---|
+| `Faltan MONGODB_URI y MONGODB_DB` | No existe `.env`: haz el paso 2 |
+| `connect ECONNREFUSED` o `querySrv` | Revisa la URI. En Atlas, comprueba que tu IP está en *Network Access* |
+| `Chromium distribution 'msedge' is not found` | Pon `NAVEGADOR=chrome`, o `NAVEGADOR=chromium` y `npx playwright install chromium` |
+| `Ningún proceso tiene una versión aprobada` | Haz los pasos 5 y 6 |
+| `"estado":"sin_hueco"` | No es un error: ese día no había mesa a esa hora |
+| `"estado":"error"`, `"motivo":"fallo_recorrido"` | La web cambió o tardó demasiado. La traza está en `ejecuciones` |
+
+## Entrar a la base
+
+La base compartida es **`Prueba_software`**, con cinco colecciones: `negocios`, `procesos`, `versiones`, `ejecuciones` y `corridas`.
+
+- **En la web.** En Atlas (<https://cloud.mongodb.com>), abre **Data Explorer** y elige `Prueba_software`.
+- **En la consola.** Usa `mongosh` con la cadena de conexión de Atlas (**Connect → Shell**) y después `use Prueba_software`.
+- **Para practicar.** [docs/aprender-mongo.md](docs/aprender-mongo.md) tiene seis ejercicios en las dos versiones: insertar, buscar, actualizar, ver el validador, crear un índice y una agregación.
+
+Los datos reales solo se escriben a través del gestor. Los ejercicios trabajan sobre un negocio de práctica que se borra al final.
+
+## Qué hay en cada carpeta
+
+```
+CLAUDE.md           plan y principios del proyecto
+catalogo/           catálogo de campos ancla: un JSON por colección
+plantillas/         skills de los agentes: mapear-recorrido y generar-script
+demo/               respuestas del agente usadas en la demo (Rincón del Amazonas)
+docs/
+  catalogo.md       el catálogo en una tabla (generado)
+  esquema.md        diagrama de colecciones y relaciones (generado con npm run esquema)
+  aprender-mongo.md práctica de MongoDB
+src/
+  catalogo.js       carga y comprueba el catálogo; reglas de cada tipo
+  generador.js      validadores, tablas de plantillas, docs/catalogo.md y docs/esquema.md
+  gestor.js         preparar | leer | guardar | propuestas | aprobar
+  ejecutor.js       corre un script hasta B, con un seguro que bloquea el envío
+  semilla.js        datos iniciales metidos a mano (pasan por el gestor)
+  cargar-demo.js    carga demo/ a través del gestor
+  demo.js           npm run demo
+  web.js            genera index.html
+  db.js             conexión a MongoDB
+test/               pruebas (npm test)
+index.html          web de consulta (generada con npm run web)
+```
+
+### Órdenes
+
+| Orden | Qué hace |
+|---|---|
+| `npm run generar` | Validadores en MongoDB, tablas de plantillas, `docs/catalogo.md` y `docs/esquema.md` |
+| `npm run esquema` | Solo `docs/esquema.md` (no necesita base) |
+| `npm run web` | `index.html` (no necesita base) |
+| `npm run semilla` | Datos iniciales a mano, por el gestor |
+| `npm run cargar-demo` | Recorrido y script de la demo, por el gestor |
+| `npm run gestor -- preparar <plantilla> --proceso proc-… \| --version ver-…` | Prepara la Entrada de una plantilla en `trabajo/` |
+| `npm run gestor -- leer trabajo/<base>` | Muestra qué entiende el gestor de una respuesta |
+| `npm run gestor -- guardar trabajo/<base>` | Valida, guarda y registra la corrida |
+| `npm run propuestas` | Propuestas de campos pendientes, agrupadas |
+| `npm run gestor -- aprobar ver-… --por "Nombre"` | Aprueba una versión probada hasta B |
+| `npm run ejecutar -- --version ver-…` | Prueba una versión hasta B |
+| `npm run demo` | Muestra el recorrido y ejecuta la versión aprobada hasta B |
+| `npm test` | Pruebas |

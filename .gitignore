@@ -1,9 +1,3 @@
+.env
 node_modules/
-.wrangler/
-.dev.vars
-.seed-tmp.sql
-worker-configuration.d.ts
-dist-ui/
-*.log
-.DS_Store
-.playwright-mcp/
+trabajo/
