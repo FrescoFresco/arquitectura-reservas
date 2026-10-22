@@ -4822,6 +4822,7 @@ async function onCrearBaseDatosProyecto() {
   }
   if (btn) btn.disabled = true;
   try {
+    await asegurarClaveCatalogo();
     const data = await apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/crear-bd', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
