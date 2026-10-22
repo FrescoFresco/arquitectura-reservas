@@ -32,6 +32,24 @@
     );
   }
 
+  function IconoPestanaFicha(props) {
+    return e('span', {
+      className: 'pestana-svg-host',
+      'aria-hidden': 'true',
+      ref: function (node) {
+        if (!node) return;
+        var tipo = props.tipo;
+        var fn = typeof window !== 'undefined' && window.svgPestanaCatalogo;
+        var map = typeof window !== 'undefined' && window.iconoDePestanaFicha;
+        var icon = (map && map(tipo)) || tipo;
+        if (typeof fn !== 'function' || !icon) return;
+        if (node.dataset.icon === icon && node.querySelector('.pestana-svg')) return;
+        node.replaceChildren(fn(icon));
+        node.dataset.icon = icon;
+      }
+    });
+  }
+
   function Pestanas(props) {
     var tab = props.tab;
     var setTab = props.setTab;
@@ -50,7 +68,7 @@
           className: 'ancla-ficha-tab' + (selected ? ' is-on' : ''),
           'aria-selected': selected ? 'true' : 'false',
           onClick: function () { setTab(item.id); }
-        }, item.label);
+        }, e(IconoPestanaFicha, { tipo: item.id }), item.label);
       })
     );
   }

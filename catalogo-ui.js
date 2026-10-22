@@ -4,9 +4,9 @@ const CATALOGOS = [
   { id: 'clusters', nombre: 'Clusters', icono: 'cluster' },
   { id: 'proyectos', nombre: 'Base de datos', icono: 'proyecto' },
   { id: 'colecciones', nombre: 'Colecciones', icono: 'coleccion' },
+  { id: 'campos-mongodb', nombre: 'Campos', icono: 'mongo' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
-  { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
-  { id: 'campos-mongodb', nombre: 'Campos MongoDB', icono: 'mongo' }
+  { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' }
 ];
 const TABLAS = [];
 const DOCUMENTOS = [
@@ -949,9 +949,114 @@ function svgPestanaCatalogo(tipo) {
       svgPath('m16 18 6-6-6-6'),
       svgPath('m8 6-6 6 6 6')
     );
+  } else if (tipo === 'documento' || tipo === 'resumen') {
+    // Lucide: file-text / align-left (documento y resumen de ficha)
+    if (tipo === 'resumen') {
+      svg.append(
+        svgLine('21', '6', '3', '6'),
+        svgLine('15', '12', '3', '12'),
+        svgLine('17', '18', '3', '18')
+      );
+    } else {
+      svg.append(
+        svgPath('M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'),
+        svgPolyline('14 2 14 8 20 8'),
+        svgLine('16', '13', '8', '13'),
+        svgLine('16', '17', '8', '17'),
+        svgLine('10', '9', '8', '9')
+      );
+    }
+  } else if (tipo === 'diagrama') {
+    // Lucide: git-fork (mismo tono que Arquitectura)
+    svg.append(
+      svgCircle('12', '18', '3'),
+      svgCircle('6', '6', '3'),
+      svgCircle('18', '6', '3'),
+      svgPath('M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9'),
+      svgPath('M12 12v3')
+    );
+  } else if (tipo === 'conexion') {
+    // Lucide: link
+    svg.append(
+      svgPath('M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'),
+      svgPath('M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71')
+    );
+  } else if (tipo === 'interno') {
+    // Lucide: hash
+    svg.append(
+      svgLine('4', '9', '20', '9'),
+      svgLine('4', '15', '20', '15'),
+      svgLine('10', '3', '8', '21'),
+      svgLine('16', '3', '14', '21')
+    );
+  } else if (tipo === 'historial') {
+    // Lucide: clock
+    svg.append(
+      svgCircle('12', '12', '8'),
+      svgPath('M12 8v4l3 2')
+    );
+  } else if (tipo === 'definicion') {
+    // Lucide: list
+    svg.append(
+      svgLine('8', '6', '21', '6'),
+      svgLine('8', '12', '21', '12'),
+      svgLine('8', '18', '21', '18'),
+      svgLine('3', '6', '3.01', '6'),
+      svgLine('3', '12', '3.01', '12'),
+      svgLine('3', '18', '3.01', '18')
+    );
   }
   return svg;
 }
+
+/** Icono representativo de una pestaña de ficha (reusa svgPestanaCatalogo). */
+function iconoDePestanaFicha(tabId) {
+  const mapa = {
+    documento: 'documento',
+    anclas: 'ancla',
+    interno: 'interno',
+    resumen: 'resumen',
+    colecciones: 'coleccion',
+    diagrama: 'diagrama',
+    campos: 'mongo',
+    skills: 'skills',
+    conexion: 'conexion',
+    bases: 'proyecto',
+    'base-datos': 'proyecto',
+    definicion: 'definicion',
+    historial: 'historial',
+    mongo: 'mongo',
+    coleccion: 'coleccion'
+  };
+  return mapa[tabId] || null;
+}
+
+/** Prefija el Lucide de catálogo en cada .ancla-ficha-tab (HTML estático). */
+function iconizarPestanasFicha(root) {
+  const scope = root || document;
+  scope.querySelectorAll('.ancla-ficha-tab').forEach(function (btn) {
+    if (btn.querySelector('.pestana-svg')) return;
+    let tabId = btn.getAttribute('data-icon');
+    if (!tabId) {
+      tabId = btn.getAttribute('data-reader-tab')
+        || btn.getAttribute('data-proy-tab')
+        || btn.getAttribute('data-col-tab')
+        || btn.getAttribute('data-cluster-tab')
+        || btn.getAttribute('data-fund-tab')
+        || btn.getAttribute('data-editar-tab')
+        || btn.getAttribute('data-editar-proy-tab');
+    }
+    const tipo = iconoDePestanaFicha(tabId) || tabId;
+    if (!tipo) return;
+    const label = (btn.textContent || '').trim();
+    btn.textContent = '';
+    btn.append(svgPestanaCatalogo(tipo));
+    if (label) btn.append(document.createTextNode(label));
+  });
+}
+
+window.svgPestanaCatalogo = svgPestanaCatalogo;
+window.iconoDePestanaFicha = iconoDePestanaFicha;
 
 function skillsBridge() {
   return {
@@ -3764,6 +3869,7 @@ function iniciar() {
     if (!d) return;
     d.addEventListener('close', syncFichaPaneClass);
   });
+  iconizarPestanasFicha();
   render();
   cargarSkills();
   cargarCampos();
@@ -4042,10 +4148,10 @@ function seleccionarProyReaderTab(id) {
     colecciones: document.getElementById('proyPanelColecciones'),
     diagrama: document.getElementById('proyPanelDiagrama'),
     campos: document.getElementById('proyPanelCampos'),
-    agentes: document.getElementById('proyPanelAgentes')
+    skills: document.getElementById('proyPanelSkills')
   };
-  // Compat: nombres antiguos → resumen
-  if (id === 'documento' || id === 'skills' || id === 'interno' || id === 'conexion') id = 'resumen';
+  // Compat: nombres antiguos → resumen (agentes ya no es pestaña de BD)
+  if (id === 'documento' || id === 'interno' || id === 'conexion' || id === 'agentes') id = 'resumen';
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-proy-tab') === id;
     btn.classList.toggle('is-on', on);
@@ -4060,7 +4166,7 @@ function seleccionarProyReaderTab(id) {
   if (id === 'colecciones') pintarProyectoColecciones(proy);
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
   if (id === 'campos') pintarProyectoCampos(proy);
-  if (id === 'agentes') pintarProyectoAgentes(proy);
+  if (id === 'skills') pintarProyectoSkillsTab(proy);
 }
 
 function seleccionarEditarProyTab(id) {
@@ -4216,11 +4322,6 @@ function renderProyectoReader() {
   if (skillsRes) {
     const sk = Array.isArray(proy.skills) ? proy.skills : [];
     skillsRes.textContent = sk.length ? sk.join(', ') : '—';
-  }
-  const agRes = document.getElementById('proyResumenAgentes');
-  if (agRes) {
-    const ag = Array.isArray(proy.agentes) ? proy.agentes : [];
-    agRes.textContent = ag.length ? ag.join(', ') : '—';
   }
   const legacyFila = document.getElementById('proyLegacyFila');
   if (legacyFila) legacyFila.hidden = !proy.legacyNegocio;
@@ -4468,70 +4569,60 @@ function pintarProyectoCampos(proy) {
     });
 }
 
-function pintarProyectoAgentes(proy) {
-  const mount = document.getElementById('proyAgentesLista');
-  if (!mount || !proy || !window.AgentesUI || !window.AgentesUI.montarLista) return;
-  const ids = Array.isArray(proy.agentes) ? proy.agentes : [];
+/** Pestaña Skills de Base de datos: mismas filas que el catálogo Skills (proyecto_skills N:M). */
+function pintarProyectoSkillsTab(proy) {
+  const mount = document.getElementById('proySkillsTabLista');
+  if (!mount || !proy || !window.SkillsUI || !window.SkillsUI.montarLista) return;
+  const ids = Array.isArray(proy.skills) ? proy.skills : [];
 
-  function bridgeCon(agentes, ready, indexError) {
+  function bridgeCon(instrucciones, ready, indexError) {
     return {
       getSnapshot: function () {
         return {
           ready: ready,
           indexError: !!indexError,
-          agentes: agentes || [],
-          abierta: null,
-          syncLabel: ''
+          instrucciones: instrucciones || [],
+          abierta: null
         };
       },
-      darAcceso: function () {},
-      abrirAgente: function (id) { abrirAgente(id); }
+      abrirSkill: function (id) { abrirVistaSkill(id); },
+      añadirSkill: function () {}
     };
   }
 
-  window.AgentesUI.montarLista(mount, bridgeCon([], false, false), {
-    emptyMsg: 'Cargando agentes…'
+  window.SkillsUI.montarLista(mount, bridgeCon([], false, false), {
+    emptyMsg: 'Cargando skills…'
   });
 
-  function filtrar(todos) {
-    if (ids.length) {
-      return todos.filter(function (a) { return ids.indexOf(a.id) >= 0; });
-    }
-    return todos.filter(function (a) {
-      return Array.isArray(a.proyectos) && a.proyectos.indexOf(proy.id) >= 0;
+  const lista = (state.instrucciones || []).filter(function (ins) {
+    return ids.indexOf(ins.id) >= 0;
+  });
+  if (state.ready) {
+    window.SkillsUI.montarLista(mount, bridgeCon(lista, true, false), {
+      emptyMsg: 'Ninguna skill asociada.'
     });
+    return;
   }
 
-  refrescarAgentes();
-  const locales = filtrar(state.agentes.lista || []);
-  if (state.agentes.ready && locales.length) {
-    window.AgentesUI.montarLista(mount, bridgeCon(locales, true, false), {
-      emptyMsg: 'Ningún agente asignado.'
-    });
-  }
-
-  apiFetch('/v1/agentes')
+  apiFetch('/v1/skills')
     .then(function (data) {
       const abierta = proyectoAbierto();
       if (!abierta || abierta.id !== proy.id) return;
-      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="agentes"].is-on');
+      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="skills"].is-on');
       if (!tabOn) return;
-      const todos = (data && data.agentes) || [];
-      const filtrados = filtrar(todos).map(function (a) {
-        const local = (state.agentes.lista || []).find(function (x) { return x.id === a.id; });
-        const merged = Object.assign({}, a, local || {});
-        merged.enLinea = agenteEnLinea(merged);
-        return merged;
+      const todos = normalizeIndice(data);
+      const filtrados = todos.filter(function (ins) {
+        return ins && ids.indexOf(ins.id) >= 0;
       });
-      window.AgentesUI.montarLista(mount, bridgeCon(filtrados, true, false), {
-        emptyMsg: 'Ningún agente asignado.'
+      window.SkillsUI.montarLista(mount, bridgeCon(filtrados, true, false), {
+        emptyMsg: 'Ninguna skill asociada.'
       });
     })
     .catch(function () {
       const abierta = proyectoAbierto();
       if (!abierta || abierta.id !== proy.id) return;
-      window.AgentesUI.montarLista(mount, bridgeCon(locales, true, !locales.length), {
-        emptyMsg: locales.length ? 'Ningún agente asignado.' : 'No se pudieron cargar los agentes.'
+      window.SkillsUI.montarLista(mount, bridgeCon(lista, true, !lista.length), {
+        emptyMsg: lista.length ? 'Ninguna skill asociada.' : 'No se pudieron cargar las skills.'
       });
     });
 }
@@ -5667,15 +5758,24 @@ function pintarColeccionDiagramaCampos(col, camposFocus) {
     }) || null;
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'col-diagrama-campo' + (obligatorio ? ' is-req' : '') + (match ? '' : ' is-static');
+    btn.className = 'col-diagrama-campo col-diagrama-campo-con-icono'
+      + (obligatorio ? ' is-req' : '')
+      + (match ? '' : ' is-static');
     btn.setAttribute('role', 'listitem');
     btn.title = match
       ? ('Abrir campo Mongo ' + col.id + '.' + clave)
       : (col.id + '.' + clave);
     btn.setAttribute('aria-label', btn.title);
-    const claveEl = el('span', 'col-diagrama-campo-clave', clave);
-    const tipoEl = el('span', 'col-diagrama-campo-tipo', bson + (obligatorio ? ' · obligatorio' : ''));
-    btn.append(claveEl, tipoEl);
+    // Mismo Lucide cilindro que catálogo Campos / svgPestanaCatalogo('mongo').
+    const iconWrap = el('span', 'catalogo-fila-icon', null);
+    iconWrap.setAttribute('aria-hidden', 'true');
+    const svg = svgPestanaCatalogo('mongo');
+    svg.setAttribute('class', 'catalogo-fila-svg');
+    iconWrap.append(svg);
+    const texto = el('span', 'col-diagrama-campo-texto', null);
+    texto.append(el('span', 'col-diagrama-campo-clave', clave));
+    texto.append(el('span', 'col-diagrama-campo-tipo', bson + (obligatorio ? ' · obligatorio' : '')));
+    btn.append(iconWrap, texto);
     if (match) {
       btn.addEventListener('click', function () {
         abrirMongoDesdeColeccionDiagrama(match.id);

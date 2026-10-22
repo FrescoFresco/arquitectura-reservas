@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Arquitectura de acoplamiento a reservas web</title>
-<meta name="description" content="Catálogos Skills, Campos ancla y Campos MongoDB, y el contrato para publicarlos.">
+<meta name="description" content="Catálogos Clusters, Base de datos, Colecciones, Campos, Skills y Campos ancla.">
 <script>
 (function () {
   try {
@@ -243,9 +243,11 @@ dialog::backdrop{background:#17212f66}
 .ancla-ficha-codigo{display:inline-block;width:fit-content;max-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6;background:#edf3ff;padding:3px 8px;border-radius:8px;overflow-wrap:anywhere}
 .ancla-ficha-tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid #e5eaf1;background:#fff;overflow-x:auto;scrollbar-width:none}
 .ancla-ficha-tabs::-webkit-scrollbar{display:none}
-.ancla-ficha-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:12px 12px;font:inherit;font-size:13px;font-weight:800;color:#677488;cursor:pointer;white-space:nowrap;flex:none}
+.ancla-ficha-tab{appearance:none;display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:12px 12px;font:inherit;font-size:13px;font-weight:800;color:#677488;cursor:pointer;white-space:nowrap;flex:none}
 .ancla-ficha-tab.is-on{color:#1c63d5;border-bottom-color:#1c63d5}
 .ancla-ficha-tab:hover{color:#1c63d5}
+.ancla-ficha-tab .pestana-svg,.ancla-ficha-tab .pestana-svg-host{width:15px;height:15px;flex:none;display:block}
+.ancla-ficha-tab .pestana-svg-host .pestana-svg{width:15px;height:15px}
 .ancla-ficha-body{padding:14px 18px 20px}
 .ancla-ficha-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:4px}
 .ancla-skill-card{display:flex;align-items:center;gap:10px;width:100%;margin:0;padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
@@ -495,7 +497,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabColecciones" data-proy-tab="colecciones" aria-selected="false" aria-controls="proyPanelColecciones">Colecciones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabAgentes" data-proy-tab="agentes" aria-selected="false" aria-controls="proyPanelAgentes">Agentes</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelResumen" role="tabpanel" aria-labelledby="proyTabResumen">
 <dl class="ancla-ficha-dl" id="proyResumenDl">
@@ -504,7 +506,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
 <div class="ancla-ficha-fila"><dt>Skills</dt><dd id="proyResumenSkills">—</dd></div>
-<div class="ancla-ficha-fila"><dt>Agentes</dt><dd id="proyResumenAgentes">—</dd></div>
 <div class="ancla-ficha-fila" id="proyLegacyFila" hidden><dt>Estado</dt><dd id="proyLegacyNota">Negocio legado (pendiente de borrar como base de datos)</dd></div>
 </dl>
 <p class="historial-titulo" style="margin-top:0.75rem">Cluster</p>
@@ -540,8 +541,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="reader-panel ancla-ficha-body" id="proyPanelCampos" role="tabpanel" aria-labelledby="proyTabCampos" hidden>
 <div id="proyCamposLista" class="proy-tab-catalogo"></div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelAgentes" role="tabpanel" aria-labelledby="proyTabAgentes" hidden>
-<div id="proyAgentesLista" class="proy-tab-catalogo"></div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelSkills" role="tabpanel" aria-labelledby="proyTabSkills" hidden>
+<div id="proySkillsTabLista" class="proy-tab-catalogo"></div>
 </div>
 </article>
 </dialog>
@@ -1204,14 +1205,14 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 })();
 </script>
 <script src="skills-ui.js?v=20261022tabs2"></script>
-<script src="campos-ancla-ui.js?v=20261022tabs2"></script>
-<script src="campos-mongodb-ui.js?v=20261022tabs2"></script>
+<script src="campos-ancla-ui.js?v=20261022polish1"></script>
+<script src="campos-mongodb-ui.js?v=20261022polish1"></script>
 <script src="clusters-ui.js?v=20261022cluster1"></script>
 <script src="proyectos-ui.js?v=20261022cluster1"></script>
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022cluster1"></script>
+<script src="catalogo-ui.js?v=20261022polish1"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>
