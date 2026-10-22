@@ -109,6 +109,9 @@ export const TIPOS = {
   },
 };
 
+// Colección a la que apunta un campo id_*: proceso.id_negocio → negocio; proceso.id_version_activa → version.
+export const referida = (d) => d.tipo === 'id' && Object.keys(COLECCIONES).find((r) => new RegExp(`(^|\\.)id_${r}(_|$)`).test(d.id));
+
 // version.recorrido.campos.3.nombre -> version.recorrido.campos.N.nombre
 export const patron = (ruta) => ruta.replace(/\.\d+(?=\.|$)/g, '.N');
 

@@ -3,7 +3,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { userInfo } from 'node:os';
-import { cargar, huella, patron, COLECCIONES, TIPOS } from './catalogo.js';
+import { cargar, huella, patron, COLECCIONES, TIPOS, referida } from './catalogo.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const META = /^<!-- gestor (\{.*\}) -->/;
@@ -335,6 +335,123 @@ export async function alta(db, id, texto) {
   if (raices.length !== 1) errores.push('un alta escribe en un solo documento');
   if (errores.length) throw new Error(`Alta de ${id} rechazada:\n- ${errores.join('\n- ')}`);
   await db.collection(COLECCIONES[raices[0]].nombre).updateOne({ _id: id }, { $set: anidado[raices[0]] }, { upsert: true });
+}
+
+// ---------- Escrituras manuales desde el panel: pasan por el catálogo como un alta manual ----------
+
+// Colección de MongoDB → raíz del catálogo, solo si «manual» escribe algún campo suyo (negocios, procesos).
+export function raizEditable(coleccion, defs = cargar()) {
+  const raiz = Object.keys(COLECCIONES).find((r) => COLECCIONES[r].nombre === coleccion);
+  return raiz && defs.some((d) => d.id.startsWith(raiz + '.') && d.estado === 'activo' && d.escribe.includes('manual')) ? raiz : null;
+}
+
+// Documento → líneas de anclaje { ruta, texto }, con todas sus hojas (también las que no están en el catálogo).
+function aLineas(doc, raiz, mapa) {
+  const lineas = [];
+  const texto = (v) => (v === null ? 'null' : v instanceof Date ? v.toISOString() : typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const recorrer = (v, ruta) => {
+    if (mapa.get(patron(ruta))?.tipo === 'json' || v === null || typeof v !== 'object' || v instanceof Date) lineas.push({ ruta, texto: texto(v) });
+    else if (Array.isArray(v)) v.forEach((x, i) => recorrer(x, `${ruta}.${i + 1}`));
+    else for (const [k, x] of Object.entries(v)) recorrer(x, `${ruta}.${k}`);
+  };
+  for (const [k, v] of Object.entries(doc)) if (k !== '_id') recorrer(v, `${raiz}.${k}`);
+  return lineas;
+}
+
+const rutaMongo = (ruta) => ruta.split('.').slice(1).map((s) => (/^\d+$/.test(s) ? String(Number(s) - 1) : s)).join('.');
+
+// Valida un documento editado a mano contra el catálogo. Solo comprueba lo que cambia respecto a `anterior`,
+// así un campo que no escribe «manual» (proceso.id_version_activa) se conserva sin poder tocarse.
+export function documentoManual(raiz, nuevo, anterior = null, defs = cargar()) {
+  const mapa = new Map(defs.map((d) => [d.id, d]));
+  const antes = new Map(anterior ? aLineas(anterior, raiz, mapa).map((l) => [l.ruta, l.texto]) : []);
+  const ahora = aLineas(nuevo, raiz, mapa);
+  const cambiadas = ahora.filter((l) => antes.get(l.ruta) !== l.texto);
+  const v = validar(cambiadas, defs, 'manual');
+  const errores = [...v.errores, ...v.propuestas.map((p) => `${p.ruta}: el panel no admite propuestas`)];
+  const quitadas = [...antes.keys()].filter((r) => !ahora.some((l) => l.ruta === r));
+  for (const r of quitadas) {
+    const d = mapa.get(patron(r));
+    if (d?.nivel === 'blindado') errores.push(`${r}: es blindado (obligatorio); no se puede quitar`);
+    else if (d && !d.escribe.includes('manual')) errores.push(`${r}: el panel no puede quitarlo (lo escribe: ${d.escribe.join(', ')})`);
+  }
+  const $set = Object.fromEntries(v.valores.map((x) => [rutaMongo(x.ruta), x.valor]));
+  const $unset = Object.fromEntries(quitadas.map((r) => [rutaMongo(r), '']));
+  return { errores, valores: v.valores, $set, $unset };
+}
+
+// El rechazo del validador de MongoDB, en frases: «url: no cumple el patrón ^https?://», «falta zona_horaria».
+export function motivoValidador(e) {
+  const reglas = e?.errInfo?.details?.schemaRulesNotSatisfied;
+  if (!reglas) return [e.message];
+  const frases = [];
+  const leer = (detalles, ruta) => {
+    for (const d of detalles ?? []) {
+      if (d.missingProperties) frases.push(`${ruta}falta ${d.missingProperties.join(', ')} (obligatorio)`);
+      for (const p of d.propertiesNotSatisfied ?? []) leer(p.details, `${ruta}${p.propertyName}: `);
+      if (d.additionalProperties) frases.push(`${ruta}campos que no están en el catálogo: ${d.additionalProperties.join(', ')}`);
+      if (d.operatorName === 'pattern') frases.push(`${ruta}no cumple el patrón ${d.specifiedAs.pattern} (valor: ${JSON.stringify(d.consideredValue)})`);
+      if (d.operatorName === 'enum') frases.push(`${ruta}tiene que ser uno de: ${d.specifiedAs.enum.join(', ')} (valor: ${JSON.stringify(d.consideredValue)})`);
+      if (d.operatorName === 'bsonType') frases.push(`${ruta}tipo ${d.consideredType}, se esperaba ${[].concat(d.specifiedAs.bsonType).join(' o ')}`);
+      if (d.operatorName === 'minLength') frases.push(`${ruta}no puede estar vacío`);
+      // En un campo estable (anyOf: [tipo, null]) solo interesa por qué no cumple el tipo; el null no aplica.
+      if (d.operatorName === 'anyOf') leer(d.schemasNotSatisfied?.[0]?.details, ruta);
+    }
+  };
+  leer(reglas, '');
+  return frases.length ? [...new Set(frases)] : [e.message];
+}
+
+export class Rechazo extends Error {
+  constructor(errores) {
+    super(errores.join('\n'));
+    this.errores = errores;
+  }
+}
+
+export async function crearManual(db, coleccion, doc) {
+  const raiz = raizEditable(coleccion);
+  if (!raiz) throw new Rechazo([`${coleccion} es de solo lectura en el panel`]);
+  if (typeof doc?._id !== 'string') throw new Rechazo([`falta _id (texto, por ejemplo ${COLECCIONES[raiz].prefijo}-…)`]);
+  const r = documentoManual(raiz, doc);
+  if (r.errores.length) throw new Rechazo(r.errores);
+  try {
+    await db.collection(coleccion).insertOne({ _id: doc._id, ...anidar(r.valores)[raiz] });
+  } catch (e) {
+    throw new Rechazo(e.code === 11000 ? [`ya existe un documento con _id ${doc._id}`] : motivoValidador(e));
+  }
+}
+
+export async function editarManual(db, coleccion, id, doc) {
+  const raiz = raizEditable(coleccion);
+  if (!raiz) throw new Rechazo([`${coleccion} es de solo lectura en el panel`]);
+  if (doc?._id !== undefined && doc._id !== id) throw new Rechazo(['el _id no se cambia']);
+  const anterior = await db.collection(coleccion).findOne({ _id: id });
+  if (!anterior) throw new Rechazo([`no existe ${id}`]);
+  const r = documentoManual(raiz, doc, anterior);
+  if (r.errores.length) throw new Rechazo(r.errores);
+  const cambio = { ...(Object.keys(r.$set).length && { $set: r.$set }), ...(Object.keys(r.$unset).length && { $unset: r.$unset }) };
+  if (!Object.keys(cambio).length) return { cambiado: false };
+  try {
+    await db.collection(coleccion).updateOne({ _id: id }, cambio);
+  } catch (e) {
+    throw new Rechazo(motivoValidador(e));
+  }
+  return { cambiado: true };
+}
+
+// Borra solo si ningún otro documento apunta a este (proceso.id_negocio, corrida.id_version…).
+export async function borrarManual(db, coleccion, id) {
+  const raiz = raizEditable(coleccion);
+  if (!raiz) throw new Rechazo([`${coleccion} es de solo lectura en el panel`]);
+  const defs = cargar();
+  for (const d of defs.filter((d) => referida(d) === raiz)) {
+    const [r, ...ruta] = d.id.split('.');
+    const n = await db.collection(COLECCIONES[r].nombre).countDocuments({ [ruta.join('.')]: id });
+    if (n) throw new Rechazo([`no se borra: ${n} documento(s) de ${COLECCIONES[r].nombre} apuntan a ${id} por ${ruta.join('.')}`]);
+  }
+  const res = await db.collection(coleccion).deleteOne({ _id: id });
+  if (!res.deletedCount) throw new Rechazo([`no existe ${id}`]);
 }
 
 export async function aprobar(db, idVersion, por) {

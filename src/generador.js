@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync } from 'node:fs';
-import { cargar, COLECCIONES, TIPOS } from './catalogo.js';
+import { cargar, COLECCIONES, TIPOS, referida } from './catalogo.js';
 
 const objeto = () => ({ bsonType: 'object', properties: {}, additionalProperties: false });
 
@@ -91,7 +91,7 @@ export function diagrama(defs) {
     lineas.push(`  ${c.nombre} {`, `    id _id PK "${c.prefijo}-…"`);
     for (const d of defs.filter((d) => d.id.startsWith(raiz + '.') && d.estado !== 'propuesto')) {
       const nombre = d.id.split('.').slice(1).join('-').replace(/-N(?=-|$)/g, '[]');
-      const destino = d.tipo === 'id' && Object.keys(COLECCIONES).find((r) => new RegExp(`(^|\\.)id_${r}(_|$)`).test(d.id));
+      const destino = referida(d);
       lineas.push(`    ${d.tipo} ${nombre}${destino ? ' FK' : ''} "${d.nivel}${d.estado === 'obsoleto' ? ', obsoleto' : ''}"`);
       if (destino) relaciones.push(`  ${c.nombre} }o--${d.nivel === 'blindado' ? '||' : 'o|'} ${COLECCIONES[destino].nombre} : "${d.id.split('.').pop()}"`);
     }
