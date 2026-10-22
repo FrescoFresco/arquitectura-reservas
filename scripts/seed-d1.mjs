@@ -13,7 +13,7 @@ import { spawnSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const remote = process.argv.includes('--remote');
 const flag = remote ? '--remote' : '--local';
-const dbName = 'arquitectura-reservas';
+const dbName = 'campos-ancla-db';
 
 function readJson(rel) {
   return JSON.parse(readFileSync(join(root, rel), 'utf8'));
@@ -66,8 +66,11 @@ async function main() {
 
   const anclasIdx = readJson('catalogo/campos-ancla/index.json');
   for (const c of anclasIdx.campos || []) {
+    const aliases = JSON.stringify(Array.isArray(c.aliases) ? c.aliases : []);
+    // N2: ficha = definición; valores/observaciones van en ancla_valores_negocio.
+    const sensible = c.sensible ? 1 : 0;
     stmts.push(
-      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.ancla)}', '${esc(c.etiqueta || '')}', '${esc(c.claveMongo || '')}', '${esc(c.coleccion || '')}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.tipo || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.formato || '')}', '${esc(c.descripcion || '')}', '${esc(c.ejemplo || '')}', '${esc(c.hash || '')}', '${now}', '${now}');`
+      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.ancla)}', '${esc(c.etiqueta || '')}', '${esc(c.claveMongo || '')}', '${esc(c.coleccion || '')}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.tipo || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.formato || '')}', '${esc(c.descripcion || '')}', '${esc(c.ejemplo || '')}', '${esc(c.hash || '')}', '${esc(aliases)}', '[]', '', ${sensible}, '${now}', '${now}');`
     );
     for (const sid of c.skills || []) {
       stmts.push(`INSERT OR IGNORE INTO ancla_skills (ancla_id, skill_id) VALUES ('${esc(c.id)}', '${esc(sid)}');`);
@@ -76,15 +79,24 @@ async function main() {
 
   const mongoIdx = readJson('catalogo/campos-mongodb/index.json');
   for (const c of mongoIdx.campos || []) {
+    const proyeccion = esc(c.proyeccionMongo || '');
+    const elemento = esc(JSON.stringify(c.proyeccionElemento || {}));
+    const indices = esc(JSON.stringify(Array.isArray(c.indices) ? c.indices : []));
+    const hijos = esc(JSON.stringify(Array.isArray(c.hijos) ? c.hijos : []));
+    const proyecto = esc(c.proyecto || 'reservas');
     stmts.push(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.campo)}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.coleccion || '')}', '${esc(c.clave || '')}', '${esc(c.bsonType || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.descripcion || '')}', '${esc(c.ancla || '')}', '${esc(c.hash || '')}', '${now}', '${now}');`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, proyecto, hijos, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.campo)}', '${esc(c.baseDatos || 'software_reservas')}', '${esc(c.coleccion || '')}', '${esc(c.clave || '')}', '${esc(c.bsonType || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.descripcion || '')}', '${esc(c.ancla || '')}', '${esc(c.hash || '')}', '${proyeccion}', '${elemento}', '${indices}', '${proyecto}', '${hijos}', '${now}', '${now}');`
     );
   }
 
   const proyIdx = readJson('catalogo/proyectos/index.json');
   for (const p of proyIdx.proyectos || []) {
+    const colecciones = esc(JSON.stringify(Array.isArray(p.colecciones) ? p.colecciones : []));
+    const relaciones = esc(JSON.stringify(Array.isArray(p.relaciones) ? p.relaciones : []));
+    const agentesJson = esc(JSON.stringify(Array.isArray(p.agentes) ? p.agentes : []));
+    const legacy = p.legacyNegocio ? 1 : 0;
     stmts.push(
-      `INSERT INTO proyectos (id, nombre, descripcion, hash, created_at, updated_at) VALUES ('${esc(p.id)}', '${esc(p.nombre)}', '${esc(p.descripcion || '')}', '${esc(p.hash || '')}', '${now}', '${now}');`
+      `INSERT INTO proyectos (id, nombre, descripcion, hash, created_at, updated_at, base_datos, colecciones, relaciones, agentes_json, legacy_negocio) VALUES ('${esc(p.id)}', '${esc(p.nombre)}', '${esc(p.descripcion || '')}', '${esc(p.hash || '')}', '${now}', '${now}', '${esc(p.baseDatos || '')}', '${colecciones}', '${relaciones}', '${agentesJson}', ${legacy});`
     );
     for (const v of p.versiones || []) {
       const md = v.ruta ? readMd(v.ruta) : '';
@@ -113,13 +125,25 @@ async function main() {
   const agIdx = readJson('catalogo/agentes/index.json');
   for (const a of agIdx.agentes || []) {
     const clave = a.inviteUsada || `inv_seed_${a.id}`;
+    const proyectos = esc(JSON.stringify(Array.isArray(a.proyectos) ? a.proyectos : []));
+    const lee = esc(JSON.stringify(Array.isArray(a.lee) ? a.lee : []));
+    const escribe = esc(JSON.stringify(Array.isArray(a.escribe) ? a.escribe : []));
     stmts.push(
       `INSERT OR IGNORE INTO invites (clave, creada, usada_por, revocada) VALUES ('${esc(clave)}', '${now}', '${esc(a.id)}', 0);`
     );
     stmts.push(
-      `INSERT INTO agentes (id, nombre, foto, descripcion, invite_usada, last_seen, hash, created_at, updated_at) VALUES ('${esc(a.id)}', '${esc(a.nombre)}', '${esc(a.foto || '')}', '${esc(a.descripcion || '')}', '${esc(clave)}', '${esc(a.lastSeen || '')}', '${esc(a.hash || '')}', '${now}', '${now}');`
+      `INSERT INTO agentes (id, nombre, foto, descripcion, invite_usada, last_seen, hash, created_at, updated_at, proyectos, lee, escribe) VALUES ('${esc(a.id)}', '${esc(a.nombre)}', '${esc(a.foto || '')}', '${esc(a.descripcion || '')}', '${esc(clave)}', '${esc(a.lastSeen || '')}', '${esc(a.hash || '')}', '${now}', '${now}', '${proyectos}', '${lee}', '${escribe}');`
     );
   }
+
+  // Valores por negocio (cajón): teléfono real de Pelo Sur; +34600111222 solo como prueba etiquetada.
+  stmts.push(
+    `INSERT OR REPLACE INTO ancla_valores_negocio (negocio_id, ancla_id, observaciones, valor_actual, updated_at) VALUES ('pelo-sur', 'negocio.telefono', '${esc(JSON.stringify([
+      { valor: '+34612000111', url: 'https://pelosur.es/contacto', timestamp: '2026-10-13T10:00:00.000Z', skill_id: 'descubrir-negocio', visto_en: 'web' },
+      { valor: '+34699111222', url: 'https://pelosur.es/contacto', timestamp: '2026-10-17T16:30:00.000Z', skill_id: 'descubrir-negocio', visto_en: 'web' },
+      { valor: '+34600111222', url: 'https://example.test/prueba', timestamp: '2026-10-21T12:00:00.000Z', skill_id: 'descubrir-negocio', visto_en: 'prueba' },
+    ]))}', '+34699111222', '${now}');`
+  );
 
   // Invite de demo para pruebas locales
   stmts.push(

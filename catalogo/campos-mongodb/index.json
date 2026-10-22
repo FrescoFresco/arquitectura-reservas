@@ -1,175 +1,283 @@
 {
   "id": "campos-mongodb",
   "nombre": "Campos MongoDB",
-  "baseDatos": "arquitectura_reservas",
+  "baseDatos": "software_reservas",
   "campos": [
     {
       "id": "negocios-nombre",
       "campo": "negocios.nombre",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "negocios",
       "clave": "nombre",
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Nombre comercial del local, tal como lo ve el cliente.",
       "ancla": "_negocio.nombre_",
-      "hash": "a8b4cca2ffe1105b2156a058e9b903b24cdeabe07a810fb192bb06a2d5a7a418"
+      "hash": "a8b4cca2ffe1105b2156a058e9b903b24cdeabe07a810fb192bb06a2d5a7a418",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "negocios-url",
       "campo": "negocios.url",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "negocios",
       "clave": "url",
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Web principal del local.",
       "ancla": "_negocio.url_",
-      "hash": "17207a7110d2fb9e8ef23dc0bb075c59d454e330c4ab80968eb06a709ddfbed5"
+      "hash": "17207a7110d2fb9e8ef23dc0bb075c59d454e330c4ab80968eb06a709ddfbed5",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "negocios-zona_horaria",
       "campo": "negocios.zona_horaria",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "negocios",
       "clave": "zona_horaria",
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Zona horaria IANA del local; todas las horas de reserva se interpretan en ella.",
       "ancla": "_negocio.zona_horaria_",
-      "hash": "0e17f251008b6aeb89afe44a55db49f9f533aea1c9ed8b0f02854deca1bc4df6"
+      "hash": "0e17f251008b6aeb89afe44a55db49f9f533aea1c9ed8b0f02854deca1bc4df6",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "negocios-telefono",
       "campo": "negocios.telefono",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "negocios",
       "clave": "telefono",
       "bsonType": "string",
       "obligatorio": false,
       "descripcion": "Teléfono público del local, con prefijo internacional.",
       "ancla": "_negocio.telefono_",
-      "hash": "250576d9297a3dbcaf706a29c32480a443b1cbad707baa6fd3fe18a798e87cb5"
+      "hash": "250576d9297a3dbcaf706a29c32480a443b1cbad707baa6fd3fe18a798e87cb5",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "procesos-url_inicio",
       "campo": "procesos.url_inicio",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "procesos",
       "clave": "url_inicio",
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script.",
       "ancla": "_proceso.url_inicio_",
-      "hash": "de6d99ebf69f9b9f0ffc554e7cb31615708c469792dc0da31ecd7944dbed050a"
+      "hash": "de6d99ebf69f9b9f0ffc554e7cb31615708c469792dc0da31ecd7944dbed050a",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "versiones-recorrido-sistema-nombre",
       "campo": "versiones.recorrido.sistema.nombre",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "versiones",
       "clave": "recorrido.sistema.nombre",
       "bsonType": "string",
       "obligatorio": false,
       "descripcion": "Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, plugin WordPress, formulario propio…).",
       "ancla": "_version.recorrido.sistema.nombre_",
-      "hash": "d736966636bcf14c021d5b2bf5a0fe1b39d78dc3f3fecf9f420032de33f1f5ec"
+      "hash": "d736966636bcf14c021d5b2bf5a0fe1b39d78dc3f3fecf9f420032de33f1f5ec",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "versiones-recorrido-llega_a_b",
       "campo": "versiones.recorrido.llega_a_b",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "versiones",
       "clave": "recorrido.llega_a_b",
       "bsonType": "bool",
       "obligatorio": false,
       "descripcion": "true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista.",
       "ancla": "_version.recorrido.llega_a_b_",
-      "hash": "5578bc7ea2c1519362939785e4472f559f0febbb0d55c93a161bf189a01e71c6"
+      "hash": "5578bc7ea2c1519362939785e4472f559f0febbb0d55c93a161bf189a01e71c6",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "versiones-recorrido-pasos-N-accion",
       "campo": "versiones.recorrido.pasos.N.accion",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "versiones",
       "clave": "recorrido.pasos.N.accion",
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…).",
       "ancla": "_version.recorrido.pasos.N.accion_",
-      "hash": "03983be7ab510b0b728a671942a3172b038609634d1c704ee2f5a1326a583818"
+      "hash": "03983be7ab510b0b728a671942a3172b038609634d1c704ee2f5a1326a583818",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
-      "id": "versiones-recorrido-campos-N-selector",
-      "campo": "versiones.recorrido.campos.N.selector",
-      "baseDatos": "arquitectura_reservas",
+      "id": "versiones-recorrido-campos",
+      "campo": "versiones.recorrido.campos",
+      "baseDatos": "software_reservas",
       "coleccion": "versiones",
-      "clave": "recorrido.campos.N.selector",
+      "clave": "recorrido.campos",
+      "bsonType": "array",
+      "obligatorio": false,
+      "descripcion": "Lista canónica de campos del formulario en la versión del recorrido. Proyección: version.recorrido.campos.N.* → [{nombre, selector, clase}, …]. clase ∈ normal|texto_libre|identificador|sensible|consentimiento. Booleanos en la proyección son true/false reales, no texto. No usar formularios.campos.",
+      "ancla": "_version.recorrido.campos.N_",
+      "proyeccionMongo": "array",
+      "proyeccionElemento": {
+        "nombre": "version.recorrido.campos.N.nombre",
+        "selector": "version.recorrido.campos.N.selector",
+        "clase": "version.recorrido.campos.N.clase"
+      },
+      "hash": "audit-x3-versiones-recorrido-campos",
+      "proyecto": "reservas",
+      "hijos": []
+    },
+    {
+      "id": "reservas_prueba-cuando",
+      "campo": "reservas_prueba.cuando",
+      "baseDatos": "software_reservas",
+      "coleccion": "reservas_prueba",
+      "clave": "cuando",
+      "bsonType": "date",
+      "obligatorio": true,
+      "descripcion": "Momento del slot de la reserva de prueba (ISO-8601 → BSON date).",
+      "ancla": "_reserva_prueba.cuando_",
+      "indices": [
+        {
+          "nombre": "idx_reservas_prueba_cuando",
+          "keys": {
+            "cuando": 1
+          }
+        }
+      ],
+      "hash": "audit-x4-reservas_prueba-cuando",
+      "proyecto": "reservas",
+      "hijos": []
+    },
+    {
+      "id": "reservas_prueba-estado",
+      "campo": "reservas_prueba.estado",
+      "baseDatos": "software_reservas",
+      "coleccion": "reservas_prueba",
+      "clave": "estado",
       "bsonType": "string",
       "obligatorio": true,
-      "descripcion": "Selector de Playwright que encuentra el campo de forma única.",
-      "ancla": "_version.recorrido.campos.N.selector_",
-      "hash": "1a21eea77b9227ce570af33d642b421b6fc3f6ba6efd8766a5b134b5b382a1de"
+      "descripcion": "Estado: pendiente | confirmada | cancelada | por_cancelar.",
+      "ancla": "_reserva_prueba.estado_",
+      "indices": [
+        {
+          "nombre": "idx_reservas_prueba_estado",
+          "keys": {
+            "estado": 1
+          }
+        }
+      ],
+      "hash": "audit-x4-reservas_prueba-estado",
+      "proyecto": "reservas",
+      "hijos": []
+    },
+    {
+      "id": "reservas_prueba-cancelada_en",
+      "campo": "reservas_prueba.cancelada_en",
+      "baseDatos": "software_reservas",
+      "coleccion": "reservas_prueba",
+      "clave": "cancelada_en",
+      "bsonType": "date",
+      "obligatorio": false,
+      "descripcion": "Cuándo se canceló la reserva de prueba (BSON date), si aplica.",
+      "ancla": "_reserva_prueba.cancelada_en_",
+      "indices": [],
+      "hash": "audit-x4-reservas_prueba-cancelada_en",
+      "proyecto": "reservas",
+      "hijos": []
+    },
+    {
+      "id": "reservas_prueba-nota",
+      "campo": "reservas_prueba.nota",
+      "baseDatos": "software_reservas",
+      "coleccion": "reservas_prueba",
+      "clave": "nota",
+      "bsonType": "string",
+      "obligatorio": false,
+      "descripcion": "Nota de seguimiento (canal, software, qué cancelar).",
+      "ancla": "_reserva_prueba.nota_",
+      "indices": [],
+      "hash": "audit-x4-reservas_prueba-nota",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "versiones-recorrido-boton_confirmar-selector",
       "campo": "versiones.recorrido.boton_confirmar.selector",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "versiones",
       "clave": "recorrido.boton_confirmar.selector",
       "bsonType": "string",
       "obligatorio": false,
       "descripcion": "Selector de Playwright del botón que envía la reserva. Nunca se pulsa hasta B.",
       "ancla": "_version.recorrido.boton_confirmar.selector_",
-      "hash": "8d48567d5684057d779190cfafe48de49b7363734fa90878ee84a72689f8fabe"
+      "hash": "8d48567d5684057d779190cfafe48de49b7363734fa90878ee84a72689f8fabe",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "versiones-script",
       "campo": "versiones.script",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "versiones",
       "clave": "script",
       "bsonType": "string",
       "obligatorio": false,
       "descripcion": "Módulo JavaScript con las funciones hastaB(page, params, registrar) y confirmar(page).",
       "ancla": "_version.script_",
-      "hash": "ff85601d07e8a8d8d22e20a502b7e9640dbc368be4645b6b6150d8034f6dc92a"
+      "hash": "ff85601d07e8a8d8d22e20a502b7e9640dbc368be4645b6b6150d8034f6dc92a",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "versiones-funcion-nombre",
       "campo": "versiones.funcion.nombre",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "versiones",
       "clave": "funcion.nombre",
       "bsonType": "string",
       "obligatorio": false,
       "descripcion": "Nombre de la función que expondrá el agente de voz.",
       "ancla": "_version.funcion.nombre_",
-      "hash": "1ad193d5492d6cef90132a68bb369449c7aa9bffcfb5b2013e0d49011f42955b"
+      "hash": "1ad193d5492d6cef90132a68bb369449c7aa9bffcfb5b2013e0d49011f42955b",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "ejecuciones-respuesta-estado",
       "campo": "ejecuciones.respuesta.estado",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "ejecuciones",
       "clave": "respuesta.estado",
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Resultado de la función. En modo hasta_B, disponible significa que se llegó a B.",
       "ancla": "_ejecucion.respuesta.estado_",
-      "hash": "dd77735c9a36b3d6a56bdf6a2d2a8183084c6e362b620238b67f6c34258eaf80"
+      "hash": "dd77735c9a36b3d6a56bdf6a2d2a8183084c6e362b620238b67f6c34258eaf80",
+      "proyecto": "reservas",
+      "hijos": []
     },
     {
       "id": "ejecuciones-ultima_url",
       "campo": "ejecuciones.ultima_url",
-      "baseDatos": "arquitectura_reservas",
+      "baseDatos": "software_reservas",
       "coleccion": "ejecuciones",
       "clave": "ultima_url",
       "bsonType": "string",
       "obligatorio": false,
       "descripcion": "URL en la que estaba el navegador al terminar.",
       "ancla": "_ejecucion.ultima_url_",
-      "hash": "b24ead9ccba88e2c69fdfedec4dd33742740b34c3c27ad3fd391b787cad12129"
+      "hash": "b24ead9ccba88e2c69fdfedec4dd33742740b34c3c27ad3fd391b787cad12129",
+      "proyecto": "reservas",
+      "hijos": []
     }
   ]
 }

@@ -3,6 +3,87 @@
   "nombre": "Proyectos",
   "proyectos": [
     {
+      "id": "reservas",
+      "nombre": "Software de reservas",
+      "descripcion": "Software de reservas: base Mongo propia, diagrama y agentes. Los negocios son datos en la colección negocios.",
+      "baseDatos": "software_reservas",
+      "colecciones": [
+        {
+          "id": "negocios",
+          "descripcion": "Un documento por negocio cliente"
+        },
+        {
+          "id": "procesos",
+          "descripcion": "Puntos A / alcances de reserva por negocio"
+        },
+        {
+          "id": "versiones",
+          "descripcion": "Recorridos, scripts y funciones versionados"
+        },
+        {
+          "id": "reservas",
+          "descripcion": "Reservas hechas por los agentes"
+        },
+        {
+          "id": "ejecuciones",
+          "descripcion": "Historial de ejecuciones"
+        },
+        {
+          "id": "reservas_prueba",
+          "descripcion": "Reservas de prueba (no producción)"
+        }
+      ],
+      "relaciones": [
+        {
+          "desde": "procesos.negocio_id",
+          "hacia": "negocios._id",
+          "tipo": "N:1"
+        },
+        {
+          "desde": "versiones.proceso_id",
+          "hacia": "procesos._id",
+          "tipo": "N:1"
+        },
+        {
+          "desde": "reservas.negocio_id",
+          "hacia": "negocios._id",
+          "tipo": "N:1"
+        },
+        {
+          "desde": "ejecuciones.negocio_id",
+          "hacia": "negocios._id",
+          "tipo": "N:1"
+        },
+        {
+          "desde": "reservas_prueba.negocio_id",
+          "hacia": "negocios._id",
+          "tipo": "N:1"
+        }
+      ],
+      "skills": [
+        "descubrir-negocio",
+        "mapear-recorrido",
+        "generar-script",
+        "diagnosticar-alerta"
+      ],
+      "agentes": [
+        "reservas-pagweb",
+        "eco-mesa",
+        "centinela-script"
+      ],
+      "legacyNegocio": false,
+      "hash": "reservas-software-v1",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-21",
+          "ruta": "catalogo/proyectos/reservas/v1.md",
+          "nombreArchivo": "v1.md",
+          "hash": "reservas-software-md-v1"
+        }
+      ]
+    },
+    {
       "id": "la-mesa-norte",
       "nombre": "La Mesa Norte",
       "descripcion": "Acoplamiento a la web de reservas de La Mesa Norte: descubrimiento, recorrido, script y diagnóstico.",
@@ -20,7 +101,37 @@
           "nombreArchivo": "la-mesa-norte.md",
           "hash": "c17c81a1c86383495e0690f0ddd79f6fcfb42304df5ed5a2e03f155cebceb687"
         }
-      ]
+      ],
+      "legacyNegocio": true,
+      "baseDatos": "",
+      "colecciones": [],
+      "relaciones": [],
+      "agentes": []
+    },
+    {
+      "id": "pelo-sur",
+      "nombre": "Pelo Sur",
+      "descripcion": "Salón ficticio — aliases, valores por negocio, clase sensible, reserva de prueba.",
+      "skills": [
+        "descubrir-negocio",
+        "mapear-recorrido",
+        "diagnosticar-alerta"
+      ],
+      "hash": "pelo-sur-proyecto-v1",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-21",
+          "ruta": "catalogo/proyectos/pelo-sur/v1.md",
+          "nombreArchivo": "v1.md",
+          "hash": "pelo-sur-proyecto-md-v1"
+        }
+      ],
+      "legacyNegocio": true,
+      "baseDatos": "",
+      "colecciones": [],
+      "relaciones": [],
+      "agentes": []
     }
   ]
 }

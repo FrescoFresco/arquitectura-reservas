@@ -5,14 +5,18 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:migrate:local": "wrangler d1 migrations apply arquitectura-reservas --local",
-    "db:migrate:remote": "wrangler d1 migrations apply arquitectura-reservas --remote",
+    "build:ui": "node scripts/build-ui.mjs",
+    "deploy:ui": "npm run build:ui && wrangler deploy -c wrangler.ui.jsonc",
+    "deploy:pages": "npm run build:ui && wrangler pages deploy dist-ui --project-name=campos-ancla",
+    "db:migrate:local": "wrangler d1 migrations apply campos-ancla-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply campos-ancla-db --remote",
     "db:seed:local": "node scripts/seed-d1.mjs --local",
     "db:seed:remote": "node scripts/seed-d1.mjs --remote",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "hono": "^4.9.8"
+    "hono": "^4.9.8",
+    "mongodb": "^6.21.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261019.1",

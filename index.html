@@ -68,9 +68,11 @@
 .agente-estado{font-weight:700}
 .agente-estado.is-on{color:#0f7a45}
 .agente-estado.is-off{color:#8a6a2b}
-.agente-instrucciones{margin:0;width:100%;min-height:280px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;border:1px solid #d5deec;border-radius:10px;padding:12px;background:#f8fafc;color:#17212f;resize:vertical;white-space:pre-wrap}
-.agente-clave-box{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 0}
-.agente-clave-box code{font-size:12px;background:#edf3ff;color:#315eb6;padding:6px 10px;border-radius:8px;overflow-wrap:anywhere}
+.agente-clave-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 14px}
+.agente-clave-box{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1;min-width:0}
+.agente-clave-box>span{font-size:12px;font-weight:800;color:#677488;text-transform:uppercase;letter-spacing:.06em}
+.agente-clave-box code{font-size:13px;background:#edf3ff;color:#315eb6;padding:8px 12px;border-radius:8px;overflow-wrap:anywhere;font-weight:700}
+.agente-instrucciones{margin:0;width:100%;min-height:300px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.5;border:1px solid #d5deec;border-radius:10px;padding:12px;background:#f8fafc;color:#17212f;resize:vertical;white-space:pre-wrap}
 .btn.version,.btn.ghost{background:white;color:#1c63d5;border:1px solid #c5d4ef}
 .btn.version{display:block;width:100%;margin-top:12px}
 .btn.ver{display:inline-block;margin-top:10px}
@@ -171,10 +173,17 @@ dialog::backdrop{background:#17212f66}
 
 .catalogo-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:nowrap;margin:0 0 16px}
 .catalogo-toolbar .btn{flex:none}
+.agentes-sync{margin-right:auto;font-size:12px;font-weight:600;color:#8a97a8;white-space:nowrap}
 .dlg .reader-tabs{margin:12px 0 0}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
 .editar-anclas-top{justify-content:flex-end}
 .ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;line-height:1.25;padding:2px 6px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
+.ancla-aliases{display:flex;flex-wrap:wrap;gap:6px}
+.ancla-alias-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;padding:2px 7px;border-radius:8px;background:#edf3ff;color:#315eb6}
+.ancla-historial{display:flex;flex-direction:column;gap:10px}
+.ancla-historial-fila{display:grid;gap:4px;padding:10px 12px;border:1px solid #e5eaf1;border-radius:10px;background:#fff}
+.ancla-historial-fila time{font-size:12px;color:#677488}
+.ancla-historial-url{font-size:12px;color:#1c63d5;overflow-wrap:anywhere}
 .hash-full-btn{appearance:none;display:inline;margin:0;padding:0;border:0;background:transparent;cursor:pointer;text-align:left;max-width:100%}
 .hash-full{display:inline;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#edf3ff;color:#315eb6;padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
 .hash-full-btn:hover .hash-full{filter:brightness(.96)}
@@ -196,6 +205,40 @@ dialog::backdrop{background:#17212f66}
 .api-doc pre{overflow:auto;background:#f4f7fb;border:1px solid #e5eaf1;border-radius:10px;padding:12px;font-size:12px}
 .api-doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
 .api-doc hr{border:0;border-top:1px solid #e5eaf1;margin:20px 0}
+.doc-mongodb{padding:0 0 28px}
+.doc-mongodb .doc-subtabs{margin:0 0 14px}
+.mongo-conn-status{margin:0 0 12px;font-size:13px;color:#24334a}
+.mongo-conn-status code{font-size:12px}
+.mongo-conn-status.is-yes{color:#1b6b3a}
+.mongo-conn-status.is-no{color:#677488}
+.mongo-conn-status.is-err{color:#9b2c2c}
+.ajustes-sec{padding:4px 0 20px;max-width:560px}
+.ajustes-sec h3{margin:0 0 6px;font-size:18px;letter-spacing:-.02em;color:#17212f}
+.ajustes-sec .ajustes-lead{margin:0 0 16px;font-size:14px;line-height:1.55;color:#5f6f84}
+.ajustes-status-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 16px}
+.ajustes-status-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;font-size:13px;font-weight:700;background:#f4f7fb;color:#677488;border:1px solid #e5eaf1}
+.ajustes-status-badge.is-yes{background:#e8f6ee;color:#1b6b3a;border-color:#b7dfc5}
+.ajustes-status-badge.is-err{background:#fdecec;color:#9b2c2c;border-color:#f0c4c4}
+.ajustes-status-badge.is-no{background:#f4f7fb;color:#677488}
+.ajustes-hint{margin:0;font-size:12px;color:#75859a;line-height:1.4}
+.ajustes-form label{display:flex;flex-direction:column;gap:6px;margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#677488}
+.ajustes-form input{font:inherit;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;padding:10px 12px;border:1px solid #d5deec;border-radius:10px;color:#17212f;background:#fff}
+.ajustes-form input:focus{outline:2px solid #1c63d5;outline-offset:1px;border-color:#1c63d5}
+.ajustes-actions{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.ajustes-msg{margin:0;min-height:1.2em;font-size:13px;line-height:1.45;color:#5f6f84}
+.ajustes-msg.is-ok{color:#1b6b3a}
+.ajustes-msg.is-err{color:#9b2c2c}
+.ajustes-msg.is-info{color:#315eb6}
+.md-table-wrap{overflow:auto;margin:0 0 16px;border:1px solid #e5eaf1;border-radius:10px}
+.md-table-wrap table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.45}
+.md-table-wrap th,.md-table-wrap td{padding:8px 10px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top}
+.md-table-wrap th{background:#f4f7fb;color:#17212f;font-weight:700;white-space:nowrap}
+.md-table-wrap tr:last-child td{border-bottom:0}
+.md-table-wrap code{font-size:12px}
+.mongo-tipos-table tr.is-obsoleto{opacity:.48;color:#677488;background:#f8fafc}
+.mongo-tipos-table tr.is-obsoleto td{text-decoration:line-through;text-decoration-color:#b8c0cc}
+.api-doc .md-table-wrap,.doc-mongodb .md-table-wrap{max-width:100%}
+.doc-mongodb .api-doc{max-width:none;padding-top:0}
 .ancla-ficha-titulo{margin:0;font-size:18px;letter-spacing:-.02em;font-weight:700;color:#17212f;overflow-wrap:anywhere}
 .ancla-ficha-codigo{display:inline-block;width:fit-content;max-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6;background:#edf3ff;padding:3px 8px;border-radius:8px;overflow-wrap:anywhere}
 .ancla-ficha-tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid #e5eaf1;background:#fff;overflow-x:auto;scrollbar-width:none}
@@ -247,6 +290,22 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .ancla-pill-btn:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
 .icon-btn.is-on{background:#edf3ff}
 .ancla-ficha-vacio{margin:8px 0 0;color:#5f6f84;font-size:14px;line-height:1.5}
+.proy-campos-tabla{width:100%;border-collapse:collapse;font-size:13px}
+.proy-campos-tabla th,.proy-campos-tabla td{text-align:left;padding:8px 10px;border-bottom:1px solid #eef2f7;vertical-align:top}
+.proy-campos-tabla th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#677488}
+.proy-er-boxes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px}
+.proy-er-box{border:1px solid #c9d5e8;border-radius:12px;background:#fff;overflow:hidden}
+.proy-er-box h4{margin:0;padding:10px 12px;background:#edf3ff;color:#1c63d5;font-size:13px;font-weight:800}
+.proy-er-box ul{list-style:none;margin:0;padding:8px 12px 12px}
+.proy-er-box li{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.55;color:#315eb6}
+.proy-er-rels{margin:14px 0 0;font-size:12px;color:#5f6f84;line-height:1.5}
+.proy-mermaid-src{margin:0;padding:12px;background:#0f172a;color:#e2e8f0;border-radius:12px;font-size:11px;overflow:auto;max-height:280px}
+.proy-agente-card{border:1px solid #e5eaf1;border-radius:12px;padding:12px;margin:0 0 10px;background:#fff}
+.proy-agente-card h4{margin:0 0 6px;font-size:14px}
+.proy-agente-perms{margin:0;font-size:12px;color:#5f6f84;line-height:1.5}
+.proy-crear-bd-msg{margin:10px 0 0;font-size:13px;color:#0f7a45}
+.proy-crear-bd-msg.is-err{color:#b42318}
+.tabla-scroll{overflow:auto}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
 </style>
@@ -259,6 +318,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div class="hub-inner">
 <a href="#catalogos" data-destino="catalogos" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></a>
 <a href="#documentacion" data-destino="documentacion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Documentación</span></a>
+<a href="#ajustes/conexiones" data-destino="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Ajustes</span></a>
 </div>
 </nav>
 <div class="app-main">
@@ -278,6 +338,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <div id="campos-ancla-root"></div>
 </div>
 <div role="tabpanel" id="panel-campos-mongodb" data-catalogo="campos-mongodb" hidden>
+<p id="mongoCatalogConnStatus" class="nota mongo-conn-status" aria-live="polite">URI configurada: …</p>
 <div id="campos-mongodb-root"></div>
 </div>
 </section>
@@ -353,6 +414,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 </div>
 <div class="reader-top-acciones">
+<button type="button" class="btn primary" id="btnCrearBdProyecto" title="Crea la base, colecciones, índices y validación en Mongo">Crear base de datos</button>
 <div class="historial-ancla">
 <button type="button" class="icon-btn" id="btnHistorialProyecto" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialProyecto">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
@@ -372,28 +434,48 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones del proyecto">
-<button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabDoc" data-proy-tab="documento" aria-selected="true" aria-controls="proyPanelDoc">Documento</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabInterno" data-proy-tab="interno" aria-selected="false" aria-controls="proyPanelInterno">Interno</button>
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabAgentes" data-proy-tab="agentes" aria-selected="false" aria-controls="proyPanelAgentes">Agentes</button>
 </div>
-<div class="reader-panel" id="proyPanelDoc" role="tabpanel" aria-labelledby="proyTabDoc">
-<div class="md-wrap"><div class="md" id="proyMd"></div></div>
-</div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelSkills" role="tabpanel" aria-labelledby="proyTabSkills" hidden>
-<div class="editar-anclas-top">
+<div class="reader-panel ancla-ficha-body" id="proyPanelResumen" role="tabpanel" aria-labelledby="proyTabResumen">
+<dl class="ancla-ficha-dl" id="proyResumenDl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="proyReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Base de datos</dt><dd><code id="proyReaderBaseDatos">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
+<div class="ancla-ficha-fila"><dt>Skills</dt><dd id="proyResumenSkills">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Agentes</dt><dd id="proyResumenAgentes">—</dd></div>
+<div class="ancla-ficha-fila" id="proyLegacyFila" hidden><dt>Estado</dt><dd id="proyLegacyNota">Negocio legado (pendiente de borrar como proyecto)</dd></div>
+</dl>
+<p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
+<div class="editar-anclas-top" style="margin-top:0.75rem">
+<span class="historial-titulo">Skills</span>
 <button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills del proyecto" title="Editar skills">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
 </button>
 </div>
 <div class="ancla-ficha-skills" id="proySkillsLista"></div>
 <p class="ancla-ficha-vacio" id="proySkillsVacio" hidden>Ninguna skill asociada.</p>
+<div class="md-wrap" style="margin-top:1rem"><div class="md" id="proyMd"></div></div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelInterno" role="tabpanel" aria-labelledby="proyTabInterno" hidden>
-<dl class="ancla-ficha-dl">
-<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="proyReaderId">—</code></dd></div>
-<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
-<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
-</dl>
+<div class="reader-panel ancla-ficha-body" id="proyPanelDiagrama" role="tabpanel" aria-labelledby="proyTabDiagrama" hidden>
+<p class="ancla-ficha-vacio" id="proyDiagramaEstado">Cargando diagrama…</p>
+<pre class="proy-mermaid-src" id="proyDiagramaMermaid" hidden></pre>
+<div class="proy-diagrama-render" id="proyDiagramaRender" hidden></div>
+<div class="proy-er-boxes" id="proyDiagramaBoxes" hidden></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelCampos" role="tabpanel" aria-labelledby="proyTabCampos" hidden>
+<p class="ancla-ficha-vacio" id="proyCamposVacio" hidden>Sin campos Mongo en este proyecto.</p>
+<div class="tabla-scroll"><table class="proy-campos-tabla" id="proyCamposTabla" hidden>
+<thead><tr><th>Ancla</th><th>Campo Mongo</th><th>Colección</th><th>Tipo</th></tr></thead>
+<tbody id="proyCamposBody"></tbody>
+</table></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelAgentes" role="tabpanel" aria-labelledby="proyTabAgentes" hidden>
+<p class="ancla-ficha-vacio" id="proyAgentesVacio" hidden>Ningún agente asignado.</p>
+<div id="proyAgentesLista"></div>
 </div>
 </article>
 </dialog>
@@ -496,13 +578,52 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <ul>
 <li><strong>Proyecto ↔ Skill (N:M)</strong> — un proyecto contiene una o más skills; una skill puede estar en uno o más proyectos.</li>
 <li><strong>Skill → Campo ancla (1:N)</strong> — una skill declara uno o más campos ancla.</li>
-<li><strong>Ancla → Campo Mongo (0..1)</strong> — un campo ancla puede enlazar a un campo Mongo (opcional).</li>
+<li><strong>Ancla → Campo Mongo (0..1)</strong> — un campo ancla puede enlazar a un campo Mongo (opcional). Con <code>proyeccionMongo: array</code> agrupa <code>version.recorrido.campos.N.*</code> en un array BSON (lista canónica del recorrido).</li>
+<li><strong>Sin anclas huérfanas</strong> — todo hecho de un negocio (p. ej. Pelo Sur) entra como skill del proyecto; no persistir anclas sueltas fuera del catálogo.</li>
 <li><strong>Agente</strong> — invite + registro + latido; trabaja vía API, no con la UI.</li>
 <li><strong>Fundamento</strong> — bloque conceptual en Documentación con el que se describe el sistema.</li>
 </ul>
 </div>
 <div class="doc" role="tabpanel" id="panel-api" data-doc="api" hidden>
 <div id="apiDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando el contrato API…</p></div>
+</div>
+<div class="doc doc-mongodb" role="tabpanel" id="panel-mongodb" data-doc="mongodb" hidden>
+<p id="mongoConnStatus" class="nota mongo-conn-status" aria-live="polite">URI configurada: …</p>
+<p class="nota" style="margin:-4px 0 14px;font-size:13px"><a href="#ajustes/conexiones">Abrir Ajustes → Conexiones</a> para pegar o borrar la URI.</p>
+<div class="catalogo-tabs doc-subtabs" id="mongoDocTabs" role="tablist" aria-label="MongoDB"></div>
+<div id="mongoDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando documentación MongoDB…</p></div>
+</div>
+</section>
+<section class="main catalogos" id="ajustes" hidden aria-label="Ajustes">
+<div class="catalogo-tabs" id="ajustesTabs" role="tablist" aria-label="Ajustes">
+<button type="button" class="pestana" role="tab" id="tab-conexiones" data-ajuste="conexiones" aria-selected="true" aria-controls="panel-conexiones">
+<svg class="pestana-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+<span>Conexiones</span>
+</button>
+</div>
+<div role="tabpanel" id="panel-conexiones" data-ajuste-panel="conexiones" aria-labelledby="tab-conexiones">
+<div class="ajustes-sec">
+<h3>MongoDB Atlas</h3>
+<p class="ajustes-lead">Pega la URI aquí. Queda cifrada en el Worker; el panel no la vuelve a mostrar. Documentación → MongoDB sigue siendo solo lectura.</p>
+<div class="ajustes-status-row">
+<span id="ajustesMongoStatus" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
+<p id="ajustesMongoHint" class="ajustes-hint">La URI guardada no se vuelve a mostrar.</p>
+</div>
+<form class="ajustes-form" id="formAjustesMongo" autocomplete="off">
+<label>URI de conexión
+<input type="password" id="ajustesMongoUri" name="uri" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/" required>
+</label>
+<label>Nombre de base (opcional)
+<input type="text" id="ajustesMongoDb" name="db" autocomplete="off" spellcheck="false" placeholder="arquitectura_reservas">
+</label>
+<div class="ajustes-actions">
+<button type="submit" class="btn primary" id="ajustesMongoGuardar">Guardar</button>
+<button type="button" class="btn ghost" id="ajustesMongoProbar">Probar</button>
+<button type="button" class="btn ghost" id="ajustesMongoBorrar">Borrar</button>
+</div>
+<p id="ajustesMongoMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
+</form>
+</div>
 </div>
 </section>
 </div>
@@ -608,13 +729,16 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgCampo" aria-labelledby="dlgCampoTitulo">
 <form class="dlg" id="formCampo">
 <h3 id="dlgCampoTitulo">Añadir ancla</h3>
-<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="nota">Se guarda en la API viva (Cloudflare D1) cuando hay clave; si no, en este navegador.</p>
 <p class="form-error" id="campoError" role="alert"></p>
 <label>Ancla
 <input type="text" name="ancla" maxlength="120" autocomplete="off" required placeholder="_negocio.nombre_">
 </label>
 <label>Etiqueta
 <input type="text" name="etiqueta" maxlength="120" autocomplete="off" placeholder="Nombre del negocio">
+</label>
+<label>Aliases (uno por línea)
+<textarea name="aliases" rows="3" placeholder="contacto.telefono&#10;telefono_local"></textarea>
 </label>
 <label>Clave Mongo
 <input type="text" name="claveMongo" maxlength="120" autocomplete="off" placeholder="nombre">
@@ -629,8 +753,9 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <input type="text" name="tipo" maxlength="40" autocomplete="off" placeholder="string">
 </label>
 <label><input type="checkbox" name="obligatorio"> Obligatorio</label>
+<label><input type="checkbox" name="sensible"> Sensible (enmascarar en UI/logs)</label>
 <label>Formato
-<input type="text" name="formato" maxlength="80" autocomplete="off" placeholder="uri">
+<input type="text" name="formato" maxlength="80" autocomplete="off" placeholder="uri, sin_pii">
 </label>
 <label>Descripción
 <textarea name="descripcion" placeholder="Qué significa este campo"></textarea>
@@ -670,6 +795,15 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </label>
 <label>Enlazado a ancla
 <input type="text" name="ancla" maxlength="120" autocomplete="off" placeholder="_negocio.nombre_">
+</label>
+<label>Proyección Mongo
+<select name="proyeccionMongo">
+<option value="">—</option>
+<option value="array">array (recorrido.campos.N.* → [{…}])</option>
+</select>
+</label>
+<label>Elemento proyección (JSON)
+<textarea name="proyeccionElemento" rows="3" placeholder='{"nombre":"version.recorrido.campos.N.nombre","selector":"version.recorrido.campos.N.selector","clase":"version.recorrido.campos.N.clase"}'></textarea>
 </label>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="mongoCancelar">Cancelar</button>
@@ -796,15 +930,17 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 </dialog>
 <dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
 <div class="dlg" id="panelDarAcceso">
-<h3 id="dlgDarAccesoTitulo">Dar acceso a un agente</h3>
-<p class="nota">Copia estas instrucciones y pégalas en el sistema / prompt del otro agente. No creas el agente a mano: él se registra solo con la clave.</p>
+<h3 id="dlgDarAccesoTitulo">Nuevo agente</h3>
+<p class="nota">Se crea una clave en Cloudflare. Copia el bloque y pégalo al agente: lee Documentación → API, se registra y late solo. Sin caducidad. Sin GitHub.</p>
 <p class="form-error" id="darAccesoError" role="alert"></p>
+<div class="agente-clave-row">
 <div class="agente-clave-box">
-<span>Clave API</span>
-<code id="darAccesoClave"></code>
-<span class="origen" style="margin:0">Sin caducidad</span>
+<span>Clave</span>
+<code id="darAccesoClave">…</code>
 </div>
-<label for="darAccesoTexto">Instrucciones (copiar todo)
+<button type="button" class="btn ghost" id="darAccesoCopiarClave">Copiar clave</button>
+</div>
+<label for="darAccesoTexto">Para pegar en el agente
 <textarea id="darAccesoTexto" class="agente-instrucciones" readonly spellcheck="false"></textarea>
 </label>
 <div class="dlg-actions">
@@ -816,7 +952,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <dialog id="dlgEditarAgente" aria-labelledby="dlgEditarAgenteTitulo">
 <form class="dlg" id="formEditarAgente">
 <h3 id="dlgEditarAgenteTitulo">Editar agente</h3>
-<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="nota">Se guarda en la API (D1) cuando hay clave; si no, solo en este navegador.</p>
 <p class="form-error" id="editarAgenteError" role="alert"></p>
 <label>Nombre
 <input type="text" name="nombre" maxlength="120" autocomplete="off" required>
@@ -845,7 +981,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script>
 (function () {
-  var IDS = ['catalogos', 'documentacion'];
+  var IDS = ['catalogos', 'documentacion', 'ajustes'];
   function abrir(id) {
     if (IDS.indexOf(id) < 0) id = 'catalogos';
     for (var i = 0; i < IDS.length; i++) {
@@ -860,6 +996,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
   }
   function desdeHash() {
     var h = (location.hash || '').replace(/^#/, '');
+    if (h.indexOf('/') >= 0) h = h.split('/')[0];
     if (h === 'mapa') return 'catalogos';
     return IDS.indexOf(h) < 0 ? 'catalogos' : h;
   }
@@ -880,13 +1017,13 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 })();
 </script>
 <script src="skills-ui.js?v=20261020y"></script>
-<script src="campos-ancla-ui.js?v=20261020z"></script>
-<script src="campos-mongodb-ui.js?v=20261020z"></script>
-<script src="proyectos-ui.js?v=20261020z"></script>
-<script src="agentes-ui.js?v=20261020z"></script>
+<script src="campos-ancla-ui.js?v=20261021pelo"></script>
+<script src="campos-mongodb-ui.js?v=20261021pelo"></script>
+<script src="proyectos-ui.js?v=20261021proysoft1"></script>
+<script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261020cf"></script>
-<script src="token-ui.js?v=20261020b"></script>
+<script src="catalogo-ui.js?v=20261021proysoft1"></script>
+<script src="ajustes-ui.js?v=20261021a"></script>
 
 </body>
 </html>

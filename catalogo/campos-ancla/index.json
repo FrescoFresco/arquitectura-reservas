@@ -19,7 +19,11 @@
         "mapear-recorrido",
         "descubrir-negocio"
       ],
-      "hash": "701c7446ec3f25fddc68a35dd4c7e6ac5fbdc3c69339f4f13ca0c8d10540f655"
+      "hash": "701c7446ec3f25fddc68a35dd4c7e6ac5fbdc3c69339f4f13ca0c8d10540f655",
+      "aliases": [
+        "salon_name",
+        "nombre_local"
+      ]
     },
     {
       "id": "negocio.url",
@@ -67,13 +71,19 @@
       "baseDatos": "arquitectura_reservas",
       "tipo": "string",
       "obligatorio": false,
-      "formato": "e164",
-      "descripcion": "Teléfono público del local, con prefijo internacional.",
-      "ejemplo": "+34 928 000 000",
+      "formato": "E.164",
+      "descripcion": "Teléfono público del local (canónico). Alias: contacto.telefono, telefono_local. Valores por negocio_id, no en esta ficha.",
+      "ejemplo": "+34699111222",
       "skills": [
         "descubrir-negocio"
       ],
-      "hash": "14bd8ff0d0fafa096030629cab84a11b96ab663fce7df47b9e8400152a28426d"
+      "hash": "14bd8ff0d0fafa096030629cab84a11b96ab663fce7df47b9e8400152a28426d",
+      "aliases": [
+        "contacto.telefono",
+        "telefono_local"
+      ],
+      "observaciones": [],
+      "sensible": false
     },
     {
       "id": "proceso.url_inicio",
@@ -84,16 +94,17 @@
       "baseDatos": "arquitectura_reservas",
       "tipo": "string",
       "obligatorio": true,
-      "formato": "uri",
-      "descripcion": "Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script.",
-      "ejemplo": "https://restaurantmogan.com/reservation/",
+      "formato": "uri, sin_pii",
+      "descripcion": "Punto A: URL de inicio del proceso de reserva, sin query con PII. Persistencia strict: rechaza nombre/tel/email en query.",
+      "ejemplo": "https://book.pelosur.es/",
       "skills": [
         "mapear-recorrido",
         "generar-script",
         "descubrir-negocio",
         "diagnosticar-alerta"
       ],
-      "hash": "2ce1ef10b6c9ff0a5a85fc1aa1152d0b86879b7f53aa98f0a4b3cef4e2fca987"
+      "hash": "2ce1ef10b6c9ff0a5a85fc1aa1152d0b86879b7f53aa98f0a4b3cef4e2fca987",
+      "observaciones": []
     },
     {
       "id": "version.recorrido.sistema.nombre",
@@ -149,22 +160,80 @@
       "hash": "cd1bc38d018249389c6ac17edb2529f7db04f80e616f880e716c7523905ee28e"
     },
     {
+      "id": "version.recorrido.campos.N",
+      "ancla": "_version.recorrido.campos.N_",
+      "etiqueta": "Campo N del recorrido (lista)",
+      "claveMongo": "recorrido.campos",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "array",
+      "obligatorio": false,
+      "formato": "proyeccion-array",
+      "descripcion": "Ancla de lista (X1/X5): índice de la proyección array versiones.recorrido.campos. Plantillas hijas: nombre, selector, clase.",
+      "ejemplo": "[{nombre, selector, clase}]",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x3-version-recorrido-campos-N"
+    },
+    {
+      "id": "version.recorrido.campos.N.nombre",
+      "ancla": "_version.recorrido.campos.N.nombre_",
+      "etiqueta": "Campo N · nombre",
+      "claveMongo": "recorrido.campos.N.nombre",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Plantilla: nombre del campo N en la versión del recorrido (lista canónica; no formularios.campos).",
+      "ejemplo": "Teléfono",
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x1-version-recorrido-campos-N-nombre"
+    },
+    {
       "id": "version.recorrido.campos.N.selector",
       "ancla": "_version.recorrido.campos.N.selector_",
-      "etiqueta": "Selector del campo",
+      "etiqueta": "Campo N · selector",
       "claveMongo": "recorrido.campos.N.selector",
       "coleccion": "versiones",
       "baseDatos": "arquitectura_reservas",
       "tipo": "string",
       "obligatorio": true,
       "formato": "playwright-locator",
-      "descripcion": "Selector de Playwright que encuentra el campo de forma única.",
-      "ejemplo": "getByLabel('Email')",
+      "descripcion": "Selector de Playwright del campo N (lista canónica en la versión del recorrido).",
+      "ejemplo": "#client-phone",
       "skills": [
         "mapear-recorrido",
         "generar-script"
       ],
       "hash": "0516b8222d3004f6703688a50aac9f182b7629397629867d74e4c39ada15c364"
+    },
+    {
+      "id": "version.recorrido.campos.N.clase",
+      "ancla": "_version.recorrido.campos.N.clase_",
+      "etiqueta": "Campo N · clase",
+      "claveMongo": "recorrido.campos.N.clase",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "enum:normal|texto_libre|identificador|sensible|consentimiento",
+      "descripcion": "Clase del campo N (X3): normal | texto_libre | identificador | sensible | consentimiento. Sustituye el sí/no `sensible`. Nunca persistir el valor PII del cliente.",
+      "ejemplo": "normal",
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x3-version-recorrido-campos-N-clase"
     },
     {
       "id": "version.recorrido.boton_confirmar.selector",
@@ -251,6 +320,82 @@
         "diagnosticar-alerta"
       ],
       "hash": "00e4de7e642dd388922c6827ad0445075a313293d810de51f54c3dd7b0e72ba6"
+    },
+    {
+      "id": "reserva_prueba.cuando",
+      "ancla": "_reserva_prueba.cuando_",
+      "etiqueta": "Reserva de prueba · cuándo",
+      "claveMongo": "cuando",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "2026-10-23T10:00:00+02:00",
+      "descripcion": "Momento de la reserva de prueba (ISO-8601 → Mongo date).",
+      "formato": "datetime",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "date",
+      "obligatorio": true,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "audit-x4-reserva_prueba-cuando"
+    },
+    {
+      "id": "reserva_prueba.estado",
+      "ancla": "_reserva_prueba.estado_",
+      "etiqueta": "Reserva de prueba · estado",
+      "claveMongo": "estado",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "cancelada",
+      "descripcion": "Estado: pendiente | confirmada | cancelada | por_cancelar.",
+      "formato": "enum:pendiente|confirmada|cancelada|por_cancelar",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "audit-x4-reserva_prueba-estado"
+    },
+    {
+      "id": "reserva_prueba.cancelada_en",
+      "ancla": "_reserva_prueba.cancelada_en_",
+      "etiqueta": "Reserva de prueba · cancelada en",
+      "claveMongo": "cancelada_en",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "2026-10-23T10:15:00+02:00",
+      "descripcion": "Cuándo se canceló la reserva de prueba (ISO-8601 → Mongo date).",
+      "formato": "datetime",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "date",
+      "obligatorio": false,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "audit-x4-reserva_prueba-cancelada_en"
+    },
+    {
+      "id": "reserva_prueba.nota",
+      "ancla": "_reserva_prueba.nota_",
+      "etiqueta": "Reserva de prueba · nota",
+      "claveMongo": "nota",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "Probada vía Booksy; cancelada en el panel del software",
+      "descripcion": "Nota de seguimiento de la reserva de prueba.",
+      "formato": "",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "audit-x4-reserva_prueba-nota"
     }
   ]
 }

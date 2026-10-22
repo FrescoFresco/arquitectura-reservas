@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "arquitectura-reservas-api",
+  "name": "campos-ancla-api",
   "main": "src/worker.ts",
   "compatibility_date": "2026-10-20",
   "observability": {
@@ -9,16 +9,25 @@
       "enabled": true
     }
   },
+  // Secrets (no commits):
+  //   ENCRYPTION_KEY — AES key material for in-app Mongo URI in D1 (Ajustes → Conexiones)
+  //   MONGODB_URI    — optional fallback if nothing stored in D1
+  //   MONGODB_DB     — optional default arquitectura_reservas
+  //   npx wrangler secret put ENCRYPTION_KEY
+  //   npx wrangler secret put MONGODB_URI
   "vars": {
-    "PUBLIC_UI_ORIGIN": "https://frescofresco.github.io"
+    "PUBLIC_UI_ORIGIN": "https://campos-ancla.web-legal-es.workers.dev",
+    "CORS_ORIGINS": "https://frescofresco.github.io"
   },
+  "rules": [
+    { "type": "Text", "globs": ["**/documentacion/api.md"], "fallthrough": true }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "arquitectura-reservas",
-      // Placeholder until `wrangler d1 create arquitectura-reservas` (replace with real UUID).
-      "database_id": "00000000-0000-4000-8000-000000000001",
-      "preview_database_id": "local-arquitectura-reservas",
+      "database_name": "campos-ancla-db",
+      "database_id": "42cb5187-a922-4e40-8227-0e72c1002f15",
+      "preview_database_id": "local-campos-ancla-db",
       "migrations_dir": "migrations"
     }
   ]
