@@ -240,7 +240,8 @@ const state = {
     indexError: false,
     remotos: [],
     lista: [],
-    abiertoId: null
+    abiertoId: null,
+    initialTab: null
   },
   colecciones: {
     ready: false,
@@ -248,7 +249,10 @@ const state = {
     lista: [],
     abiertaKey: null,
     volverA: null,
-    tab: 'resumen'
+    navigatingAway: false,
+    tab: 'resumen',
+    diagramaToken: 0,
+    _mermaidPromise: null
   },
   proyectos: {
     ready: false,
@@ -1281,8 +1285,54 @@ function pintarMongo() {
   }
 }
 
+function coleccionItemParaMongo(campo) {
+  if (!campo || !campo.coleccion) return null;
+  refrescarListaColecciones();
+  let col = null;
+  if (campo.proyecto) {
+    col = state.colecciones.lista.find(function (c) {
+      return c.proyectoId === campo.proyecto && c.id === campo.coleccion;
+    }) || null;
+  }
+  if (!col && campo.baseDatos) {
+    col = state.colecciones.lista.find(function (c) {
+      return c.baseDatos === campo.baseDatos && c.id === campo.coleccion;
+    }) || null;
+  }
+  if (!col) {
+    const proy = (state.proyectos.lista || []).find(function (p) {
+      return (campo.proyecto && p.id === campo.proyecto)
+        || (campo.baseDatos && p.baseDatos === campo.baseDatos);
+    });
+    col = {
+      key: claveColeccion(proy ? proy.id : (campo.proyecto || '?'), campo.coleccion),
+      id: campo.coleccion,
+      descripcion: '',
+      proyectoId: proy ? proy.id : (campo.proyecto || ''),
+      proyectoNombre: proy ? (proy.nombre || proy.id) : (campo.proyecto || ''),
+      baseDatos: (proy && proy.baseDatos) || campo.baseDatos || '',
+      nCampos: null
+    };
+  }
+  return col;
+}
+
+function abrirColeccionDesdeMongo(key) {
+  const mongoId = state.mongo.abiertoId;
+  abrirFichaColeccion(key, {
+    volverA: mongoId ? { tipo: 'mongo', id: mongoId } : { tipo: 'catalogo' }
+  });
+}
+
 function extrasFichaMongo(campo) {
   const extras = {};
+  const col = coleccionItemParaMongo(campo);
+  extras.coleccionItems = col ? [col] : [];
+  extras.onAbrirColeccion = function (key) { abrirColeccionDesdeMongo(key); };
+  if (state.mongo.initialTab) {
+    extras.initialTab = state.mongo.initialTab;
+    state.mongo.initialTab = null;
+  }
   if (campo && campo.id) {
     extras.onEditar = function () { abrirDialogoEditarMongo(campo.id); };
     extras.onEliminar = function () {
@@ -1755,8 +1805,20 @@ function extrasFichaAncla(campo) {
   state.instrucciones.forEach(function (ins) {
     nombres[ins.id] = ins.nombre;
   });
+  const skillIds = campo && Array.isArray(campo.skills) ? campo.skills : [];
+  const skillItems = skillIds.map(function (id) {
+    const found = state.instrucciones.find(function (ins) { return ins.id === id; });
+    if (found) return found;
+    return {
+      id: id,
+      nombre: nombres[id] || id,
+      descripcion: '',
+      versiones: [{ numero: 1, fecha: '' }]
+    };
+  });
   const extras = {
     nombresSkill: nombres,
+    skillItems: skillItems,
     mongo: null,
     onAbrirSkill: function (id) { abrirVistaSkill(id); }
   };
@@ -4833,12 +4895,15 @@ function cargarColecciones() {
 }
 
 function seleccionarColReaderTab(id) {
-  if (id !== 'resumen' && id !== 'base-datos' && id !== 'campos') id = 'resumen';
+  if (id !== 'resumen' && id !== 'base-datos' && id !== 'diagrama' && id !== 'campos') {
+    id = 'resumen';
+  }
   state.colecciones.tab = id;
   const tabs = document.querySelectorAll('#colReaderTabs [data-col-tab]');
   const panels = {
     resumen: document.getElementById('colPanelResumen'),
     'base-datos': document.getElementById('colPanelBaseDatos'),
+    diagrama: document.getElementById('colPanelDiagrama'),
     campos: document.getElementById('colPanelCampos')
   };
   tabs.forEach(function (btn) {
@@ -4850,7 +4915,148 @@ function seleccionarColReaderTab(id) {
     if (panels[k]) panels[k].hidden = k !== id;
   });
   if (id === 'base-datos') pintarColeccionBaseDatos(coleccionAbierta());
+  if (id === 'diagrama') cargarColeccionDiagrama(coleccionAbierta());
   if (id === 'campos') pintarColeccionCampos(coleccionAbierta());
+}
+
+function cargarMermaidLib() {
+  if (window.mermaid) return Promise.resolve(window.mermaid);
+  if (state.colecciones._mermaidPromise) return state.colecciones._mermaidPromise;
+  state.colecciones._mermaidPromise = new Promise(function (resolve, reject) {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+    s.async = true;
+    s.onload = function () {
+      if (!window.mermaid) {
+        reject(new Error('mermaid'));
+        return;
+      }
+      try {
+        window.mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: 'default'
+        });
+      } catch (err) {}
+      resolve(window.mermaid);
+    };
+    s.onerror = function () { reject(new Error('mermaid-load')); };
+    document.head.appendChild(s);
+  });
+  return state.colecciones._mermaidPromise;
+}
+
+function renderMermaidEn(el, fuente, tokenRef) {
+  if (!el) return Promise.resolve();
+  el.replaceChildren();
+  el.hidden = false;
+  const token = ++state.colecciones.diagramaToken;
+  if (tokenRef) tokenRef.current = token;
+  return cargarMermaidLib()
+    .then(function (mermaid) {
+      if (token !== state.colecciones.diagramaToken) return;
+      const renderId = 'colErSvg' + token;
+      return Promise.resolve(mermaid.render(renderId, fuente)).then(function (res) {
+        if (token !== state.colecciones.diagramaToken) return;
+        const svg = res && res.svg ? res.svg : '';
+        if (!svg) throw new Error('sin-svg');
+        el.innerHTML = svg;
+      });
+    })
+    .catch(function () {
+      if (token !== state.colecciones.diagramaToken) return;
+      const pre = document.createElement('pre');
+      pre.className = 'proy-mermaid-src';
+      pre.textContent = fuente || '';
+      el.replaceChildren(pre);
+    });
+}
+
+function cargarColeccionDiagrama(col) {
+  const estado = document.getElementById('colDiagramaEstado');
+  const render = document.getElementById('colDiagramaRender');
+  const boxes = document.getElementById('colDiagramaBoxes');
+  if (!col || !col.proyectoId) {
+    if (estado) {
+      estado.hidden = false;
+      estado.textContent = 'Sin base de datos padre para dibujar el diagrama.';
+    }
+    if (render) {
+      render.hidden = true;
+      render.replaceChildren();
+    }
+    if (boxes) {
+      boxes.hidden = true;
+      boxes.replaceChildren();
+    }
+    return;
+  }
+  if (estado) {
+    estado.hidden = false;
+    estado.textContent = 'Cargando diagrama…';
+  }
+  if (render) {
+    render.hidden = true;
+    render.replaceChildren();
+  }
+  if (boxes) {
+    boxes.hidden = true;
+    boxes.replaceChildren();
+  }
+  const url = '/v1/proyectos/' + encodeURIComponent(col.proyectoId)
+    + '/diagrama?coleccion=' + encodeURIComponent(col.id);
+  apiFetch(url)
+    .then(function (data) {
+      const abierta = coleccionAbierta();
+      if (!abierta || abierta.key !== col.key) return;
+      const tabOn = document.querySelector('#colReaderTabs [data-col-tab="diagrama"].is-on');
+      if (!tabOn) return;
+      const d = data && data.diagrama ? data.diagrama : data;
+      if (!d) throw new Error('sin diagrama');
+      const cols = d.colecciones || [];
+      if (!cols.length) {
+        if (estado) {
+          estado.hidden = false;
+          estado.textContent = 'No hay entidades para esta colección.';
+        }
+        return;
+      }
+      if (estado) estado.hidden = true;
+      if (render) {
+        renderMermaidEn(render, d.mermaid || 'erDiagram\n');
+      }
+      if (boxes) {
+        boxes.replaceChildren();
+        cols.forEach(function (c) {
+          const box = el('div', 'proy-er-box', null);
+          box.append(el('h4', null, c.id));
+          const ul = document.createElement('ul');
+          ul.appendChild(el('li', null, '_id · objectid'));
+          (c.campos || []).forEach(function (f) {
+            const label = (f.clave || '?') + ' · ' + (f.bsonType || 'string') + (f.obligatorio ? ' *' : '');
+            ul.appendChild(el('li', null, label));
+          });
+          box.append(ul);
+          boxes.append(box);
+        });
+        if ((d.relaciones || []).length) {
+          const rels = el('p', 'proy-er-rels', null);
+          rels.textContent = (d.relaciones || []).map(function (r) {
+            return (r.desde || '') + ' → ' + (r.hacia || '') + ' (' + (r.tipo || 'N:1') + ')';
+          }).join(' · ');
+          boxes.append(rels);
+        }
+        boxes.hidden = false;
+      }
+    })
+    .catch(function () {
+      const abierta = coleccionAbierta();
+      if (!abierta || abierta.key !== col.key) return;
+      if (estado) {
+        estado.hidden = false;
+        estado.textContent = 'No se pudo cargar el diagrama de esta colección.';
+      }
+    });
 }
 
 function abrirProyectoDesdeColeccion(proyId) {
@@ -5028,6 +5234,13 @@ function alCerrarFichaColeccion() {
     setTimeout(function () {
       abrirProyecto(volver.id);
       seleccionarProyReaderTab('colecciones');
+    }, 0);
+    return;
+  }
+  if (volver && volver.tipo === 'mongo' && volver.id) {
+    setTimeout(function () {
+      state.mongo.initialTab = 'coleccion';
+      abrirFichaMongo(volver.id);
     }, 0);
     return;
   }

@@ -474,19 +474,26 @@ app.get('/v1/proyectos/:id/diagrama', async (c) => {
     .bind(id)
     .all();
   const campos = (camposRows.results || []).map((r) => mapMongo(r as Record<string, unknown>)) as MongoCampoShape[];
+  const coleccionQ = String(c.req.query('coleccion') || '').trim();
   const diagrama = buildDiagrama(
     {
       baseDatos: proy.baseDatos,
       colecciones: proy.colecciones,
       relaciones: proy.relaciones,
     },
-    campos
+    campos,
+    coleccionQ ? { coleccion: coleccionQ } : undefined
   );
   const format = String(c.req.query('format') || 'json').toLowerCase();
   if (format === 'mermaid' || format === 'text') {
     return c.text(diagrama.mermaid, 200, { 'Content-Type': 'text/plain; charset=utf-8' });
   }
-  return c.json({ ok: true, proyecto: id, diagrama });
+  return c.json({
+    ok: true,
+    proyecto: id,
+    ...(coleccionQ ? { coleccion: coleccionQ } : {}),
+    diagrama,
+  });
 });
 
 app.get('/v1/proyectos/:id', async (c) => {

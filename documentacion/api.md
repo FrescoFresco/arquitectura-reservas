@@ -181,6 +181,7 @@ En la UI el panel se llama **Base de datos**. En API el recurso canónico sigue 
 GET  {API_BASE}/v1/proyectos/:id/diagrama
 GET  {API_BASE}/v1/esquemas/:id/diagrama
 → { ok, proyecto, diagrama: { mermaid, colecciones, relaciones, baseDatos } }
+  ?coleccion=negocios → erDiagram centrado en esa colección + vecinas por relaciones
   ?format=mermaid → text/plain con el erDiagram
 
 POST {API_BASE}/v1/proyectos/:id/crear-bd

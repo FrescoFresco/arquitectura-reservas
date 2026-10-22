@@ -75,18 +75,20 @@
 
   function ColeccionesApp(props) {
     var bridge = props.bridge;
+    var embed = !!props.embed;
     var snap = bridge.getSnapshot();
     var colecciones = snap.colecciones || [];
     var ready = snap.ready;
     var indexError = snap.indexError;
     var abierta = snap.abierta;
+    var emptyMsg = props.emptyMsg || 'No hay colecciones.';
 
     var estado = '';
     if (!ready) estado = 'Cargando el índice…';
     else if (indexError) estado = 'No se pudo leer el índice compartido.';
-    else if (!colecciones.length) estado = 'No hay colecciones.';
+    else if (!colecciones.length) estado = emptyMsg;
 
-    return e('div', { className: 'colecciones-app' },
+    return e('div', { className: 'colecciones-app' + (embed ? ' is-embed' : '') },
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
       e('div', { className: 'catalogo-lista', role: 'list' },
         colecciones.map(function (col) {
@@ -102,6 +104,7 @@
   }
 
   var reactRoot = null;
+  var listaRoots = {};
 
   function montar(bridge) {
     var root = document.getElementById('colecciones-root');
@@ -110,8 +113,23 @@
     reactRoot.render(e(ColeccionesApp, { bridge: bridge }));
   }
 
+  /** Lista embebible (p. ej. pestaña Colección de un campo Mongo). */
+  function montarLista(elOrId, bridge, opts) {
+    opts = opts || {};
+    var el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (!el || !bridge) return;
+    var key = el.id || 'colecciones-embed';
+    if (!listaRoots[key]) listaRoots[key] = ReactDOM.createRoot(el);
+    listaRoots[key].render(e(ColeccionesApp, {
+      bridge: bridge,
+      embed: true,
+      emptyMsg: opts.emptyMsg || 'Sin colección padre.'
+    }));
+  }
+
   window.ColeccionesUI = {
     montar: montar,
-    refrescar: function (bridge) { montar(bridge); }
+    refrescar: function (bridge) { montar(bridge); },
+    montarLista: montarLista
   };
 })();

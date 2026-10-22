@@ -210,35 +210,37 @@
   }
 
   function PanelSkills(props) {
-    var skills = props.skills || [];
-    var nombres = props.nombres || {};
+    var mountRef = React.useRef(null);
+    var skillItems = props.skillItems || [];
     var onAbrirSkill = props.onAbrirSkill;
-    if (!skills.length) {
-      return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-skills', role: 'tabpanel' },
-        'Ninguna skill usa este ancla todavía.'
-      );
-    }
-    return e('div', { className: 'ancla-ficha-skills', id: 'ancla-panel-skills', role: 'tabpanel' },
-      skills.map(function (id) {
-        var nombre = nombreSkill(id, nombres);
-        return e('button', {
-          type: 'button',
-          className: 'ancla-skill-card',
-          key: id,
-          title: 'Ver skill',
-          'aria-label': 'Ver skill ' + nombre,
-          onClick: function () {
-            if (onAbrirSkill) onAbrirSkill(id);
-          }
+
+    React.useEffect(function () {
+      var el = mountRef.current;
+      if (!el || !window.SkillsUI || typeof window.SkillsUI.montarLista !== 'function') return;
+      window.SkillsUI.montarLista(el, {
+        getSnapshot: function () {
+          return {
+            ready: true,
+            indexError: false,
+            instrucciones: skillItems,
+            abierta: null
+          };
         },
-          e('span', { className: 'ancla-skill-main' },
-            e('span', { className: 'ancla-skill-nombre' }, nombre),
-            e('code', { className: 'ancla-skill-id' }, id)
-          ),
-          e('span', { className: 'ancla-skill-enlace', 'aria-hidden': 'true' }, e(IconoEnlaceExterno))
-        );
-      })
-    );
+        añadirSkill: function () {},
+        abrirSkill: function (id) {
+          if (onAbrirSkill) onAbrirSkill(id);
+        }
+      }, {
+        emptyMsg: 'Ninguna skill usa este ancla todavía.'
+      });
+    }, [skillItems, onAbrirSkill]);
+
+    return e('div', {
+      className: 'proy-tab-catalogo',
+      id: 'ancla-panel-skills',
+      role: 'tabpanel',
+      ref: mountRef
+    });
   }
 
   function PanelInterno(props) {
@@ -341,6 +343,7 @@
         tab === 'mongo' ? e(PanelMongo, { campo: c, mongo: props.mongo }) : null,
         tab === 'skills' ? e(PanelSkills, {
           skills: skills,
+          skillItems: props.skillItems || [],
           nombres: props.nombresSkill,
           onAbrirSkill: props.onAbrirSkill
         }) : null,
@@ -485,6 +488,7 @@
       onEliminar: opts.onEliminar || null,
       mongo: opts.mongo || null,
       nombresSkill: opts.nombresSkill || {},
+      skillItems: opts.skillItems || [],
       onAbrirSkill: opts.onAbrirSkill || null,
       negocioId: opts.negocioId || 'pelo-sur'
     }));
