@@ -504,10 +504,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones de la base de datos">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDocumento" data-proy-tab="documento" aria-selected="false" aria-controls="proyPanelDocumento">Documento</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabColecciones" data-proy-tab="colecciones" aria-selected="false" aria-controls="proyPanelColecciones">Colecciones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabEmpujar" data-proy-tab="empujar" aria-selected="false" aria-controls="proyPanelEmpujar">Empujar</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelResumen" role="tabpanel" aria-labelledby="proyTabResumen">
 <dl class="ancla-ficha-dl" id="proyResumenDl">
@@ -515,25 +517,14 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Base de datos</dt><dd><code id="proyReaderBaseDatos">—</code></dd></div>
 <div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
-<div class="ancla-ficha-fila"><dt>Skills</dt><dd id="proyResumenSkills">—</dd></div>
 <div class="ancla-ficha-fila" id="proyLegacyFila" hidden><dt>Estado</dt><dd id="proyLegacyNota">Negocio legado (pendiente de borrar como base de datos)</dd></div>
 </dl>
 <p class="historial-titulo" style="margin-top:0.75rem">Cluster</p>
 <div id="proyClusterLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="proyClusterVacio" hidden>Sin cluster asignado. La URI Atlas vive en el Cluster.</p>
-<p class="historial-titulo" style="margin-top:0.75rem">Empujar esquema</p>
-<p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run).</p>
-<p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
-<div class="proy-empujar-plan" id="proyEmpujarPlan" hidden></div>
-<div class="editar-anclas-top" style="margin-top:0.75rem">
-<span class="historial-titulo">Skills</span>
-<button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills de la base de datos" title="Editar skills">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-</button>
 </div>
-<div class="ancla-ficha-skills" id="proySkillsLista"></div>
-<p class="ancla-ficha-vacio" id="proySkillsVacio" hidden>Ninguna skill asociada.</p>
-<div class="md-wrap" style="margin-top:1rem"><div class="md" id="proyMd"></div></div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelDocumento" role="tabpanel" aria-labelledby="proyTabDocumento" hidden>
+<div class="md-wrap"><div class="md" id="proyMd"></div></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelColecciones" role="tabpanel" aria-labelledby="proyTabColecciones" hidden>
 <div id="proyColeccionesLista" class="proy-tab-catalogo"></div>
@@ -555,7 +546,21 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div id="proyCamposLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelSkills" role="tabpanel" aria-labelledby="proyTabSkills" hidden>
+<div class="editar-anclas-top" style="margin-bottom:0.75rem">
+<span class="historial-titulo">Skills asociadas</span>
+<button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills de la base de datos" title="Editar skills">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+</div>
 <div id="proySkillsTabLista" class="proy-tab-catalogo"></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelEmpujar" role="tabpanel" aria-labelledby="proyTabEmpujar" hidden>
+<p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run). Usa el botón <strong>Empujar esquema</strong> arriba o el de esta pestaña.</p>
+<div class="ajustes-actions" style="margin:12px 0">
+<button type="button" class="btn primary" id="btnEmpujarEsquemaTab" title="Empuja colecciones, validators e índices a Mongo Atlas (o muestra el plan si no hay URI)">Empujar esquema</button>
+</div>
+<p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
+<div class="proy-empujar-plan" id="proyEmpujarPlan" hidden></div>
 </div>
 </article>
 </dialog>
@@ -1044,18 +1049,27 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="icon-btn ficha-cerrar-legacy" id="btnCerrarAgente" aria-label="Atrás" title="Atrás" hidden>×</button>
 </div>
 </div>
-<div class="ancla-ficha-body">
+<div class="ancla-ficha-tabs reader-tabs" id="agenteReaderTabs" role="tablist" aria-label="Secciones del agente">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="agenteTabResumen" data-agente-tab="resumen" aria-selected="true" aria-controls="agentePanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="agenteTabAcl" data-agente-tab="acl" aria-selected="false" aria-controls="agentePanelAcl">ACL</button>
+</div>
+<div class="reader-panel ancla-ficha-body" id="agentePanelResumen" role="tabpanel" aria-labelledby="agenteTabResumen">
 <p class="ajustes-hint" id="agenteReaderHubNota">Quién entra en Campos ancla (API + invite). No son los bots del software de la Base de datos.</p>
 <dl class="ancla-ficha-dl">
 <div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="agenteReaderId">—</code></dd></div>
 <div class="ancla-ficha-fila"><dt>Estado</dt><dd id="agenteReaderEstadoDetalle">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Último latido</dt><dd id="agenteReaderLastSeen">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Invite</dt><dd><code id="agenteReaderInvite">—</code></dd></div>
+</dl>
+<p class="origen" id="agenteReaderDesc" hidden></p>
+</div>
+<div class="reader-panel ancla-ficha-body" id="agentePanelAcl" role="tabpanel" aria-labelledby="agenteTabAcl" hidden>
+<p class="ajustes-hint">Alcance declarado en el hub (metadato; la API aún no lo aplica como autorización en cada ruta).</p>
+<dl class="ancla-ficha-dl">
 <div class="ancla-ficha-fila"><dt>Bases de datos</dt><dd id="agenteReaderProyectos">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Lee</dt><dd id="agenteReaderLee">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Escribe</dt><dd id="agenteReaderEscribe">—</dd></div>
 </dl>
-<p class="origen" id="agenteReaderDesc" hidden></p>
 </div>
 </article>
 </dialog>
