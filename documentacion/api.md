@@ -163,15 +163,19 @@ Content-Type: application/json
 Modelo: **Cluster → Bases de datos → Colecciones → Campos**. La URI Atlas vive en el Cluster (`mongo_config_cluster`), no en cada Base de datos. Catálogo top-level **Clusters** (ficha Resumen / Conexión / Bases de datos).
 
 ```json
-{ "id": "atlas-principal", "nombre": "Cluster Atlas", "descripcion": "…" }
+{ "id": "atlas-principal", "nombre": "Cluster Atlas", "descripcion": "…", "autoSync": false }
 ```
 
 ```
 GET|POST|PUT|DELETE {API_BASE}/v1/clusters[/:id]
+PUT body: { nombre?, descripcion?, autoSync? }   # autoSync = «Sincronizar al guardar» (opt-in)
 GET|POST|DELETE     {API_BASE}/v1/clusters/:id/mongo-config
-→ { ok, cluster, configured, own, connected, db, source: "cluster"|"none", hint? }
+→ { ok, cluster, configured, own, connected, db, source: "cluster"|"none", autoSync, lastSync?, hint? }
   # nunca uri; POST body { uri, probeOnly? }
+  # lastSync: { at, ok, proyecto, auto, dryRun?, mock?, db?, error?, hint? } — sin secretos
 ```
+
+`autoSync: true` → tras guardar Campos (`/v1/mongo`) o cambios de colecciones/relaciones/`baseDatos`/`clusterId` en un proyecto del cluster, el Worker agenda `crear-bd` (debounce ~1,5 s por `proyecto_id`). Unidireccional hub→Atlas. Sin URI → mismo dry-run que Empujar. Empujar manual siempre disponible. Skills/anclas/agentes no disparan sync.
 
 `DELETE` de un cluster con bases asociadas → `409`. Migración: esquemas sin cluster → `atlas-principal`; URIs de `mongo_config_proyecto` se suben al cluster.
 

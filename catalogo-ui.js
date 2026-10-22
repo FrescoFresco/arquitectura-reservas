@@ -4281,6 +4281,7 @@ function seleccionarProyReaderTab(id) {
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
   if (id === 'campos') pintarProyectoCampos(proy);
   if (id === 'skills') pintarProyectoSkillsTab(proy);
+  if (id === 'empujar') pintarProyectoEmpujarAuto(proy);
 }
 
 function seleccionarEditarProyTab(id) {
@@ -4700,6 +4701,88 @@ function pintarProyectoSkillsTab(proy) {
         emptyMsg: lista.length ? 'Ninguna skill asociada.' : 'No se pudieron cargar las skills.'
       });
     });
+}
+
+function formatearLastSync(ls) {
+  if (!ls || !ls.at) return '';
+  const parts = [];
+  parts.push(ls.auto ? 'Último sync automático' : 'Último empujón');
+  parts.push(ls.at);
+  if (ls.proyecto) parts.push('base ' + ls.proyecto);
+  if (ls.dryRun || ls.mock) parts.push('simulación (sin URI o dry-run)');
+  else if (ls.ok) parts.push('ok');
+  else parts.push('error');
+  if (ls.db) parts.push(ls.db);
+  if (ls.error) parts.push(ls.error);
+  else if (ls.hint) parts.push(ls.hint);
+  return parts.join(' · ');
+}
+
+function pintarLastSyncEl(el, ls) {
+  if (!el) return;
+  const text = formatearLastSync(ls);
+  if (!text) {
+    el.hidden = true;
+    el.textContent = '';
+    el.classList.remove('is-ok', 'is-err');
+    return;
+  }
+  el.hidden = false;
+  el.textContent = text;
+  el.classList.toggle('is-err', ls && ls.ok === false && !(ls.dryRun || ls.mock));
+  el.classList.toggle('is-ok', !!(ls && ls.ok && !(ls.dryRun || ls.mock)));
+}
+
+function pintarProyectoEmpujarAuto(proy) {
+  const nota = document.getElementById('proyEmpujarAutoNota');
+  const lastEl = document.getElementById('proyEmpujarLastSync');
+  if (!proy) {
+    if (nota) nota.hidden = true;
+    if (lastEl) {
+      lastEl.hidden = true;
+      lastEl.textContent = '';
+    }
+    return;
+  }
+  const cid = proy.clusterId ? String(proy.clusterId) : '';
+  const cl = cid
+    ? (state.clusters.lista || []).find(function (c) { return c.id === cid; })
+    : null;
+  const autoOn = !!(cl && cl.autoSync);
+  if (nota) {
+    if (autoOn) {
+      nota.hidden = false;
+      nota.textContent = 'Sincronizar al guardar está activo en el Cluster «'
+        + (cl.nombre || cl.id)
+        + '». Los cambios de campos/colecciones/relaciones empujan el DDL a Atlas solos (con retardo). Empujar manual sigue disponible.';
+    } else {
+      nota.hidden = true;
+      nota.textContent = '';
+    }
+  }
+  if (cl && cl.lastSync) {
+    pintarLastSyncEl(lastEl, cl.lastSync);
+  } else if (cid) {
+    fetch(apiBaseUrl() + '/v1/clusters/' + encodeURIComponent(cid) + '/mongo-config', { cache: 'no-store' })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        const abierta = proyectoAbierto();
+        if (!abierta || abierta.id !== proy.id) return;
+        if (data && data.lastSync) pintarLastSyncEl(lastEl, data.lastSync);
+        else if (lastEl) {
+          lastEl.hidden = true;
+          lastEl.textContent = '';
+        }
+        if (nota && data && data.autoSync) {
+          nota.hidden = false;
+          nota.textContent = 'Sincronizar al guardar está activo en el Cluster. Los cambios de esquema empujan el DDL a Atlas solos (con retardo). Empujar manual sigue disponible.';
+        }
+      })
+      .catch(function () {});
+  } else if (lastEl) {
+    lastEl.hidden = true;
+    lastEl.textContent = '';
+  }
 }
 
 function pintarPlanEmpujarEsquema(data, proy) {
@@ -5225,7 +5308,7 @@ function eliminarCluster(id) {
 }
 
 function clusterConexionSetBusy(busy) {
-  ['clusterConexionGuardar', 'clusterConexionProbar', 'clusterConexionBorrar'].forEach(function (id) {
+  ['clusterConexionGuardar', 'clusterConexionProbar', 'clusterConexionBorrar', 'clusterAutoSyncToggle'].forEach(function (id) {
     const n = document.getElementById(id);
     if (n) n.disabled = !!busy;
   });
@@ -5277,6 +5360,19 @@ function pintarClusterConexionStatus(data, cl) {
       ? 'URI ya configurada — pega una nueva solo para reemplazar'
       : 'mongodb+srv://usuario:contraseña@cluster…/';
   }
+
+  const toggle = document.getElementById('clusterAutoSyncToggle');
+  const autoFromData = data && Object.prototype.hasOwnProperty.call(data, 'autoSync')
+    ? !!data.autoSync
+    : !!(cl && cl.autoSync);
+  if (toggle) {
+    toggle.checked = autoFromData;
+    toggle.disabled = false;
+  }
+  if (cl) cl.autoSync = autoFromData;
+  const ls = (data && data.lastSync) || (cl && cl.lastSync) || null;
+  if (cl && ls) cl.lastSync = ls;
+  pintarLastSyncEl(document.getElementById('clusterLastSync'), ls);
 }
 
 function cargarClusterConexion(cl) {
@@ -5428,6 +5524,49 @@ function onBorrarClusterConexion(e) {
     })
     .then(function () {
       clusterConexionSetBusy(false);
+    });
+}
+
+function onToggleClusterAutoSync(e) {
+  const toggle = e && e.target ? e.target : document.getElementById('clusterAutoSyncToggle');
+  const cl = clusterAbierto();
+  if (!cl || !cl.id || !toggle) return;
+  const next = !!toggle.checked;
+  toggle.disabled = true;
+  clusterConexionSetMsg(next ? 'Activando sincronización…' : 'Desactivando sincronización…', 'is-info');
+  asegurarClaveCatalogo()
+    .then(function () {
+      return apiFetchAuth('/v1/clusters/' + encodeURIComponent(cl.id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoSync: next })
+      });
+    })
+    .then(function (data) {
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'No se pudo guardar');
+      const updated = data.cluster || {};
+      cl.autoSync = !!updated.autoSync;
+      if (updated.lastSync) cl.lastSync = updated.lastSync;
+      const idx = (state.clusters.lista || []).findIndex(function (c) { return c.id === cl.id; });
+      if (idx >= 0) {
+        state.clusters.lista[idx].autoSync = cl.autoSync;
+        if (cl.lastSync) state.clusters.lista[idx].lastSync = cl.lastSync;
+      }
+      toggle.checked = cl.autoSync;
+      pintarLastSyncEl(document.getElementById('clusterLastSync'), cl.lastSync || null);
+      clusterConexionSetMsg(
+        cl.autoSync
+          ? 'Sincronizar al guardar activado. Tras editar el esquema se empujará a Atlas (si hay URI).'
+          : 'Sincronizar al guardar desactivado. Solo Empujar manual.',
+        'is-ok'
+      );
+    })
+    .catch(function (err) {
+      toggle.checked = !next;
+      clusterConexionSetMsg(err && err.message ? err.message : 'Error al guardar el interruptor', 'is-err');
+    })
+    .then(function () {
+      toggle.disabled = false;
     });
 }
 
@@ -6326,6 +6465,8 @@ function wireClustersUi() {
   });
   const formConexion = document.getElementById('formClusterConexion');
   if (formConexion) formConexion.addEventListener('submit', onGuardarClusterConexion);
+  const autoSyncToggle = document.getElementById('clusterAutoSyncToggle');
+  if (autoSyncToggle) autoSyncToggle.addEventListener('change', onToggleClusterAutoSync);
   const btnProbar = document.getElementById('clusterConexionProbar');
   if (btnProbar) btnProbar.addEventListener('click', onProbarClusterConexion);
   const btnBorrar = document.getElementById('clusterConexionBorrar');

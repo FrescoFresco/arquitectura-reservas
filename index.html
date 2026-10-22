@@ -333,6 +333,14 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .agente-acl-pills{display:flex;flex-wrap:wrap;gap:6px}
 .agente-acl-pills .ancla-pill{font-size:11px}
 .cluster-resumen-conexion{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.cluster-auto-sync{margin-top:1.25rem;padding-top:1rem;border-top:1px solid #e5eaf1}
+.cluster-auto-sync-label{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:#1a2b3c;cursor:pointer}
+.cluster-auto-sync-label input{width:18px;height:18px;accent-color:#1c63d5;cursor:pointer}
+.cluster-auto-sync .ajustes-hint{margin:8px 0 0}
+.cluster-last-sync{margin-top:10px;font-size:13px;color:#31506e;line-height:1.4}
+.cluster-last-sync.is-err{color:#b42318}
+.cluster-last-sync.is-ok{color:#0f7a45}
+.proy-empujar-auto-nota{margin:0 0 12px;padding:10px 12px;border:1px solid #d7e6f8;border-radius:10px;background:#f5f9ff;font-size:13px;color:#31506e;line-height:1.45}
 .tabla-scroll{overflow:auto}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
@@ -556,11 +564,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelEmpujar" role="tabpanel" aria-labelledby="proyTabEmpujar" hidden>
 <p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run). Usa el botón <strong>Empujar esquema</strong> arriba o el de esta pestaña.</p>
+<p class="proy-empujar-auto-nota" id="proyEmpujarAutoNota" hidden></p>
 <div class="ajustes-actions" style="margin:12px 0">
 <button type="button" class="btn primary" id="btnEmpujarEsquemaTab" title="Empuja colecciones, validators e índices a Mongo Atlas (o muestra el plan si no hay URI)">Empujar esquema</button>
 </div>
 <p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
 <div class="proy-empujar-plan" id="proyEmpujarPlan" hidden></div>
+<p class="cluster-last-sync" id="proyEmpujarLastSync" hidden></p>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelInterno" role="tabpanel" aria-labelledby="proyTabInterno" hidden>
 <dl class="ancla-ficha-dl">
@@ -628,6 +638,14 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <p id="clusterConexionMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
 </form>
+<div class="cluster-auto-sync">
+<label class="cluster-auto-sync-label" for="clusterAutoSyncToggle">
+<input type="checkbox" id="clusterAutoSyncToggle" name="autoSync">
+<span>Sincronizar al guardar</span>
+</label>
+<p class="ajustes-hint">Opt-in. Si está activo y hay URI, al crear/editar/borrar Campos o al cambiar colecciones, relaciones o <code>baseDatos</code> de una Base de este cluster, el Worker empuja el DDL a Atlas (mismo camino que Empujar), con un retardo corto para agrupar ediciones rápidas. Unidireccional hub→Atlas; no borra colecciones remotas. Sin URI hace dry-run y deja el resultado abajo. Empujar manual sigue disponible.</p>
+<p class="cluster-last-sync" id="clusterLastSync" hidden role="status" aria-live="polite"></p>
+</div>
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="clusterPanelBases" role="tabpanel" aria-labelledby="clusterTabBases" hidden>
