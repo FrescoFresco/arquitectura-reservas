@@ -159,7 +159,7 @@ Content-Type: application/json
 
 ### Base de datos (= softwares; rutas `/v1/proyectos` y alias `/v1/esquemas`)
 
-En la UI el panel se llama **Base de datos**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico (no se renombran las rutas). Cada entrada es un software (`reservas`, `llamadas`, …), no un negocio. La ficha tiene pestañas Resumen → **Colecciones** → Diagrama → Campos → Agentes (`colecciones[]` con `id` + `descripcion`). Campos:
+En la UI el panel se llama **Base de datos**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico (no se renombran las rutas). Cada entrada es un software (`reservas`, `llamadas`, …), no un negocio. La ficha tiene pestañas Resumen → **Colecciones** → Diagrama → Campos → Agentes (`colecciones[]` con `id` + `descripcion`). Además hay un catálogo top-level **Colecciones** (todas las colecciones de todas las bases; ficha con Campos Mongo filtrados). No hay ruta `/v1/colecciones`: la UI las ensambla desde proyectos + mongo. Campos:
 
 ```json
 {

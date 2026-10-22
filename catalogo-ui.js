@@ -2,6 +2,7 @@
 
 const CATALOGOS = [
   { id: 'proyectos', nombre: 'Base de datos', icono: 'proyecto' },
+  { id: 'colecciones', nombre: 'Colecciones', icono: 'coleccion' },
   { id: 'agentes', nombre: 'Agentes', icono: 'agente' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
@@ -31,6 +32,7 @@ const FICHA_PANE_IDS = [
   'dlgCampoFicha',
   'dlgMongoFicha',
   'dlgProyecto',
+  'dlgColeccion',
   'dlgAgenteFicha',
   'dlgFundamento'
 ];
@@ -239,6 +241,14 @@ const state = {
     remotos: [],
     lista: [],
     abiertoId: null
+  },
+  colecciones: {
+    ready: false,
+    indexError: false,
+    lista: [],
+    abiertaKey: null,
+    volverA: null,
+    tab: 'resumen'
   },
   proyectos: {
     ready: false,
@@ -860,6 +870,13 @@ function svgPestanaCatalogo(tipo) {
     svg.append(
       svgPath('M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9l-.81-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z')
     );
+  } else if (tipo === 'coleccion') {
+    // Lucide: layers
+    svg.append(
+      svgPath('M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z'),
+      svgPath('M2 12l8.58 3.91a2 2 0 0 0 1.66 0L21 12'),
+      svgPath('M2 17l8.58 3.91a2 2 0 0 0 1.66 0L21 17')
+    );
   } else if (tipo === 'agente') {
     // Lucide: bot
     svg.append(
@@ -1330,6 +1347,10 @@ function cargarMongo() {
       refrescarMongo();
       pintarMongo();
       refrescarMongoConnStatus();
+      if (state.colecciones && state.colecciones.ready) {
+        refrescarListaColecciones();
+        pintarColecciones();
+      }
     });
 }
 
@@ -2626,6 +2647,7 @@ function seleccionarCatalogo(id) {
   if (id === 'campos-ancla') cargarCampos();
   if (id === 'campos-mongodb') cargarMongo();
   if (id === 'proyectos') cargarProyectos();
+  if (id === 'colecciones') cargarColecciones();
   if (id === 'agentes') {
     refrescarAgentes();
     pintarAgentes();
@@ -3643,6 +3665,7 @@ function iniciar() {
   cargarMongo();
   cargarProyectos();
   wireProyectosUi();
+  wireColeccionesUi();
   cargarAgentes();
   wireAgentesUi();
   cargarFundamentos();
@@ -4193,12 +4216,14 @@ function pintarProyectoColecciones(proy) {
   function render(conteo) {
     const abierta = proyectoAbierto();
     if (!abierta || abierta.id !== proy.id) return;
-    // Sin onAbrir: la colección no es la pestaña Campos.
-    // Cuando exista ficha de colección, pasar aquí abrirFichaColeccion(id).
     window.ProyectosUI.montarColecciones(mount, {
       colecciones: cols,
       conteo: conteo || {},
-      emptyMsg: emptyMsg
+      emptyMsg: emptyMsg,
+      onAbrir: function (coleccionId) {
+        const key = claveColeccion(proy.id, coleccionId);
+        abrirFichaColeccion(key, { volverA: { tipo: 'proyecto', id: proy.id } });
+      }
     });
   }
 
@@ -4699,7 +4724,274 @@ function cargarProyectos() {
       state.proyectos.ready = true;
       refrescarProyectos();
       pintarProyectos();
+      refrescarListaColecciones();
+      state.colecciones.ready = true;
+      state.colecciones.indexError = state.proyectos.indexError;
+      pintarColecciones();
     });
+}
+
+function claveColeccion(proyectoId, coleccionId) {
+  return String(proyectoId || '') + '/' + String(coleccionId || '');
+}
+
+function coleccionAbierta() {
+  if (!state.colecciones.abiertaKey) return null;
+  return state.colecciones.lista.find(function (c) {
+    return c.key === state.colecciones.abiertaKey;
+  }) || null;
+}
+
+function conteoCamposPorColeccion() {
+  const conteo = {};
+  refrescarMongo();
+  (state.mongo.lista || []).forEach(function (c) {
+    if (!c || !c.coleccion) return;
+    let proy = c.proyecto || '';
+    if (!proy && c.baseDatos) {
+      const match = (state.proyectos.lista || []).find(function (p) {
+        return p.baseDatos && p.baseDatos === c.baseDatos;
+      });
+      if (match) proy = match.id;
+    }
+    if (!proy) return;
+    const key = claveColeccion(proy, c.coleccion);
+    conteo[key] = (conteo[key] || 0) + 1;
+  });
+  return conteo;
+}
+
+function construirListaColecciones(proyectos, conteo) {
+  const out = [];
+  (proyectos || []).forEach(function (p) {
+    if (!p || p.legacyNegocio) return;
+    (p.colecciones || []).forEach(function (c) {
+      if (!c || !c.id) return;
+      const key = claveColeccion(p.id, c.id);
+      out.push({
+        key: key,
+        id: c.id,
+        descripcion: c.descripcion || '',
+        proyectoId: p.id,
+        proyectoNombre: p.nombre || p.id,
+        baseDatos: p.baseDatos || '',
+        nCampos: conteo && conteo[key] != null ? conteo[key] : null
+      });
+    });
+  });
+  out.sort(function (a, b) {
+    const pa = (a.proyectoId || '').localeCompare(b.proyectoId || '', 'es');
+    if (pa !== 0) return pa;
+    return (a.id || '').localeCompare(b.id || '', 'es');
+  });
+  return out;
+}
+
+function refrescarListaColecciones() {
+  refrescarProyectos();
+  state.colecciones.lista = construirListaColecciones(
+    state.proyectos.lista,
+    conteoCamposPorColeccion()
+  );
+}
+
+function coleccionesBridge() {
+  return {
+    getSnapshot: function () {
+      const abierta = coleccionAbierta();
+      return {
+        ready: state.colecciones.ready,
+        indexError: state.colecciones.indexError,
+        colecciones: state.colecciones.lista,
+        abierta: abierta ? { key: abierta.key } : null
+      };
+    },
+    abrirColeccion: function (key) {
+      abrirFichaColeccion(key, { volverA: { tipo: 'catalogo' } });
+    }
+  };
+}
+
+function pintarColecciones() {
+  if (window.ColeccionesUI && typeof window.ColeccionesUI.refrescar === 'function') {
+    window.ColeccionesUI.refrescar(coleccionesBridge());
+  }
+}
+
+function cargarColecciones() {
+  if (!state.proyectos.ready) {
+    cargarProyectos();
+    return;
+  }
+  if (!state.mongo.ready) cargarMongo();
+  refrescarListaColecciones();
+  state.colecciones.ready = true;
+  state.colecciones.indexError = state.proyectos.indexError;
+  pintarColecciones();
+}
+
+function seleccionarColReaderTab(id) {
+  if (id !== 'resumen' && id !== 'campos') id = 'resumen';
+  state.colecciones.tab = id;
+  const tabs = document.querySelectorAll('#colReaderTabs [data-col-tab]');
+  const panels = {
+    resumen: document.getElementById('colPanelResumen'),
+    campos: document.getElementById('colPanelCampos')
+  };
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-col-tab') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  Object.keys(panels).forEach(function (k) {
+    if (panels[k]) panels[k].hidden = k !== id;
+  });
+  if (id === 'campos') pintarColeccionCampos(coleccionAbierta());
+}
+
+function pintarColeccionCampos(col) {
+  const mount = document.getElementById('colCamposLista');
+  if (!mount || !col || !window.CamposMongoUI || !window.CamposMongoUI.montarLista) return;
+
+  function bridgeCon(campos, ready, indexError) {
+    return {
+      getSnapshot: function () {
+        return {
+          ready: ready,
+          indexError: !!indexError,
+          campos: campos || [],
+          abierta: null
+        };
+      },
+      abrirCampo: function (id) { abrirFichaMongo(id); },
+      añadirCampo: function () {}
+    };
+  }
+
+  window.CamposMongoUI.montarLista(mount, bridgeCon([], false, false), {
+    emptyMsg: 'Cargando campos…'
+  });
+
+  apiFetch('/v1/mongo?proyecto=' + encodeURIComponent(col.proyectoId))
+    .then(function (data) {
+      const abierta = coleccionAbierta();
+      if (!abierta || abierta.key !== col.key) return;
+      const tabOn = document.querySelector('#colReaderTabs [data-col-tab="campos"].is-on');
+      if (!tabOn) return;
+      const raw = (data && data.campos) || [];
+      const campos = raw.map(normalizeMongoCampo).filter(function (c) {
+        return c && c.coleccion === col.id;
+      });
+      window.CamposMongoUI.montarLista(mount, bridgeCon(campos, true, false), {
+        emptyMsg: 'Sin campos Mongo en esta colección.'
+      });
+    })
+    .catch(function () {
+      const abierta = coleccionAbierta();
+      if (!abierta || abierta.key !== col.key) return;
+      window.CamposMongoUI.montarLista(mount, bridgeCon([], true, true), {
+        emptyMsg: 'No se pudieron cargar los campos.'
+      });
+    });
+}
+
+function renderColeccionReader(col) {
+  const nombre = document.getElementById('colReaderNombre');
+  const sub = document.getElementById('colReaderSub');
+  const idEl = document.getElementById('colReaderId');
+  const descEl = document.getElementById('colReaderDesc');
+  const padreEl = document.getElementById('colReaderPadre');
+  if (nombre) nombre.textContent = (col && col.id) || '—';
+  if (sub) {
+    const partes = [];
+    if (col && col.proyectoNombre) partes.push(col.proyectoNombre);
+    if (col && col.baseDatos) partes.push(col.baseDatos);
+    sub.textContent = partes.length ? partes.join(' · ') : 'Colección';
+  }
+  if (idEl) idEl.textContent = (col && col.id) || '—';
+  if (descEl) descEl.textContent = (col && col.descripcion) || '—';
+  if (padreEl) {
+    const padre = col
+      ? ((col.proyectoId || '') + (col.baseDatos ? ' · ' + col.baseDatos : ''))
+      : '—';
+    padreEl.textContent = padre || '—';
+  }
+  seleccionarColReaderTab(state.colecciones.tab || 'resumen');
+}
+
+function abrirFichaColeccion(key, opts) {
+  opts = opts || {};
+  refrescarListaColecciones();
+  let col = state.colecciones.lista.find(function (c) { return c.key === key; }) || null;
+  if (!col && opts.coleccion) col = opts.coleccion;
+  if (!col) return;
+
+  let volverA = opts.volverA || null;
+  if (!volverA) {
+    const dlgProy = document.getElementById('dlgProyecto');
+    if (dlgProy && dlgProy.open && state.proyectos.abiertoId) {
+      volverA = { tipo: 'proyecto', id: state.proyectos.abiertoId };
+    } else {
+      volverA = { tipo: 'catalogo' };
+    }
+  }
+
+  state.colecciones.abiertaKey = col.key;
+  state.colecciones.volverA = volverA;
+  state.colecciones.tab = 'resumen';
+  renderColeccionReader(col);
+  openFichaPane(document.getElementById('dlgColeccion'));
+  const focus = document.getElementById('colReaderNombre');
+  if (focus) focus.focus();
+  pintarColecciones();
+}
+
+function cerrarFichaColeccion() {
+  const dlg = document.getElementById('dlgColeccion');
+  if (dlg && dlg.open) {
+    dlg.close();
+    return;
+  }
+  state.colecciones.abiertaKey = null;
+  state.colecciones.volverA = null;
+  pintarColecciones();
+}
+
+function alCerrarFichaColeccion() {
+  const volver = state.colecciones.volverA;
+  state.colecciones.abiertaKey = null;
+  state.colecciones.volverA = null;
+  state.colecciones.tab = 'resumen';
+  pintarColecciones();
+  if (volver && volver.tipo === 'proyecto' && volver.id) {
+    setTimeout(function () {
+      abrirProyecto(volver.id);
+      seleccionarProyReaderTab('colecciones');
+    }, 0);
+    return;
+  }
+  if (volver && volver.tipo === 'catalogo' && state.catalogoId !== 'colecciones') {
+    seleccionarCatalogo('colecciones');
+  }
+}
+
+function wireColeccionesUi() {
+  const btnAtras = document.getElementById('btnAtrasColeccion');
+  if (btnAtras) {
+    btnAtras.addEventListener('click', function () {
+      atrasDesdeFicha(cerrarFichaColeccion);
+    });
+  }
+  const tabs = document.getElementById('colReaderTabs');
+  if (tabs) {
+    tabs.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-col-tab]');
+      if (!btn) return;
+      seleccionarColReaderTab(btn.getAttribute('data-col-tab'));
+    });
+  }
+  const dlg = document.getElementById('dlgColeccion');
+  if (dlg) dlg.addEventListener('close', alCerrarFichaColeccion);
 }
 
 function wireProyectosUi() {
