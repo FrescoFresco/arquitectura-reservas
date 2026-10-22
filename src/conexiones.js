@@ -5,23 +5,33 @@ import { fileURLToPath } from 'node:url';
 
 const fichero = () => process.env.CONEXIONES_FICHERO || fileURLToPath(new URL('../conexiones.local.json', import.meta.url));
 export const NOMBRE_BASE = /^[A-Za-z0-9_-]{1,63}$/;
+export const nombreValido = (base) => typeof base === 'string' && NOMBRE_BASE.test(base) && !/^(null|undefined)$/i.test(base);
 
+// Base por defecto: MONGODB_DB del .env o, si no hay .env, la del repositorio (package.json → config.base).
+export const BASE_DEL_REPO = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).config.base;
+export const baseActual = () => process.env.MONGODB_DB || BASE_DEL_REPO;
+
+const crudas = () => (existsSync(fichero()) ? JSON.parse(readFileSync(fichero(), 'utf8')) : {});
+
+// Solo las entradas con un nombre de base válido; las demás («null», vacías…) se ignoran.
 export function leerConexiones() {
-  return existsSync(fichero()) ? JSON.parse(readFileSync(fichero(), 'utf8')) : {};
+  return Object.fromEntries(Object.entries(crudas()).filter(([base]) => nombreValido(base)));
 }
+
+export const clavesIgnoradas = () => Object.keys(crudas()).filter((base) => !nombreValido(base));
 
 function escribir(conexiones) {
   writeFileSync(fichero(), JSON.stringify(conexiones, null, 2) + '\n', { mode: 0o600 });
 }
 
 export function guardarConexion(base, uri) {
-  if (!NOMBRE_BASE.test(base)) throw new Error(`«${base}» no es un nombre de base válido`);
+  if (!nombreValido(base)) throw new Error(`«${base}» no es un nombre de base válido: elige una base antes de guardar la clave`);
   if (!/^mongodb(\+srv)?:\/\/\S+$/.test(uri ?? '')) throw new Error('La URI tiene que empezar por mongodb+srv:// o mongodb://');
-  escribir({ ...leerConexiones(), [base]: uri.trim() });
+  escribir({ ...crudas(), [base]: uri.trim() });
 }
 
 export function borrarConexion(base) {
-  const { [base]: _, ...resto } = leerConexiones();
+  const { [base]: _, ...resto } = crudas();
   escribir(resto);
 }
 

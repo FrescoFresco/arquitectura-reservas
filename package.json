@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=24.2"
   },
+  "config": {
+    "base": "Prueba_software"
+  },
   "scripts": {
     "generar": "node --env-file-if-exists=.env src/generador.js",
     "esquema": "node src/generador.js esquema",

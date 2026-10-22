@@ -31,6 +31,7 @@ Para manejar los datos de MongoDB desde la web, en tu ordenador. Es la misma web
 3. `npm run panel`. Se abre el navegador en la pestaña «Base de datos».
 
 Después, en la ficha de tu base de datos, pega la URI de Atlas en **Conexión (URI de Atlas)** y pulsa **Guardar**.
+- **Qué base sale:** no hace falta `.env`. La ficha abre la base del repositorio, **Prueba_software** (`config.base` en `package.json`); `MONGODB_DB` en `.env` la cambia.
 - **Dónde se guarda:** en `conexiones.local.json`, una por base de datos. Ese fichero está en `.gitignore` y nunca sale de tu ordenador.
 - **Qué muestra la ficha:** solo el host de la URI, si conecta y a qué base apunta.
 - **Respaldo:** si una base no tiene clave, se usa `MONGODB_URI` del `.env`.
@@ -132,7 +133,7 @@ Después ejecuta la versión aprobada hasta B con el navegador visible y se qued
 
 | Síntoma | Qué hacer |
 |---|---|
-| `Falta MONGODB_DB en .env` | No existe `.env`: haz el paso 2 |
+| Aviso: `conexiones.local.json tiene una clave para «null»` | Esa entrada no sirve y se ignora. Pega la URI en la ficha de tu base y borra la entrada `"null"` del fichero |
 | `La base … no tiene clave` | Pega la URI en su ficha del panel, o pon `MONGODB_URI` en `.env` |
 | `connect ECONNREFUSED` o `querySrv` | Revisa la URI. En Atlas, comprueba que tu IP está en *Network Access* |
 | `Chromium distribution 'msedge' is not found` | Pon `NAVEGADOR=chrome`, o `NAVEGADOR=chromium` y `npx playwright install chromium` |

@@ -1,8 +1,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { request } from 'node:http';
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MongoClient } from 'mongodb';
@@ -10,7 +10,7 @@ import { MongoClient } from 'mongodb';
 // Las claves de estas pruebas van a un fichero temporal, nunca al conexiones.local.json de verdad.
 const dir = mkdtempSync(join(tmpdir(), 'panel-'));
 process.env.CONEXIONES_FICHERO = join(dir, 'conexiones.local.json');
-const { guardarConexion, leerConexiones, borrarConexion, claveDe, enmascarar } = await import('../src/conexiones.js');
+const { guardarConexion, leerConexiones, borrarConexion, claveDe, enmascarar, clavesIgnoradas, BASE_DEL_REPO } = await import('../src/conexiones.js');
 const { crearPanel } = await import('../src/panel.js');
 const { cargar } = await import('../src/catalogo.js');
 const { validador } = await import('../src/generador.js');
@@ -148,4 +148,66 @@ test('panel: el validador y los índices de una colección', { skip: sinMongo },
   const { json } = await api('GET', `/bases/${BASE}/colecciones/negocios/esquema`);
   assert.deepEqual(json.validador.$jsonSchema.required, ['_id', 'nombre', 'url', 'zona_horaria']);
   assert.equal(json.indices[0].name, '_id_');
+});
+
+test('nunca se guarda una clave para una base vacía, «null» o «undefined»', () => {
+  for (const mala of ['', 'null', 'NULL', 'undefined', null, undefined]) {
+    assert.throws(() => guardarConexion(mala, URI_FALSA), /no es un nombre de base válido/, String(mala));
+  }
+});
+
+test('una entrada «null» en conexiones.local.json se ignora', () => {
+  const antes = process.env.CONEXIONES_FICHERO;
+  process.env.CONEXIONES_FICHERO = join(mkdtempSync(join(tmpdir(), 'panel-null-')), 'conexiones.local.json');
+  try {
+    writeFileSync(process.env.CONEXIONES_FICHERO, JSON.stringify({ null: URI_FALSA, Prueba_software: URI_FALSA }));
+    assert.deepEqual(Object.keys(leerConexiones()), ['Prueba_software']);
+    assert.deepEqual(clavesIgnoradas(), ['null']);
+    guardarConexion('Otra_base', URI_FALSA);
+    assert.ok('null' in JSON.parse(readFileSync(process.env.CONEXIONES_FICHERO, 'utf8')), 'no se borra sin avisar: la quita la persona');
+  } finally {
+    process.env.CONEXIONES_FICHERO = antes;
+  }
+});
+
+test('sin .env, el panel arranca con Prueba_software y avisa de las claves ignoradas', async () => {
+  assert.equal(BASE_DEL_REPO, 'Prueba_software');
+  const fichero = join(mkdtempSync(join(tmpdir(), 'panel-sin-env-')), 'conexiones.local.json');
+  writeFileSync(fichero, JSON.stringify({ null: URI_FALSA, '': URI_FALSA }));
+  const env = { ...process.env, CONEXIONES_FICHERO: fichero };
+  delete env.MONGODB_URI;
+  delete env.MONGODB_DB;
+  const hijo = spawn(process.execPath, ['src/panel.js', '--sin-navegador', '--puerto', '0'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  try {
+    let salida = '';
+    let errores = '';
+    hijo.stderr.on('data', (d) => (errores += d));
+    const puerto = await new Promise((ok, mal) => {
+      hijo.stdout.on('data', (d) => {
+        salida += d;
+        const m = salida.match(/Panel en http:\/\/localhost:(\d+)\//);
+        if (m) ok(m[1]);
+      });
+      hijo.on('exit', (c) => mal(new Error(`el panel se cerró (${c}): ${errores}`)));
+    });
+    assert.match(salida, /base por defecto: Prueba_software/);
+    const base = `http://127.0.0.1:${puerto}`;
+    const html = await (await fetch(base + '/')).text();
+    const token = html.match(/<meta name="panel-token" content="([0-9a-f]+)">/)[1];
+    const llamar = (metodo, ruta, cuerpo) =>
+      fetch(base + '/api' + ruta, { method: metodo, headers: { 'content-type': 'application/json', 'x-panel-token': token }, body: cuerpo && JSON.stringify(cuerpo) });
+
+    const { bases, avisos } = await (await llamar('GET', '/bases')).json();
+    assert.deepEqual(bases, [{ nombre: 'Prueba_software', host: null, origen: null }]);
+    assert.equal(avisos.length, 2);
+    assert.match(avisos[0], /clave para «null».*se ignora/);
+    assert.match(errores, /Aviso: conexiones\.local\.json tiene una clave para «null»/);
+
+    const r = await llamar('POST', '/bases/null/conexion', { uri: URI_FALSA });
+    assert.equal(r.status, 400);
+    assert.match((await r.json()).error, /«null» no es un nombre de base válido/);
+    assert.deepEqual(Object.keys(JSON.parse(readFileSync(fichero, 'utf8'))).sort(), ['', 'null'], 'no se ha guardado nada nuevo');
+  } finally {
+    hijo.kill();
+  }
 });
