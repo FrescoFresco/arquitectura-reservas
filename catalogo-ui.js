@@ -258,6 +258,8 @@ const state = {
     abiertoId: null,
     abiertaNumero: null,
     historial: false,
+    reabrirColeccionKey: null,
+    reabrirColeccionTab: null,
     fetchToken: 0,
     inflightRuta: null,
     reabrirTrasSkill: null
@@ -4831,11 +4833,12 @@ function cargarColecciones() {
 }
 
 function seleccionarColReaderTab(id) {
-  if (id !== 'resumen' && id !== 'campos') id = 'resumen';
+  if (id !== 'resumen' && id !== 'base-datos' && id !== 'campos') id = 'resumen';
   state.colecciones.tab = id;
   const tabs = document.querySelectorAll('#colReaderTabs [data-col-tab]');
   const panels = {
     resumen: document.getElementById('colPanelResumen'),
+    'base-datos': document.getElementById('colPanelBaseDatos'),
     campos: document.getElementById('colPanelCampos')
   };
   tabs.forEach(function (btn) {
@@ -4846,7 +4849,58 @@ function seleccionarColReaderTab(id) {
   Object.keys(panels).forEach(function (k) {
     if (panels[k]) panels[k].hidden = k !== id;
   });
+  if (id === 'base-datos') pintarColeccionBaseDatos(coleccionAbierta());
   if (id === 'campos') pintarColeccionCampos(coleccionAbierta());
+}
+
+function abrirProyectoDesdeColeccion(proyId) {
+  const colKey = state.colecciones.abiertaKey;
+  if (!proyId || !colKey) {
+    abrirProyecto(proyId);
+    return;
+  }
+  // Evita que el cierre de dlgColeccion salte al catálogo / reabra otro origen.
+  state.colecciones.volverA = null;
+  state.colecciones.navigatingAway = true;
+  state.proyectos.reabrirColeccionKey = colKey;
+  state.proyectos.reabrirColeccionTab = 'base-datos';
+  abrirProyecto(proyId);
+}
+
+function pintarColeccionBaseDatos(col) {
+  const mount = document.getElementById('colBaseDatosLista');
+  if (!mount || !col || !window.ProyectosUI || !window.ProyectosUI.montarLista) return;
+
+  refrescarProyectos();
+  const proy = (state.proyectos.lista || []).find(function (p) {
+    return p.id === col.proyectoId;
+  }) || null;
+
+  function bridgeCon(proyectos, ready, indexError) {
+    return {
+      getSnapshot: function () {
+        return {
+          ready: ready,
+          indexError: !!indexError,
+          proyectos: proyectos || [],
+          abierta: null
+        };
+      },
+      añadirProyecto: function () {},
+      abrirProyecto: function (id) { abrirProyectoDesdeColeccion(id); }
+    };
+  }
+
+  if (!proy) {
+    window.ProyectosUI.montarLista(mount, bridgeCon([], true, false), {
+      emptyMsg: 'No se encontró la base de datos padre.'
+    });
+    return;
+  }
+
+  window.ProyectosUI.montarLista(mount, bridgeCon([proy], true, false), {
+    emptyMsg: 'Sin base de datos padre.'
+  });
 }
 
 function pintarColeccionCampos(col) {
@@ -4958,6 +5012,13 @@ function cerrarFichaColeccion() {
 }
 
 function alCerrarFichaColeccion() {
+  if (state.colecciones.navigatingAway) {
+    state.colecciones.navigatingAway = false;
+    state.colecciones.abiertaKey = null;
+    state.colecciones.volverA = null;
+    pintarColecciones();
+    return;
+  }
   const volver = state.colecciones.volverA;
   state.colecciones.abiertaKey = null;
   state.colecciones.volverA = null;
@@ -5067,10 +5128,20 @@ function wireProyectosUi() {
   });
   const dlgProyecto = document.getElementById('dlgProyecto');
   if (dlgProyecto) dlgProyecto.addEventListener('close', function () {
+    const reabrirKey = state.proyectos.reabrirColeccionKey;
+    const reabrirTab = state.proyectos.reabrirColeccionTab || 'base-datos';
+    state.proyectos.reabrirColeccionKey = null;
+    state.proyectos.reabrirColeccionTab = null;
     state.proyectos.abiertoId = null;
     state.proyectos.abiertaNumero = null;
     state.proyectos.historial = false;
     pintarProyectos();
+    if (reabrirKey) {
+      setTimeout(function () {
+        abrirFichaColeccion(reabrirKey, { volverA: { tipo: 'catalogo' } });
+        seleccionarColReaderTab(reabrirTab);
+      }, 0);
+    }
   });
   document.addEventListener('click', function (e) {
     if (state.proyectos.historial && !e.target.closest('#historialProyecto') && !e.target.closest('#btnHistorialProyecto')) {
