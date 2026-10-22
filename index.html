@@ -519,10 +519,17 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div id="proyColeccionesLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelDiagrama" role="tabpanel" aria-labelledby="proyTabDiagrama" hidden>
+<p class="limite" id="proyDiagramaAyuda">Vista de las colecciones de esta base y sus relaciones (estilo diagrama entidad-relación).</p>
 <p class="ancla-ficha-vacio" id="proyDiagramaEstado">Cargando diagrama…</p>
-<pre class="proy-mermaid-src" id="proyDiagramaMermaid" hidden></pre>
-<div class="proy-diagrama-render" id="proyDiagramaRender" hidden></div>
-<div class="proy-er-boxes" id="proyDiagramaBoxes" hidden></div>
+<div class="col-diagrama-split" id="proyDiagramaSplit" hidden>
+<aside class="col-diagrama-campos" aria-label="Colecciones de esta base">
+<p class="col-diagrama-campos-titulo">Colecciones</p>
+<div id="proyDiagramaColeccionesLista" class="col-diagrama-campos-lista" role="list"></div>
+</aside>
+<div class="col-diagrama-er">
+<div class="proy-diagrama-render" id="proyDiagramaRender"></div>
+</div>
+</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelConexion" role="tabpanel" aria-labelledby="proyTabConexion" hidden>
 <div class="proy-conexion">
@@ -1148,7 +1155,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022conn1"></script>
+<script src="catalogo-ui.js?v=20261022bddiag1"></script>
 <script src="ajustes-ui.js?v=20261022col1"></script>
 
 </body>
