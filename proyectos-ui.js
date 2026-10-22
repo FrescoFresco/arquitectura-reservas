@@ -157,26 +157,34 @@
     var desc = col.descripcion || '';
     var n = props.nCampos;
     var secundario = desc || 'Colección';
+    var clickable = typeof props.onAbrir === 'function';
     if (n != null) {
       secundario += (desc ? ' · ' : '') + n + (n === 1 ? ' campo' : ' campos');
     }
-    return e('button', {
-      type: 'button',
-      className: 'catalogo-fila',
-      role: 'listitem',
-      title: desc || id,
-      'aria-label': 'Ver campos de la colección ' + id,
-      onClick: function () {
-        if (typeof props.onAbrir === 'function') props.onAbrir(id);
-      }
-    },
+    var kids = [
       e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoColeccion)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, id),
         e('span', { className: 'catalogo-fila-codigo' }, secundario)
-      ),
-      e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlace))
-    );
+      )
+    ];
+    if (clickable) {
+      kids.push(e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlace)));
+      return e('button', {
+        type: 'button',
+        className: 'catalogo-fila',
+        role: 'listitem',
+        title: desc || id,
+        'aria-label': 'Abrir colección ' + id,
+        onClick: function () { props.onAbrir(id); }
+      }, kids);
+    }
+    // Sin ficha de colección aún: fila informativa (no navega a Campos).
+    return e('div', {
+      className: 'catalogo-fila catalogo-fila-static',
+      role: 'listitem',
+      title: desc || id
+    }, kids);
   }
 
   function ColeccionesLista(props) {
