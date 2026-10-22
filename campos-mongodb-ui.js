@@ -56,6 +56,7 @@
     var items = [
       { id: 'definicion', label: 'Definición' },
       { id: 'coleccion', label: 'Colección' },
+      { id: 'ancla', label: 'Ancla' },
       { id: 'interno', label: 'Interno' }
     ];
     return e('div', { className: 'ancla-ficha-tabs', role: 'tablist', 'aria-label': 'Secciones del campo MongoDB' },
@@ -258,7 +259,7 @@
 
   function Ficha(props) {
     var c = props.campo;
-    var initial = props.initialTab === 'coleccion' || props.initialTab === 'interno'
+    var initial = props.initialTab === 'coleccion' || props.initialTab === 'interno' || props.initialTab === 'ancla'
       ? props.initialTab
       : 'definicion';
     var tabState = useState(initial);
@@ -295,7 +296,6 @@
         tab === 'definicion'
           ? e('dl', { className: 'ancla-ficha-dl', role: 'tabpanel' },
             e(Fila, { label: 'Base' }, e('code', null, c.baseDatos || '—')),
-            e(Fila, { label: 'Colección' }, e('code', null, c.coleccion || '—')),
             e(Fila, { label: 'Clave' }, e('code', null, c.clave || '—')),
             e(Fila, { label: 'Proyección' }, c.proyeccionMongo ? e('code', null, c.proyeccionMongo) : '—'),
             e(Fila, { label: 'Elemento N→array' },
@@ -310,21 +310,19 @@
                 : '—'
             ),
             e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
-            e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
-            e(Fila, { label: 'Enlazado a ancla' },
-              (props.anclaItems && props.anclaItems.length)
-                ? e(PanelAncla, {
-                  anclaItems: props.anclaItems,
-                  onAbrirAncla: props.onAbrirAncla
-                })
-                : (c.ancla ? e('code', { className: 'ancla-code' }, c.ancla) : '—')
-            )
+            e(Fila, { label: 'Descripción' }, c.descripcion || '—')
           )
           : null,
         tab === 'coleccion'
           ? e(PanelColeccion, {
             coleccionItems: props.coleccionItems || [],
             onAbrirColeccion: props.onAbrirColeccion
+          })
+          : null,
+        tab === 'ancla'
+          ? e(PanelAncla, {
+            anclaItems: props.anclaItems || [],
+            onAbrirAncla: props.onAbrirAncla
           })
           : null,
         tab === 'interno'

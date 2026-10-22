@@ -1005,6 +1005,18 @@ function svgPestanaCatalogo(tipo) {
       svgLine('3', '12', '3.01', '12'),
       svgLine('3', '18', '3.01', '18')
     );
+  } else if (tipo === 'empujar') {
+    // Lucide: upload-cloud
+    svg.append(
+      svgPath('M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242'),
+      svgPath('M12 12v9'),
+      svgPath('m16 16-4-4-4 4')
+    );
+  } else if (tipo === 'acl') {
+    // Lucide: shield
+    svg.append(
+      svgPath('M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z')
+    );
   }
   return svg;
 }
@@ -1026,7 +1038,10 @@ function iconoDePestanaFicha(tabId) {
     definicion: 'definicion',
     historial: 'historial',
     mongo: 'mongo',
-    coleccion: 'coleccion'
+    coleccion: 'coleccion',
+    empujar: 'empujar',
+    acl: 'acl',
+    ancla: 'ancla'
   };
   return mapa[tabId] || null;
 }
@@ -1044,7 +1059,8 @@ function iconizarPestanasFicha(root) {
         || btn.getAttribute('data-cluster-tab')
         || btn.getAttribute('data-fund-tab')
         || btn.getAttribute('data-editar-tab')
-        || btn.getAttribute('data-editar-proy-tab');
+        || btn.getAttribute('data-editar-proy-tab')
+        || btn.getAttribute('data-agente-tab');
     }
     const tipo = iconoDePestanaFicha(tabId) || tabId;
     if (!tipo) return;
@@ -4236,13 +4252,16 @@ function seleccionarProyReaderTab(id) {
   const tabs = document.querySelectorAll('#proyReaderTabs [data-proy-tab]');
   const panels = {
     resumen: document.getElementById('proyPanelResumen'),
+    documento: document.getElementById('proyPanelDocumento'),
     colecciones: document.getElementById('proyPanelColecciones'),
     diagrama: document.getElementById('proyPanelDiagrama'),
     campos: document.getElementById('proyPanelCampos'),
-    skills: document.getElementById('proyPanelSkills')
+    skills: document.getElementById('proyPanelSkills'),
+    empujar: document.getElementById('proyPanelEmpujar')
   };
-  // Compat: nombres antiguos → resumen (agentes ya no es pestaña de BD)
-  if (id === 'documento' || id === 'interno' || id === 'conexion' || id === 'agentes') id = 'resumen';
+  // Compat: nombres antiguos → resumen (agentes/conexión ya no son pestaña de BD)
+  if (id === 'interno' || id === 'conexion' || id === 'agentes') id = 'resumen';
+  if (id === 'sync') id = 'empujar';
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-proy-tab') === id;
     btn.classList.toggle('is-on', on);
@@ -4254,6 +4273,7 @@ function seleccionarProyReaderTab(id) {
   const proy = proyectoAbierto();
   if (!proy) return;
   if (id === 'resumen') pintarProyectoCluster(proy);
+  if (id === 'documento') pintarVersionProyecto(versionProyectoAbierta(proy));
   if (id === 'colecciones') pintarProyectoColecciones(proy);
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
   if (id === 'campos') pintarProyectoCampos(proy);
@@ -4271,46 +4291,6 @@ function seleccionarEditarProyTab(id) {
   });
   if (panelDoc) panelDoc.hidden = id !== 'documento';
   if (panelSkills) panelSkills.hidden = id !== 'skills';
-}
-
-function pintarProyectoSkillsLista(proy) {
-  const lista = document.getElementById('proySkillsLista');
-  const vacio = document.getElementById('proySkillsVacio');
-  if (!lista) return;
-  lista.replaceChildren();
-  const ids = Array.isArray(proy && proy.skills) ? proy.skills : [];
-  if (!ids.length) {
-    if (vacio) vacio.hidden = false;
-    return;
-  }
-  if (vacio) vacio.hidden = true;
-  ids.forEach(function (sid) {
-    const skill = state.instrucciones.find(function (ins) { return ins.id === sid; });
-    const nombre = skill ? skill.nombre : sid;
-    const btn = el('button', 'ancla-skill-card', null);
-    btn.type = 'button';
-    btn.title = 'Ver skill';
-    btn.setAttribute('aria-label', 'Ver skill ' + nombre);
-    const main = el('span', 'ancla-skill-main', null);
-    main.append(el('span', 'ancla-skill-nombre', nombre));
-    main.append(el('code', 'ancla-skill-id', sid));
-    btn.append(main);
-    const enlace = el('span', 'ancla-skill-enlace', null);
-    enlace.setAttribute('aria-hidden', 'true');
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('stroke-width', '2');
-    svg.setAttribute('stroke-linecap', 'round');
-    svg.setAttribute('stroke-linejoin', 'round');
-    svg.append(svgPath('M15 3h6v6'), svgPath('M10 14L21 3'), svgPath('M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'));
-    enlace.append(svg);
-    btn.append(enlace);
-    btn.addEventListener('click', function () { abrirVistaSkill(sid); });
-    lista.append(btn);
-  });
 }
 
 function pintarVersionProyecto(v) {
@@ -4396,7 +4376,7 @@ function renderProyectoReader() {
     state.proyectos.abiertoId = null;
     state.proyectos.abiertaNumero = null;
     state.proyectos.historial = false;
-    const lista = document.getElementById('proySkillsLista');
+    const lista = document.getElementById('proySkillsTabLista');
     if (lista) lista.replaceChildren();
     if (dlg && dlg.open) dlg.close();
     return;
@@ -4409,11 +4389,6 @@ function renderProyectoReader() {
   if (proyId) proyId.textContent = proy.id || '—';
   const baseEl = document.getElementById('proyReaderBaseDatos');
   if (baseEl) baseEl.textContent = proy.baseDatos || '—';
-  const skillsRes = document.getElementById('proyResumenSkills');
-  if (skillsRes) {
-    const sk = Array.isArray(proy.skills) ? proy.skills : [];
-    skillsRes.textContent = sk.length ? sk.join(', ') : '—';
-  }
   const legacyFila = document.getElementById('proyLegacyFila');
   if (legacyFila) legacyFila.hidden = !proy.legacyNegocio;
   const msgBd = document.getElementById('proyCrearBdMsg');
@@ -4427,8 +4402,11 @@ function renderProyectoReader() {
     planBd.hidden = true;
     planBd.replaceChildren();
   }
+  const sinOps = !!proy.legacyNegocio || !proy.baseDatos;
   const btnCrear = document.getElementById('btnCrearBdProyecto');
-  if (btnCrear) btnCrear.hidden = !!proy.legacyNegocio || !proy.baseDatos;
+  if (btnCrear) btnCrear.hidden = sinOps;
+  const btnEmpujarTab = document.getElementById('btnEmpujarEsquemaTab');
+  if (btnEmpujarTab) btnEmpujarTab.hidden = sinOps;
   const proyVer = document.getElementById('proyInternoVersion');
   if (proyVer) proyVer.textContent = formatVersion(v.numero, v.fecha);
   const full = normalizarHash(v.hash) || hashFnvHex(proy.id + '|' + v.numero + '|' + (v.ruta || v.fecha || ''));
@@ -4450,7 +4428,6 @@ function renderProyectoReader() {
   seleccionarProyReaderTab('resumen');
   pintarProyectoCluster(proy);
   pintarVersionProyecto(v);
-  pintarProyectoSkillsLista(proy);
   renderHistorialProyecto(proy, v);
   openFichaPane(dlg);
   const nombre = document.getElementById('proyReaderNombre');
@@ -4810,7 +4787,9 @@ async function onCrearBaseDatosProyecto() {
   const msg = document.getElementById('proyCrearBdMsg');
   const planEl = document.getElementById('proyEmpujarPlan');
   const btn = document.getElementById('btnCrearBdProyecto');
+  const btnTab = document.getElementById('btnEmpujarEsquemaTab');
   if (!proy || !proy.id) return;
+  seleccionarProyReaderTab('empujar');
   if (planEl) {
     planEl.hidden = true;
     planEl.replaceChildren();
@@ -4821,6 +4800,7 @@ async function onCrearBaseDatosProyecto() {
     msg.textContent = 'Empujando esquema…';
   }
   if (btn) btn.disabled = true;
+  if (btnTab) btnTab.disabled = true;
   try {
     await asegurarClaveCatalogo();
     const data = await apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proy.id) + '/crear-bd', {
@@ -4837,6 +4817,7 @@ async function onCrearBaseDatosProyecto() {
     }
   } finally {
     if (btn) btn.disabled = false;
+    if (btnTab) btnTab.disabled = false;
   }
 }
 
@@ -5736,7 +5717,8 @@ function onSubmitEditarProyectoSkills(e) {
     refrescarProyectos();
     pintarProyectos();
     if (state.proyectos.abiertoId === id) {
-      pintarProyectoSkillsLista(proyectoAbierto());
+      const abierto = proyectoAbierto();
+      if (abierto) pintarProyectoSkillsTab(abierto);
     }
   } catch (err) {
     if (error) error.textContent = err.message;
@@ -6403,6 +6385,8 @@ function wireProyectosUi() {
   if (btnEditSkills) btnEditSkills.addEventListener('click', abrirDialogoEditarProyectoSkills);
   const btnCrearBd = document.getElementById('btnCrearBdProyecto');
   if (btnCrearBd) btnCrearBd.addEventListener('click', onCrearBaseDatosProyecto);
+  const btnEmpujarTab = document.getElementById('btnEmpujarEsquemaTab');
+  if (btnEmpujarTab) btnEmpujarTab.addEventListener('click', onCrearBaseDatosProyecto);
   const proyTabs = document.getElementById('proyReaderTabs');
   if (proyTabs) proyTabs.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-proy-tab]');
@@ -7361,6 +7345,23 @@ function cerrarAgenteModal() {
   pintarAgentes();
 }
 
+function seleccionarAgenteReaderTab(id) {
+  const tabs = document.querySelectorAll('#agenteReaderTabs [data-agente-tab]');
+  const panels = {
+    resumen: document.getElementById('agentePanelResumen'),
+    acl: document.getElementById('agentePanelAcl')
+  };
+  if (id !== 'acl') id = 'resumen';
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-agente-tab') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  Object.keys(panels).forEach(function (key) {
+    if (panels[key]) panels[key].hidden = key !== id;
+  });
+}
+
 function renderAgenteReader() {
   const dlg = document.getElementById('dlgAgenteFicha');
   const ag = state.agentes.lista.find(function (a) { return a.id === state.agentes.abiertoId; });
@@ -7409,6 +7410,8 @@ function renderAgenteReader() {
       avatar.textContent = String(ag.nombre).trim().charAt(0).toUpperCase() || '?';
     }
   }
+  iconizarPestanasFicha(dlg);
+  seleccionarAgenteReaderTab('resumen');
   openFichaPane(dlg);
   const nombre = document.getElementById('agenteReaderNombre');
   if (nombre) nombre.focus();
@@ -7484,6 +7487,12 @@ function wireAgentesUi() {
       id: state.agentes.abiertoId,
       aviso: 'Se quita del catálogo de este navegador. La clave de invite no se regenera aquí.'
     });
+  });
+  const agenteTabs = document.getElementById('agenteReaderTabs');
+  if (agenteTabs) agenteTabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-agente-tab]');
+    if (!btn) return;
+    seleccionarAgenteReaderTab(btn.getAttribute('data-agente-tab'));
   });
   const formEditarAg = document.getElementById('formEditarAgente');
   if (formEditarAg) formEditarAg.addEventListener('submit', onSubmitEditarAgente);
