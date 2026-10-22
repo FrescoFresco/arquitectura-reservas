@@ -188,7 +188,7 @@ POST {API_BASE}/v1/proyectos/:id/crear-bd
 POST {API_BASE}/v1/esquemas/:id/crear-bd
 Authorization: Bearer inv_…
 → crea DB/colecciones/índices/$jsonSchema desde campos Mongo de la base de datos
-  URI: propia del esquema (pestaña Conexión) → Ajustes → Conexiones → env
+  URI: solo la propia del esquema (pestaña Conexión). Sin fallback a URI global ni a env.
   Sin URI → { mock:true, dryRun:true, plan, source } (default db del schema, p. ej. software_reservas)
 ```
 
@@ -341,7 +341,10 @@ Content-Type: application/json
 
 Driver: **`mongodb`** oficial en el Worker (TCP; no Data API).
 
-**Origen de la URI (prioridad):** (1) URI por Base de datos (`mongo_config_proyecto`, ficha → pestaña **Conexión**); (2) URI global en D1 desde **Ajustes → Conexiones**; (3) fallback secret/env `MONGODB_URI`. Cifrado AES-GCM con `ENCRYPTION_KEY`. Opcional `MONGODB_DB` / campo `db` (default del schema, p. ej. `software_reservas`).
+**Origen de la URI:**
+- Contexto de Base de datos (`crear-bd`, `sync/proyecto`, ficha → **Conexión**): solo `mongo_config_proyecto` (AES-GCM + `ENCRYPTION_KEY`). **Sin** URI global ni fallback a env.
+- Sin contexto de proyecto (`/health`, `/v1/mongo/status`, `sync/negocio`): secret ops `MONGODB_URI` (no es producto / Ajustes).
+- Opcional `MONGODB_DB` / campo `db` (default del schema, p. ej. `software_reservas`).
 
 ```
 GET  {API_BASE}/health
@@ -349,21 +352,16 @@ GET  {API_BASE}/health
 
 GET  {API_BASE}/v1/mongo/status
 → { "ok": true, "configured": true|false, "connected": true|false, "db": "…",
-    "source": "stored"|"env"|"none", "hint"? }   # hint = últimos 4 del host; nunca la URI
+    "source": "env"|"none", "hint"? }   # ops: secret Worker; nunca la URI
 
-POST {API_BASE}/v1/mongo/config
-Authorization: Bearer inv_…
-{ "uri": "mongodb+srv://…", "db"?: "software_reservas", "probeOnly"?: true }
-→ guarda cifrado global (o solo prueba si probeOnly). Respuesta: configured/connected/db/source/hint — sin uri
-
-DELETE {API_BASE}/v1/mongo/config
-Authorization: Bearer inv_…
-→ borra la URI global del panel; el secret MONGODB_URI del Worker no se toca
+POST {API_BASE}/v1/mongo/config   # deprecated → 410
+DELETE {API_BASE}/v1/mongo/config  # deprecated → 410
+→ la URI global (ex Ajustes → Conexiones) ya no forma parte del producto
 
 GET  {API_BASE}/v1/proyectos/:id/mongo-config
 GET  {API_BASE}/v1/esquemas/:id/mongo-config
 → { ok, proyecto, baseDatos, configured, own, connected, db,
-    source: "proyecto"|"stored"|"env"|"none", hint? }
+    source: "proyecto"|"none", hint? }
   # own=true si hay URI propia de este esquema; nunca uri
 
 POST {API_BASE}/v1/proyectos/:id/mongo-config
@@ -373,7 +371,7 @@ Authorization: Bearer inv_…
 
 DELETE {API_BASE}/v1/proyectos/:id/mongo-config
 Authorization: Bearer inv_…
-→ borra URI propia; cae a Ajustes / env
+→ borra URI propia; sin fallback a URI global
 
 POST {API_BASE}/v1/mongo/sync/negocio
 Authorization: Bearer inv_…

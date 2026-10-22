@@ -33,14 +33,10 @@ import {
 } from './mongo';
 import {
   clearProyectoStoredUri,
-  clearStoredUri,
   isValidMongoUri,
   loadProyectoStoredUri,
-  loadStoredUri,
   readProyectoMongoMeta,
-  readStoredMeta,
   saveProyectoStoredUri,
-  saveStoredUri,
   type MongoConfigMeta,
 } from './mongo-config';
 import {
@@ -79,8 +75,12 @@ type ResolvedMongo = {
 };
 
 /**
- * Prefer per-proyecto URI (if proyectoId), else global D1 URI, else env MONGODB_URI.
- * Never exposes the URI.
+ * URI resolution (never exposes the URI):
+ * - With proyectoId (crear-bd, sync/proyecto, ficha Conexión): **only** that schema's
+ *   URI in `mongo_config_proyecto`. No global D1 / Ajustes fallback; no env fallback
+ *   for product writes — missing URI → not configured (fail clearly).
+ * - Without proyectoId (health / status / sync/negocio): ops-only `MONGODB_URI` env.
+ *   Global `mongo_config` (ex Ajustes → Conexiones) is no longer in the product path.
  */
 async function resolveRuntimeMongo(
   env: Env,
@@ -134,44 +134,18 @@ async function resolveRuntimeMongo(
         decryptError: decryptError || 'ENCRYPTION_KEY missing',
       };
     }
-  }
-
-  const storedMeta = await readStoredMeta(env.DB);
-  let storedUri: string | undefined;
-  let storedDb: string | undefined;
-  let hint = '';
-
-  if (storedMeta?.present) {
-    hint = storedMeta.hint || '';
-    try {
-      const loaded = await loadStoredUri(env.DB, env.ENCRYPTION_KEY);
-      if (loaded) {
-        storedUri = loaded.uri;
-        storedDb = loaded.db;
-        hint = loaded.hint || hint;
-      }
-    } catch (err) {
-      decryptError = err instanceof Error ? err.message : 'decrypt failed';
-    }
-  }
-
-  if (storedUri) {
-    const mongoEnv: MongoEnv = {
-      MONGODB_URI: storedUri,
-      MONGODB_DB: storedDb || env.MONGODB_DB,
-    };
     return {
-      env: mongoEnv,
+      env: {},
       meta: {
-        configured: true,
-        source: 'stored',
-        hint,
-        db: resolveMongoDbName(mongoEnv, dbHint || storedDb),
+        configured: false,
+        source: 'none',
+        hint: '',
+        db: resolveMongoDbName(env, dbHint),
       },
-      decryptError,
     };
   }
 
+  // Ops-only: Worker secret (not product Ajustes).
   if (mongoUriConfigured(env)) {
     const mongoEnv: MongoEnv = {
       MONGODB_URI: env.MONGODB_URI,
@@ -185,20 +159,6 @@ async function resolveRuntimeMongo(
         hint: '',
         db: resolveMongoDbName(mongoEnv, dbHint),
       },
-    };
-  }
-
-  // Row present but undecryptable still counts as "configured" for UI (never leak URI).
-  if (storedMeta?.present) {
-    return {
-      env: {},
-      meta: {
-        configured: true,
-        source: 'stored',
-        hint: storedMeta.hint || '',
-        db: storedMeta.dbName || resolveMongoDbName(env, dbHint),
-      },
-      decryptError: decryptError || 'ENCRYPTION_KEY missing',
     };
   }
 
@@ -557,7 +517,7 @@ app.get('/v1/proyectos/:id/diagrama', async (c) => {
 
 /**
  * Estado de conexión Mongo de una Base de datos (sin URI).
- * Incluye si hay URI propia del proyecto o si cae a la global / env.
+ * Solo URI propia del esquema; sin fallback a global/env de producto.
  */
 app.get('/v1/proyectos/:id/mongo-config', async (c) => {
   const id = c.req.param('id');
@@ -1079,74 +1039,30 @@ app.post('/v1/helpers/proyeccion-array', async (c) => {
 });
 
 /**
- * Save Mongo URI from the panel (Ajustes → Conexiones).
- * Auth: invite Bearer (same as other writes). Body: { uri, db? }.
- * Validates format + ping; stores AES-GCM ciphertext in D1. Never echoes URI.
+ * Deprecated: global Ajustes → Conexiones URI. Use per-schema
+ * POST /v1/proyectos/:id/mongo-config (ficha Base de datos → Conexión).
  */
 app.post('/v1/mongo/config', async (c) => {
-  const key = (c.env.ENCRYPTION_KEY || '').trim();
-  if (!key) {
-    return c.json(
-      {
-        ok: false,
-        error: 'ENCRYPTION_KEY missing',
-        hint: 'Define el secret ENCRYPTION_KEY en el Worker (wrangler secret put ENCRYPTION_KEY).',
-      },
-      503
-    );
-  }
-  const body = (await c.req.json().catch(() => ({}))) as {
-    uri?: string;
-    db?: string;
-    dbName?: string;
-    probeOnly?: boolean;
-  };
-  const uri = String(body.uri || '').trim();
-  const dbName = String(body.db || body.dbName || '').trim();
-  if (!uri) return jsonError(c, 400, 'Falta uri.');
-  if (!isValidMongoUri(uri)) {
-    return jsonError(c, 400, 'URI inválida (usa mongodb:// o mongodb+srv:// con usuario@host).');
-  }
-  const probeEnv: MongoEnv = {
-    MONGODB_URI: uri,
-    MONGODB_DB: dbName || c.env.MONGODB_DB,
-  };
-  const status = await probeMongoStatus(probeEnv, dbName || undefined);
-  if (body.probeOnly) {
-    return c.json({
-      ok: true,
-      probed: true,
-      configured: false,
-      connected: status.connected,
-      db: status.db,
-      ...(status.error ? { error: status.error } : {}),
-    });
-  }
-  // Persist even if ping fails (Atlas IP allowlist often lags); surface connected.
-  const saved = await saveStoredUri(c.env.DB, key, uri, dbName || undefined);
-  return c.json({
-    ok: true,
-    configured: true,
-    connected: status.connected,
-    db: saved.db || status.db,
-    source: 'stored' as const,
-    hint: saved.hint,
-    ...(status.error ? { error: status.error } : {}),
-  });
+  return c.json(
+    {
+      ok: false,
+      error: 'deprecated',
+      hint: 'La URI global ya no forma parte del producto. Usa POST /v1/proyectos/:id/mongo-config (pestaña Conexión de la Base de datos).',
+    },
+    410
+  );
 });
 
-/** Clear in-app stored URI (env MONGODB_URI fallback remains if set). */
+/** Deprecated: clear global panel URI (removed from product UX). */
 app.delete('/v1/mongo/config', async (c) => {
-  await clearStoredUri(c.env.DB);
-  const resolved = await resolveRuntimeMongo(c.env);
-  return c.json({
-    ok: true,
-    cleared: true,
-    configured: resolved.meta.configured,
-    connected: false,
-    db: resolved.meta.db,
-    source: resolved.meta.source,
-  });
+  return c.json(
+    {
+      ok: false,
+      error: 'deprecated',
+      hint: 'La URI global ya no forma parte del producto. Usa DELETE /v1/proyectos/:id/mongo-config.',
+    },
+    410
+  );
 });
 
 /**
@@ -1527,7 +1443,7 @@ app.post('/v1/proyectos/:id/mongo-config', async (c) => {
   });
 });
 
-/** Borra la URI propia de esta Base de datos (cae a Ajustes / env). */
+/** Borra la URI propia de esta Base de datos (sin caer a URI global). */
 app.delete('/v1/proyectos/:id/mongo-config', async (c) => {
   const id = c.req.param('id');
   const proyRow = await c.env.DB.prepare('SELECT id, base_datos FROM proyectos WHERE id = ?')
@@ -1620,7 +1536,7 @@ app.post('/v1/proyectos/:id/crear-bd', async (c) => {
       },
       hint: mongoUriConfigured(resolved.env)
         ? undefined
-        : 'Sin URI Mongo: plan en seco. Configura la pestaña Conexión de esta Base de datos, Ajustes → Conexiones o MONGODB_URI.',
+        : 'Sin URI Mongo: plan en seco. Configura la pestaña Conexión de esta Base de datos y vuelve a llamar.',
       created: [],
       updated: [],
       indexes: [],

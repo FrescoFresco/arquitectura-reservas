@@ -3,7 +3,6 @@
 const CATALOGOS = [
   { id: 'proyectos', nombre: 'Base de datos', icono: 'proyecto' },
   { id: 'colecciones', nombre: 'Colecciones', icono: 'coleccion' },
-  { id: 'agentes', nombre: 'Agentes', icono: 'agente' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
   { id: 'campos-mongodb', nombre: 'Campos MongoDB', icono: 'mongo' }
@@ -2714,13 +2713,8 @@ function seleccionarCatalogo(id) {
   if (id === 'campos-mongodb') cargarMongo();
   if (id === 'proyectos') cargarProyectos();
   if (id === 'colecciones') cargarColecciones();
-  if (id === 'agentes') {
-    refrescarAgentes();
-    pintarAgentes();
-    arrancarPollAgentes();
-  } else {
-    detenerPollAgentes();
-  }
+  // Agentes vive en Ajustes; al cambiar de catálogo se para el poll si Ajustes no está visible.
+  if (!agentesCatalogoVisible()) detenerPollAgentes();
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.focus();
 }
@@ -4513,7 +4507,7 @@ async function onCrearBaseDatosProyecto() {
     if (!data || data.ok === false) throw new Error((data && data.error) || 'Error');
     if (msg) {
       if (data.mock || data.dryRun) {
-        msg.textContent = 'Plan listo (sin URI Mongo). Configura la pestaña Conexión (o Ajustes → Conexiones) y vuelve a pulsar. Base: ' + (data.db || proy.baseDatos);
+        msg.textContent = 'Plan listo (sin URI Mongo). Configura la pestaña Conexión de esta Base de datos y vuelve a pulsar. Base: ' + (data.db || proy.baseDatos);
       } else {
         const created = (data.created || []).join(', ') || 'ninguna nueva';
         msg.textContent = 'Base ' + (data.db || '') + ' lista. Colecciones creadas: ' + created + '.';
@@ -4559,9 +4553,7 @@ function pintarProyectoConexionStatus(data, proy) {
   badge.classList.remove('is-yes', 'is-no', 'is-err');
   let label = 'Sin configurar';
   if (configured) {
-    if (own) label = 'URI propia';
-    else if (source === 'stored') label = 'Usa Ajustes (global)';
-    else if (source === 'env') label = 'Usa secret del Worker';
+    if (own || source === 'proyecto') label = 'URI propia';
     else label = 'Configurada';
     if (connected === true) label += ' · conectada';
     else if (connected === false) label += ' · sin conexión al cluster';
@@ -4574,17 +4566,17 @@ function pintarProyectoConexionStatus(data, proy) {
   const extra = [];
   if (configured && hint) extra.push('pista ' + hint);
   if (db) extra.push('db ' + db);
-  if (own) extra.push('guardada en esta Base de datos');
-  else if (source === 'stored') extra.push('heredada de Ajustes → Conexiones');
-  else if (source === 'env') extra.push('vía secret del Worker');
+  if (own || source === 'proyecto') extra.push('guardada en esta Base de datos');
   if (hintEl) {
-    hintEl.textContent = extra.length ? extra.join(' · ') : 'La URI guardada no se vuelve a mostrar.';
+    hintEl.textContent = extra.length
+      ? extra.join(' · ')
+      : 'Sin URI propia: las operaciones Mongo de esta Base de datos fallan (no hay URI global).';
   }
   if (ayuda && proy && proy.baseDatos) {
     ayuda.innerHTML =
       'Cadena de conexión Atlas (<code>mongodb+srv://…</code>) para la base Mongo <code>' +
       String(proy.baseDatos).replace(/</g, '') +
-      '</code>. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Si no hay URI propia, se usa la de Ajustes → Conexiones.';
+      '</code>. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Sin URI propia, las operaciones Mongo fallan (no hay URI global en Ajustes).';
   }
 
   const uriInput = document.getElementById('proyConexionUri');
@@ -4736,7 +4728,7 @@ function onBorrarProyConexion(e) {
   if (e) e.preventDefault();
   const proy = proyectoAbierto();
   if (!proy || !proy.id) return;
-  if (!window.confirm('¿Borrar la URI propia de esta Base de datos? Seguirá pudiendo usarse la de Ajustes → Conexiones.')) {
+  if (!window.confirm('¿Borrar la URI propia de esta Base de datos? Sin ella, las operaciones Mongo de este esquema fallarán.')) {
     return;
   }
   proyConexionSetBusy(true);
@@ -5900,12 +5892,21 @@ function textoAgentesActualizado() {
 }
 
 function agentesCatalogoVisible() {
-  if (state.catalogoId !== 'agentes') return false;
   if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
-  const cat = document.getElementById('catalogos');
-  if (cat && cat.hidden) return false;
+  const ajustes = document.getElementById('ajustes');
+  if (!ajustes || ajustes.hidden) return false;
+  const panel = document.getElementById('panel-agentes');
+  if (panel && panel.hidden) return false;
   return true;
 }
+
+/** Abre/refresca el catálogo Agentes dentro de Ajustes. */
+function mostrarAgentesAjustes() {
+  refrescarAgentes();
+  pintarAgentes();
+  arrancarPollAgentes();
+}
+window.mostrarAgentesAjustes = mostrarAgentesAjustes;
 
 function detenerPollAgentes() {
   if (state.agentes.pollTimer) {
@@ -6223,7 +6224,7 @@ function refrescarMongoConnStatus() {
       if (configured && connected === true) text += ' · conectada';
       if (configured && connected === false) text += ' · no alcanza el cluster';
       if (db) text += ' · db ' + db;
-      text += ' — configurar en Ajustes → Conexiones';
+      text += ' — por Base de datos → Conexión' + (data.source === 'env' ? ' (ops: secret Worker)' : '');
       targets.forEach(function (n) {
         n.textContent = text;
         n.classList.add(configured ? (connected === false ? 'is-err' : 'is-yes') : 'is-no');
@@ -6238,7 +6239,7 @@ function refrescarMongoConnStatus() {
           const text =
             'URI configurada: ' +
             (configured ? 'sí' : 'no') +
-            ' — configurar en Ajustes → Conexiones';
+            ' — por Base de datos → Conexión';
           targets.forEach(function (n) {
             n.textContent = text;
             n.classList.add(configured ? 'is-yes' : 'is-no');
@@ -6377,7 +6378,7 @@ function abrirDialogoDarAcceso() {
     texto.focus();
     texto.select();
     sincronizarAgentesSilencioso();
-    if (state.catalogoId === 'agentes') arrancarPollAgentes();
+    if (agentesCatalogoVisible()) arrancarPollAgentes();
   }).catch(function (e) {
     claveNodo.textContent = '—';
     texto.value = '';
