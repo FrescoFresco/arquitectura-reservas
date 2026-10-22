@@ -193,20 +193,70 @@
     );
   }
 
+  function IconoMongoFila() {
+    return e('svg', {
+      className: 'catalogo-fila-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('ellipse', { cx: '12', cy: '6', rx: '7', ry: '3' }),
+      e('path', { d: 'M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6' }),
+      e('path', { d: 'M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6' })
+    );
+  }
+
+  function etiquetaMongoFila(m) {
+    var clave = String((m && m.clave) || '').trim();
+    if (clave) {
+      return clave.split(/[._]/).filter(Boolean).map(function (p) {
+        if (p.length === 1) return p.toUpperCase();
+        return p.charAt(0).toUpperCase() + p.slice(1);
+      }).join(' ');
+    }
+    return (m && (m.campo || m.id)) || 'Campo';
+  }
+
   function PanelMongo(props) {
-    var c = props.campo;
     var mongo = props.mongo || null;
-    var coleccion = (mongo && mongo.coleccion) || c.coleccion || '';
-    var clave = (mongo && mongo.clave) || c.claveMongo || '';
-    var base = (mongo && mongo.baseDatos) || c.baseDatos || '';
-    var bson = (mongo && mongo.bsonType) || bsonDesdeTipo(c.tipo);
-    var completo = coleccion && clave ? coleccion + '.' + clave : (mongo && mongo.campo) || '—';
-    return e('dl', { className: 'ancla-ficha-dl', id: 'ancla-panel-mongo', role: 'tabpanel' },
-      e(Fila, { label: 'Base' }, base ? e('code', null, base) : '—'),
-      e(Fila, { label: 'Colección' }, coleccion ? e('code', null, coleccion) : '—'),
-      e(Fila, { label: 'Clave' }, clave ? e('code', null, clave) : '—'),
-      e(Fila, { label: 'bsonType' }, bson ? e('code', null, bson) : '—'),
-      e(Fila, { label: 'Campo completo' }, completo !== '—' ? e('code', { className: 'ancla-code' }, completo) : '—')
+    var onAbrirCampo = props.onAbrirCampo;
+    // Solo pintar enlace real del catálogo Campos. Sin match → vacío (no inferir desde el ancla).
+    if (!mongo || !mongo.id) {
+      return e('p', {
+        className: 'ancla-ficha-vacio',
+        id: 'ancla-panel-mongo',
+        role: 'tabpanel'
+      }, 'Ningún campo del catálogo Campos está enlazado a este ancla.');
+    }
+    var codigo = mongo.campo || ((mongo.coleccion || '') + '.' + (mongo.clave || ''));
+    var titulo = etiquetaMongoFila(mongo);
+    var secundario = codigo;
+    if (mongo.baseDatos) secundario = codigo + ' · ' + mongo.baseDatos;
+    return e('div', {
+      className: 'catalogo-lista proy-tab-catalogo',
+      id: 'ancla-panel-mongo',
+      role: 'list',
+      'aria-label': 'Campo Mongo asociado'
+    },
+      e('button', {
+        type: 'button',
+        className: 'catalogo-fila',
+        role: 'listitem',
+        title: mongo.descripcion || titulo,
+        'aria-label': 'Abrir campo ' + titulo,
+        onClick: function () { if (onAbrirCampo) onAbrirCampo(mongo.id); }
+      },
+        e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoMongoFila)),
+        e('span', { className: 'catalogo-fila-main' },
+          e('span', { className: 'catalogo-fila-titulo' }, titulo),
+          e('code', { className: 'catalogo-fila-codigo' }, secundario)
+        ),
+        e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlaceExterno))
+      )
     );
   }
 
@@ -397,7 +447,11 @@
       e('div', { className: 'ancla-ficha-body' },
         tab === 'definicion' ? e(PanelDefinicion, { campo: c }) : null,
         tab === 'historial' ? e(PanelHistorial, { campo: c, negocioId: props.negocioId || 'pelo-sur' }) : null,
-        tab === 'mongo' ? e(PanelMongo, { campo: c, mongo: props.mongo }) : null,
+        tab === 'mongo' ? e(PanelMongo, {
+          campo: c,
+          mongo: props.mongo,
+          onAbrirCampo: props.onAbrirCampo
+        }) : null,
         tab === 'skills' ? e(PanelSkills, {
           skills: skills,
           skillItems: props.skillItems || [],
@@ -544,6 +598,7 @@
       onEditar: opts.onEditar || null,
       onEliminar: opts.onEliminar || null,
       mongo: opts.mongo || null,
+      onAbrirCampo: opts.onAbrirCampo || null,
       nombresSkill: opts.nombresSkill || {},
       skillItems: opts.skillItems || [],
       onAbrirSkill: opts.onAbrirSkill || null,

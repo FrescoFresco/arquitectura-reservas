@@ -107,6 +107,57 @@
     );
   }
 
+  function IconoAnclaFila() {
+    return e('svg', {
+      className: 'catalogo-fila-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('circle', { cx: '12', cy: '5', r: '2.5' }),
+      e('path', { d: 'M12 7.5v10.5' }),
+      e('path', { d: 'M8 14c0 2.5 1.8 4.5 4 4.5s4-2 4-4.5' }),
+      e('path', { d: 'M7 11h10' })
+    );
+  }
+
+  function PanelAncla(props) {
+    var items = props.anclaItems || [];
+    var onAbrirAncla = props.onAbrirAncla;
+    if (!items.length) {
+      return e('p', { className: 'ancla-ficha-vacio' }, 'Sin ancla asociada.');
+    }
+    return e('div', {
+      className: 'catalogo-lista proy-tab-catalogo',
+      role: 'list',
+      'aria-label': 'Ancla asociada'
+    },
+      items.map(function (a) {
+        var titulo = a.etiqueta || a.ancla || a.id || '—';
+        return e('button', {
+          type: 'button',
+          key: a.id || a.ancla,
+          className: 'catalogo-fila',
+          role: 'listitem',
+          title: a.descripcion || titulo,
+          'aria-label': 'Abrir ancla ' + titulo,
+          onClick: function () { if (onAbrirAncla) onAbrirAncla(a.ancla || a.id); }
+        },
+          e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoAnclaFila)),
+          e('span', { className: 'catalogo-fila-main' },
+            e('span', { className: 'catalogo-fila-titulo' }, titulo),
+            e('code', { className: 'catalogo-fila-codigo' }, a.ancla || a.id || '—')
+          ),
+          e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlaceFila))
+        );
+      })
+    );
+  }
+
   function PanelColeccion(props) {
     var items = props.coleccionItems || [];
     var onAbrirColeccion = props.onAbrirColeccion;
@@ -261,7 +312,12 @@
             e(Fila, { label: 'Obligatorio' }, c.obligatorio ? 'Sí' : 'No'),
             e(Fila, { label: 'Descripción' }, c.descripcion || '—'),
             e(Fila, { label: 'Enlazado a ancla' },
-              c.ancla ? e('code', { className: 'ancla-code' }, c.ancla) : '—'
+              (props.anclaItems && props.anclaItems.length)
+                ? e(PanelAncla, {
+                  anclaItems: props.anclaItems,
+                  onAbrirAncla: props.onAbrirAncla
+                })
+                : (c.ancla ? e('code', { className: 'ancla-code' }, c.ancla) : '—')
             )
           )
           : null,
@@ -444,7 +500,9 @@
       onEliminar: opts.onEliminar || null,
       initialTab: opts.initialTab || 'definicion',
       coleccionItems: opts.coleccionItems || [],
-      onAbrirColeccion: opts.onAbrirColeccion || null
+      onAbrirColeccion: opts.onAbrirColeccion || null,
+      anclaItems: opts.anclaItems || [],
+      onAbrirAncla: opts.onAbrirAncla || null
     }));
   }
 

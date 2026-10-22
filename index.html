@@ -328,6 +328,11 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .proy-agente-perms{margin:0;font-size:12px;color:#5f6f84;line-height:1.5}
 .proy-crear-bd-msg{margin:10px 0 0;font-size:13px;color:#0f7a45}
 .proy-crear-bd-msg.is-err{color:#b42318}
+.proy-empujar-plan{margin:12px 0 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fbff}
+.proy-empujar-lista{margin:8px 0 0;padding-left:1.2rem;font-size:13px;color:#31506e;line-height:1.45}
+.agente-acl-pills{display:flex;flex-wrap:wrap;gap:6px}
+.agente-acl-pills .ancla-pill{font-size:11px}
+.cluster-resumen-conexion{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .tabla-scroll{overflow:auto}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
@@ -433,6 +438,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="readerTabDoc" data-reader-tab="documento" aria-selected="true" aria-controls="readerPanelDoc">Documento</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabAnclas" data-reader-tab="anclas" aria-selected="false" aria-controls="readerPanelAnclas">Anclas</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabBases" data-reader-tab="bases" aria-selected="false" aria-controls="readerPanelBases">Bases de datos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabInterno" data-reader-tab="interno" aria-selected="false" aria-controls="readerPanelInterno">Interno</button>
 </div>
 <div class="reader-panel" id="readerPanelDoc" role="tabpanel" aria-labelledby="readerTabDoc">
@@ -443,6 +449,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="skill-anclas-list" id="readerAnclasLista"></div>
 <p class="ancla-ficha-vacio" id="readerAnclasVacio" hidden>Ninguna ancla asociada.</p>
 </div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="readerPanelBases" role="tabpanel" aria-labelledby="readerTabBases" hidden>
+<div id="readerBasesLista" class="proy-tab-catalogo"></div>
+<p class="ancla-ficha-vacio" id="readerBasesVacio" hidden>Ninguna base de datos usa esta skill todavía.</p>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelInterno" role="tabpanel" aria-labelledby="readerTabInterno" hidden>
 <dl class="ancla-ficha-dl">
@@ -473,7 +483,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-top-acciones">
-<button type="button" class="btn primary" id="btnCrearBdProyecto" title="Crea la base, colecciones, índices y validación en Mongo">Crear base de datos</button>
+<button type="button" class="btn primary" id="btnCrearBdProyecto" title="Empuja colecciones, validators e índices a Mongo Atlas (o muestra el plan si no hay URI)">Empujar esquema</button>
 <div class="historial-ancla">
 <button type="button" class="icon-btn" id="btnHistorialProyecto" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialProyecto">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
@@ -511,7 +521,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="historial-titulo" style="margin-top:0.75rem">Cluster</p>
 <div id="proyClusterLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="proyClusterVacio" hidden>Sin cluster asignado. La URI Atlas vive en el Cluster.</p>
+<p class="historial-titulo" style="margin-top:0.75rem">Empujar esquema</p>
+<p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run).</p>
 <p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
+<div class="proy-empujar-plan" id="proyEmpujarPlan" hidden></div>
 <div class="editar-anclas-top" style="margin-top:0.75rem">
 <span class="historial-titulo">Skills</span>
 <button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills de la base de datos" title="Editar skills">
@@ -577,6 +590,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="clusterReaderId">—</code></dd></div>
 <div class="ancla-ficha-fila"><dt>Descripción</dt><dd id="clusterReaderDesc">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Bases de datos</dt><dd id="clusterResumenBases">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Conexión</dt><dd>
+<div class="cluster-resumen-conexion">
+<span id="clusterResumenConexionBadge" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
+<button type="button" class="btn ghost" id="clusterResumenConexionCta" hidden>Ir a Conexión</button>
+</div>
+</dd></div>
 </dl>
 </div>
 <div class="reader-panel ancla-ficha-body" id="clusterPanelConexion" role="tabpanel" aria-labelledby="clusterTabConexion" hidden>
@@ -681,6 +700,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="colPanelCampos" role="tabpanel" aria-labelledby="colTabCampos" hidden>
+<div class="catalogo-toolbar" style="margin-bottom:10px">
+<button type="button" class="btn primary btn-anadir" id="colCamposCta" hidden>
+<span class="btn-anadir-plus" aria-hidden="true">+</span>
+<span>Añadir campo</span>
+</button>
+</div>
+<p class="ajustes-hint" id="colCamposNota" hidden></p>
 <div id="colCamposLista" class="proy-tab-catalogo"></div>
 </div>
 </article>
@@ -1019,11 +1045,15 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="ancla-ficha-body">
+<p class="ajustes-hint" id="agenteReaderHubNota">Quién entra en Campos ancla (API + invite). No son los bots del software de la Base de datos.</p>
 <dl class="ancla-ficha-dl">
 <div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="agenteReaderId">—</code></dd></div>
 <div class="ancla-ficha-fila"><dt>Estado</dt><dd id="agenteReaderEstadoDetalle">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Último latido</dt><dd id="agenteReaderLastSeen">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Invite</dt><dd><code id="agenteReaderInvite">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Bases de datos</dt><dd id="agenteReaderProyectos">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Lee</dt><dd id="agenteReaderLee">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Escribe</dt><dd id="agenteReaderEscribe">—</dd></div>
 </dl>
 <p class="origen" id="agenteReaderDesc" hidden></p>
 </div>

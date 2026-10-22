@@ -70,7 +70,7 @@ async function main() {
     // N2: ficha = definición; valores/observaciones van en ancla_valores_negocio.
     const sensible = c.sensible ? 1 : 0;
     stmts.push(
-      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.ancla)}', '${esc(c.etiqueta || '')}', '${esc(c.claveMongo || '')}', '${esc(c.coleccion || '')}', '${esc(c.baseDatos || 'arquitectura_reservas')}', '${esc(c.tipo || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.formato || '')}', '${esc(c.descripcion || '')}', '${esc(c.ejemplo || '')}', '${esc(c.hash || '')}', '${esc(aliases)}', '[]', '', ${sensible}, '${now}', '${now}');`
+      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at) VALUES ('${esc(c.id)}', '${esc(c.ancla)}', '${esc(c.etiqueta || '')}', '${esc(c.claveMongo || '')}', '${esc(c.coleccion || '')}', '${esc(c.baseDatos || 'software_reservas')}', '${esc(c.tipo || 'string')}', ${c.obligatorio ? 1 : 0}, '${esc(c.formato || '')}', '${esc(c.descripcion || '')}', '${esc(c.ejemplo || '')}', '${esc(c.hash || '')}', '${esc(aliases)}', '[]', '', ${sensible}, '${now}', '${now}');`
     );
     for (const sid of c.skills || []) {
       stmts.push(`INSERT OR IGNORE INTO ancla_skills (ancla_id, skill_id) VALUES ('${esc(c.id)}', '${esc(sid)}');`);
