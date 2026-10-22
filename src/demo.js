@@ -27,7 +27,7 @@ try {
   r.pasos.forEach((p, i) => console.log(`   ${String(i + 1).padStart(2)}. ${p.accion}${p.selector ? `   → ${p.selector}` : ''}`));
 
   console.log('\n── Campos (✱ obligatorio)');
-  for (const c of r.campos) console.log(`   ${c.obligatorio ? '✱' : ' '} ${c.nombre} (${c.control ?? '?'}) — ${c.evidencia ?? ''}`);
+  for (const c of r.campos) console.log(`   ${c.obligatorio ? '✱' : ' '} ${c.nombre} (${c.control ?? '?'}, clase ${c.clase}) — ${c.evidencia ?? ''}`);
 
   console.log('\n── Obstáculos');
   if (!r.obstaculos?.length) console.log('   ninguno');
