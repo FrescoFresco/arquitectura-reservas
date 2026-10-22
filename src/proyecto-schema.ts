@@ -162,8 +162,38 @@ export type DiagramaPayload = {
 
 export function buildDiagrama(
   proyecto: { baseDatos: string; colecciones: ColeccionDef[]; relaciones: RelacionDef[] },
-  campos: MongoCampoShape[]
+  campos: MongoCampoShape[],
+  opts?: { coleccion?: string }
 ): DiagramaPayload {
+  const focus = String(opts?.coleccion || '').trim();
+  let coleccionesSrc = proyecto.colecciones.slice();
+  let relacionesSrc = proyecto.relaciones.slice();
+
+  if (focus) {
+    const exists = coleccionesSrc.some((c) => c.id === focus);
+    if (!exists) {
+      return {
+        mermaid: 'erDiagram\n',
+        colecciones: [],
+        relaciones: [],
+        baseDatos: proyecto.baseDatos,
+      };
+    }
+    const neighbors = new Set<string>([focus]);
+    for (const r of relacionesSrc) {
+      const a = coleccionDeRuta(r.desde);
+      const b = coleccionDeRuta(r.hacia);
+      if (a === focus) neighbors.add(b);
+      if (b === focus) neighbors.add(a);
+    }
+    coleccionesSrc = coleccionesSrc.filter((c) => neighbors.has(c.id));
+    relacionesSrc = relacionesSrc.filter((r) => {
+      const a = coleccionDeRuta(r.desde);
+      const b = coleccionDeRuta(r.hacia);
+      return (a === focus || b === focus) && neighbors.has(a) && neighbors.has(b);
+    });
+  }
+
   const byCol = new Map<string, MongoCampoShape[]>();
   for (const c of campos) {
     const col = String(c.coleccion || '').trim();
@@ -176,7 +206,7 @@ export function buildDiagrama(
   const lines: string[] = ['erDiagram'];
   const coleccionesOut: DiagramaPayload['colecciones'] = [];
 
-  for (const col of proyecto.colecciones) {
+  for (const col of coleccionesSrc) {
     const entity = mermaidEntityName(col.id);
     const fields = byCol.get(col.id) || [];
     const fieldLines: string[] = [];
@@ -206,7 +236,7 @@ export function buildDiagrama(
   }
 
   // Relations: Mermaid uses ||--o{ etc. Map N:1 → many-to-one.
-  for (const r of proyecto.relaciones) {
+  for (const r of relacionesSrc) {
     const a = mermaidEntityName(coleccionDeRuta(r.desde));
     const b = mermaidEntityName(coleccionDeRuta(r.hacia));
     const tipo = String(r.tipo || 'N:1').toUpperCase();
@@ -221,7 +251,7 @@ export function buildDiagrama(
   return {
     mermaid: lines.join('\n'),
     colecciones: coleccionesOut,
-    relaciones: proyecto.relaciones,
+    relaciones: relacionesSrc,
     baseDatos: proyecto.baseDatos,
   };
 }

@@ -85,19 +85,21 @@
 
   function SkillsApp(props) {
     var bridge = props.bridge;
+    var embed = !!props.embed;
     var snapshot = bridge.getSnapshot();
     var skills = snapshot.instrucciones || [];
     var ready = snapshot.ready;
     var indexError = snapshot.indexError;
     var abierta = snapshot.abierta;
+    var emptyMsg = props.emptyMsg || 'No hay skills.';
 
     var estado = '';
     if (!ready) estado = 'Cargando el índice…';
     else if (indexError) estado = 'No se pudo leer el índice compartido.';
-    else if (!skills.length) estado = 'No hay skills.';
+    else if (!skills.length) estado = emptyMsg;
 
-    return e('div', { className: 'skills-app' },
-      e('div', { className: 'catalogo-toolbar' },
+    return e('div', { className: 'skills-app' + (embed ? ' is-embed' : '') },
+      embed ? null : e('div', { className: 'catalogo-toolbar' },
         e('button', {
           type: 'button',
           className: 'btn primary btn-anadir',
@@ -138,6 +140,7 @@
   }
 
   var reactRoot = null;
+  var listaRoots = {};
 
   function montar(bridge) {
     var root = document.getElementById('skills-root');
@@ -146,8 +149,23 @@
     reactRoot.render(e(SkillsApp, { bridge: bridge }));
   }
 
+  /** Lista embebible (p. ej. pestaña Skills de un ancla). Reutiliza SkillFila. */
+  function montarLista(elOrId, bridge, opts) {
+    opts = opts || {};
+    var el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (!el || !bridge) return;
+    var key = el.id || 'skills-embed';
+    if (!listaRoots[key]) listaRoots[key] = ReactDOM.createRoot(el);
+    listaRoots[key].render(e(SkillsApp, {
+      bridge: bridge,
+      embed: true,
+      emptyMsg: opts.emptyMsg || 'Ninguna skill usa este ancla todavía.'
+    }));
+  }
+
   window.SkillsUI = {
     montar: montar,
-    refrescar: function (bridge) { montar(bridge); }
+    refrescar: function (bridge) { montar(bridge); },
+    montarLista: montarLista
   };
 })();

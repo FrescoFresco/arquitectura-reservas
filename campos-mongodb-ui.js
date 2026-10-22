@@ -37,6 +37,7 @@
     var setTab = props.setTab;
     var items = [
       { id: 'definicion', label: 'Definición' },
+      { id: 'coleccion', label: 'Colección' },
       { id: 'interno', label: 'Interno' }
     ];
     return e('div', { className: 'ancla-ficha-tabs', role: 'tablist', 'aria-label': 'Secciones del campo MongoDB' },
@@ -52,6 +53,39 @@
         }, item.label);
       })
     );
+  }
+
+  function PanelColeccion(props) {
+    var mountRef = React.useRef(null);
+    var items = props.coleccionItems || [];
+    var onAbrirColeccion = props.onAbrirColeccion;
+
+    React.useEffect(function () {
+      var el = mountRef.current;
+      if (!el || !window.ColeccionesUI || typeof window.ColeccionesUI.montarLista !== 'function') return;
+      window.ColeccionesUI.montarLista(el, {
+        getSnapshot: function () {
+          return {
+            ready: true,
+            indexError: false,
+            colecciones: items,
+            abierta: null
+          };
+        },
+        abrirColeccion: function (key) {
+          if (onAbrirColeccion) onAbrirColeccion(key);
+        }
+      }, {
+        emptyMsg: 'No hay colección padre asociada a este campo.'
+      });
+    }, [items, onAbrirColeccion]);
+
+    return e('div', {
+      className: 'proy-tab-catalogo',
+      role: 'tabpanel',
+      'aria-label': 'Colección padre',
+      ref: mountRef
+    });
   }
 
   function IconoLapiz() {
@@ -105,7 +139,10 @@
 
   function Ficha(props) {
     var c = props.campo;
-    var tabState = useState('definicion');
+    var initial = props.initialTab === 'coleccion' || props.initialTab === 'interno'
+      ? props.initialTab
+      : 'definicion';
+    var tabState = useState(initial);
     var tab = tabState[0];
     var setTab = tabState[1];
     if (!c) {
@@ -159,10 +196,19 @@
               c.ancla ? e('code', { className: 'ancla-code' }, c.ancla) : '—'
             )
           )
-          : e('dl', { className: 'ancla-ficha-dl', role: 'tabpanel' },
+          : null,
+        tab === 'coleccion'
+          ? e(PanelColeccion, {
+            coleccionItems: props.coleccionItems || [],
+            onAbrirColeccion: props.onAbrirColeccion
+          })
+          : null,
+        tab === 'interno'
+          ? e('dl', { className: 'ancla-ficha-dl', role: 'tabpanel' },
             e(Fila, { label: 'Id' }, e('code', null, c.id || '—')),
             e(HashCopiable, { hash: c.hash })
           )
+          : null
       ),
       c.origen === 'local'
         ? e('p', { className: 'origen ancla-ficha-local' }, 'En este navegador. No está en GitHub.')
@@ -327,7 +373,10 @@
       mensaje: mensaje,
       onCerrar: onCerrar,
       onEditar: opts.onEditar || null,
-      onEliminar: opts.onEliminar || null
+      onEliminar: opts.onEliminar || null,
+      initialTab: opts.initialTab || 'definicion',
+      coleccionItems: opts.coleccionItems || [],
+      onAbrirColeccion: opts.onAbrirColeccion || null
     }));
   }
 
