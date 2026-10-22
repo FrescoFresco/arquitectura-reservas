@@ -1,7 +1,7 @@
 'use strict';
 
 const CATALOGOS = [
-  { id: 'proyectos', nombre: 'Esquemas de BD', icono: 'proyecto' },
+  { id: 'proyectos', nombre: 'Base de datos', icono: 'proyecto' },
   { id: 'agentes', nombre: 'Agentes', icono: 'agente' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
@@ -2225,7 +2225,7 @@ function abrirDialogoEliminar(opts) {
     if (opts.aviso == null) {
       const usados = proyectosQueUsanSkill(opts.id);
       if (usados.length) {
-        opts.aviso = 'Está en ' + usados.length + ' esquema' + (usados.length === 1 ? '' : 's')
+        opts.aviso = 'Está en ' + usados.length + (usados.length === 1 ? ' base de datos' : ' bases de datos')
           + ' (' + usados.map(function (p) { return p.nombre; }).join(', ')
           + '). Al confirmar se quita también de esas asociaciones.';
       }
@@ -2234,9 +2234,9 @@ function abrirDialogoEliminar(opts) {
   if (opts.tipo === 'proyecto') {
     const proy = state.proyectos.lista.find(function (p) { return p.id === opts.id; });
     if (!proy) return;
-    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el esquema de BD?';
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar la base de datos?';
     if (opts.aviso == null) {
-      opts.aviso = 'Se quita el esquema de este navegador. Las skills no se borran; solo dejan de estar asociadas a él.';
+      opts.aviso = 'Se quita la base de datos de este navegador. Las skills no se borran; solo dejan de estar asociadas a ella.';
     }
   }
   if (opts.tipo === 'agente') {

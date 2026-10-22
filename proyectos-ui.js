@@ -71,7 +71,7 @@
       'data-accion': 'abrir',
       'data-id': proy.id,
       title: proy.descripcion || proy.nombre,
-      'aria-label': 'Ver esquema ' + proy.nombre,
+      'aria-label': 'Ver base de datos ' + proy.nombre,
       onClick: function () { props.onAbrir(proy.id); }
     },
       e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoProyecto)),
@@ -94,7 +94,7 @@
     var estado = '';
     if (!ready) estado = 'Cargando el índice…';
     else if (indexError) estado = 'No se pudo leer el índice compartido.';
-    else if (!proyectos.length) estado = 'No hay esquemas de BD.';
+    else if (!proyectos.length) estado = 'No hay bases de datos.';
 
     return e('div', { className: 'proyectos-app' },
       e('div', { className: 'catalogo-toolbar' },
@@ -116,7 +116,7 @@
           },
             e('path', { d: 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9l-.81-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z' })
           ),
-          e('span', null, 'Añadir esquema')
+          e('span', null, 'Añadir base de datos')
         )
       ),
       estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
