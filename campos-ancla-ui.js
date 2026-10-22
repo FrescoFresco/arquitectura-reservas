@@ -209,38 +209,77 @@
     );
   }
 
+  function IconoSkillFila() {
+    return e('svg', {
+      className: 'catalogo-fila-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('path', { d: 'M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z' }),
+      e('polyline', { points: '14 2 14 8 20 8' }),
+      e('line', { x1: '16', y1: '13', x2: '8', y2: '13' }),
+      e('line', { x1: '16', y1: '17', x2: '8', y2: '17' }),
+      e('line', { x1: '10', y1: '9', x2: '8', y2: '9' })
+    );
+  }
+
   function PanelSkills(props) {
-    var mountRef = React.useRef(null);
     var skillItems = props.skillItems || [];
     var onAbrirSkill = props.onAbrirSkill;
-
-    React.useEffect(function () {
-      var el = mountRef.current;
-      if (!el || !window.SkillsUI || typeof window.SkillsUI.montarLista !== 'function') return;
-      window.SkillsUI.montarLista(el, {
-        getSnapshot: function () {
-          return {
-            ready: true,
-            indexError: false,
-            instrucciones: skillItems,
-            abierta: null
-          };
-        },
-        añadirSkill: function () {},
-        abrirSkill: function (id) {
-          if (onAbrirSkill) onAbrirSkill(id);
-        }
-      }, {
-        emptyMsg: 'Ninguna skill usa este ancla todavía.'
-      });
-    }, [skillItems, onAbrirSkill]);
-
+    if (!skillItems.length) {
+      return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-skills', role: 'tabpanel' },
+        'Ninguna skill usa este ancla todavía.'
+      );
+    }
+    // Misma apariencia que SkillsUI / SkillFila (catalogo-fila). Sin createRoot anidado.
     return e('div', {
-      className: 'proy-tab-catalogo',
+      className: 'catalogo-lista proy-tab-catalogo',
       id: 'ancla-panel-skills',
-      role: 'tabpanel',
-      ref: mountRef
-    });
+      role: 'list'
+    },
+      skillItems.map(function (ins) {
+        var id = ins && ins.id;
+        var nombre = (ins && ins.nombre) || id || '—';
+        var versiones = (ins && Array.isArray(ins.versiones)) ? ins.versiones : [];
+        var actual = versiones.length ? versiones[versiones.length - 1] : null;
+        var secundario = actual
+          ? ('v' + actual.numero + (actual.fecha ? '' : ''))
+          : (id || 'Skill');
+        if (actual && actual.fecha) {
+          var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(actual.fecha);
+          if (m) {
+            var meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+            secundario = 'v' + actual.numero + ' · ' + Number(m[3]) + ' ' + (meses[Number(m[2]) - 1] || '');
+          } else {
+            secundario = 'v' + actual.numero;
+          }
+        } else if (actual) {
+          secundario = 'v' + actual.numero;
+        }
+        if (id && id !== nombre) secundario = id + (secundario ? ' · ' + secundario : '');
+        return e('button', {
+          type: 'button',
+          key: id || nombre,
+          className: 'catalogo-fila',
+          role: 'listitem',
+          title: (ins && ins.descripcion) || nombre,
+          'aria-label': 'Ver skill ' + nombre,
+          onClick: function () { if (onAbrirSkill) onAbrirSkill(id); }
+        },
+          e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoSkillFila)),
+          e('span', { className: 'catalogo-fila-main' },
+            e('span', { className: 'catalogo-fila-titulo' }, nombre),
+            e('span', { className: 'catalogo-fila-codigo' }, secundario)
+          ),
+          e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlaceExterno))
+        );
+      })
+    );
   }
 
   function PanelInterno(props) {

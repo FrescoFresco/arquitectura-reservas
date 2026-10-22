@@ -55,37 +55,87 @@
     );
   }
 
+  function IconoColeccionFila() {
+    return e('svg', {
+      className: 'catalogo-fila-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('path', { d: 'M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z' }),
+      e('path', { d: 'M2 12l8.58 3.91a2 2 0 0 0 1.66 0L21 12' }),
+      e('path', { d: 'M2 17l8.58 3.91a2 2 0 0 0 1.66 0L21 17' })
+    );
+  }
+
+  function IconoEnlaceFila() {
+    return e('svg', {
+      className: 'catalogo-fila-enlace-svg',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true'
+    },
+      e('path', { d: 'M15 3h6v6' }),
+      e('path', { d: 'M10 14L21 3' }),
+      e('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' })
+    );
+  }
+
   function PanelColeccion(props) {
-    var mountRef = React.useRef(null);
     var items = props.coleccionItems || [];
     var onAbrirColeccion = props.onAbrirColeccion;
-
-    React.useEffect(function () {
-      var el = mountRef.current;
-      if (!el || !window.ColeccionesUI || typeof window.ColeccionesUI.montarLista !== 'function') return;
-      window.ColeccionesUI.montarLista(el, {
-        getSnapshot: function () {
-          return {
-            ready: true,
-            indexError: false,
-            colecciones: items,
-            abierta: null
-          };
-        },
-        abrirColeccion: function (key) {
-          if (onAbrirColeccion) onAbrirColeccion(key);
-        }
-      }, {
-        emptyMsg: 'No hay colección padre asociada a este campo.'
-      });
-    }, [items, onAbrirColeccion]);
-
+    if (!items.length) {
+      return e('p', {
+        className: 'ancla-ficha-vacio',
+        role: 'tabpanel',
+        'aria-label': 'Colección padre'
+      }, 'No hay colección padre asociada a este campo.');
+    }
+    // Misma apariencia que ColeccionesUI / ColeccionCatalogoFila.
     return e('div', {
-      className: 'proy-tab-catalogo',
-      role: 'tabpanel',
-      'aria-label': 'Colección padre',
-      ref: mountRef
-    });
+      className: 'catalogo-lista proy-tab-catalogo',
+      role: 'list',
+      'aria-label': 'Colección padre'
+    },
+      items.map(function (col) {
+        var partes = [];
+        if (col.descripcion) partes.push(col.descripcion);
+        var padre = col.proyectoNombre || col.proyectoId || '';
+        if (col.baseDatos) {
+          partes.push(padre ? (padre + ' · ' + col.baseDatos) : col.baseDatos);
+        } else if (padre) {
+          partes.push(padre);
+        }
+        if (col.nCampos != null) {
+          partes.push(col.nCampos + (col.nCampos === 1 ? ' campo' : ' campos'));
+        }
+        var secundario = partes.length ? partes.join(' · ') : 'Colección';
+        return e('button', {
+          type: 'button',
+          key: col.key || col.id,
+          className: 'catalogo-fila',
+          role: 'listitem',
+          title: col.descripcion || col.id,
+          'aria-label': 'Abrir colección ' + (col.id || ''),
+          onClick: function () { if (onAbrirColeccion) onAbrirColeccion(col.key); }
+        },
+          e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoColeccionFila)),
+          e('span', { className: 'catalogo-fila-main' },
+            e('span', { className: 'catalogo-fila-titulo' }, col.id || '—'),
+            e('span', { className: 'catalogo-fila-codigo' }, secundario)
+          ),
+          e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlaceFila))
+        );
+      })
+    );
   }
 
   function IconoLapiz() {
