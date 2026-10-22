@@ -13,7 +13,7 @@
         "_proceso.url_inicio_",
         "_version.recorrido.sistema.nombre_",
         "_version.recorrido.llega_a_b_",
-        "_version.recorrido.pasos.N.accion_",
+        "_version.recorrido.pasos_",
         "_version.recorrido.campos.N.nombre_",
         "_version.recorrido.campos.N.selector_",
         "_version.recorrido.campos.N.clase_",
@@ -50,7 +50,7 @@
       "anclas": [
         "_proceso.url_inicio_",
         "_version.recorrido.sistema.nombre_",
-        "_version.recorrido.pasos.N.selector_",
+        "_version.recorrido.pasos_",
         "_version.recorrido.campos.N.selector_",
         "_version.script_",
         "_version.funcion.nombre_",

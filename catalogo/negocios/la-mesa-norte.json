@@ -4,7 +4,13 @@
   "url": "https://lamesanorte.example",
   "zona_horaria": "Europe/Madrid",
   "telefono": "",
-  "notas": "Documento de cajón negocios (antes era proyecto). Borrar la fila de proyecto solo tras confirmación explícita del humano.",
+  "notas": "Documento cajón negocios (schema reservas). Ya no es un esquema/proyecto.",
   "proyectoSoftware": "reservas",
-  "legacyProyectoId": "la-mesa-norte"
+  "legacyProyectoId": "la-mesa-norte",
+  "skills": [
+    "descubrir-negocio",
+    "mapear-recorrido",
+    "generar-script",
+    "diagnosticar-alerta"
+  ]
 }

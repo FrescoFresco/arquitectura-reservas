@@ -124,6 +124,13 @@
         ? 'URI ya configurada — pega una nueva solo para reemplazar'
         : 'mongodb+srv://usuario:contraseña@cluster…/';
     }
+    const dbInput = el('ajustesMongoDb');
+    if (dbInput && db && !dbInput.value) {
+      dbInput.value = db;
+      dbInput.placeholder = db || 'software_reservas';
+    } else if (dbInput && !dbInput.placeholder) {
+      dbInput.placeholder = 'software_reservas';
+    }
   }
 
   function refrescarStatus() {

@@ -143,21 +143,22 @@
       "hash": "b9a35af2c6c2a7ddfd83536010499e84070c8ce2dc670b05a77cf550a83fa706"
     },
     {
-      "id": "version.recorrido.pasos.N.accion",
-      "ancla": "_version.recorrido.pasos.N.accion_",
-      "etiqueta": "Acción del paso",
-      "claveMongo": "recorrido.pasos.N.accion",
+      "id": "version.recorrido.pasos",
+      "ancla": "_version.recorrido.pasos_",
+      "etiqueta": "Pasos del recorrido",
+      "claveMongo": "recorrido.pasos",
       "coleccion": "versiones",
-      "baseDatos": "arquitectura_reservas",
-      "tipo": "string",
-      "obligatorio": true,
-      "formato": "",
-      "descripcion": "Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…).",
-      "ejemplo": "Pulsar Continuar",
+      "baseDatos": "software_reservas",
+      "tipo": "array",
+      "obligatorio": false,
+      "formato": "array-objetos",
+      "descripcion": "Array de pasos {accion, selector, valor}. Sin N literal en la clave.",
+      "ejemplo": "[{accion, selector, valor}]",
       "skills": [
-        "mapear-recorrido"
+        "mapear-recorrido",
+        "generar-script"
       ],
-      "hash": "cd1bc38d018249389c6ac17edb2529f7db04f80e616f880e716c7523905ee28e"
+      "hash": "esquemas-bd-ancla-recorrido-pasos-v1"
     },
     {
       "id": "version.recorrido.campos.N",

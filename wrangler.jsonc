@@ -12,7 +12,7 @@
   // Secrets (no commits):
   //   ENCRYPTION_KEY — AES key material for in-app Mongo URI in D1 (Ajustes → Conexiones)
   //   MONGODB_URI    — optional fallback if nothing stored in D1
-  //   MONGODB_DB     — optional default arquitectura_reservas
+  //   MONGODB_DB     — optional default software_reservas
   //   npx wrangler secret put ENCRYPTION_KEY
   //   npx wrangler secret put MONGODB_URI
   "vars": {

@@ -1,7 +1,7 @@
 'use strict';
 
 const CATALOGOS = [
-  { id: 'proyectos', nombre: 'Proyectos', icono: 'proyecto' },
+  { id: 'proyectos', nombre: 'Esquemas de BD', icono: 'proyecto' },
   { id: 'agentes', nombre: 'Agentes', icono: 'agente' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
@@ -898,7 +898,7 @@ function normalizeCampo(item) {
     etiqueta: typeof item.etiqueta === 'string' ? item.etiqueta.trim() : '',
     claveMongo: typeof item.claveMongo === 'string' ? item.claveMongo.trim() : '',
     coleccion: typeof item.coleccion === 'string' ? item.coleccion.trim() : '',
-    baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : 'arquitectura_reservas',
+    baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : 'software_reservas',
     tipo: typeof item.tipo === 'string' ? item.tipo.trim() : 'string',
     obligatorio: !!item.obligatorio,
     sensible: !!(item.sensible === true || item.sensible === 1 || item.sensible === '1'),
@@ -1100,7 +1100,7 @@ function normalizeMongoCampo(item) {
   const out = {
     id: id,
     campo: campo,
-    baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : 'arquitectura_reservas',
+    baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : 'software_reservas',
     coleccion: coleccion || campo.split('.')[0],
     clave: clave || campo.split('.').slice(1).join('.'),
     bsonType: typeof item.bsonType === 'string' ? item.bsonType.trim() : 'string',
@@ -1357,7 +1357,7 @@ function onSubmitMongo(e) {
   const campo = normalizeMongoCampo({
     id: editandoMongo && form.dataset.id ? form.dataset.id : undefined,
     campo: coleccion + '.' + clave,
-    baseDatos: form.baseDatos.value.trim() || 'arquitectura_reservas',
+    baseDatos: form.baseDatos.value.trim() || 'software_reservas',
     coleccion: coleccion,
     clave: clave,
     bsonType: form.bsonType.value.trim() || 'string',
@@ -1530,7 +1530,7 @@ function onSubmitCampo(e) {
     etiqueta: form.etiqueta.value.trim(),
     claveMongo: form.claveMongo.value.trim() || idBase.split('.').pop(),
     coleccion: form.coleccion.value.trim() || 'negocios',
-    baseDatos: form.baseDatos.value.trim() || 'arquitectura_reservas',
+    baseDatos: form.baseDatos.value.trim() || 'software_reservas',
     tipo: form.tipo.value.trim() || 'string',
     obligatorio: !!form.obligatorio.checked,
     sensible: !!(form.sensible && form.sensible.checked),
@@ -2225,7 +2225,7 @@ function abrirDialogoEliminar(opts) {
     if (opts.aviso == null) {
       const usados = proyectosQueUsanSkill(opts.id);
       if (usados.length) {
-        opts.aviso = 'Está en ' + usados.length + ' proyecto' + (usados.length === 1 ? '' : 's')
+        opts.aviso = 'Está en ' + usados.length + ' esquema' + (usados.length === 1 ? '' : 's')
           + ' (' + usados.map(function (p) { return p.nombre; }).join(', ')
           + '). Al confirmar se quita también de esas asociaciones.';
       }
@@ -2234,9 +2234,9 @@ function abrirDialogoEliminar(opts) {
   if (opts.tipo === 'proyecto') {
     const proy = state.proyectos.lista.find(function (p) { return p.id === opts.id; });
     if (!proy) return;
-    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el proyecto?';
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el esquema de BD?';
     if (opts.aviso == null) {
-      opts.aviso = 'Se quita el proyecto de este navegador. Las skills no se borran; solo dejan de estar asociadas a él.';
+      opts.aviso = 'Se quita el esquema de este navegador. Las skills no se borran; solo dejan de estar asociadas a él.';
     }
   }
   if (opts.tipo === 'agente') {

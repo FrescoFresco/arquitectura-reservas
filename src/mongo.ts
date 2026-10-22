@@ -9,7 +9,7 @@
  */
 import { MongoClient, type Db } from 'mongodb';
 
-export const DEFAULT_MONGO_DB = 'arquitectura_reservas';
+export const DEFAULT_MONGO_DB = 'software_reservas';
 
 export type MongoEnv = {
   MONGODB_URI?: string;
