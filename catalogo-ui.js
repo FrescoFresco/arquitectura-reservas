@@ -4226,54 +4226,105 @@ function renderProyectoReader() {
 }
 
 
+function pintarProyectoDiagramaColecciones(proy, colsDiagrama) {
+  const lista = document.getElementById('proyDiagramaColeccionesLista');
+  if (!lista) return;
+  lista.replaceChildren();
+  const defs = Array.isArray(proy.colecciones) ? proy.colecciones : [];
+  const fromApi = Array.isArray(colsDiagrama) ? colsDiagrama : [];
+  const byId = {};
+  fromApi.forEach(function (c) {
+    if (c && c.id) byId[c.id] = c;
+  });
+  const ids = [];
+  const seen = {};
+  defs.forEach(function (c) {
+    const id = c && c.id ? String(c.id) : '';
+    if (!id || seen[id]) return;
+    seen[id] = true;
+    ids.push(id);
+  });
+  fromApi.forEach(function (c) {
+    const id = c && c.id ? String(c.id) : '';
+    if (!id || seen[id]) return;
+    seen[id] = true;
+    ids.push(id);
+  });
+  if (!ids.length) {
+    const vacio = el('p', 'ancla-ficha-vacio', 'Sin colecciones en esta base.');
+    vacio.style.margin = '0';
+    lista.append(vacio);
+    return;
+  }
+  ids.forEach(function (colId) {
+    const def = defs.find(function (c) { return c && c.id === colId; }) || null;
+    const apiCol = byId[colId] || null;
+    const nCampos = apiCol && Array.isArray(apiCol.campos) ? apiCol.campos.length : null;
+    const desc = def && def.descripcion ? String(def.descripcion).trim() : '';
+    let sub = '';
+    if (nCampos != null) sub = nCampos === 1 ? '1 campo' : (nCampos + ' campos');
+    if (desc) sub = sub ? (desc + ' · ' + sub) : desc;
+    if (!sub) sub = 'Colección';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'col-diagrama-campo';
+    btn.setAttribute('role', 'listitem');
+    btn.title = 'Abrir colección ' + colId;
+    btn.setAttribute('aria-label', btn.title);
+    btn.append(el('span', 'col-diagrama-campo-clave', colId));
+    btn.append(el('span', 'col-diagrama-campo-tipo', sub));
+    btn.addEventListener('click', function () {
+      const key = claveColeccion(proy.id, colId);
+      abrirFichaColeccion(key, {
+        volverA: { tipo: 'proyecto', id: proy.id, tab: 'diagrama' }
+      });
+    });
+    lista.append(btn);
+  });
+}
+
 function cargarProyectoDiagrama(proy) {
   const estado = document.getElementById('proyDiagramaEstado');
-  const pre = document.getElementById('proyDiagramaMermaid');
-  const boxes = document.getElementById('proyDiagramaBoxes');
+  const render = document.getElementById('proyDiagramaRender');
+  const split = document.getElementById('proyDiagramaSplit');
+  const lista = document.getElementById('proyDiagramaColeccionesLista');
   if (!proy || !proy.id) return;
   if (estado) {
     estado.hidden = false;
     estado.textContent = 'Cargando diagrama…';
   }
-  if (pre) pre.hidden = true;
-  if (boxes) {
-    boxes.hidden = true;
-    boxes.replaceChildren();
-  }
+  if (split) split.hidden = true;
+  if (render) render.replaceChildren();
+  if (lista) lista.replaceChildren();
   apiFetch('/v1/proyectos/' + encodeURIComponent(proy.id) + '/diagrama')
     .then(function (data) {
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="diagrama"].is-on');
+      if (!tabOn) return;
       const d = data && data.diagrama ? data.diagrama : data;
       if (!d) throw new Error('sin diagrama');
-      if (estado) estado.hidden = true;
-      if (pre) {
-        pre.textContent = d.mermaid || '';
-        pre.hidden = !d.mermaid;
-      }
-      if (boxes) {
-        boxes.replaceChildren();
-        (d.colecciones || []).forEach(function (col) {
-          const box = el('div', 'proy-er-box', null);
-          box.append(el('h4', null, col.id));
-          const ul = document.createElement('ul');
-          ul.appendChild(el('li', null, '_id · objectid'));
-          (col.campos || []).forEach(function (f) {
-            const label = (f.clave || '?') + ' · ' + (f.bsonType || 'string') + (f.obligatorio ? ' *' : '');
-            ul.appendChild(el('li', null, label));
-          });
-          box.append(ul);
-          boxes.append(box);
-        });
-        if ((d.relaciones || []).length) {
-          const rels = el('p', 'proy-er-rels', null);
-          rels.textContent = (d.relaciones || []).map(function (r) {
-            return (r.desde || '') + ' → ' + (r.hacia || '') + ' (' + (r.tipo || 'N:1') + ')';
-          }).join(' · ');
-          boxes.append(rels);
+      const cols = d.colecciones || [];
+      if (!cols.length && !(proy.colecciones && proy.colecciones.length)) {
+        if (estado) {
+          estado.hidden = false;
+          estado.textContent = proy.legacyNegocio
+            ? 'Este proyecto no tiene colecciones (¿negocio legado?).'
+            : 'No hay entidades para dibujar.';
         }
-        boxes.hidden = false;
+        return;
+      }
+      if (estado) estado.hidden = true;
+      if (split) split.hidden = false;
+      pintarProyectoDiagramaColecciones(proy, cols);
+      if (render) {
+        renderMermaidEn(render, d.mermaid || 'erDiagram\n');
       }
     })
     .catch(function () {
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      if (split) split.hidden = true;
       if (estado) {
         estado.hidden = false;
         estado.textContent = proy.colecciones && proy.colecciones.length
@@ -5506,9 +5557,10 @@ function alCerrarFichaColeccion() {
   state.colecciones.tab = 'resumen';
   pintarColecciones();
   if (volver && volver.tipo === 'proyecto' && volver.id) {
+    const tabVolver = volver.tab || 'colecciones';
     setTimeout(function () {
       abrirProyecto(volver.id);
-      seleccionarProyReaderTab('colecciones');
+      seleccionarProyReaderTab(tabVolver);
     }, 0);
     return;
   }
