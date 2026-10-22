@@ -1,129 +1,137 @@
-# Arquitectura de reservas
+# reservas-v3: reservas en la web de cada restaurante, hasta B
 
-## API viva (Cloudflare Worker + D1)
+Primera fase del sistema de reservas. Un script de Playwright recorre la web de reserva de un restaurante y se para en **B**: el formulario relleno, sin errores y con el botón de confirmar a la vista. **Nunca pulsa confirmar ni envía una reserva.**
 
-La fuente de verdad para agentes es el Worker **`campos-ancla-api`** con D1 **`campos-ancla-db`**: `https://campos-ancla-api.web-legal-es.workers.dev`. Guía: [`CLOUDFLARE.md`](./CLOUDFLARE.md). Contrato: [`documentacion/api.md`](./documentacion/api.md).
+El plan completo y sus principios están en [CLAUDE.md](CLAUDE.md). El negocio de esta fase es **Rincón del Amazonas** (Puerto de Mogán), en <https://restaurantmogan.com/reservation/>.
 
-```bash
-npm install
-npm run db:migrate:local && npm run db:seed:local
-npm run dev
-```
+## Repetir la prueba
 
-Despliegue: `npx wrangler login` → crear D1 → pegar `database_id` en `wrangler.jsonc` → `npm run db:migrate:remote && npm run db:seed:remote && npm run deploy`.
+### Lo que necesitas
 
-Los JSON en `catalogo/` son semilla/fallback para la UI estática. **Agentes:** Catálogos → Agentes → **+ Agente** crea una clave `inv_…` en D1 (sin caducidad). Registro y latido van solo a la API Worker. **No hace falta `GITHUB_TOKEN`.**
+| Qué | Cómo comprobarlo |
+|---|---|
+| Node.js 24.2 o superior | `node --version` |
+| MongoDB, local o en Atlas | Local: servicio en `127.0.0.1:27017`. Atlas: una URI `mongodb+srv://…` con permiso para crear colecciones |
+| Microsoft Edge o Google Chrome | Si no tienes ninguno, usa el Chromium de Playwright (ver paso 2) |
 
-## Arquitectura nueva: `reservas-v3/`
+### Pasos
 
-La primera fase del sistema nuevo está en [`reservas-v3/`](./reservas-v3/): el catálogo de campos ancla, el gestor, las plantillas de agente y el ejecutor que rellena la web del restaurante hasta B, sin confirmar nunca. Para repetir la prueba hasta B con Rincón del Amazonas, sigue [reservas-v3/README.md](./reservas-v3/README.md#repetir-la-prueba). El plan y sus principios están en [reservas-v3/CLAUDE.md](./reservas-v3/CLAUDE.md).
+Todos los comandos se lanzan desde la carpeta `reservas-v3/`.
 
-Lo que sigue describe la página publicada en la raíz, que no cambia.
-
----
-
-Documento interactivo (HTML) de la arquitectura del sistema de reservas. Cualquier persona con acceso de escritura al repositorio puede clonarlo, editar `index.html` y publicar los cambios con un push a `main`.
-
-## Sitio publicado (producción = Cloudflare)
-
-- **Panel UI:** https://campos-ancla.web-legal-es.workers.dev/
-- **API Worker:** https://campos-ancla-api.web-legal-es.workers.dev
-- **Repositorio (código):** https://github.com/FrescoFresco/arquitectura-reservas
-
-Despliegue UI: `npm run deploy:ui`. Despliegue API: `npm run deploy`. GitHub Pages (`frescofresco.github.io`) queda solo como legado durante el cutover; no es el host de producción.
-
-El menú principal tiene dos destinos: **Catálogos** y **Documentación**. En escritorio es una barra lateral izquierda; en pantalla estrecha queda fija abajo. Dentro de Catálogos hay tres pestañas: **Skills**, **Campos ancla** y **Campos MongoDB**. Dentro de Documentación hay una pestaña, **API**.
-
-El índice de Skills está en [`catalogo/skills/index.json`](./catalogo/skills/index.json). Cada skill lleva `id`, `nombre`, `versiones` y, si hace falta, `descripcion` y `anclas` (nombres completos como `_negocio.nombre_`). Cada versión lleva `numero`, `fecha` (ISO `YYYY-MM-DD`), `ruta` relativa a la raíz del sitio, `hash` (SHA-256 del contenido cuando aplica) y, si hace falta, `nombreArchivo`. Vale cualquier tipo de archivo: la página pinta markdown y el resto se descarga. La cuadrícula de Skills se renderiza con React (CDN). En cada tarjeta: historial, editar (versión nueva al guardar si hubo cambios), subir versión (documento completo) y eliminar; el título abre la skill en popup. Las cápsulas de anclas abren la ficha de Campos ancla.
-
-El índice de Campos ancla está en [`catalogo/campos-ancla/index.json`](./catalogo/campos-ancla/index.json). Cada celda muestra el ancla completo; al pulsarla se abre un popup con pestañas Definición / Mongo / Skills. Campos MongoDB está en [`catalogo/campos-mongodb/index.json`](./catalogo/campos-mongodb/index.json): celdas `colección.clave` y ficha con bsonType y ancla enlazada. Ambos índices incluyen `hash` estable por campo.
-
-Los archivos del mapa pueden seguir en [`mapa/`](./mapa/), pero la página ya no tiene hub ni editor del mapa.
-
-Los agentes trabajan contra la API Worker (`documentacion/api.md`): invite → registro → latido → CRUD con `Authorization: Bearer inv_…`. No usan GitHub Contents ni token de GitHub.
-
-Opcional (solo espejo estático del repo, no el estado vivo): [`scripts/subir.js`](./scripts/subir.js) con `GITHUB_TOKEN` en el entorno. En el navegador, **+ Añadir skill** / ancla siguen pudiendo guardar overlay local encima del seed.
-
-Ejemplo de skill en el índice:
-
-```json
-{
-  "id": "mapear-recorrido",
-  "nombre": "Mapear recorrido",
-  "descripcion": "Recorre la web de reserva desde A hasta B.",
-  "anclas": ["_negocio.nombre_", "_proceso.url_inicio_"],
-  "versiones": [
-    { "numero": 1, "fecha": "2026-10-20", "ruta": "catalogo/skills/mapear-recorrido/v1.md" }
-  ]
-}
-```
-
-**+ Añadir skill** crea otra skill. **Subir versión** añade una versión a esa skill. Las dos guardan el archivo en el `localStorage` de ese navegador, encima del índice. No hacen commit ni actualizan GitHub.
-
-## Cómo editar
-
-1. Clonar el repositorio:
+**1. Clonar e instalar**
 
 ```bash
 git clone https://github.com/FrescoFresco/arquitectura-reservas.git
-cd arquitectura-reservas
+cd arquitectura-reservas/reservas-v3
+npm install
 ```
 
-2. Abrir y modificar `index.html` (editor local, VS Code, Cursor, etc.). Puedes previsualizarlo abriendo el archivo en el navegador.
+**2. Configurar.** Copia `.env.example` como `.env` y ajústalo:
+- Mac o Linux: `cp .env.example .env`
+- Windows PowerShell: `Copy-Item .env.example .env`
 
-3. Guardar, hacer commit y push a `main`:
+```
+MONGODB_URI=mongodb://127.0.0.1:27017   # o tu URI de Atlas
+MONGODB_DB=reservas_v3
+NAVEGADOR=msedge                        # msedge, chrome o chromium
+```
+
+Con `NAVEGADOR=chromium`, descarga antes el navegador: `npx playwright install chromium`. El `.env` nunca se sube a git.
+
+**3. Comprobar que todo funciona**
 
 ```bash
-git add index.html
-git commit -m "Actualiza arquitectura de reservas"
-git push origin main
+npm test
 ```
 
-4. Publicar el panel en Cloudflare:
+Deben pasar las 23 pruebas. Una de ellas abre el navegador sin ventana para probar el seguro que impide confirmar.
+
+**4. Crear las colecciones y meter los datos iniciales**
 
 ```bash
-npm run deploy:ui
+npm run generar
+npm run semilla
 ```
 
-Recarga https://campos-ancla.web-legal-es.workers.dev/ (recarga forzada si hace falta).
+- `generar` lee el catálogo y crea las cinco colecciones con sus validadores. También regenera las tablas de las plantillas y `docs/catalogo.md`.
+- `semilla` da de alta los dos negocios y el proceso de Rincón del Amazonas, a través del gestor.
 
-## Dar acceso a otra persona
-
-Para que un compañero pueda editar y hacer push (sin hacer el repo privado ni compartir contraseñas):
-
-1. En GitHub: **Settings → Collaborators → Add people → Invite** (elige permiso **Write** / push), o desde la terminal:
+**5. Cargar el recorrido y el script**
 
 ```bash
-gh repo add-collaborator USUARIO_GITHUB --permission push
+npm run cargar-demo
 ```
 
-2. Esa persona acepta la invitación (le llega por email o en https://github.com/FrescoFresco/arquitectura-reservas/invitations).
+No repite el trabajo del agente. Prepara las plantillas `mapear-recorrido` y `generar-script` con los datos de tu base y le pasa al gestor las respuestas que ya dio el agente ([demo/](demo/)). El gestor las valida contra el catálogo, guarda el recorrido y el script en una versión en borrador y registra las dos corridas.
 
-3. Luego clona, edita `index.html`, hace commit y push como arriba.
+Al terminar te dice el id de la versión, normalmente `ver-rincon-del-amazonas-1`.
 
-No invites a nadie concreto hasta tener su handle de GitHub.
-
-## Importar datos en MongoDB
-
-Los JSON de importación siguen en el repositorio: [`arquitectura-reservas-mongo-import.zip`](./arquitectura-reservas-mongo-import.zip). El sitio publicado no enlaza estas descargas.
-
-Dentro hay un `.json` (array Extended JSON) por colección: `negocios`, `procesos`, `software`, `integraciones`, `observaciones`, `justificantes`, `funciones`, `scripts`, `canales`, `ejecuciones`. Base lógica: `arquitectura_reservas`.
-
-- **Atlas:** Add Data → Import JSON file → eliges la colección
-- **Compass:** Import data → eliges el archivo de esa colección
-
-Los mismos JSON sueltos están en [`mongo-import/`](./mongo-import/).
-
-### Avanzado: seed mongosh
-
-[`seed-arquitectura-reservas.js`](./seed-arquitectura-reservas.js) crea la base y hace upsert por `_id` en un comando:
+**6. Probar el borrador hasta B**
 
 ```bash
-mongosh "mongodb://localhost:27017" seed-arquitectura-reservas.js
+npm run ejecutar -- --version ver-rincon-del-amazonas-1
 ```
 
-## Visibilidad
+Se abre el navegador, rellena el formulario con datos de prueba y se para en B: fecha dentro de 3 días, 20:00, 2 personas. Debe terminar con `"estado":"disponible"`. La ejecución queda guardada en la colección `ejecuciones`.
 
-Este repositorio es **público**: cualquiera puede ver el código y el sitio en Pages. Solo quienes sean colaboradores (o tengan permisos en la org/cuenta) pueden hacer push.
+**7. Aprobar la versión.** Esto es revisión humana: lo lanzas tú.
 
-Si en el futuro quisieras hacerlo privado: **Settings → General → Danger Zone → Change repository visibility**. En privado, Pages sigue siendo usable para quien tenga acceso al repo; para editar hace falta invitación de colaborador (o permisos equivalentes).
+```bash
+npm run gestor -- aprobar ver-rincon-del-amazonas-1 --por "Francesco"
+```
+
+Solo se aprueba si hay una ejecución que llegó a B después del último cambio de la versión. Guarda quién aprobó y cuándo.
+
+**8. La demo**
+
+```bash
+npm run demo
+```
+
+Primero muestra el recorrido guardado:
+- los pasos;
+- los campos, marcando los obligatorios y con su evidencia;
+- los obstáculos;
+- el botón de confirmar;
+- la función con sus parámetros.
+
+Después ejecuta la versión aprobada hasta B con el navegador visible y se queda en B hasta que pulses Enter.
+
+### Si algo falla
+
+| Síntoma | Qué hacer |
+|---|---|
+| `Faltan MONGODB_URI y MONGODB_DB` | No existe `.env`: haz el paso 2 |
+| `connect ECONNREFUSED 127.0.0.1:27017` | MongoDB no está arrancado, o usa la URI de Atlas |
+| `browserType.launch: Chromium distribution 'msedge' is not found` | Pon `NAVEGADOR=chrome`, o `NAVEGADOR=chromium` y `npx playwright install chromium` |
+| `"estado":"sin_hueco"` | No es un error: ese día no había mesa a esa hora. Si la hora no estaba libre, la respuesta trae las alternativas más cercanas |
+| `"estado":"error"`, `"motivo":"fallo_recorrido"` | La web ha cambiado o tardó demasiado. La traza está en `ejecuciones`. Si se repite, hay que volver a lanzar `mapear-recorrido` y `generar-script` |
+| Cargaste la demo dos veces | Cada carga crea otra versión en borrador (`-2`, `-3`…): usa el id que imprime `cargar-demo` |
+
+## Cómo está hecho
+
+```
+catalogo/     catálogo único de campos ancla (un JSON por colección)
+plantillas/   mapear-recorrido.md y generar-script.md; sus tablas las escribe el generador
+src/
+  catalogo.js   carga y comprueba el catálogo; reglas de cada tipo
+  generador.js  catálogo → validadores de MongoDB, tablas de plantillas y docs/catalogo.md
+  gestor.js     preparar | leer | guardar | propuestas | aprobar (y alta, para los datos manuales)
+  ejecutor.js   corre el script de una versión hasta B, con el seguro que bloquea el envío
+  semilla.js    datos iniciales metidos a mano
+  cargar-demo.js, demo.js
+demo/         respuestas del agente usadas en esta prueba
+docs/         catalogo.md, generado
+test/         pruebas del gestor, del generador y del ejecutor
+trabajo/      entradas y respuestas temporales (no va a git)
+```
+
+**Cómo trabaja un agente.**
+1. `npm run gestor -- preparar <plantilla> --proceso …` (o `--version …`) crea `trabajo/<base>.entrada.md`.
+2. El agente sigue la plantilla y escribe `trabajo/<base>.respuesta.md`, con las secciones «Explicación» y «Salida».
+3. `npm run gestor -- leer trabajo/<base>` muestra qué entendió el gestor.
+4. `npm run gestor -- guardar trabajo/<base>` lo escribe en MongoDB y registra la corrida.
+
+Ningún agente escribe en la base.
+
+**Datos de la prueba.** Rincón del Amazonas usa un plugin propio de WordPress («Amazonas Booking System»), con fecha, hora y comensales, un plano de mesas y los datos del cliente. No hay CAPTCHA, inicio de sesión ni pago. El formulario final tiene un campo oculto anti-robots que el script deja vacío.
