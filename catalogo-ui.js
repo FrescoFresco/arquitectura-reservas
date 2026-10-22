@@ -4267,12 +4267,20 @@ function pintarProyectoDiagramaColecciones(proy, colsDiagrama) {
     if (!sub) sub = 'Colección';
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'col-diagrama-campo';
+    btn.className = 'col-diagrama-campo col-diagrama-campo-con-icono';
     btn.setAttribute('role', 'listitem');
     btn.title = 'Abrir colección ' + colId;
     btn.setAttribute('aria-label', btn.title);
-    btn.append(el('span', 'col-diagrama-campo-clave', colId));
-    btn.append(el('span', 'col-diagrama-campo-tipo', sub));
+    // Mismo Lucide layers que catálogo Colecciones / ficha / svgPestanaCatalogo('coleccion').
+    const iconWrap = el('span', 'catalogo-fila-icon', null);
+    iconWrap.setAttribute('aria-hidden', 'true');
+    const svg = svgPestanaCatalogo('coleccion');
+    svg.setAttribute('class', 'catalogo-fila-svg');
+    iconWrap.append(svg);
+    const texto = el('span', 'col-diagrama-campo-texto', null);
+    texto.append(el('span', 'col-diagrama-campo-clave', colId));
+    texto.append(el('span', 'col-diagrama-campo-tipo', sub));
+    btn.append(iconWrap, texto);
     btn.addEventListener('click', function () {
       const key = claveColeccion(proy.id, colId);
       abrirFichaColeccion(key, {
