@@ -51,6 +51,12 @@ import {
   type MongoCampoShape,
   type RelacionDef,
 } from './proyecto-schema';
+import {
+  parseLastSyncRow,
+  recordClusterLastSync,
+  scheduleDebouncedSchemaSync,
+  type LastSyncSummary,
+} from './schema-auto-sync';
 
 export type Env = {
   DB: D1Database;
@@ -616,7 +622,9 @@ app.get('/v1/proyectos/:id/mongo-config', async (c) => {
 
 app.get('/v1/clusters', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM clusters ORDER BY nombre'
+    `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+      auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
+     FROM clusters ORDER BY nombre`
   ).all();
   const out = [];
   for (const row of rows.results || []) {
@@ -627,9 +635,12 @@ app.get('/v1/clusters', async (c) => {
 
 app.get('/v1/clusters/:id/mongo-config', async (c) => {
   const id = c.req.param('id');
-  const row = await c.env.DB.prepare('SELECT id FROM clusters WHERE id = ?')
+  const row = await c.env.DB.prepare(
+    `SELECT id, auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
+     FROM clusters WHERE id = ?`
+  )
     .bind(id)
-    .first<{ id: string }>();
+    .first<Record<string, unknown>>();
   if (!row) return jsonError(c, 404, 'Cluster no encontrado.');
   const clusterMeta = await readClusterMongoMeta(c.env.DB, id);
   const resolved = await resolveRuntimeMongo(c.env, undefined, undefined, id);
@@ -640,6 +651,7 @@ app.get('/v1/clusters/:id/mongo-config', async (c) => {
     connected = status.connected ? true : false;
     if (status.error) probeError = status.error;
   }
+  const lastSync = parseLastSyncRow(row);
   return c.json({
     ok: true,
     cluster: id,
@@ -648,6 +660,8 @@ app.get('/v1/clusters/:id/mongo-config', async (c) => {
     connected,
     db: resolved.meta.db,
     source: resolved.meta.source,
+    autoSync: !!(row.auto_sync === 1 || row.auto_sync === true || row.auto_sync === '1'),
+    ...(lastSync ? { lastSync } : {}),
     ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
     ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
     ...(probeError ? { error: probeError } : {}),
@@ -657,7 +671,9 @@ app.get('/v1/clusters/:id/mongo-config', async (c) => {
 
 app.get('/v1/clusters/:id', async (c) => {
   const row = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM clusters WHERE id = ?'
+    `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+      auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
+     FROM clusters WHERE id = ?`
   )
     .bind(c.req.param('id'))
     .first();
@@ -1309,6 +1325,7 @@ app.post('/v1/mongo', async (c) => {
   } catch {
     return jsonError(c, 409, 'Ya existe ese campo.');
   }
+  maybeScheduleSchemaAutoSync(c, String(campo.proyecto || ''));
   return c.json({ ok: true, campo }, 201);
 });
 
@@ -1350,12 +1367,22 @@ app.put('/v1/mongo/:id', async (c) => {
       id
     )
     .run();
+  const prevProyecto = String((prev as { proyecto?: string }).proyecto || '');
+  maybeScheduleSchemaAutoSync(c, String(merged.proyecto || ''));
+  if (prevProyecto && prevProyecto !== String(merged.proyecto || '')) {
+    maybeScheduleSchemaAutoSync(c, prevProyecto);
+  }
   return c.json({ ok: true, campo: merged });
 });
 
 app.delete('/v1/mongo/:id', async (c) => {
-  await c.env.DB.prepare('DELETE FROM campos_mongo WHERE id = ?').bind(c.req.param('id')).run();
-  return c.json({ ok: true, deleted: c.req.param('id') });
+  const id = c.req.param('id');
+  const prev = await c.env.DB.prepare('SELECT proyecto FROM campos_mongo WHERE id = ?')
+    .bind(id)
+    .first<{ proyecto: string }>();
+  await c.env.DB.prepare('DELETE FROM campos_mongo WHERE id = ?').bind(id).run();
+  if (prev?.proyecto) maybeScheduleSchemaAutoSync(c, prev.proyecto);
+  return c.json({ ok: true, deleted: id });
 });
 
 app.post('/v1/clusters', async (c) => {
@@ -1386,7 +1413,9 @@ app.post('/v1/clusters', async (c) => {
       cluster: await hydrateCluster(
         c.env.DB,
         (await c.env.DB.prepare(
-          'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM clusters WHERE id = ?'
+          `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+            auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
+           FROM clusters WHERE id = ?`
         )
           .bind(id)
           .first()) as Record<string, unknown>
@@ -1399,14 +1428,16 @@ app.post('/v1/clusters', async (c) => {
 app.put('/v1/clusters/:id', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion FROM clusters WHERE id = ?'
+    'SELECT id, nombre, descripcion, auto_sync FROM clusters WHERE id = ?'
   )
     .bind(id)
-    .first<{ id: string; nombre: string; descripcion: string }>();
+    .first<{ id: string; nombre: string; descripcion: string; auto_sync: number }>();
   if (!row) return jsonError(c, 404, 'Cluster no encontrado.');
   const body = (await c.req.json().catch(() => ({}))) as {
     nombre?: string;
     descripcion?: string;
+    autoSync?: boolean;
+    auto_sync?: boolean;
   };
   const nombre = String(body.nombre != null ? body.nombre : row.nombre).trim();
   if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
@@ -1415,19 +1446,25 @@ app.put('/v1/clusters/:id', async (c) => {
   )
     .trim()
     .slice(0, 280);
+  let autoSync = !!(row.auto_sync === 1);
+  if (body.autoSync != null || body.auto_sync != null) {
+    autoSync = !!(body.autoSync ?? body.auto_sync);
+  }
   const ts = nowIso();
-  const hash = await sha256Hex(id + '|' + nombre + '|' + descripcion);
+  const hash = await sha256Hex(id + '|' + nombre + '|' + descripcion + '|' + (autoSync ? '1' : '0'));
   await c.env.DB.prepare(
-    'UPDATE clusters SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?'
+    'UPDATE clusters SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?, auto_sync = ? WHERE id = ?'
   )
-    .bind(nombre, descripcion, hash, ts, id)
+    .bind(nombre, descripcion, hash, ts, autoSync ? 1 : 0, id)
     .run();
   return c.json({
     ok: true,
     cluster: await hydrateCluster(
       c.env.DB,
       (await c.env.DB.prepare(
-        'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM clusters WHERE id = ?'
+        `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+          auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
+         FROM clusters WHERE id = ?`
       )
         .bind(id)
         .first()) as Record<string, unknown>
@@ -1591,6 +1628,9 @@ app.post('/v1/proyectos', async (c) => {
     .bind(id, todayIso(), markdown, '', id + '.md', hash)
     .run();
   await replaceProyectoSkills(c.env.DB, id, shape.skills);
+  if (shape.colecciones.length || shape.baseDatos) {
+    maybeScheduleSchemaAutoSync(c, id);
+  }
   return c.json({
     ok: true,
     proyecto: await hydrateProyecto(
@@ -1689,6 +1729,14 @@ app.put('/v1/proyectos/:id', async (c) => {
     .bind(id, numero, todayIso(), markdown, '', id + '.md', hash)
     .run();
   if (body.skills != null) await replaceProyectoSkills(c.env.DB, id, shape.skills);
+  const schemaTouched =
+    body.colecciones != null ||
+    body.relaciones != null ||
+    body.baseDatos != null ||
+    body.base_datos != null ||
+    body.clusterId != null ||
+    body.cluster_id != null;
+  if (schemaTouched) maybeScheduleSchemaAutoSync(c, id);
   return c.json({
     ok: true,
     proyecto: await hydrateProyecto(
@@ -1742,89 +1790,17 @@ app.delete('/v1/proyectos/:id/mongo-config', async (c) => {
 
 app.post('/v1/proyectos/:id/crear-bd', async (c) => {
   const id = c.req.param('id');
-  const row = await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
-  if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
-  const proy = await hydrateProyecto(c.env.DB, row as Record<string, unknown>);
-  if (!proy.baseDatos) return jsonError(c, 400, 'El proyecto no tiene baseDatos.');
-  if (!proy.colecciones.length) return jsonError(c, 400, 'El proyecto no tiene colecciones.');
-
-  const camposRows = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE proyecto = ?').bind(id).all();
-  const campos = (camposRows.results || []).map((r) => mapMongo(r as Record<string, unknown>)) as MongoCampoShape[];
-
-  const plans = proy.colecciones.map((col: ColeccionDef) => {
-    const colCampos = campos.filter((f) => f.coleccion === col.id);
-    const indexes: Array<{ keys: Record<string, 1 | -1>; name?: string; unique?: boolean }> = [];
-    for (const f of colCampos) {
-      const idxList = Array.isArray((f as { indices?: unknown }).indices)
-        ? ((f as { indices: unknown[] }).indices as unknown[])
-        : [];
-      for (const raw of idxList) {
-        if (typeof raw === 'string' && raw.trim()) {
-          indexes.push({ keys: { [raw.trim()]: 1 }, name: `${col.id}_${raw.trim()}_1` });
-        } else if (raw && typeof raw === 'object') {
-          const o = raw as Record<string, unknown>;
-          const keys = (o.keys || o) as Record<string, 1 | -1>;
-          if (keys && typeof keys === 'object') {
-            indexes.push({
-              keys,
-              name: String(o.name || '') || undefined,
-              unique: !!o.unique,
-            });
-          }
-        }
-      }
-    }
-    // FK-ish fields ending in _id get a plain index.
-    for (const f of colCampos) {
-      const clave = String(f.clave || '');
-      if (clave.endsWith('_id') || clave === 'negocio_id' || clave === 'proceso_id') {
-        indexes.push({ keys: { [clave.split('.')[0]]: 1 }, name: `${col.id}_${clave.split('.')[0]}_1` });
-      }
-    }
-    return {
-      id: col.id,
-      validator: buildJsonSchemaForCollection(col.id, campos),
-      indexes,
-    };
-  });
-
   const body = (await c.req.json().catch(() => ({}))) as { dryRun?: boolean; mock?: boolean };
-  const dryRun = body.dryRun === true;
-  const resolved = await resolveRuntimeMongo(c.env, proy.baseDatos, id);
-
-  if (dryRun || body.mock === true || !mongoUriConfigured(resolved.env)) {
-    return c.json({
-      ok: true,
-      proyecto: id,
-      mock: !mongoUriConfigured(resolved.env) || body.mock === true,
-      dryRun: dryRun || !mongoUriConfigured(resolved.env),
-      db: proy.baseDatos,
-      source: resolved.meta.source,
-      plan: {
-        collections: plans.map((p) => ({
-          id: p.id,
-          validator: p.validator,
-          indexes: p.indexes,
-        })),
-      },
-      hint: mongoUriConfigured(resolved.env)
-        ? undefined
-        : 'Sin URI Mongo: plan en seco. Configura la pestaña Conexión del Cluster de esta Base de datos y vuelve a llamar.',
-      created: [],
-      updated: [],
-      indexes: [],
-    });
+  const outcome = await ejecutarCrearBd(c.env, id, {
+    dryRun: body.dryRun === true,
+    mock: body.mock === true,
+    auto: false,
+  });
+  if (!outcome.ok) {
+    if (outcome.status === 503) return c.json(mongoNotConfiguredError(), 503);
+    return jsonError(c, outcome.status, outcome.error);
   }
-
-  try {
-    const result = await createProjectDatabase(resolved.env, proy.baseDatos, plans);
-    return c.json({ ok: true, proyecto: id, ...result });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'crear-bd falló';
-    if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
-    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
-    return jsonError(c, 502, scrubbed);
-  }
+  return c.json(outcome.body);
 });
 
 app.delete('/v1/proyectos/:id', async (c) => {
@@ -2262,6 +2238,7 @@ function mapProyectoRow(
 }
 
 function mapClusterRow(row: Record<string, unknown>, proyectos: unknown[]) {
+  const lastSync = parseLastSyncRow(row);
   return {
     id: String(row.id),
     nombre: String(row.nombre || ''),
@@ -2269,8 +2246,193 @@ function mapClusterRow(row: Record<string, unknown>, proyectos: unknown[]) {
     hash: String(row.hash || ''),
     createdAt: String(row.created_at || row.createdAt || ''),
     updatedAt: String(row.updated_at || row.updatedAt || ''),
+    autoSync: !!(row.auto_sync === 1 || row.auto_sync === true || row.auto_sync === '1'),
+    ...(lastSync ? { lastSync } : {}),
     proyectos,
   };
+}
+
+type CrearBdOutcome =
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; status: number; error: string };
+
+async function ejecutarCrearBd(
+  env: Env,
+  proyectoId: string,
+  opts: { dryRun?: boolean; mock?: boolean; auto?: boolean }
+): Promise<CrearBdOutcome> {
+  const id = String(proyectoId || '').trim();
+  const row = await env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
+  if (!row) return { ok: false, status: 404, error: 'Proyecto no encontrado.' };
+  const proy = await hydrateProyecto(env.DB, row as Record<string, unknown>);
+  if (!proy.baseDatos) return { ok: false, status: 400, error: 'El proyecto no tiene baseDatos.' };
+  if (!proy.colecciones.length) {
+    return { ok: false, status: 400, error: 'El proyecto no tiene colecciones.' };
+  }
+
+  const camposRows = await env.DB.prepare('SELECT * FROM campos_mongo WHERE proyecto = ?').bind(id).all();
+  const campos = (camposRows.results || []).map((r) =>
+    mapMongo(r as Record<string, unknown>)
+  ) as MongoCampoShape[];
+
+  const plans = proy.colecciones.map((col: ColeccionDef) => {
+    const colCampos = campos.filter((f) => f.coleccion === col.id);
+    const indexes: Array<{ keys: Record<string, 1 | -1>; name?: string; unique?: boolean }> = [];
+    for (const f of colCampos) {
+      const fAny = f as unknown as { indices?: unknown };
+      const idxList = Array.isArray(fAny.indices) ? (fAny.indices as unknown[]) : [];
+      for (const raw of idxList) {
+        if (typeof raw === 'string' && raw.trim()) {
+          indexes.push({ keys: { [raw.trim()]: 1 }, name: `${col.id}_${raw.trim()}_1` });
+        } else if (raw && typeof raw === 'object') {
+          const o = raw as Record<string, unknown>;
+          const keys = (o.keys || o) as Record<string, 1 | -1>;
+          if (keys && typeof keys === 'object') {
+            indexes.push({
+              keys,
+              name: String(o.name || '') || undefined,
+              unique: !!o.unique,
+            });
+          }
+        }
+      }
+    }
+    for (const f of colCampos) {
+      const clave = String(f.clave || '');
+      if (clave.endsWith('_id') || clave === 'negocio_id' || clave === 'proceso_id') {
+        indexes.push({ keys: { [clave.split('.')[0]]: 1 }, name: `${col.id}_${clave.split('.')[0]}_1` });
+      }
+    }
+    return {
+      id: col.id,
+      validator: buildJsonSchemaForCollection(col.id, campos),
+      indexes,
+    };
+  });
+
+  const dryRun = opts.dryRun === true;
+  const resolved = await resolveRuntimeMongo(env, proy.baseDatos, id);
+  const clusterId = String(proy.clusterId || '').trim();
+  const at = nowIso();
+
+  const record = async (summary: LastSyncSummary) => {
+    if (!clusterId) return;
+    try {
+      await recordClusterLastSync(env.DB, clusterId, summary);
+    } catch (err) {
+      console.error('recordClusterLastSync', err instanceof Error ? err.message : err);
+    }
+  };
+
+  if (dryRun || opts.mock === true || !mongoUriConfigured(resolved.env)) {
+    const body = {
+      ok: true,
+      proyecto: id,
+      mock: !mongoUriConfigured(resolved.env) || opts.mock === true,
+      dryRun: dryRun || !mongoUriConfigured(resolved.env),
+      db: proy.baseDatos,
+      source: resolved.meta.source,
+      auto: !!opts.auto,
+      plan: {
+        collections: plans.map((p) => ({
+          id: p.id,
+          validator: p.validator,
+          indexes: p.indexes,
+        })),
+      },
+      hint: mongoUriConfigured(resolved.env)
+        ? undefined
+        : 'Sin URI Mongo: plan en seco. Configura la pestaña Conexión del Cluster de esta Base de datos y vuelve a llamar.',
+      created: [] as string[],
+      updated: [] as string[],
+      indexes: [] as unknown[],
+    };
+    await record({
+      at,
+      ok: true,
+      proyecto: id,
+      auto: !!opts.auto,
+      dryRun: !!body.dryRun,
+      mock: !!body.mock,
+      db: proy.baseDatos,
+      hint: body.hint,
+    });
+    return { ok: true, body };
+  }
+
+  try {
+    const result = await createProjectDatabase(resolved.env, proy.baseDatos, plans);
+    const body = { ok: true, proyecto: id, auto: !!opts.auto, ...result };
+    await record({
+      at,
+      ok: true,
+      proyecto: id,
+      auto: !!opts.auto,
+      db: result.db || proy.baseDatos,
+      created: result.created,
+      updated: result.updated,
+    });
+    return { ok: true, body };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'crear-bd falló';
+    if (msg === 'configure MONGODB_URI') {
+      await record({
+        at,
+        ok: false,
+        proyecto: id,
+        auto: !!opts.auto,
+        error: 'Sin URI Mongo configurada en el Cluster.',
+      });
+      return { ok: false, status: 503, error: msg };
+    }
+    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
+    await record({
+      at,
+      ok: false,
+      proyecto: id,
+      auto: !!opts.auto,
+      error: scrubbed,
+    });
+    return { ok: false, status: 502, error: scrubbed };
+  }
+}
+
+type HonoCtx = {
+  env: Env;
+  executionCtx: { waitUntil(promise: Promise<unknown>): void };
+};
+
+/**
+ * Fast path: only arm debounce when autoSync is on (avoids idle waitUntil when off).
+ * Re-checks toggle inside the debounced run.
+ */
+function maybeScheduleSchemaAutoSync(c: HonoCtx, proyectoId: string): void {
+  const id = String(proyectoId || '').trim();
+  if (!id) return;
+  const env = c.env;
+  c.executionCtx.waitUntil(
+    (async () => {
+      const proy = await env.DB.prepare('SELECT cluster_id FROM proyectos WHERE id = ?')
+        .bind(id)
+        .first<{ cluster_id: string | null }>();
+      const clusterId = String(proy?.cluster_id || '').trim();
+      if (!clusterId) return;
+      const cl = await env.DB.prepare('SELECT auto_sync FROM clusters WHERE id = ?')
+        .bind(clusterId)
+        .first<{ auto_sync: number }>();
+      if (!cl || !(cl.auto_sync === 1)) return;
+      scheduleDebouncedSchemaSync(c.executionCtx, id, async (proyId) => {
+        const again = await env.DB.prepare(
+          `SELECT c.auto_sync AS auto_sync FROM proyectos p
+           LEFT JOIN clusters c ON c.id = p.cluster_id WHERE p.id = ?`
+        )
+          .bind(proyId)
+          .first<{ auto_sync: number | null }>();
+        if (!again || !(again.auto_sync === 1)) return;
+        await ejecutarCrearBd(env, proyId, { auto: true });
+      });
+    })()
+  );
 }
 
 async function hydrateCluster(db: D1Database, row: Record<string, unknown>) {
