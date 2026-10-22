@@ -1,6 +1,8 @@
 -- Skills I/O: entradas (lee) / salidas (escribe). `anclas` en API = unión.
 -- Reemplaza skill_anclas (skill_id, ancla) por (skill_id, ancla, direccion).
 
+PRAGMA foreign_keys = OFF;
+
 CREATE TABLE skill_anclas_io (
   skill_id TEXT NOT NULL,
   ancla TEXT NOT NULL,
@@ -219,3 +221,6 @@ INSERT OR IGNORE INTO anclas (
   'versiones', 'software_reservas', 'object', 0, 'json-schema', 'JSON Schema de parámetros.',
   '{"type":"object"}', 'skill-io-funcion-parametros-v1', '[]', '[]', '', 0, datetime('now'), datetime('now')
 );
+
+PRAGMA foreign_keys = ON;
+
