@@ -89,6 +89,7 @@
 
   function AgentesApp(props) {
     var bridge = props.bridge;
+    var embed = !!props.embed;
     var snapshot = bridge.getSnapshot();
     var agentes = snapshot.agentes || [];
     var ready = snapshot.ready;
@@ -96,13 +97,14 @@
     var abierta = snapshot.abierta;
 
     var syncLabel = snapshot.syncLabel || '';
+    var emptyMsg = props.emptyMsg || 'No hay agentes. Da acceso con + Agente.';
     var estado = '';
     if (!ready) estado = 'Cargando el índice…';
     else if (indexError) estado = 'No se pudo leer el índice compartido.';
-    else if (!agentes.length) estado = 'No hay agentes. Da acceso con + Agente.';
+    else if (!agentes.length) estado = emptyMsg;
 
-    return e('div', { className: 'agentes-app' },
-      e('div', { className: 'catalogo-toolbar' },
+    return e('div', { className: 'agentes-app' + (embed ? ' is-embed' : '') },
+      embed ? null : e('div', { className: 'catalogo-toolbar' },
         syncLabel
           ? e('span', { className: 'agentes-sync', 'aria-live': 'polite' }, syncLabel)
           : null,
@@ -147,6 +149,7 @@
   }
 
   var reactRoot = null;
+  var listaRoots = {};
 
   function montar(bridge) {
     var root = document.getElementById('agentes-root');
@@ -155,8 +158,23 @@
     reactRoot.render(e(AgentesApp, { bridge: bridge }));
   }
 
+  /** Lista embebible (pestaña Agentes de una Base de datos). Reutiliza AgenteFila. */
+  function montarLista(elOrId, bridge, opts) {
+    opts = opts || {};
+    var el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (!el || !bridge) return;
+    var key = el.id || 'agentes-embed';
+    if (!listaRoots[key]) listaRoots[key] = ReactDOM.createRoot(el);
+    listaRoots[key].render(e(AgentesApp, {
+      bridge: bridge,
+      embed: true,
+      emptyMsg: opts.emptyMsg || 'Ningún agente asignado.'
+    }));
+  }
+
   window.AgentesUI = {
     montar: montar,
-    refrescar: function (bridge) { montar(bridge); }
+    refrescar: function (bridge) { montar(bridge); },
+    montarLista: montarLista
   };
 })();

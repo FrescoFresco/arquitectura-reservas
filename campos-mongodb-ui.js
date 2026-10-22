@@ -240,19 +240,21 @@
 
   function MongoApp(props) {
     var bridge = props.bridge;
+    var embed = !!props.embed;
     var snap = bridge.getSnapshot();
     var campos = snap.campos || [];
     var abierta = snap.abierta;
     var ready = snap.ready;
     var indexError = snap.indexError;
+    var emptyMsg = props.emptyMsg || 'No hay campos MongoDB.';
 
     var estado = '';
     if (!ready) estado = 'Cargando el índice…';
     else if (indexError) estado = 'No se pudo leer el índice compartido.';
-    else if (!campos.length) estado = 'No hay campos MongoDB.';
+    else if (!campos.length) estado = emptyMsg;
 
-    return e('div', { className: 'campos-app' },
-      e('div', { className: 'catalogo-toolbar' },
+    return e('div', { className: 'campos-app' + (embed ? ' is-embed' : '') },
+      embed ? null : e('div', { className: 'catalogo-toolbar' },
         e('button', {
           type: 'button',
           className: 'btn primary btn-anadir',
@@ -292,12 +294,27 @@
 
   var gridRoot = null;
   var fichaRoot = null;
+  var listaRoots = {};
 
   function montarGrid(bridge) {
     var root = document.getElementById('campos-mongodb-root');
     if (!root || !bridge) return;
     if (!gridRoot) gridRoot = ReactDOM.createRoot(root);
     gridRoot.render(e(MongoApp, { bridge: bridge }));
+  }
+
+  /** Lista embebible (p. ej. pestaña Campos de una Base de datos). Reutiliza FilaLista. */
+  function montarLista(elOrId, bridge, opts) {
+    opts = opts || {};
+    var el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (!el || !bridge) return;
+    var key = el.id || 'mongo-embed';
+    if (!listaRoots[key]) listaRoots[key] = ReactDOM.createRoot(el);
+    listaRoots[key].render(e(MongoApp, {
+      bridge: bridge,
+      embed: true,
+      emptyMsg: opts.emptyMsg || 'Sin campos Mongo en esta base de datos.'
+    }));
   }
 
   function mostrarFicha(campo, onCerrar, mensaje, extras) {
@@ -322,6 +339,7 @@
   window.CamposMongoUI = {
     montar: montarGrid,
     refrescar: function (bridge) { montarGrid(bridge); },
+    montarLista: montarLista,
     mostrarFicha: mostrarFicha,
     limpiarFicha: limpiarFicha
   };

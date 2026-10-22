@@ -1177,6 +1177,7 @@ function normalizeMongoCampo(item) {
     obligatorio: !!item.obligatorio,
     descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim() : '',
     ancla: ancla,
+    proyecto: typeof item.proyecto === 'string' ? item.proyecto.trim() : '',
     proyeccionMongo: proyeccionMongo,
     proyeccionElemento: proyeccionElemento,
     indices: indices
@@ -4182,41 +4183,28 @@ function cargarProyectoDiagrama(proy) {
 }
 
 function pintarProyectoColecciones(proy) {
-  const vacio = document.getElementById('proyColeccionesVacio');
-  const tabla = document.getElementById('proyColeccionesTabla');
-  const body = document.getElementById('proyColeccionesBody');
-  if (!body || !proy) return;
-  body.replaceChildren();
+  const mount = document.getElementById('proyColeccionesLista');
+  if (!mount || !proy || !window.ProyectosUI || !window.ProyectosUI.montarColecciones) return;
   const cols = Array.isArray(proy.colecciones) ? proy.colecciones : [];
-  if (!cols.length) {
-    if (vacio) {
-      vacio.hidden = false;
-      vacio.textContent = proy.legacyNegocio
-        ? 'Esta entrada no define colecciones (legado).'
-        : 'Sin colecciones en esta base de datos.';
-    }
-    if (tabla) tabla.hidden = true;
-    return;
-  }
-  if (vacio) vacio.hidden = true;
-  if (tabla) tabla.hidden = false;
+  const emptyMsg = proy.legacyNegocio
+    ? 'Esta entrada no define colecciones (legado).'
+    : 'Sin colecciones en esta base de datos.';
 
-  function pintarFilas(conteo) {
-    body.replaceChildren();
-    cols.forEach(function (col) {
-      const tr = document.createElement('tr');
-      const idTd = document.createElement('td');
-      idTd.appendChild(el('code', null, col.id || '—'));
-      const descTd = el('td', null, col.descripcion || '—');
-      const n = conteo && col.id != null ? conteo[col.id] : undefined;
-      const camposTd = el('td', null, n == null ? '—' : String(n));
-      tr.append(idTd, descTd, camposTd);
-      body.append(tr);
+  function render(conteo) {
+    const abierta = proyectoAbierto();
+    if (!abierta || abierta.id !== proy.id) return;
+    window.ProyectosUI.montarColecciones(mount, {
+      colecciones: cols,
+      conteo: conteo || {},
+      emptyMsg: emptyMsg,
+      onAbrir: function () {
+        seleccionarProyReaderTab('campos');
+      }
     });
   }
 
-  pintarFilas(null);
-  if (proy.legacyNegocio || !proy.id) return;
+  render({});
+  if (proy.legacyNegocio || !proy.id || !cols.length) return;
   apiFetch('/v1/mongo?proyecto=' + encodeURIComponent(proy.id))
     .then(function (data) {
       const campos = (data && data.campos) || [];
@@ -4226,83 +4214,129 @@ function pintarProyectoColecciones(proy) {
         if (!k) return;
         conteo[k] = (conteo[k] || 0) + 1;
       });
-      // Solo refresca si seguimos en esta ficha/tab.
-      const abierta = proyectoAbierto();
-      if (!abierta || abierta.id !== proy.id) return;
       const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="colecciones"].is-on');
       if (!tabOn) return;
-      pintarFilas(conteo);
+      render(conteo);
     })
     .catch(function () { /* conteo opcional */ });
 }
 
 function pintarProyectoCampos(proy) {
-  const vacio = document.getElementById('proyCamposVacio');
-  const tabla = document.getElementById('proyCamposTabla');
-  const body = document.getElementById('proyCamposBody');
-  if (!body || !proy) return;
-  body.replaceChildren();
-  const q = proy.legacyNegocio ? '' : ('?proyecto=' + encodeURIComponent(proy.id));
-  apiFetch('/v1/mongo' + q)
+  const mount = document.getElementById('proyCamposLista');
+  if (!mount || !proy || !window.CamposMongoUI || !window.CamposMongoUI.montarLista) return;
+
+  function bridgeCon(campos, ready, indexError) {
+    return {
+      getSnapshot: function () {
+        return {
+          ready: ready,
+          indexError: !!indexError,
+          campos: campos || [],
+          abierta: null
+        };
+      },
+      abrirCampo: function (id) { abrirFichaMongo(id); },
+      añadirCampo: function () {}
+    };
+  }
+
+  window.CamposMongoUI.montarLista(mount, bridgeCon([], false, false), {
+    emptyMsg: 'Cargando campos…'
+  });
+
+  if (proy.legacyNegocio) {
+    window.CamposMongoUI.montarLista(mount, bridgeCon([], true, false), {
+      emptyMsg: 'Sin campos Mongo en esta base de datos.'
+    });
+    return;
+  }
+
+  apiFetch('/v1/mongo?proyecto=' + encodeURIComponent(proy.id))
     .then(function (data) {
-      let campos = (data && data.campos) || [];
-      if (proy.legacyNegocio) campos = [];
-      if (!campos.length) {
-        if (vacio) { vacio.hidden = false; vacio.textContent = 'Sin campos Mongo en este proyecto.'; }
-        if (tabla) tabla.hidden = true;
-        return;
-      }
-      if (vacio) vacio.hidden = true;
-      if (tabla) tabla.hidden = false;
-      campos.forEach(function (c) {
-        const tr = document.createElement('tr');
-        tr.append(
-          el('td', null, c.ancla || '—'),
-          el('td', null, c.campo || (c.coleccion + '.' + c.clave)),
-          el('td', null, c.coleccion || '—'),
-          el('td', null, c.bsonType || 'string')
-        );
-        body.append(tr);
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="campos"].is-on');
+      if (!tabOn) return;
+      const raw = (data && data.campos) || [];
+      const campos = raw.map(normalizeMongoCampo).filter(Boolean);
+      window.CamposMongoUI.montarLista(mount, bridgeCon(campos, true, false), {
+        emptyMsg: 'Sin campos Mongo en esta base de datos.'
       });
     })
     .catch(function () {
-      if (vacio) { vacio.hidden = false; vacio.textContent = 'No se pudieron cargar los campos.'; }
-      if (tabla) tabla.hidden = true;
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      window.CamposMongoUI.montarLista(mount, bridgeCon([], true, true), {
+        emptyMsg: 'No se pudieron cargar los campos.'
+      });
     });
 }
 
 function pintarProyectoAgentes(proy) {
-  const lista = document.getElementById('proyAgentesLista');
-  const vacio = document.getElementById('proyAgentesVacio');
-  if (!lista || !proy) return;
-  lista.replaceChildren();
+  const mount = document.getElementById('proyAgentesLista');
+  if (!mount || !proy || !window.AgentesUI || !window.AgentesUI.montarLista) return;
   const ids = Array.isArray(proy.agentes) ? proy.agentes : [];
+
+  function bridgeCon(agentes, ready, indexError) {
+    return {
+      getSnapshot: function () {
+        return {
+          ready: ready,
+          indexError: !!indexError,
+          agentes: agentes || [],
+          abierta: null,
+          syncLabel: ''
+        };
+      },
+      darAcceso: function () {},
+      abrirAgente: function (id) { abrirAgente(id); }
+    };
+  }
+
+  window.AgentesUI.montarLista(mount, bridgeCon([], false, false), {
+    emptyMsg: 'Cargando agentes…'
+  });
+
+  function filtrar(todos) {
+    if (ids.length) {
+      return todos.filter(function (a) { return ids.indexOf(a.id) >= 0; });
+    }
+    return todos.filter(function (a) {
+      return Array.isArray(a.proyectos) && a.proyectos.indexOf(proy.id) >= 0;
+    });
+  }
+
+  refrescarAgentes();
+  const locales = filtrar(state.agentes.lista || []);
+  if (state.agentes.ready && locales.length) {
+    window.AgentesUI.montarLista(mount, bridgeCon(locales, true, false), {
+      emptyMsg: 'Ningún agente asignado.'
+    });
+  }
+
   apiFetch('/v1/agentes')
     .then(function (data) {
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="agentes"].is-on');
+      if (!tabOn) return;
       const todos = (data && data.agentes) || [];
-      const filtrados = ids.length
-        ? todos.filter(function (a) { return ids.indexOf(a.id) >= 0; })
-        : todos.filter(function (a) {
-          return Array.isArray(a.proyectos) && a.proyectos.indexOf(proy.id) >= 0;
-        });
-      if (!filtrados.length) {
-        if (vacio) { vacio.hidden = false; vacio.textContent = 'Ningún agente asignado.'; }
-        return;
-      }
-      if (vacio) vacio.hidden = true;
-      filtrados.forEach(function (a) {
-        const card = el('div', 'proy-agente-card', null);
-        card.append(el('h4', null, a.nombre || a.id));
-        const perms = el('p', 'proy-agente-perms', null);
-        const lee = Array.isArray(a.lee) && a.lee.length ? a.lee.join(', ') : '—';
-        const escribe = Array.isArray(a.escribe) && a.escribe.length ? a.escribe.join(', ') : '—';
-        perms.textContent = 'Lee: ' + lee + ' · Escribe: ' + escribe;
-        card.append(perms);
-        lista.append(card);
+      const filtrados = filtrar(todos).map(function (a) {
+        const local = (state.agentes.lista || []).find(function (x) { return x.id === a.id; });
+        const merged = Object.assign({}, a, local || {});
+        merged.enLinea = agenteEnLinea(merged);
+        return merged;
+      });
+      window.AgentesUI.montarLista(mount, bridgeCon(filtrados, true, false), {
+        emptyMsg: 'Ningún agente asignado.'
       });
     })
     .catch(function () {
-      if (vacio) { vacio.hidden = false; vacio.textContent = 'No se pudieron cargar los agentes.'; }
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      window.AgentesUI.montarLista(mount, bridgeCon(locales, true, !locales.length), {
+        emptyMsg: locales.length ? 'Ningún agente asignado.' : 'No se pudieron cargar los agentes.'
+      });
     });
 }
 
