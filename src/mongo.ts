@@ -31,7 +31,7 @@ export function mongoNotConfiguredError() {
   return {
     ok: false as const,
     error: 'configure MONGODB_URI',
-    hint: 'Configura la URI en Ajustes → Conexiones del panel, o el secret MONGODB_URI del Worker. La URI no se reexpone por API.',
+    hint: 'Configura la URI en la pestaña Conexión de la Base de datos (producto). El secret MONGODB_URI del Worker es solo ops y no sustituye esa URI. La URI no se reexpone por API.',
   };
 }
 

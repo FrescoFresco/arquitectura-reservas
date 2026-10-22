@@ -3,7 +3,11 @@
  *
  * Choice: D1 + ENCRYPTION_KEY (Worker secret) rather than Cloudflare Secrets API —
  * the panel can rotate the URI without wrangler/CLI; secrets API is write-once from
- * humans. Env MONGODB_URI remains a fallback when no stored row exists.
+ * humans.
+ *
+ * Product path: URI per Base de datos (`mongo_config_proyecto`). The legacy global
+ * `mongo_config` row is no longer used in resolution. Env `MONGODB_URI` is ops-only
+ * (health / status / sync without proyecto), not a product Ajustes fallback.
  *
  * Never log or return the URI. Status may expose a safe host last-4 hint only.
  */

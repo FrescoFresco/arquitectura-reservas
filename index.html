@@ -364,7 +364,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="hub-inner">
 <a href="#catalogos" data-destino="catalogos" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></a>
 <a href="#documentacion" data-destino="documentacion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Documentación</span></a>
-<a href="#ajustes/conexiones" data-destino="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Ajustes</span></a>
+<a href="#ajustes/agentes" data-destino="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Ajustes</span></a>
 </div>
 </nav>
 <div class="app-main">
@@ -376,9 +376,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div role="tabpanel" id="panel-colecciones" data-catalogo="colecciones" hidden>
 <div id="colecciones-root"></div>
-</div>
-<div role="tabpanel" id="panel-agentes" data-catalogo="agentes" hidden>
-<div id="agentes-root"></div>
 </div>
 <div role="tabpanel" id="panel-skills" data-catalogo="skills" hidden>
 <div id="skills-root"></div>
@@ -533,7 +530,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelConexion" role="tabpanel" aria-labelledby="proyTabConexion" hidden>
 <div class="proy-conexion">
-<p class="ajustes-lead" id="proyConexionAyuda">Cadena de conexión Atlas (<code>mongodb+srv://…</code>) para esta base Mongo. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Si no hay URI propia, se usa la de Ajustes → Conexiones.</p>
+<p class="ajustes-lead" id="proyConexionAyuda">Cadena de conexión Atlas (<code>mongodb+srv://…</code>) para esta base Mongo. No es una API key de administración de Atlas ni el invite de agente. Queda cifrada; el panel no la vuelve a mostrar. Sin URI propia de esta Base de datos, las operaciones Mongo fallan (no hay URI global en Ajustes).</p>
 <div class="ajustes-status-row">
 <span id="proyConexionStatus" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
 <p id="proyConexionHint" class="ajustes-hint">La URI guardada no se vuelve a mostrar.</p>
@@ -718,41 +715,20 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="doc doc-mongodb" role="tabpanel" id="panel-mongodb" data-doc="mongodb" hidden>
 <p id="mongoConnStatus" class="nota mongo-conn-status" aria-live="polite">URI configurada: …</p>
-<p class="nota" style="margin:-4px 0 14px;font-size:13px"><a href="#ajustes/conexiones">Abrir Ajustes → Conexiones</a> para pegar o borrar la URI.</p>
+<p class="nota" style="margin:-4px 0 14px;font-size:13px">La URI de Atlas se configura en cada <strong>Base de datos → Conexión</strong> (no hay URI global en Ajustes).</p>
 <div class="catalogo-tabs doc-subtabs" id="mongoDocTabs" role="tablist" aria-label="MongoDB"></div>
 <div id="mongoDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando documentación MongoDB…</p></div>
 </div>
 </section>
 <section class="main catalogos" id="ajustes" hidden aria-label="Ajustes">
 <div class="catalogo-tabs" id="ajustesTabs" role="tablist" aria-label="Ajustes">
-<button type="button" class="pestana" role="tab" id="tab-conexiones" data-ajuste="conexiones" aria-selected="true" aria-controls="panel-conexiones">
-<svg class="pestana-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-<span>Conexiones</span>
+<button type="button" class="pestana" role="tab" id="tab-agentes" data-ajuste="agentes" aria-selected="true" aria-controls="panel-agentes">
+<svg class="pestana-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+<span>Agentes</span>
 </button>
 </div>
-<div role="tabpanel" id="panel-conexiones" data-ajuste-panel="conexiones" aria-labelledby="tab-conexiones">
-<div class="ajustes-sec">
-<h3>MongoDB Atlas</h3>
-<p class="ajustes-lead">Pega la URI aquí. Queda cifrada en el Worker; el panel no la vuelve a mostrar. Documentación → MongoDB sigue siendo solo lectura.</p>
-<div class="ajustes-status-row">
-<span id="ajustesMongoStatus" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
-<p id="ajustesMongoHint" class="ajustes-hint">La URI guardada no se vuelve a mostrar.</p>
-</div>
-<form class="ajustes-form" id="formAjustesMongo" autocomplete="off">
-<label>URI de conexión
-<input type="password" id="ajustesMongoUri" name="uri" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/" required>
-</label>
-<label>Nombre de base (opcional)
-<input type="text" id="ajustesMongoDb" name="db" autocomplete="off" spellcheck="false" placeholder="software_reservas">
-</label>
-<div class="ajustes-actions">
-<button type="submit" class="btn primary" id="ajustesMongoGuardar">Guardar</button>
-<button type="button" class="btn ghost" id="ajustesMongoProbar">Probar</button>
-<button type="button" class="btn ghost" id="ajustesMongoBorrar">Borrar</button>
-</div>
-<p id="ajustesMongoMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
-</form>
-</div>
+<div role="tabpanel" id="panel-agentes" data-ajuste-panel="agentes" aria-labelledby="tab-agentes">
+<div id="agentes-root"></div>
 </div>
 </section>
 </div>
@@ -1155,8 +1131,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022bddiag1"></script>
-<script src="ajustes-ui.js?v=20261022col1"></script>
+<script src="catalogo-ui.js?v=20261022ajag1"></script>
+<script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>
 </html>
