@@ -3606,6 +3606,23 @@ function normalizarSkillsProyecto(list) {
   return out;
 }
 
+function normalizarColeccionesProyecto(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  const seen = new Set();
+  list.forEach(function (c) {
+    if (!c || typeof c !== 'object') return;
+    const id = typeof c.id === 'string' ? c.id.trim() : '';
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    out.push({
+      id: id,
+      descripcion: typeof c.descripcion === 'string' ? c.descripcion.trim() : ''
+    });
+  });
+  return out;
+}
+
 function normalizeProyecto(item, versionFn) {
   if (!item || typeof item !== 'object') return null;
   if (typeof item.id !== 'string' || !item.id.trim()) return null;
@@ -3617,7 +3634,14 @@ function normalizeProyecto(item, versionFn) {
     id: item.id.trim(),
     nombre: item.nombre.trim(),
     versiones: versiones,
-    skills: normalizarSkillsProyecto(item.skills)
+    skills: normalizarSkillsProyecto(item.skills),
+    baseDatos: typeof item.baseDatos === 'string' ? item.baseDatos.trim() : '',
+    colecciones: normalizarColeccionesProyecto(item.colecciones),
+    relaciones: Array.isArray(item.relaciones) ? item.relaciones.slice() : [],
+    agentes: Array.isArray(item.agentes)
+      ? item.agentes.map(function (a) { return String(a || '').trim(); }).filter(Boolean)
+      : [],
+    legacyNegocio: !!(item.legacyNegocio === true || item.legacyNegocio === 1 || item.legacy_negocio === 1)
   };
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
     out.descripcion = item.descripcion.trim().slice(0, 280);
@@ -3656,6 +3680,11 @@ function normalizeProyectosLocales(list) {
 function conMetaProyecto(destino, fuente) {
   if (fuente.descripcion) destino.descripcion = fuente.descripcion;
   destino.skills = Array.isArray(fuente.skills) ? fuente.skills.slice() : [];
+  if (typeof fuente.baseDatos === 'string') destino.baseDatos = fuente.baseDatos;
+  if (Array.isArray(fuente.colecciones)) destino.colecciones = fuente.colecciones.slice();
+  if (Array.isArray(fuente.relaciones)) destino.relaciones = fuente.relaciones.slice();
+  if (Array.isArray(fuente.agentes)) destino.agentes = fuente.agentes.slice();
+  if (fuente.legacyNegocio != null) destino.legacyNegocio = !!fuente.legacyNegocio;
   return destino;
 }
 
@@ -3787,6 +3816,7 @@ function seleccionarProyReaderTab(id) {
   const tabs = document.querySelectorAll('#proyReaderTabs [data-proy-tab]');
   const panels = {
     resumen: document.getElementById('proyPanelResumen'),
+    colecciones: document.getElementById('proyPanelColecciones'),
     diagrama: document.getElementById('proyPanelDiagrama'),
     campos: document.getElementById('proyPanelCampos'),
     agentes: document.getElementById('proyPanelAgentes')
@@ -3803,6 +3833,7 @@ function seleccionarProyReaderTab(id) {
   });
   const proy = proyectoAbierto();
   if (!proy) return;
+  if (id === 'colecciones') pintarProyectoColecciones(proy);
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
   if (id === 'campos') pintarProyectoCampos(proy);
   if (id === 'agentes') pintarProyectoAgentes(proy);
@@ -4060,6 +4091,61 @@ function cargarProyectoDiagrama(proy) {
           : 'Este proyecto no tiene colecciones (¿negocio legado?).';
       }
     });
+}
+
+function pintarProyectoColecciones(proy) {
+  const vacio = document.getElementById('proyColeccionesVacio');
+  const tabla = document.getElementById('proyColeccionesTabla');
+  const body = document.getElementById('proyColeccionesBody');
+  if (!body || !proy) return;
+  body.replaceChildren();
+  const cols = Array.isArray(proy.colecciones) ? proy.colecciones : [];
+  if (!cols.length) {
+    if (vacio) {
+      vacio.hidden = false;
+      vacio.textContent = proy.legacyNegocio
+        ? 'Esta entrada no define colecciones (legado).'
+        : 'Sin colecciones en esta base de datos.';
+    }
+    if (tabla) tabla.hidden = true;
+    return;
+  }
+  if (vacio) vacio.hidden = true;
+  if (tabla) tabla.hidden = false;
+
+  function pintarFilas(conteo) {
+    body.replaceChildren();
+    cols.forEach(function (col) {
+      const tr = document.createElement('tr');
+      const idTd = document.createElement('td');
+      idTd.appendChild(el('code', null, col.id || '—'));
+      const descTd = el('td', null, col.descripcion || '—');
+      const n = conteo && col.id != null ? conteo[col.id] : undefined;
+      const camposTd = el('td', null, n == null ? '—' : String(n));
+      tr.append(idTd, descTd, camposTd);
+      body.append(tr);
+    });
+  }
+
+  pintarFilas(null);
+  if (proy.legacyNegocio || !proy.id) return;
+  apiFetch('/v1/mongo?proyecto=' + encodeURIComponent(proy.id))
+    .then(function (data) {
+      const campos = (data && data.campos) || [];
+      const conteo = {};
+      campos.forEach(function (c) {
+        const k = c && c.coleccion ? String(c.coleccion) : '';
+        if (!k) return;
+        conteo[k] = (conteo[k] || 0) + 1;
+      });
+      // Solo refresca si seguimos en esta ficha/tab.
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="colecciones"].is-on');
+      if (!tabOn) return;
+      pintarFilas(conteo);
+    })
+    .catch(function () { /* conteo opcional */ });
 }
 
 function pintarProyectoCampos(proy) {
