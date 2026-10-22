@@ -530,6 +530,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="colReaderTabs" role="tablist" aria-label="Secciones de la colección">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="colTabResumen" data-col-tab="resumen" aria-selected="true" aria-controls="colPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="colTabBaseDatos" data-col-tab="base-datos" aria-selected="false" aria-controls="colPanelBaseDatos">Base de datos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="colTabCampos" data-col-tab="campos" aria-selected="false" aria-controls="colPanelCampos">Campos</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="colPanelResumen" role="tabpanel" aria-labelledby="colTabResumen">
@@ -538,6 +539,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Descripción</dt><dd id="colReaderDesc">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Base de datos</dt><dd><code id="colReaderPadre">—</code></dd></div>
 </dl>
+</div>
+<div class="reader-panel ancla-ficha-body" id="colPanelBaseDatos" role="tabpanel" aria-labelledby="colTabBaseDatos" hidden>
+<div id="colBaseDatosLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="colPanelCampos" role="tabpanel" aria-labelledby="colTabCampos" hidden>
 <div id="colCamposLista" class="proy-tab-catalogo"></div>
@@ -1087,11 +1091,11 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="skills-ui.js?v=20261020y"></script>
 <script src="campos-ancla-ui.js?v=20261022colclick1"></script>
 <script src="campos-mongodb-ui.js?v=20261022colclick2"></script>
-<script src="proyectos-ui.js?v=20261022colclick2"></script>
-<script src="colecciones-ui.js?v=20261022col1"></script>
+<script src="proyectos-ui.js?v=20261022colbd1"></script>
+<script src="colecciones-ui.js?v=20261022colbd1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022col1"></script>
+<script src="catalogo-ui.js?v=20261022colbd1"></script>
 <script src="ajustes-ui.js?v=20261022col1"></script>
 
 </body>

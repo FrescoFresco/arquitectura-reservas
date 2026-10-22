@@ -57,12 +57,15 @@
     var abierta = props.abierta;
     var actual = versionActual(proy);
     var isOpen = abierta && abierta.id === proy.id;
-    var secundario = formatVersion(actual.numero, actual.fecha);
-    if (actual.origen === 'local') secundario += ' · local';
-    if (proy.baseDatos) secundario += ' · ' + proy.baseDatos;
-    else if (proy.legacyNegocio) secundario += ' · negocio legado';
+    var partes = [];
+    if (proy.id) partes.push(proy.id);
+    if (proy.baseDatos) partes.push(proy.baseDatos);
+    else if (proy.legacyNegocio) partes.push('negocio legado');
+    partes.push(formatVersion(actual.numero, actual.fecha));
+    if (actual.origen === 'local') partes.push('local');
     var nSkills = Array.isArray(proy.skills) ? proy.skills.length : 0;
-    if (nSkills) secundario += ' · ' + nSkills + (nSkills === 1 ? ' skill' : ' skills');
+    if (nSkills) partes.push(nSkills + (nSkills === 1 ? ' skill' : ' skills'));
+    var secundario = partes.join(' · ');
 
     return e('button', {
       type: 'button',
@@ -85,19 +88,21 @@
 
   function ProyectosApp(props) {
     var bridge = props.bridge;
+    var embed = !!props.embed;
     var snapshot = bridge.getSnapshot();
     var proyectos = snapshot.proyectos || [];
     var ready = snapshot.ready;
     var indexError = snapshot.indexError;
     var abierta = snapshot.abierta;
+    var emptyMsg = props.emptyMsg || 'No hay bases de datos.';
 
     var estado = '';
     if (!ready) estado = 'Cargando el índice…';
     else if (indexError) estado = 'No se pudo leer el índice compartido.';
-    else if (!proyectos.length) estado = 'No hay bases de datos.';
+    else if (!proyectos.length) estado = emptyMsg;
 
-    return e('div', { className: 'proyectos-app' },
-      e('div', { className: 'catalogo-toolbar' },
+    return e('div', { className: 'proyectos-app' + (embed ? ' is-embed' : '') },
+      embed ? null : e('div', { className: 'catalogo-toolbar' },
         e('button', {
           type: 'button',
           className: 'btn primary btn-anadir',
@@ -209,12 +214,27 @@
 
   var reactRoot = null;
   var coleccionesRoots = {};
+  var listaRoots = {};
 
   function montar(bridge) {
     var root = document.getElementById('proyectos-root');
     if (!root || !bridge) return;
     if (!reactRoot) reactRoot = ReactDOM.createRoot(root);
     reactRoot.render(e(ProyectosApp, { bridge: bridge }));
+  }
+
+  /** Lista embebible (p. ej. pestaña Base de datos de una colección). Reutiliza ProyectoFila. */
+  function montarLista(elOrId, bridge, opts) {
+    opts = opts || {};
+    var el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (!el || !bridge) return;
+    var key = el.id || 'proyectos-embed';
+    if (!listaRoots[key]) listaRoots[key] = ReactDOM.createRoot(el);
+    listaRoots[key].render(e(ProyectosApp, {
+      bridge: bridge,
+      embed: true,
+      emptyMsg: opts.emptyMsg || 'Sin base de datos padre.'
+    }));
   }
 
   /** Lista de colecciones con el mismo patrón catalogo-fila que Skills/Anclas/Agentes. */
@@ -235,6 +255,7 @@
   window.ProyectosUI = {
     montar: montar,
     refrescar: function (bridge) { montar(bridge); },
+    montarLista: montarLista,
     montarColecciones: montarColecciones
   };
 })();
