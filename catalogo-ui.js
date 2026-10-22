@@ -4323,10 +4323,9 @@ function pintarProyectoAgentes(proy) {
       const todos = (data && data.agentes) || [];
       const filtrados = filtrar(todos).map(function (a) {
         const local = (state.agentes.lista || []).find(function (x) { return x.id === a.id; });
-        if (local && local.enLinea != null) {
-          return Object.assign({}, a, { enLinea: local.enLinea, foto: local.foto || a.foto });
-        }
-        return a;
+        const merged = Object.assign({}, a, local || {});
+        merged.enLinea = agenteEnLinea(merged);
+        return merged;
       });
       window.AgentesUI.montarLista(mount, bridgeCon(filtrados, true, false), {
         emptyMsg: 'Ningún agente asignado.'
