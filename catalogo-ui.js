@@ -4193,13 +4193,12 @@ function pintarProyectoColecciones(proy) {
   function render(conteo) {
     const abierta = proyectoAbierto();
     if (!abierta || abierta.id !== proy.id) return;
+    // Sin onAbrir: la colección no es la pestaña Campos.
+    // Cuando exista ficha de colección, pasar aquí abrirFichaColeccion(id).
     window.ProyectosUI.montarColecciones(mount, {
       colecciones: cols,
       conteo: conteo || {},
-      emptyMsg: emptyMsg,
-      onAbrir: function () {
-        seleccionarProyReaderTab('campos');
-      }
+      emptyMsg: emptyMsg
     });
   }
 
