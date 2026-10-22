@@ -1,0 +1,19 @@
+[
+  {
+    "_id": "scr-sala-v1",
+    "id_proceso": "proc-muelle-sala",
+    "version": "v1",
+    "timestamp": {
+      "$date": "2026-10-12T15:30:00.000Z"
+    },
+    "estado": "generada",
+    "resumen": "Playwright cena-sala",
+    "script_js": {
+      "contenido": "// Reserva de prueba El Muelle, cena-sala. Sin credenciales.\nasync function reservar(page, datos) {\n  // rellena y se detiene antes de confirmar\n}\n",
+      "version": "1.0.0",
+      "huella": "script-sala-v1",
+      "referencia_codigo": "ejemplos/proc-muelle-sala/reservar.js@1.0.0"
+    },
+    "documento_md": "# Explicación\n\nEl script de cena-sala rellena el formulario y se detiene antes de confirmar.\n"
+  }
+]

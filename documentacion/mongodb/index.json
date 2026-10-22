@@ -1,0 +1,107 @@
+{
+  "pestana": "MongoDB",
+  "subpestanas": [
+    {
+      "id": "conceptos",
+      "titulo": "Conceptos básicos",
+      "orden": 1,
+      "archivo": "01-conceptos.md"
+    },
+    {
+      "id": "nombres",
+      "titulo": "Reglas de nombres",
+      "orden": 2,
+      "archivo": "02-nombres.md"
+    },
+    {
+      "id": "tipos",
+      "titulo": "Tipos de datos (BSON)",
+      "orden": 3,
+      "archivo": "03-tipos.md"
+    },
+    {
+      "id": "reglas",
+      "titulo": "Reglas de validación ($jsonSchema)",
+      "orden": 4,
+      "archivo": "04-reglas.md"
+    },
+    {
+      "id": "diseno",
+      "titulo": "Diseño: incrustar, referenciar y listas",
+      "orden": 5,
+      "archivo": "05-diseno.md"
+    },
+    {
+      "id": "patrones",
+      "titulo": "Patrones de diseño",
+      "orden": 6,
+      "archivo": "06-patrones.md"
+    },
+    {
+      "id": "indices",
+      "titulo": "Índices",
+      "orden": 7,
+      "archivo": "07-indices.md"
+    },
+    {
+      "id": "limites",
+      "titulo": "Límites y buenas prácticas",
+      "orden": 8,
+      "archivo": "08-limites.md"
+    },
+    {
+      "id": "privacidad",
+      "titulo": "Datos personales y cifrado",
+      "orden": 9,
+      "archivo": "09-privacidad.md"
+    },
+    {
+      "id": "consultas",
+      "titulo": "Consultas (CRUD)",
+      "orden": 10,
+      "archivo": "10-consultas.md"
+    },
+    {
+      "id": "agregaciones",
+      "titulo": "Agregaciones",
+      "orden": 11,
+      "archivo": "11-agregaciones.md"
+    },
+    {
+      "id": "transacciones",
+      "titulo": "Transacciones",
+      "orden": 12,
+      "archivo": "12-transacciones.md"
+    },
+    {
+      "id": "usuarios-permisos",
+      "titulo": "Usuarios y permisos",
+      "orden": 13,
+      "archivo": "13-usuarios-permisos.md"
+    },
+    {
+      "id": "copias-replicas",
+      "titulo": "Réplicas y copias de seguridad",
+      "orden": 14,
+      "archivo": "14-copias-replicas.md"
+    },
+    {
+      "id": "sharding",
+      "titulo": "Sharding",
+      "orden": 15,
+      "archivo": "15-sharding.md"
+    },
+    {
+      "id": "change-streams",
+      "titulo": "Change streams",
+      "orden": 16,
+      "archivo": "16-change-streams.md"
+    },
+    {
+      "id": "atlas",
+      "titulo": "Atlas, drivers y conexión",
+      "orden": 17,
+      "archivo": "17-atlas.md"
+    }
+  ]
+}

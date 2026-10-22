@@ -1,0 +1,16 @@
+{
+  "_id": "la-mesa-norte",
+  "nombre": "La Mesa Norte",
+  "url": "https://lamesanorte.example",
+  "zona_horaria": "Europe/Madrid",
+  "telefono": "",
+  "notas": "Documento cajón negocios (schema reservas). Ya no es un esquema/proyecto.",
+  "proyectoSoftware": "reservas",
+  "legacyProyectoId": "la-mesa-norte",
+  "skills": [
+    "descubrir-negocio",
+    "mapear-recorrido",
+    "generar-script",
+    "diagnosticar-alerta"
+  ]
+}

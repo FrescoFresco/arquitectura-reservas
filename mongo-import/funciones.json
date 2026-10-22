@@ -1,0 +1,62 @@
+[
+  {
+    "_id": "fun-sala-v1",
+    "id_proceso": "proc-muelle-sala",
+    "version": "v1",
+    "timestamp": {
+      "$date": "2026-10-12T15:00:00.000Z"
+    },
+    "estado": "generada",
+    "resumen": "reservar_el_muelle_cena_sala",
+    "funcion_json": {
+      "name": "reservar_el_muelle_cena_sala",
+      "parameters": [
+        {
+          "nombre": "fecha",
+          "tipo": "fecha",
+          "obligatorio": true
+        },
+        {
+          "nombre": "hora",
+          "tipo": "hora",
+          "obligatorio": true
+        },
+        {
+          "nombre": "comensales",
+          "tipo": "entero",
+          "obligatorio": true
+        },
+        {
+          "nombre": "nombre",
+          "tipo": "texto",
+          "obligatorio": true
+        },
+        {
+          "nombre": "telefono",
+          "tipo": "telefono",
+          "obligatorio": true
+        },
+        {
+          "nombre": "email",
+          "tipo": "email",
+          "obligatorio": false
+        },
+        {
+          "nombre": "zona",
+          "tipo": "opcion",
+          "opciones": [
+            "cena-sala"
+          ],
+          "obligatorio": true
+        }
+      ],
+      "response": {
+        "estado": "confirmada",
+        "referencia": "string",
+        "alternativas": [],
+        "motivo": null
+      }
+    },
+    "documento_md": "# Explicación\n\nLa función de cena-sala sale del justificante.\n"
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "campos-ancla",
+  "compatibility_date": "2026-10-21",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./dist-ui",
+    "not_found_handling": "single-page-application"
+  }
+}

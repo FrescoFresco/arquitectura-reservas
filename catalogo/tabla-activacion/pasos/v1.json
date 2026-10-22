@@ -1,0 +1,24 @@
+{
+  "columnas": [
+    "Bloque",
+    "Se activa por",
+    "Lo usan"
+  ],
+  "filas": [
+    [
+      "0-05",
+      "justo antes de ejecutar el script en una llamada real",
+      "el código y el agente"
+    ],
+    [
+      "0-27",
+      "cada vez que el cliente dicta un correo o un teléfono",
+      "el agente de voz"
+    ],
+    [
+      "0-36",
+      "antes de cada decisión que depende de si el sector es delicado",
+      "el código"
+    ]
+  ]
+}

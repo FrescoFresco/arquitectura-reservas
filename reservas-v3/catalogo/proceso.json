@@ -1,0 +1,43 @@
+[
+  {
+    "id": "proceso.id_negocio",
+    "tipo": "id",
+    "nivel": "blindado",
+    "descripcion": "Negocio al que pertenece este proceso de reserva.",
+    "escribe": ["manual"],
+    "lee": ["gestor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "proceso.url_inicio",
+    "tipo": "url",
+    "nivel": "blindado",
+    "descripcion": "Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script.",
+    "escribe": ["manual", "mapear-recorrido"],
+    "lee": ["mapear-recorrido", "generar-script", "ejecutor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "proceso.alcance",
+    "tipo": "enum",
+    "valores": ["hasta_B", "completo"],
+    "nivel": "blindado",
+    "descripcion": "Hasta dónde se permite llegar: hasta_B (formulario relleno, sin confirmar) o completo (confirmar con la compuerta abierta).",
+    "escribe": ["manual"],
+    "lee": ["mapear-recorrido", "generar-script", "ejecutor"],
+    "sensible": false,
+    "estado": "activo"
+  },
+  {
+    "id": "proceso.id_version_activa",
+    "tipo": "id",
+    "nivel": "estable",
+    "descripcion": "Versión aprobada que usa el ejecutor. Falta hasta la primera aprobación.",
+    "escribe": ["gestor"],
+    "lee": ["ejecutor"],
+    "sensible": false,
+    "estado": "activo"
+  }
+]

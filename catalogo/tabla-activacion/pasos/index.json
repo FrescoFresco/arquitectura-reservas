@@ -1,0 +1,11 @@
+{
+  "id": "pasos",
+  "nombre": "Tabla de pasos",
+  "versiones": [
+    {
+      "numero": 1,
+      "fecha": "2026-10-19",
+      "ruta": "catalogo/tabla-activacion/pasos/v1.json"
+    }
+  ]
+}

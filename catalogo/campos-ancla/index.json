@@ -1,0 +1,402 @@
+{
+  "id": "campos-ancla",
+  "nombre": "Campos ancla",
+  "baseDatos": "arquitectura_reservas",
+  "campos": [
+    {
+      "id": "negocio.nombre",
+      "ancla": "_negocio.nombre_",
+      "etiqueta": "Nombre del negocio",
+      "claveMongo": "nombre",
+      "coleccion": "negocios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "",
+      "descripcion": "Nombre comercial del local, tal como lo ve el cliente.",
+      "ejemplo": "Rincón del Amazonas",
+      "skills": [
+        "mapear-recorrido",
+        "descubrir-negocio"
+      ],
+      "hash": "701c7446ec3f25fddc68a35dd4c7e6ac5fbdc3c69339f4f13ca0c8d10540f655",
+      "aliases": [
+        "salon_name",
+        "nombre_local"
+      ]
+    },
+    {
+      "id": "negocio.url",
+      "ancla": "_negocio.url_",
+      "etiqueta": "URL del negocio",
+      "claveMongo": "url",
+      "coleccion": "negocios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "uri",
+      "descripcion": "Web principal del local.",
+      "ejemplo": "https://restaurantmogan.com/",
+      "skills": [
+        "mapear-recorrido",
+        "descubrir-negocio"
+      ],
+      "hash": "8089a5654e5af9cbaf6bc7690a041941cdab30ee089e49d69c0996aa8772ae3b"
+    },
+    {
+      "id": "negocio.zona_horaria",
+      "ancla": "_negocio.zona_horaria_",
+      "etiqueta": "Zona horaria",
+      "claveMongo": "zona_horaria",
+      "coleccion": "negocios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "iana-timezone",
+      "descripcion": "Zona horaria IANA del local; todas las horas de reserva se interpretan en ella.",
+      "ejemplo": "Atlantic/Canary",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script",
+        "descubrir-negocio"
+      ],
+      "hash": "a88ebbe780096628f4e4c54371579e8e8ae6a9fbcbd5e1e0c14c8242c449f1df"
+    },
+    {
+      "id": "negocio.telefono",
+      "ancla": "_negocio.telefono_",
+      "etiqueta": "Teléfono",
+      "claveMongo": "telefono",
+      "coleccion": "negocios",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "E.164",
+      "descripcion": "Teléfono público del local (canónico). Alias: contacto.telefono, telefono_local. Valores por negocio_id, no en esta ficha.",
+      "ejemplo": "+34699111222",
+      "skills": [
+        "descubrir-negocio"
+      ],
+      "hash": "14bd8ff0d0fafa096030629cab84a11b96ab663fce7df47b9e8400152a28426d",
+      "aliases": [
+        "contacto.telefono",
+        "telefono_local"
+      ],
+      "observaciones": [],
+      "sensible": false
+    },
+    {
+      "id": "proceso.url_inicio",
+      "ancla": "_proceso.url_inicio_",
+      "etiqueta": "URL de inicio (punto A)",
+      "claveMongo": "url_inicio",
+      "coleccion": "procesos",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "uri, sin_pii",
+      "descripcion": "Punto A: URL de inicio del proceso de reserva, sin query con PII. Persistencia strict: rechaza nombre/tel/email en query.",
+      "ejemplo": "https://book.pelosur.es/",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script",
+        "descubrir-negocio",
+        "diagnosticar-alerta"
+      ],
+      "hash": "2ce1ef10b6c9ff0a5a85fc1aa1152d0b86879b7f53aa98f0a4b3cef4e2fca987",
+      "observaciones": []
+    },
+    {
+      "id": "version.recorrido.sistema.nombre",
+      "ancla": "_version.recorrido.sistema.nombre_",
+      "etiqueta": "Sistema de reservas",
+      "claveMongo": "recorrido.sistema.nombre",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, plugin WordPress, formulario propio…).",
+      "ejemplo": "CoverManager",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "hash": "fbd8c6ce894c34dce6480c3358eaaa3279161315d00dc1a88c5e2df5532e5133"
+    },
+    {
+      "id": "version.recorrido.llega_a_b",
+      "ancla": "_version.recorrido.llega_a_b_",
+      "etiqueta": "Llega a B",
+      "claveMongo": "recorrido.llega_a_b",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "boolean",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista.",
+      "ejemplo": "true",
+      "skills": [
+        "mapear-recorrido",
+        "diagnosticar-alerta"
+      ],
+      "hash": "b9a35af2c6c2a7ddfd83536010499e84070c8ce2dc670b05a77cf550a83fa706"
+    },
+    {
+      "id": "version.recorrido.pasos",
+      "ancla": "_version.recorrido.pasos_",
+      "etiqueta": "Pasos del recorrido",
+      "claveMongo": "recorrido.pasos",
+      "coleccion": "versiones",
+      "baseDatos": "software_reservas",
+      "tipo": "array",
+      "obligatorio": false,
+      "formato": "array-objetos",
+      "descripcion": "Array de pasos {accion, selector, valor}. Sin N literal en la clave.",
+      "ejemplo": "[{accion, selector, valor}]",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "hash": "esquemas-bd-ancla-recorrido-pasos-v1"
+    },
+    {
+      "id": "version.recorrido.campos.N",
+      "ancla": "_version.recorrido.campos.N_",
+      "etiqueta": "Campo N del recorrido (lista)",
+      "claveMongo": "recorrido.campos",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "array",
+      "obligatorio": false,
+      "formato": "proyeccion-array",
+      "descripcion": "Ancla de lista (X1/X5): índice de la proyección array versiones.recorrido.campos. Plantillas hijas: nombre, selector, clase.",
+      "ejemplo": "[{nombre, selector, clase}]",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x3-version-recorrido-campos-N"
+    },
+    {
+      "id": "version.recorrido.campos.N.nombre",
+      "ancla": "_version.recorrido.campos.N.nombre_",
+      "etiqueta": "Campo N · nombre",
+      "claveMongo": "recorrido.campos.N.nombre",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Plantilla: nombre del campo N en la versión del recorrido (lista canónica; no formularios.campos).",
+      "ejemplo": "Teléfono",
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x1-version-recorrido-campos-N-nombre"
+    },
+    {
+      "id": "version.recorrido.campos.N.selector",
+      "ancla": "_version.recorrido.campos.N.selector_",
+      "etiqueta": "Campo N · selector",
+      "claveMongo": "recorrido.campos.N.selector",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "playwright-locator",
+      "descripcion": "Selector de Playwright del campo N (lista canónica en la versión del recorrido).",
+      "ejemplo": "#client-phone",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "hash": "0516b8222d3004f6703688a50aac9f182b7629397629867d74e4c39ada15c364"
+    },
+    {
+      "id": "version.recorrido.campos.N.clase",
+      "ancla": "_version.recorrido.campos.N.clase_",
+      "etiqueta": "Campo N · clase",
+      "claveMongo": "recorrido.campos.N.clase",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "enum:normal|texto_libre|identificador|sensible|consentimiento",
+      "descripcion": "Clase del campo N (X3): normal | texto_libre | identificador | sensible | consentimiento. Sustituye el sí/no `sensible`. Nunca persistir el valor PII del cliente.",
+      "ejemplo": "normal",
+      "skills": [
+        "mapear-recorrido"
+      ],
+      "aliases": [],
+      "sensible": false,
+      "hash": "audit-x3-version-recorrido-campos-N-clase"
+    },
+    {
+      "id": "version.recorrido.boton_confirmar.selector",
+      "ancla": "_version.recorrido.boton_confirmar.selector_",
+      "etiqueta": "Selector del botón confirmar",
+      "claveMongo": "recorrido.boton_confirmar.selector",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "playwright-locator",
+      "descripcion": "Selector de Playwright del botón que envía la reserva. Nunca se pulsa hasta B.",
+      "ejemplo": "getByRole('button', { name: 'Confirm reservation' })",
+      "skills": [
+        "mapear-recorrido",
+        "generar-script"
+      ],
+      "hash": "fee1fab87a2751d5a1be63f8f808c39648cfdf7ed6b728961e5a7ff5cd10cc99"
+    },
+    {
+      "id": "version.script",
+      "ancla": "_version.script_",
+      "etiqueta": "Script Playwright",
+      "claveMongo": "script",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "javascript-module",
+      "descripcion": "Módulo JavaScript con las funciones hastaB(page, params, registrar) y confirmar(page).",
+      "ejemplo": "export async function hastaB(page, params, registrar) { … }",
+      "skills": [
+        "generar-script"
+      ],
+      "hash": "309141fef72422f4596eb0a491f7e3268461e60205cb0e3e60d031a7c469a809"
+    },
+    {
+      "id": "version.funcion.nombre",
+      "ancla": "_version.funcion.nombre_",
+      "etiqueta": "Nombre de la función",
+      "claveMongo": "funcion.nombre",
+      "coleccion": "versiones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "snake_case",
+      "descripcion": "Nombre de la función que expondrá el agente de voz.",
+      "ejemplo": "reservar_mesa",
+      "skills": [
+        "generar-script"
+      ],
+      "hash": "fdcf239a357789efad9b03ac2adb3546f5754172fffebee882cc8b5dc49fd852"
+    },
+    {
+      "id": "ejecucion.respuesta.estado",
+      "ancla": "_ejecucion.respuesta.estado_",
+      "etiqueta": "Estado de la ejecución",
+      "claveMongo": "respuesta.estado",
+      "coleccion": "ejecuciones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "enum:confirmada|pendiente_negocio|disponible|sin_hueco|error",
+      "descripcion": "Resultado de la función. En modo hasta_B, disponible significa que se llegó a B.",
+      "ejemplo": "disponible",
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "hash": "d48a37579b43ec480b536e8fb3733d859f44e5226c1e46a15d4baa07599a2106"
+    },
+    {
+      "id": "ejecucion.ultima_url",
+      "ancla": "_ejecucion.ultima_url_",
+      "etiqueta": "Última URL",
+      "claveMongo": "ultima_url",
+      "coleccion": "ejecuciones",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "uri",
+      "descripcion": "URL en la que estaba el navegador al terminar.",
+      "ejemplo": "https://restaurantmogan.com/reservation/confirm",
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "hash": "00e4de7e642dd388922c6827ad0445075a313293d810de51f54c3dd7b0e72ba6"
+    },
+    {
+      "id": "reserva_prueba.cuando",
+      "ancla": "_reserva_prueba.cuando_",
+      "etiqueta": "Reserva de prueba · cuándo",
+      "claveMongo": "cuando",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "2026-10-23T10:00:00+02:00",
+      "descripcion": "Momento de la reserva de prueba (ISO-8601 → Mongo date).",
+      "formato": "datetime",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "date",
+      "obligatorio": true,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "audit-x4-reserva_prueba-cuando"
+    },
+    {
+      "id": "reserva_prueba.estado",
+      "ancla": "_reserva_prueba.estado_",
+      "etiqueta": "Reserva de prueba · estado",
+      "claveMongo": "estado",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "cancelada",
+      "descripcion": "Estado: pendiente | confirmada | cancelada | por_cancelar.",
+      "formato": "enum:pendiente|confirmada|cancelada|por_cancelar",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": true,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "audit-x4-reserva_prueba-estado"
+    },
+    {
+      "id": "reserva_prueba.cancelada_en",
+      "ancla": "_reserva_prueba.cancelada_en_",
+      "etiqueta": "Reserva de prueba · cancelada en",
+      "claveMongo": "cancelada_en",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "2026-10-23T10:15:00+02:00",
+      "descripcion": "Cuándo se canceló la reserva de prueba (ISO-8601 → Mongo date).",
+      "formato": "datetime",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "date",
+      "obligatorio": false,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "audit-x4-reserva_prueba-cancelada_en"
+    },
+    {
+      "id": "reserva_prueba.nota",
+      "ancla": "_reserva_prueba.nota_",
+      "etiqueta": "Reserva de prueba · nota",
+      "claveMongo": "nota",
+      "coleccion": "reservas_prueba",
+      "ejemplo": "Probada vía Booksy; cancelada en el panel del software",
+      "descripcion": "Nota de seguimiento de la reserva de prueba.",
+      "formato": "",
+      "baseDatos": "arquitectura_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "aliases": [],
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "sensible": false,
+      "hash": "audit-x4-reserva_prueba-nota"
+    }
+  ]
+}

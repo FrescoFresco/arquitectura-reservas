@@ -1,0 +1,15 @@
+{
+  "_id": "pelo-sur",
+  "nombre": "Pelo Sur",
+  "url": "https://pelosur.es",
+  "zona_horaria": "Atlantic/Canary",
+  "telefono": "+34699111222",
+  "notas": "Documento cajón negocios (schema reservas). Teléfono E.164 real distinto de +34600111222 (solo prueba).",
+  "proyectoSoftware": "reservas",
+  "legacyProyectoId": "pelo-sur",
+  "skills": [
+    "descubrir-negocio",
+    "mapear-recorrido",
+    "diagnosticar-alerta"
+  ]
+}

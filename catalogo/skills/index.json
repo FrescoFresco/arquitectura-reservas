@@ -1,0 +1,113 @@
+{
+  "id": "skills",
+  "nombre": "Skills",
+  "instrucciones": [
+    {
+      "id": "mapear-recorrido",
+      "nombre": "Mapear recorrido",
+      "descripcion": "Recorre la web de reserva desde A hasta B y describe el formulario con campos ancla, sin confirmar nunca.",
+      "anclas": [
+        "_negocio.nombre_",
+        "_negocio.url_",
+        "_negocio.zona_horaria_",
+        "_proceso.url_inicio_",
+        "_version.recorrido.sistema.nombre_",
+        "_version.recorrido.llega_a_b_",
+        "_version.recorrido.pasos_",
+        "_version.recorrido.campos.N.nombre_",
+        "_version.recorrido.campos.N.selector_",
+        "_version.recorrido.campos.N.clase_",
+        "_version.recorrido.boton_confirmar.selector_"
+      ],
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-18",
+          "ruta": "catalogo/skills/mapear-recorrido/v1.md",
+          "nombreArchivo": "mapear-recorrido.md",
+          "hash": "eb1d96c6880b0a08a67ce5895fba1dc67a25646a96c537fef51fcf8a0aeb1a77"
+        },
+        {
+          "numero": 2,
+          "fecha": "2026-10-20",
+          "ruta": "catalogo/skills/mapear-recorrido/v2.md",
+          "nombreArchivo": "mapear-recorrido.md",
+          "hash": "8512403733885189039b954bd984a2c454dadb36b9973fb0ff2ae0842a6d3436"
+        },
+        {
+          "numero": 3,
+          "fecha": "2026-10-21",
+          "ruta": "catalogo/skills/mapear-recorrido/v3.md",
+          "nombreArchivo": "mapear-recorrido.md",
+          "hash": "54aa622e033810b007203ba5d70d4cd22f39132413763794ec18d423d7e69653"
+        }
+      ]
+    },
+    {
+      "id": "generar-script",
+      "nombre": "Generar script",
+      "descripcion": "A partir del recorrido, escribe el script de Playwright y el JSON Schema de los parámetros de la función.",
+      "anclas": [
+        "_proceso.url_inicio_",
+        "_version.recorrido.sistema.nombre_",
+        "_version.recorrido.pasos_",
+        "_version.recorrido.campos.N.selector_",
+        "_version.script_",
+        "_version.funcion.nombre_",
+        "_version.funcion.parametros_"
+      ],
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-19",
+          "ruta": "catalogo/skills/generar-script/v1.md",
+          "nombreArchivo": "generar-script.md",
+          "hash": "aa2f2d631b885823cd00e13114499fc29dd16a13cb644fa395ca9578e83255f2"
+        }
+      ]
+    },
+    {
+      "id": "descubrir-negocio",
+      "nombre": "Descubrir negocio",
+      "descripcion": "Reúne identidad, contactos y punto A de reserva a partir de la web del local.",
+      "anclas": [
+        "_negocio.nombre_",
+        "_negocio.url_",
+        "_negocio.zona_horaria_",
+        "_negocio.telefono_",
+        "_proceso.url_inicio_"
+      ],
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-20",
+          "ruta": "catalogo/skills/descubrir-negocio/v1.md",
+          "nombreArchivo": "descubrir-negocio.md",
+          "hash": "67dd041300839c2d2dfd26d2210e64db1a2b4dc1f4a5a70432d3ec737ea4143d"
+        }
+      ]
+    },
+    {
+      "id": "diagnosticar-alerta",
+      "nombre": "Diagnosticar alerta",
+      "descripcion": "Cuando la vigilancia falla, identifica la causa y qué skill conviene relanzar.",
+      "anclas": [
+        "_proceso.url_inicio_",
+        "_ejecucion.respuesta.estado_",
+        "_ejecucion.respuesta.motivo_",
+        "_ejecucion.ultima_url_",
+        "_ejecucion.traza.N.mensaje_",
+        "_corrida.errores.N_"
+      ],
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-20",
+          "ruta": "catalogo/skills/diagnosticar-alerta/v1.md",
+          "nombreArchivo": "diagnosticar-alerta.md",
+          "hash": "a6008875da4f23011c331895b9e2a05cb7344e952f041c5b85ea63da378566dc"
+        }
+      ]
+    }
+  ]
+}

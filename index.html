@@ -2,1404 +2,1059 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reservas: arquitectura</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arquitectura de acoplamiento a reservas web</title>
+<meta name="description" content="Catálogos Skills, Campos ancla y Campos MongoDB, y el contrato para publicarlos.">
+<script>
+(function () {
+  try {
+    var params = new URLSearchParams(location.search);
+    if (!params.has('code') && !params.has('error') && !params.has('installation_id')) return;
+    function corto(clave, max) {
+      var valor = params.get(clave) || '';
+      return valor.length > max ? '' : valor;
+    }
+    sessionStorage.setItem('arquitectura-reservas.app.vuelta', JSON.stringify({
+      code: corto('code', 80),
+      state: corto('state', 80),
+      error: corto('error', 40),
+      installationId: corto('installation_id', 12)
+    }));
+    history.replaceState(null, '', location.pathname + location.hash);
+  } catch (e) {}
+})();
+</script>
 <style>
-:root { --fondo: #fbfbf9; --texto: #1d1f21; --suave: #5f6368; --borde: #dcdcd6; --panel: #ffffff; --acento: #2f6f4f; --codigo: #f1f1ec; }
-@media (prefers-color-scheme: dark) { :root { --fondo: #16181a; --texto: #e6e6e3; --suave: #9aa0a6; --borde: #33363a; --panel: #1e2124; --acento: #7cc39b; --codigo: #262a2e; } }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--fondo); color: var(--texto); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
-header { padding: 20px 16px 0; max-width: 1200px; margin: 0 auto; }
-h1 { margin: 0 0 4px; font-size: 22px; }
-header p { margin: 0 0 14px; color: var(--suave); }
-nav { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--borde); }
-nav a { padding: 8px 12px; color: var(--suave); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
-nav a[aria-selected="true"] { color: var(--texto); border-color: var(--acento); font-weight: 600; }
-main { max-width: 1200px; margin: 0 auto; padding: 16px; }
-section[hidden] { display: none; }
-.nota { color: var(--suave); margin-top: 0; }
-.tabla { overflow-x: auto; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); }
-table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
-th, td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid var(--borde); }
-th { position: sticky; top: 0; background: var(--panel); white-space: nowrap; }
-code { background: var(--codigo); padding: 1px 4px; border-radius: 4px; font-size: 12.5px; }
-td code { white-space: nowrap; }
-pre { background: var(--codigo); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12.5px; }
-pre code { padding: 0; background: none; }
-details { border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); margin-bottom: 8px; }
-summary { cursor: pointer; padding: 10px 12px; }
-details > :not(summary) { margin: 0 12px 12px; }
-.nivel.blindado { color: var(--acento); font-weight: 600; }
-.escribe { color: var(--acento); font-weight: 600; }
-.md { max-width: 860px; }
-.md table { margin: 8px 0; }
-.diagrama { overflow-x: auto; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; padding: 12px; }
-footer { max-width: 1200px; margin: 0 auto; padding: 0 16px 24px; color: var(--suave); font-size: 13px; }
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17212f;background:#eef2f7}*{box-sizing:border-box}body{margin:0;min-height:100vh}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}h1{font-size:21px;margin:0}.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}.hub{background:#fff;border-right:1px solid #e5eaf1;position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;padding:20px 14px;z-index:30}.hub-brand{margin:0 0 18px;padding:0 8px 16px;border-bottom:1px solid #eef2f7}.hub-brand-label{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#4579dc}.hub-inner{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;max-width:none}.hub a{display:inline-flex;align-items:center;gap:10px;background:transparent;border:0;border-radius:12px;color:#677488;font:inherit;font-size:14px;font-weight:800;padding:11px 12px;cursor:pointer;text-decoration:none;touch-action:manipulation}.hub a svg{width:18px;height:18px;display:block;flex:none}.hub a span{white-space:nowrap}.hub a:hover{color:#1c63d5;background:#f5f8fd}.hub a[aria-current="page"]{color:#1c63d5;background:#edf3ff}.app-main{min-width:0;background:linear-gradient(180deg,#f3f6fb 0%,#eef2f7 120px,#eef2f7 100%)}.layout{max-width:1180px;margin:0 auto;padding:24px clamp(16px,3vw,28px) 40px;display:flex;flex-direction:column;gap:18px}.main{background:white;border:1px solid #e7ebf2;border-radius:18px;box-shadow:0 8px 30px #24334a08;min-height:570px;padding:clamp(22px,4vw,45px)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.eyebrow{font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.1em;color:#4579dc}.pill{font-size:11px;background:#edf3ff;color:#315eb6;border-radius:40px;padding:8px 11px;font-weight:700}h2{font-size:28px;letter-spacing:-.035em;margin:12px 0}p.desc{font-size:15px;color:#5f6f84;line-height:1.65;max-width:750px;margin:0 0 22px}.ico{display:inline-flex;flex:none;width:16px;height:16px;color:currentColor}.ico svg{width:16px;height:16px;display:block}@media(max-width:800px){.app{grid-template-columns:1fr;min-height:100vh}.hub{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;width:100%;border-right:0;border-top:1px solid #e5eaf1;padding:0 0 env(safe-area-inset-bottom);box-shadow:0 -8px 24px #24334a12;z-index:40}.hub-brand{display:none}.hub-inner{flex-direction:row;gap:0;width:100%}.hub a{flex:1;flex-direction:column;justify-content:center;gap:3px;min-height:56px;padding:8px 4px 6px;border-radius:0;font-size:11px;font-weight:700}.hub a svg{width:22px;height:22px}.hub a[aria-current="page"]{background:#f3f7ff}.app-main{padding-bottom:calc(57px + env(safe-area-inset-bottom))}.layout{margin:0 auto;padding:12px 12px 24px}.main{min-height:520px}h2{font-size:24px}}
+</style>
+<style>
+
+.catalogos.main{min-height:0}
+.catalogo-tabs{display:flex;gap:0;margin:0 0 16px;border-bottom:1px solid #e5eaf1;overflow-x:auto;scrollbar-width:none}
+.catalogo-tabs::-webkit-scrollbar{display:none}
+.pestana{appearance:none;display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 14px;font:inherit;font-size:14px;font-weight:800;color:#677488;cursor:pointer;white-space:nowrap}
+.pestana[aria-selected="true"]{color:#1c63d5;border-bottom-color:#1c63d5}
+.pestana:hover{color:#1c63d5}
+.pestana-svg{width:16px;height:16px;display:block;flex:none}
+.limite{margin:10px 0 16px;color:#5f6f84;font-size:13px;line-height:1.5;max-width:68ch}
+.estado{margin:0 0 14px;color:#5f6f84;font-size:14px}
+.split{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+.split.is-open{grid-template-columns:minmax(260px,380px) minmax(0,1fr)}
+.bloques{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.bloque{border:1px solid #e5eaf1;border-radius:14px;background:white;padding:14px}
+.bloque.is-open{border-color:#9db7ea;box-shadow:0 0 0 3px #e7efff}
+.bloque-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.bloque-nombre{margin:0;font-size:16px;letter-spacing:-.02em;overflow-wrap:anywhere}
+.bloque-ver{margin:4px 0 0;color:#315eb6;font-size:13px;font-weight:700}
+.en-navegador,.origen{margin:4px 0 0;color:#75859a;font-size:12px;line-height:1.4}
+.btn{font:inherit;cursor:pointer;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;line-height:1.2}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.primary,.btn.ver{background:#1c63d5;color:white;border:1px solid #1c63d5}
+.btn.primary{padding:10px 14px}
+.btn-anadir{display:inline-flex;align-items:center;gap:8px}
+.btn-anadir-plus{font-weight:800;line-height:1;font-size:15px}
+.btn-anadir-svg{width:16px;height:16px;display:block;flex:none}
+.proy-skills-picker{display:flex;flex-direction:column;gap:8px;margin:0}
+.proy-skills-picker label{display:flex;align-items:flex-start;gap:10px;margin:0;padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;cursor:pointer;font-weight:600}
+.proy-skills-picker label:hover{background:#f5f8fc;border-color:#c9d5e8}
+.proy-skills-picker input{margin:3px 0 0;flex:none}
+.proy-skills-picker .proy-skill-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.proy-skills-picker .proy-skill-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6}
+.agente-avatar{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#edf3ff;color:#1c63d5;font-size:14px;font-weight:800;overflow:hidden}
+.agente-avatar-img{width:100%;height:100%;object-fit:cover;display:block}
+.agente-ficha-avatar{font-size:16px;font-weight:800;overflow:hidden}
+.agente-fila-meta{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.agente-fila-sep{opacity:.55}
+.agente-estado{font-weight:700}
+.agente-estado.is-on{color:#0f7a45}
+.agente-estado.is-off{color:#8a6a2b}
+.agente-clave-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 14px}
+.agente-clave-box{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1;min-width:0}
+.agente-clave-box>span{font-size:12px;font-weight:800;color:#677488;text-transform:uppercase;letter-spacing:.06em}
+.agente-clave-box code{font-size:13px;background:#edf3ff;color:#315eb6;padding:8px 12px;border-radius:8px;overflow-wrap:anywhere;font-weight:700}
+.agente-instrucciones{margin:0;width:100%;min-height:300px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.5;border:1px solid #d5deec;border-radius:10px;padding:12px;background:#f8fafc;color:#17212f;resize:vertical;white-space:pre-wrap}
+.btn.version,.btn.ghost{background:white;color:#1c63d5;border:1px solid #c5d4ef}
+.btn.version{display:block;width:100%;margin-top:12px}
+.btn.ver{display:inline-block;margin-top:10px}
+.btn:hover,.icon-btn:hover{filter:brightness(.97)}
+.btn:focus-visible,.icon-btn:focus-visible,.hub a:focus-visible,.pestana:focus-visible,.historial button:focus-visible,.dlg input:focus-visible,.dlg textarea:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.reader{position:relative;min-width:0;border:1px solid #dce5f2;border-radius:15px;background:#fbfdff;min-height:280px}
+.reader-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 16px 0}
+.reader-top h3{margin:0;font-size:20px;letter-spacing:-.02em;overflow-wrap:anywhere}
+.historial-ancla{position:relative;flex:none}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2;display:grid;place-items:center;cursor:pointer}
+.icon-btn[aria-expanded="true"]{background:#edf3ff}
+.icon-btn svg{width:18px;height:18px;display:block}
+.historial{position:absolute;top:calc(100% + 6px);right:0;width:min(280px,70vw);background:white;border:1px solid #e5eaf1;border-radius:14px;box-shadow:0 12px 40px #24334a24;padding:10px;z-index:3}
+.historial-titulo{margin:0 8px 6px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#677488}
+.historial ul{list-style:none;margin:0;padding:0;max-height:240px;overflow:auto}
+.historial li{margin:0}
+.historial button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;font:inherit;font-size:13px;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#17212f;cursor:pointer}
+.historial button[aria-current="true"]{background:#edf3ff;color:#1c4fae;font-weight:700}
+.historial button:hover{background:#f4f7fb}
+.historial button[aria-current="true"]:hover{background:#e3ecff}
+.marca{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.md-wrap{padding:8px 18px 18px;max-height:min(70vh,760px);overflow:auto}
+.md{font-size:15px;line-height:1.65;color:#17212f;overflow-wrap:anywhere}
+.md h1{font-size:22px;margin:0 0 12px}
+.md h2{font-size:18px;margin:18px 0 8px}
+.md h3,.md h4{font-size:16px;margin:16px 0 8px}
+.md p{margin:0 0 12px}
+.md ul,.md ol{margin:0 0 12px;padding-left:1.2em}
+.md li{margin:0 0 4px}
+.md pre{background:#f3f6fc;padding:12px 14px;border-radius:10px;overflow:auto;font-size:13px;line-height:1.5;margin:0 0 12px}
+.md code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+.md p code,.md li code{background:#f3f6fc;padding:1px 5px;border-radius:5px}
+.md blockquote{margin:0 0 12px;padding:2px 0 2px 12px;border-left:3px solid #c5d4ef;color:#3e4d63}
+.md a{color:#1c63d5}
+.md hr{border:0;border-top:1px solid #e5eaf1;margin:16px 0}
+.md .vacio-md{color:#75859a}
+dialog{border:0;border-radius:16px;padding:0;width:min(520px,calc(100vw - 32px));box-shadow:0 20px 60px #17212f33}
+dialog::backdrop{background:#17212f66}
+.dlg{padding:20px}
+.dlg h3{margin:0 0 8px;font-size:18px}
+.dlg .nota,.dlg .destino{margin:0 0 14px;color:#5f6f84;font-size:13px;line-height:1.5}
+.dlg .destino{color:#17212f;font-weight:700}
+.dlg label{display:block;font-size:13px;font-weight:700;margin:0 0 12px}
+.dlg input[type="text"],.dlg textarea{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white}
+.dlg textarea{min-height:140px;resize:vertical}
+.dlg input[type="file"]{display:block;margin-top:6px;font-weight:400;font-size:13px}
+.archivo-nombre{margin:6px 0 0;font-weight:400;color:#677488;font-size:12px}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.form-error{color:#9f1239;font-size:13px;min-height:1.2em;margin:0 0 8px}
+@media(max-width:800px){.split.is-open{grid-template-columns:1fr}.reader{position:static}}
+@media(min-width:801px){.split.is-open .reader{position:sticky;top:12px}}
+.bloque{position:relative;padding:0}
+.ojo{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:999px;display:grid;place-items:center;pointer-events:none}
+.ojo svg{width:18px;height:18px;display:block}
+.bloque.is-open .ojo{color:#1c63d5;background:#e7efff}
+.bloque:not(.is-open) .ojo{color:#8b98ab}
+.bloque-abrir{display:block;width:100%;margin:0;padding:14px 132px 4px 14px;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:14px}
+.btn.eliminar{position:absolute;top:12px;right:48px;z-index:2;padding:4px 8px;font-size:12px;line-height:1.2;white-space:nowrap;background:white;color:#9f1239;border:1px solid #f0c4ce}
+.bloque .btn.version{width:calc(100% - 28px);margin:8px 14px 14px}
+.bloque-abrir:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.btn.compact{width:auto;margin-top:0;display:inline-flex;align-items:center}
+.edicion{margin:0 0 14px}
+.edicion textarea{display:block;width:100%;min-height:200px;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white;resize:vertical}
+.doc h3{font-size:18px;margin:22px 0 8px;letter-spacing:-.02em}
+.doc p,.doc li{font-size:15px;line-height:1.65;color:#243246}
+.doc ul,.doc ol{margin:0 0 12px;padding-left:1.2em}
+.doc li{margin:0 0 6px}
+.doc pre{background:#f3f6fc;padding:12px 14px;border-radius:10px;overflow:auto;font-size:12px;line-height:1.5;margin:0 0 14px}
+.doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+.doc p code,.doc li code{background:#f3f6fc;padding:1px 5px;border-radius:5px}
+.doc a{color:#1c63d5}
+.conectar{margin:0 0 18px;padding:14px 16px;border:1px solid #dce5f2;border-radius:14px;background:#fbfdff}
+.conectar h3{margin:0 0 8px;font-size:16px;letter-spacing:-.02em}
+.conectar p{margin:0 0 8px;font-size:14px;line-height:1.55;color:#243246;max-width:78ch}
+.conectar p:last-child{margin-bottom:0}
+.conectar a{color:#1c63d5}
+.conectar code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;background:#f3f6fc;padding:1px 5px;border-radius:5px}
+.token-box{margin-top:14px}
+.token-box .aviso{margin:10px 0 0;color:#5f6f84;font-size:13px;line-height:1.5;max-width:78ch;overflow-wrap:anywhere}
+.token-box label{display:block;font-size:13px;font-weight:700;margin:10px 0 0}
+.token-box input{display:block;width:100%;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white}
+.token-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.token-box .pegar{margin:8px 0 0;font-size:14px;line-height:1.55;color:#243246}
+.doc-arquitectura{max-width:78ch}
+.doc-arquitectura h3{margin:0 0 10px;font-size:18px;letter-spacing:-.02em}
+.doc-arquitectura p,.doc-arquitectura li{font-size:14px;line-height:1.55;color:#243246}
+.doc-arquitectura ul{margin:0 0 14px;padding-left:1.2em}
+.doc-arquitectura .diagrama{margin:0 0 16px;padding:14px 16px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc;overflow:auto}
+.doc-arquitectura .diagrama pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.4;color:#17212f;white-space:pre}
+
+.tabla-wrap{overflow:auto;border:1px solid #e5eaf1;border-radius:14px;background:white}
+.tabla-wrap table{width:100%;border-collapse:collapse;font-size:14px}
+.tabla-wrap th,.tabla-wrap td{text-align:left;padding:10px 12px;border-bottom:1px solid #eef2f7;vertical-align:top}
+.tabla-wrap th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#677488;background:#f8fafc;white-space:nowrap}
+.tabla-wrap tr:last-child td{border-bottom:0}
+.tabla-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.dlg select{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;background:white;color:#17212f}
+
+.catalogo-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:nowrap;margin:0 0 16px}
+.catalogo-toolbar .btn{flex:none}
+.agentes-sync{margin-right:auto;font-size:12px;font-weight:600;color:#8a97a8;white-space:nowrap}
+.dlg .reader-tabs{margin:12px 0 0}
+.skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
+.editar-anclas-top{justify-content:flex-end}
+.ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;line-height:1.25;padding:2px 6px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
+.ancla-aliases{display:flex;flex-wrap:wrap;gap:6px}
+.ancla-alias-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;padding:2px 7px;border-radius:8px;background:#edf3ff;color:#315eb6}
+.ancla-historial{display:flex;flex-direction:column;gap:10px}
+.ancla-historial-fila{display:grid;gap:4px;padding:10px 12px;border:1px solid #e5eaf1;border-radius:10px;background:#fff}
+.ancla-historial-fila time{font-size:12px;color:#677488}
+.ancla-historial-url{font-size:12px;color:#1c63d5;overflow-wrap:anywhere}
+.hash-full-btn{appearance:none;display:inline;margin:0;padding:0;border:0;background:transparent;cursor:pointer;text-align:left;max-width:100%}
+.hash-full{display:inline;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;background:#edf3ff;color:#315eb6;padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
+.hash-full-btn:hover .hash-full{filter:brightness(.96)}
+.editar-anclas-top{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:0 0 8px}
+.editar-anclas-top .icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid #d5deec;background:white;color:#245bb2;flex:none}
+.editar-anclas-top .icon-btn svg{width:16px;height:16px;display:block}
+.ancla-ficha{padding:0;min-width:0;background:#fbfdff}
+.ficha-titulo-icon{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:#edf3ff;color:#1c63d5}
+.ficha-titulo-icon svg{width:20px;height:20px;display:block}
+.reader-top-titulo{display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1}
+.ancla-ficha-header{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 14px;background:#fbfdff;border-bottom:1px solid #e8eef6}
+.ancla-ficha-header-text{min-width:0;flex:1;display:flex;flex-direction:column;gap:8px}
+.ancla-ficha-acciones{display:flex;align-items:flex-start;gap:6px;flex:none}
+.api-doc{padding:4px 2px 28px;max-width:720px}
+.api-doc h1{margin:0 0 12px;font-size:22px;letter-spacing:-.02em;color:#17212f}
+.api-doc h2{margin:28px 0 10px;font-size:17px;color:#17212f}
+.api-doc h3{margin:20px 0 8px;font-size:15px;color:#24334a}
+.api-doc p,.api-doc li{font-size:14px;line-height:1.55;color:#24334a}
+.api-doc pre{overflow:auto;background:#f4f7fb;border:1px solid #e5eaf1;border-radius:10px;padding:12px;font-size:12px}
+.api-doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.api-doc hr{border:0;border-top:1px solid #e5eaf1;margin:20px 0}
+.doc-mongodb{padding:0 0 28px}
+.doc-mongodb .doc-subtabs{margin:0 0 14px}
+.mongo-conn-status{margin:0 0 12px;font-size:13px;color:#24334a}
+.mongo-conn-status code{font-size:12px}
+.mongo-conn-status.is-yes{color:#1b6b3a}
+.mongo-conn-status.is-no{color:#677488}
+.mongo-conn-status.is-err{color:#9b2c2c}
+.ajustes-sec{padding:4px 0 20px;max-width:560px}
+.ajustes-sec h3{margin:0 0 6px;font-size:18px;letter-spacing:-.02em;color:#17212f}
+.ajustes-sec .ajustes-lead{margin:0 0 16px;font-size:14px;line-height:1.55;color:#5f6f84}
+.ajustes-status-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 16px}
+.ajustes-status-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;font-size:13px;font-weight:700;background:#f4f7fb;color:#677488;border:1px solid #e5eaf1}
+.ajustes-status-badge.is-yes{background:#e8f6ee;color:#1b6b3a;border-color:#b7dfc5}
+.ajustes-status-badge.is-err{background:#fdecec;color:#9b2c2c;border-color:#f0c4c4}
+.ajustes-status-badge.is-no{background:#f4f7fb;color:#677488}
+.ajustes-hint{margin:0;font-size:12px;color:#75859a;line-height:1.4}
+.ajustes-form label{display:flex;flex-direction:column;gap:6px;margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#677488}
+.ajustes-form input{font:inherit;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;padding:10px 12px;border:1px solid #d5deec;border-radius:10px;color:#17212f;background:#fff}
+.ajustes-form input:focus{outline:2px solid #1c63d5;outline-offset:1px;border-color:#1c63d5}
+.ajustes-actions{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.ajustes-msg{margin:0;min-height:1.2em;font-size:13px;line-height:1.45;color:#5f6f84}
+.ajustes-msg.is-ok{color:#1b6b3a}
+.ajustes-msg.is-err{color:#9b2c2c}
+.ajustes-msg.is-info{color:#315eb6}
+.md-table-wrap{overflow:auto;margin:0 0 16px;border:1px solid #e5eaf1;border-radius:10px}
+.md-table-wrap table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.45}
+.md-table-wrap th,.md-table-wrap td{padding:8px 10px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top}
+.md-table-wrap th{background:#f4f7fb;color:#17212f;font-weight:700;white-space:nowrap}
+.md-table-wrap tr:last-child td{border-bottom:0}
+.md-table-wrap code{font-size:12px}
+.mongo-tipos-table tr.is-obsoleto{opacity:.48;color:#677488;background:#f8fafc}
+.mongo-tipos-table tr.is-obsoleto td{text-decoration:line-through;text-decoration-color:#b8c0cc}
+.api-doc .md-table-wrap,.doc-mongodb .md-table-wrap{max-width:100%}
+.doc-mongodb .api-doc{max-width:none;padding-top:0}
+.ancla-ficha-titulo{margin:0;font-size:18px;letter-spacing:-.02em;font-weight:700;color:#17212f;overflow-wrap:anywhere}
+.ancla-ficha-codigo{display:inline-block;width:fit-content;max-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6;background:#edf3ff;padding:3px 8px;border-radius:8px;overflow-wrap:anywhere}
+.ancla-ficha-tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid #e5eaf1;background:#fff;overflow-x:auto;scrollbar-width:none}
+.ancla-ficha-tabs::-webkit-scrollbar{display:none}
+.ancla-ficha-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:12px 12px;font:inherit;font-size:13px;font-weight:800;color:#677488;cursor:pointer;white-space:nowrap;flex:none}
+.ancla-ficha-tab.is-on{color:#1c63d5;border-bottom-color:#1c63d5}
+.ancla-ficha-tab:hover{color:#1c63d5}
+.ancla-ficha-body{padding:14px 18px 20px}
+.ancla-ficha-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:4px}
+.ancla-skill-card{display:flex;align-items:center;gap:10px;width:100%;margin:0;padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
+.ancla-skill-card:hover{background:#f5f8fc;border-color:#c9d5e8}
+.ancla-skill-card:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.ancla-skill-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.ancla-skill-nombre{display:block;font-size:13px;font-weight:700;color:#17212f;overflow-wrap:anywhere}
+.ancla-skill-id{display:block;font-size:11px;color:#677488;overflow-wrap:anywhere}
+.ancla-skill-enlace{flex:none;display:grid;place-items:center;width:28px;height:28px;color:#1c63d5}
+.ancla-skill-enlace svg{width:16px;height:16px;display:block}
+.ancla-ficha-local{margin:0 18px 16px}
+.reader-tabs{margin:4px 0 0}
+.reader-panel[hidden]{display:none!important}
+.catalogo-lista{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
+.catalogo-fila{display:flex;align-items:center;gap:12px;width:100%;min-width:0;margin:0;padding:12px 12px 12px 14px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
+.catalogo-fila:hover{background:#f5f8fc;border-color:#c9d5e8}
+.catalogo-fila:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.catalogo-fila.is-open{border-color:#9db7ea;background:#f8fbff}
+.catalogo-fila-icon{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#edf3ff;color:#1c63d5}
+.catalogo-fila-svg{width:18px;height:18px;display:block}
+.catalogo-fila-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.catalogo-fila-titulo{margin:0;font-size:14px;font-weight:700;letter-spacing:-.01em;color:#17212f;overflow-wrap:anywhere}
+.catalogo-fila-codigo{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.35;color:#315eb6;overflow-wrap:anywhere}
+.catalogo-fila-enlace{flex:none;display:grid;place-items:center;width:28px;height:28px;color:#1c63d5}
+.catalogo-fila-enlace-svg{width:16px;height:16px;display:block}
+@media(max-width:800px){.catalogo-lista{grid-template-columns:1fr}}
+dialog.dlg-wide{width:min(760px,calc(100vw - 24px));max-height:min(90vh,900px);padding:0;border:0;border-radius:16px;box-shadow:0 20px 60px #17212f33;overflow:auto}
+dialog.dlg-wide::backdrop{background:#17212f66}
+.dlg-reader{border:0;border-radius:16px;min-height:0;background:#fbfdff}
+.dlg-reader .reader-top{padding:18px 18px 8px}
+.reader-top-acciones{display:flex;align-items:flex-start;gap:6px;flex:none}
+.dlg-reader .md-wrap{padding-top:4px}
+.ancla-ficha-dl{margin:0}
+.ancla-ficha-fila{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px 12px;padding:8px 0;border-bottom:1px solid #eef2f7}
+.ancla-ficha-fila:last-child{border-bottom:0}
+.ancla-ficha-fila dt{margin:0;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#677488}
+.ancla-ficha-fila dd{margin:0;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.ancla-code,.ancla-ficha code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;background:#edf3ff;color:#315eb6;padding:2px 6px;border-radius:6px}
+.skill-pill{background:#eef6ff}
+.ancla-pill-btn{appearance:none;cursor:pointer;margin:0}
+.ancla-pill-btn:hover{filter:brightness(.96)}
+.ancla-pill-btn:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.icon-btn.is-on{background:#edf3ff}
+.ancla-ficha-vacio{margin:8px 0 0;color:#5f6f84;font-size:14px;line-height:1.5}
+.proy-campos-tabla{width:100%;border-collapse:collapse;font-size:13px}
+.proy-campos-tabla th,.proy-campos-tabla td{text-align:left;padding:8px 10px;border-bottom:1px solid #eef2f7;vertical-align:top}
+.proy-campos-tabla th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#677488}
+.proy-er-boxes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px}
+.proy-er-box{border:1px solid #c9d5e8;border-radius:12px;background:#fff;overflow:hidden}
+.proy-er-box h4{margin:0;padding:10px 12px;background:#edf3ff;color:#1c63d5;font-size:13px;font-weight:800}
+.proy-er-box ul{list-style:none;margin:0;padding:8px 12px 12px}
+.proy-er-box li{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.55;color:#315eb6}
+.proy-er-rels{margin:14px 0 0;font-size:12px;color:#5f6f84;line-height:1.5}
+.proy-mermaid-src{margin:0;padding:12px;background:#0f172a;color:#e2e8f0;border-radius:12px;font-size:11px;overflow:auto;max-height:280px}
+.proy-agente-card{border:1px solid #e5eaf1;border-radius:12px;padding:12px;margin:0 0 10px;background:#fff}
+.proy-agente-card h4{margin:0 0 6px;font-size:14px}
+.proy-agente-perms{margin:0;font-size:12px;color:#5f6f84;line-height:1.5}
+.proy-crear-bd-msg{margin:10px 0 0;font-size:13px;color:#0f7a45}
+.proy-crear-bd-msg.is-err{color:#b42318}
+.tabla-scroll{overflow:auto}
+@media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
+
+/* Ficha a panel completo: hub fijo, detalle ocupa el main */
+dialog.ficha-pane{box-sizing:border-box}
+dialog.ficha-pane[open]{
+  display:flex;flex-direction:column;
+  position:fixed;top:0;right:0;bottom:0;left:232px;
+  width:auto;max-width:none;max-height:none;height:auto;margin:0;
+  border:0;border-radius:0;box-shadow:none;padding:0;
+  background:#fbfdff;overflow:auto;z-index:25;
+}
+dialog.ficha-pane[open]::backdrop{display:none;background:transparent}
+html.ficha-pane-open .layout>section.main{visibility:hidden}
+dialog.ficha-pane[open] .dlg-reader,
+dialog.ficha-pane[open] .ancla-ficha{
+  flex:1;min-height:100%;border:0;border-radius:0;box-shadow:none;background:#fbfdff
+}
+dialog.ficha-pane[open] .md-wrap{max-height:none}
+dialog.ficha-pane[open] #campo-ficha-mount,
+dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
+@media(max-width:800px){
+  dialog.ficha-pane[open]{left:0;bottom:calc(57px + env(safe-area-inset-bottom));z-index:35}
+}
+
 </style>
 </head>
 <body>
-<header>
-<h1>Reservas: arquitectura</h1>
-<p>Consulta de solo lectura, generada con <code>npm run web</code> a partir de los ficheros del repositorio.</p>
-<nav role="tablist"><a role="tab" href="#skills" aria-controls="skills">Skills</a><a role="tab" href="#campos-ancla" aria-controls="campos-ancla">Campos ancla</a><a role="tab" href="#base-de-datos" aria-controls="base-de-datos">Base de datos</a><a role="tab" href="#agentes" aria-controls="agentes">Agentes</a><a role="tab" href="#fundamentos" aria-controls="fundamentos">Fundamentos</a><a role="tab" href="#documentacion" aria-controls="documentacion">Documentación</a></nav>
-</header>
-<main><section id="skills" role="tabpanel" aria-label="Skills" hidden><p class="nota">Las plantillas que sigue cada agente. Sus tablas «Entrada» y «Campos ancla» salen del catálogo.</p><details class="skill"><summary><strong>generar-script</strong> · versión 2 · lee 22 campos · escribe 3</summary><div class="md" data-md="# Generar script
-
-
-## Versión
-
-2
-
-## Instrucción
-
-A partir del recorrido de la Entrada, escribe a la vez el script de Playwright y el JSON Schema de los parámetros de su función.
-
-**El script** es un módulo JavaScript sin `import`, con dos funciones exportadas:
-
-```js
-export async function hastaB(page, params, registrar) { … return { estado, referencia, alternativas, motivo }; }
-export async function confirmar(page) { … }
-```
-
-- Cuando se llama a `hastaB`, el ejecutor ya ha abierto `proceso.url_inicio` en `page`.
-- `hastaB` sigue los pasos del recorrido, rellena el formulario con `params` y se para en B. **Nunca pulsa el botón de confirmar.**
-- Llama a `registrar('…')` en cada paso, con frases cortas en español.
-- `hastaB` siempre devuelve las 4 claves:
-  - `{ estado: 'disponible', referencia: null, alternativas: [], motivo: null }` al llegar a B;
-  - `estado: 'sin_hueco'` si la web muestra el mensaje de sin hueco, con las alternativas que ofrezca (lista de textos);
-  - `estado: 'error'` con `motivo: 'obstaculo'` si aparece un obstáculo; nunca lo esquives.
-- Ante algo inesperado, lanza un `Error` con un mensaje claro: el ejecutor lo convierte en `error` / `fallo_recorrido`.
-- `confirmar(page)` solo pulsa el botón de confirmar. El ejecutor únicamente la llama con la compuerta abierta, y en esta fase nunca.
-- Usa los selectores del recorrido. Espera a los elementos con los localizadores de Playwright, nunca con pausas fijas, salvo que el recorrido explique que hacen falta.
-
-**El JSON Schema** describe lo que hay que pedir al cliente:
-- `type: &quot;object&quot;` con `properties`, `required` y `additionalProperties: false`;
-- una `description` en español por parámetro, que el agente de voz leerá;
-- un `examples` con un valor de prueba;
-- la fecha con `format: &quot;date&quot;` (AAAA-MM-DD, día local del negocio) y la hora con `pattern` HH:MM;
-- por cada campo de clase `consentimiento`, un parámetro `const: true` que el agente de voz pregunte al cliente; el script se niega a seguir sin él. El gestor no guarda un JSON Schema que no lo tenga.
-
-Los campos de clase `sensible`, `identificador` o `texto_libre` se rellenan con `params` y su valor nunca se registra con `registrar`.
-
-Lo propio de este formulario (alérgenos, trona, zona…) va aquí como parámetro, no al catálogo.
-
-`version.funcion.nombre` va en snake_case, por ejemplo `reservar_mesa`.
-
-## Entrada
-
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `negocio.zona_horaria` | zona_horaria | Zona horaria IANA del local; todas las horas de reserva se interpretan en ella. |
-| `proceso.url_inicio` | url_sin_pii | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
-| `proceso.alcance` | enum: hasta_B, completo | Hasta dónde se permite llegar: hasta_B (formulario relleno, sin confirmar) o completo (confirmar con la compuerta abierta). |
-| `version.recorrido.sistema.nombre` | texto | Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, un plugin de WordPress, formulario propio…). |
-| `version.recorrido.sistema.evidencia` | texto_largo | Qué se vio en la página (dominios, scripts, clases, iframes) que permite afirmar el sistema. |
-| `version.recorrido.llega_a_b` | booleano | true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista. |
-| `version.recorrido.pasos.N.accion` | texto | Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…). |
-| `version.recorrido.pasos.N.selector` | texto | Selector de Playwright del elemento sobre el que se actúa; null si el paso no actúa sobre un elemento. |
-| `version.recorrido.pasos.N.url` | url_sin_pii | URL de la página en la que ocurre el paso. |
-| `version.recorrido.campos.N.nombre` | texto | Etiqueta visible del campo del formulario. |
-| `version.recorrido.campos.N.selector` | texto | Selector de Playwright que encuentra el campo de forma única. |
-| `version.recorrido.campos.N.control` | enum: texto, email, telefono, numero, fecha, hora, select, checkbox, radio, textarea, otro | Tipo de control con el que se rellena el campo. |
-| `version.recorrido.campos.N.obligatorio` | booleano | true si la web no deja avanzar sin este campo. |
-| `version.recorrido.campos.N.clase` | enum: normal, texto_libre, identificador, sensible, consentimiento | Qué clase de dato pide el campo: identificador (DNI, NIE, pasaporte), sensible (nombre, teléfono, email, salud), consentimiento (casilla de privacidad o condiciones), texto_libre (comentarios) y normal (el resto). Un identificador no lleva valor de prueba; cada consentimiento exige un parámetro const: true en la función. |
-| `version.recorrido.campos.N.evidencia` | texto | Cómo se sabe si es obligatorio: asterisco, atributo required, mensaje de error al dejarlo vacío… |
-| `version.recorrido.campos.N.valor_prueba` | texto | Valor de prueba con el que se rellenó al mapear. |
-| `version.recorrido.obstaculos.N.tipo` | enum: captcha, login, pago, otro | Control que no se esquiva: se anota y se para. |
-| `version.recorrido.obstaculos.N.descripcion` | texto | Qué es el obstáculo y en qué paso aparece. |
-| `version.recorrido.obstaculos.N.evidencia` | texto | Lo que se vio en la página (texto, iframe, script) que lo demuestra. |
-| `version.recorrido.boton_confirmar.selector` | texto | Selector de Playwright del botón que envía la reserva. Nunca se pulsa hasta B. |
-| `version.recorrido.boton_confirmar.texto` | texto | Texto visible del botón que envía la reserva. |
-| `version.recorrido.mensaje_sin_hueco` | texto_largo | Texto que muestra la web cuando no hay hueco para la fecha, hora o personas pedidas; null si no se ha visto. |
-
-
-## Reglas de anclaje
-
-- Escribe solo los campos de la tabla «Campos ancla», uno por línea: `_ruta.del.campo_: valor`.
-- El script y el JSON Schema son textos largos: deja vacío el valor y escríbelos en las líneas siguientes, entre dos líneas con tres comillas invertidas.
-- `null` si no hay dato; nunca inventes.
-- Si necesitas un campo que no existe, escríbelo como `_propuesta.ruta.del.campo_: valor` y explica en la Explicación por qué hace falta.
-
-## Campos ancla
-
-| Campo | Tipo | Nivel | Descripción |
-|---|---|---|---|
-| `version.script` | texto_largo | estable | Módulo JavaScript con las funciones hastaB(page, params, registrar) y confirmar(page). |
-| `version.funcion.nombre` | texto | estable | Nombre de la función que expondrá el agente de voz. |
-| `version.funcion.parametros` | json | flexible | JSON Schema de los parámetros de la función: lo que hay que pedir al cliente. |
-
-## Resultado
-
-Un fichero `.md` con dos secciones y nada más:
-
-1. `## Explicación`: cómo traduce el script cada paso del recorrido, qué parámetros pide y por qué.
-2. `## Salida`: las líneas de anclaje.
-"></div></details><details class="skill"><summary><strong>mapear-recorrido</strong> · versión 2 · lee 6 campos · escribe 20</summary><div class="md" data-md="# Mapear recorrido
-
-
-## Versión
-
-2
-
-## Instrucción
-
-Recorre la web de reserva del negocio desde el punto A (`proceso.url_inicio`) hasta el punto B y descríbelo con los campos ancla.
-
-- **B** es el formulario relleno, sin errores de validación y con el botón de confirmar a la vista, justo antes de enviar.
-- **Nunca pulses el botón de confirmar ni envíes nada.** Si un botón intermedio («Continuar», «Siguiente») pudiera enviar la reserva, no lo pulses y explícalo.
-- Rellena con datos de prueba evidentes (nombre «Prueba», email en `example.com`, teléfono +34 600 000 000). Usa una fecha de dentro de unos días, nunca hoy, y una hora dentro del horario del local en su zona horaria.
-- Averigua qué sistema de reservas hay detrás (CoverManager, TheFork, un plugin de WordPress, formulario propio…) y anota qué lo demuestra.
-- Recorre los pasos en orden: cada clic, cada elección y cada espera que haga falta para llegar a B.
-- Para cada campo del formulario, di si es obligatorio y cómo lo sabes (asterisco, atributo `required`, error al dejarlo vacío). Usa selectores de Playwright estables (id, name, rol con nombre accesible) y comprueba que encuentran un único elemento.
-- Da a cada campo su **clase**: `identificador` (DNI, NIE, pasaporte), `sensible` (nombre, teléfono, email, datos de salud), `consentimiento` (casilla de privacidad o condiciones), `texto_libre` (comentarios, peticiones) y `normal` (el resto). Un `identificador` no lleva valor de prueba: escribe `null`.
-- Las URL no llevan datos personales en la query (nombre, teléfono, email, DNI…): si la web los pone ahí, escribe la URL sin ellos y explícalo.
-- Si aparece un obstáculo (CAPTCHA, inicio de sesión, pago u otro control que no se debe esquivar), **no lo esquives**: anótalo y para ahí. Un formulario cerrado o sin fechas no es un obstáculo: cuéntalo en la Explicación.
-- Si ves el mensaje de «sin hueco» (por ejemplo, eligiendo un día o una hora sin disponibilidad), cópialo literal. Si no lo ves, escribe `null`.
-- Si `proceso.url_inicio` no es la URL donde empieza de verdad la reserva, escribe la correcta.
-
-## Entrada
-
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `negocio.nombre` | texto | Nombre comercial del local, tal como lo ve el cliente. |
-| `negocio.url` | url_sin_pii | Web principal del local. |
-| `negocio.zona_horaria` | zona_horaria | Zona horaria IANA del local; todas las horas de reserva se interpretan en ella. |
-| `negocio.telefono` | telefono | Teléfono público del local en formato E.164 (+34928565098). |
-| `proceso.url_inicio` | url_sin_pii | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
-| `proceso.alcance` | enum: hasta_B, completo | Hasta dónde se permite llegar: hasta_B (formulario relleno, sin confirmar) o completo (confirmar con la compuerta abierta). |
-
-
-## Reglas de anclaje
-
-- Escribe solo los campos de la tabla «Campos ancla», uno por línea: `_ruta.del.campo_: valor`.
-- En las listas, sustituye `N` por 1, 2, 3… sin huecos y en el orden del recorrido.
-- `null` si no hay dato; nunca inventes. Booleanos: `true` o `false`. Fechas en ISO 8601 con hora y zona.
-- Textos largos: deja vacío el valor y escríbelo en las líneas siguientes, entre dos líneas con tres comillas invertidas.
-- Si necesitas un campo que no existe, escríbelo como `_propuesta.ruta.del.campo_: valor` y explica en la Explicación por qué hace falta.
-
-## Campos ancla
-
-| Campo | Tipo | Nivel | Descripción |
-|---|---|---|---|
-| `proceso.url_inicio` | url_sin_pii | blindado | Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script. |
-| `version.recorrido.sistema.nombre` | texto | estable | Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, un plugin de WordPress, formulario propio…). |
-| `version.recorrido.sistema.evidencia` | texto_largo | estable | Qué se vio en la página (dominios, scripts, clases, iframes) que permite afirmar el sistema. |
-| `version.recorrido.llega_a_b` | booleano | estable | true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista. |
-| `version.recorrido.pasos.N.accion` | texto | blindado | Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…). |
-| `version.recorrido.pasos.N.selector` | texto | estable | Selector de Playwright del elemento sobre el que se actúa; null si el paso no actúa sobre un elemento. |
-| `version.recorrido.pasos.N.url` | url_sin_pii | estable | URL de la página en la que ocurre el paso. |
-| `version.recorrido.campos.N.nombre` | texto | blindado | Etiqueta visible del campo del formulario. |
-| `version.recorrido.campos.N.selector` | texto | blindado | Selector de Playwright que encuentra el campo de forma única. |
-| `version.recorrido.campos.N.control` | enum: texto, email, telefono, numero, fecha, hora, select, checkbox, radio, textarea, otro | estable | Tipo de control con el que se rellena el campo. |
-| `version.recorrido.campos.N.obligatorio` | booleano | blindado | true si la web no deja avanzar sin este campo. |
-| `version.recorrido.campos.N.clase` | enum: normal, texto_libre, identificador, sensible, consentimiento | blindado | Qué clase de dato pide el campo: identificador (DNI, NIE, pasaporte), sensible (nombre, teléfono, email, salud), consentimiento (casilla de privacidad o condiciones), texto_libre (comentarios) y normal (el resto). Un identificador no lleva valor de prueba; cada consentimiento exige un parámetro const: true en la función. |
-| `version.recorrido.campos.N.evidencia` | texto | estable | Cómo se sabe si es obligatorio: asterisco, atributo required, mensaje de error al dejarlo vacío… |
-| `version.recorrido.campos.N.valor_prueba` | texto | estable | Valor de prueba con el que se rellenó al mapear. |
-| `version.recorrido.obstaculos.N.tipo` | enum: captcha, login, pago, otro | blindado | Control que no se esquiva: se anota y se para. |
-| `version.recorrido.obstaculos.N.descripcion` | texto | blindado | Qué es el obstáculo y en qué paso aparece. |
-| `version.recorrido.obstaculos.N.evidencia` | texto | estable | Lo que se vio en la página (texto, iframe, script) que lo demuestra. |
-| `version.recorrido.boton_confirmar.selector` | texto | estable | Selector de Playwright del botón que envía la reserva. Nunca se pulsa hasta B. |
-| `version.recorrido.boton_confirmar.texto` | texto | estable | Texto visible del botón que envía la reserva. |
-| `version.recorrido.mensaje_sin_hueco` | texto_largo | estable | Texto que muestra la web cuando no hay hueco para la fecha, hora o personas pedidas; null si no se ha visto. |
-
-## Resultado
-
-Un fichero `.md` con dos secciones y nada más:
-
-1. `## Explicación`: qué hiciste, qué viste y por qué decidiste cada cosa (obligatoriedad, sistema, obstáculos, URL de inicio).
-2. `## Salida`: las líneas de anclaje.
-"></div></details></section><section id="campos-ancla" role="tabpanel" aria-label="Campos ancla" hidden><p class="nota">El catálogo único: 62 campos. «MongoDB» es la ruta que se escribe en una consulta (colección.campo).</p><div class="tabla"><table><thead><tr><th>Campo</th><th>Tipo</th><th>Nivel</th><th>MongoDB</th><th>Escribe</th><th>Lee</th><th>Sensible</th><th>Estado</th><th>Alias</th><th>Descripción</th></tr></thead><tbody><tr><td><code>negocio.nombre</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>negocios.nombre</code></td><td>manual</td><td>mapear-recorrido</td><td>no</td><td>activo</td><td><code>nombre_local</code></td><td>Nombre comercial del local, tal como lo ve el cliente.</td></tr><tr><td><code>negocio.url</code></td><td>url_sin_pii</td><td><span class="nivel blindado">blindado</span></td><td><code>negocios.url</code></td><td>manual</td><td>mapear-recorrido</td><td>no</td><td>activo</td><td></td><td>Web principal del local.</td></tr><tr><td><code>negocio.zona_horaria</code></td><td>zona_horaria</td><td><span class="nivel blindado">blindado</span></td><td><code>negocios.zona_horaria</code></td><td>manual</td><td>mapear-recorrido, generar-script, ejecutor</td><td>no</td><td>activo</td><td></td><td>Zona horaria IANA del local; todas las horas de reserva se interpretan en ella.</td></tr><tr><td><code>negocio.telefono</code></td><td>telefono</td><td><span class="nivel estable">estable</span></td><td><code>negocios.telefono</code></td><td>manual</td><td>mapear-recorrido</td><td>no</td><td>activo</td><td><code>telefono_local</code>, <code>contacto.telefono</code></td><td>Teléfono público del local en formato E.164 (+34928565098).</td></tr><tr><td><code>proceso.id_negocio</code></td><td>id</td><td><span class="nivel blindado">blindado</span></td><td><code>procesos.id_negocio</code></td><td>manual</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Negocio al que pertenece este proceso de reserva.</td></tr><tr><td><code>proceso.url_inicio</code></td><td>url_sin_pii</td><td><span class="nivel blindado">blindado</span></td><td><code>procesos.url_inicio</code></td><td>manual, mapear-recorrido</td><td>mapear-recorrido, generar-script, ejecutor</td><td>no</td><td>activo</td><td></td><td>Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script.</td></tr><tr><td><code>proceso.alcance</code></td><td>enum: hasta_B, completo</td><td><span class="nivel blindado">blindado</span></td><td><code>procesos.alcance</code></td><td>manual</td><td>mapear-recorrido, generar-script, ejecutor</td><td>no</td><td>activo</td><td></td><td>Hasta dónde se permite llegar: hasta_B (formulario relleno, sin confirmar) o completo (confirmar con la compuerta abierta).</td></tr><tr><td><code>proceso.id_version_activa</code></td><td>id</td><td><span class="nivel estable">estable</span></td><td><code>procesos.id_version_activa</code></td><td>gestor</td><td>ejecutor</td><td>no</td><td>activo</td><td></td><td>Versión aprobada que usa el ejecutor. Falta hasta la primera aprobación.</td></tr><tr><td><code>version.id_proceso</code></td><td>id</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.id_proceso</code></td><td>gestor</td><td>gestor, ejecutor</td><td>no</td><td>activo</td><td></td><td>Proceso al que pertenece esta versión.</td></tr><tr><td><code>version.estado</code></td><td>enum: borrador, aprobada, retirada</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.estado</code></td><td>gestor</td><td>gestor, ejecutor</td><td>no</td><td>activo</td><td></td><td>borrador al crearse; aprobada cuando una persona la aprueba tras probarla hasta B; retirada cuando otra la sustituye.</td></tr><tr><td><code>version.creada</code></td><td>fecha</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.creada</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Momento en que el gestor creó la versión.</td></tr><tr><td><code>version.aprobacion.por</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.aprobacion.por</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Persona que aprobó la versión.</td></tr><tr><td><code>version.aprobacion.fecha</code></td><td>fecha</td><td><span class="nivel estable">estable</span></td><td><code>versiones.aprobacion.fecha</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Momento de la aprobación.</td></tr><tr><td><code>version.recorrido.sistema.nombre</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.sistema.nombre</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, un plugin de WordPress, formulario propio…).</td></tr><tr><td><code>version.recorrido.sistema.evidencia</code></td><td>texto_largo</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.sistema.evidencia</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Qué se vio en la página (dominios, scripts, clases, iframes) que permite afirmar el sistema.</td></tr><tr><td><code>version.recorrido.llega_a_b</code></td><td>booleano</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.llega_a_b</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista.</td></tr><tr><td><code>version.recorrido.pasos.N.accion</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.recorrido.pasos.accion</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…).</td></tr><tr><td><code>version.recorrido.pasos.N.selector</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.pasos.selector</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Selector de Playwright del elemento sobre el que se actúa; null si el paso no actúa sobre un elemento.</td></tr><tr><td><code>version.recorrido.pasos.N.url</code></td><td>url_sin_pii</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.pasos.url</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>URL de la página en la que ocurre el paso.</td></tr><tr><td><code>version.recorrido.campos.N.nombre</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.recorrido.campos.nombre</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Etiqueta visible del campo del formulario.</td></tr><tr><td><code>version.recorrido.campos.N.selector</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.recorrido.campos.selector</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Selector de Playwright que encuentra el campo de forma única.</td></tr><tr><td><code>version.recorrido.campos.N.control</code></td><td>enum: texto, email, telefono, numero, fecha, hora, select, checkbox, radio, textarea, otro</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.campos.control</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Tipo de control con el que se rellena el campo.</td></tr><tr><td><code>version.recorrido.campos.N.obligatorio</code></td><td>booleano</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.recorrido.campos.obligatorio</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>true si la web no deja avanzar sin este campo.</td></tr><tr><td><code>version.recorrido.campos.N.clase</code></td><td>enum: normal, texto_libre, identificador, sensible, consentimiento</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.recorrido.campos.clase</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Qué clase de dato pide el campo: identificador (DNI, NIE, pasaporte), sensible (nombre, teléfono, email, salud), consentimiento (casilla de privacidad o condiciones), texto_libre (comentarios) y normal (el resto). Un identificador no lleva valor de prueba; cada consentimiento exige un parámetro const: true en la función.</td></tr><tr><td><code>version.recorrido.campos.N.evidencia</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.campos.evidencia</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Cómo se sabe si es obligatorio: asterisco, atributo required, mensaje de error al dejarlo vacío…</td></tr><tr><td><code>version.recorrido.campos.N.valor_prueba</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.campos.valor_prueba</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Valor de prueba con el que se rellenó al mapear.</td></tr><tr><td><code>version.recorrido.obstaculos.N.tipo</code></td><td>enum: captcha, login, pago, otro</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.recorrido.obstaculos.tipo</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Control que no se esquiva: se anota y se para.</td></tr><tr><td><code>version.recorrido.obstaculos.N.descripcion</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>versiones.recorrido.obstaculos.descripcion</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Qué es el obstáculo y en qué paso aparece.</td></tr><tr><td><code>version.recorrido.obstaculos.N.evidencia</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.obstaculos.evidencia</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Lo que se vio en la página (texto, iframe, script) que lo demuestra.</td></tr><tr><td><code>version.recorrido.boton_confirmar.selector</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.boton_confirmar.selector</code></td><td>mapear-recorrido</td><td>generar-script, ejecutor</td><td>no</td><td>activo</td><td></td><td>Selector de Playwright del botón que envía la reserva. Nunca se pulsa hasta B.</td></tr><tr><td><code>version.recorrido.boton_confirmar.texto</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.boton_confirmar.texto</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Texto visible del botón que envía la reserva.</td></tr><tr><td><code>version.recorrido.mensaje_sin_hueco</code></td><td>texto_largo</td><td><span class="nivel estable">estable</span></td><td><code>versiones.recorrido.mensaje_sin_hueco</code></td><td>mapear-recorrido</td><td>generar-script</td><td>no</td><td>activo</td><td></td><td>Texto que muestra la web cuando no hay hueco para la fecha, hora o personas pedidas; null si no se ha visto.</td></tr><tr><td><code>version.script</code></td><td>texto_largo</td><td><span class="nivel estable">estable</span></td><td><code>versiones.script</code></td><td>generar-script</td><td>ejecutor</td><td>no</td><td>activo</td><td></td><td>Módulo JavaScript con las funciones hastaB(page, params, registrar) y confirmar(page).</td></tr><tr><td><code>version.funcion.nombre</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>versiones.funcion.nombre</code></td><td>generar-script</td><td>ejecutor</td><td>no</td><td>activo</td><td></td><td>Nombre de la función que expondrá el agente de voz.</td></tr><tr><td><code>version.funcion.parametros</code></td><td>json</td><td><span class="nivel flexible">flexible</span></td><td><code>versiones.funcion.parametros</code></td><td>generar-script</td><td>ejecutor</td><td>no</td><td>activo</td><td></td><td>JSON Schema de los parámetros de la función: lo que hay que pedir al cliente.</td></tr><tr><td><code>ejecucion.id_version</code></td><td>id</td><td><span class="nivel blindado">blindado</span></td><td><code>ejecuciones.id_version</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Versión cuyo script se ejecutó.</td></tr><tr><td><code>ejecucion.modo</code></td><td>enum: hasta_B, completo</td><td><span class="nivel blindado">blindado</span></td><td><code>ejecuciones.modo</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>hasta_B nunca pulsa confirmar; completo solo con la compuerta abierta.</td></tr><tr><td><code>ejecucion.parametros</code></td><td>json</td><td><span class="nivel flexible">flexible</span></td><td><code>ejecuciones.parametros</code></td><td>ejecutor</td><td>gestor</td><td>sí</td><td>activo</td><td></td><td>Parámetros con los que se llamó a la función (datos del cliente).</td></tr><tr><td><code>ejecucion.inicio</code></td><td>fecha</td><td><span class="nivel blindado">blindado</span></td><td><code>ejecuciones.inicio</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Momento en que empezó la ejecución.</td></tr><tr><td><code>ejecucion.fin</code></td><td>fecha</td><td><span class="nivel estable">estable</span></td><td><code>ejecuciones.fin</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Momento en que terminó la ejecución.</td></tr><tr><td><code>ejecucion.ultima_url</code></td><td>url_sin_pii</td><td><span class="nivel estable">estable</span></td><td><code>ejecuciones.ultima_url</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>URL en la que estaba el navegador al terminar.</td></tr><tr><td><code>ejecucion.traza.N.hora</code></td><td>fecha</td><td><span class="nivel blindado">blindado</span></td><td><code>ejecuciones.traza.hora</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Momento de esta línea de la traza.</td></tr><tr><td><code>ejecucion.traza.N.mensaje</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>ejecuciones.traza.mensaje</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Qué hizo o vio el script en ese momento.</td></tr><tr><td><code>ejecucion.respuesta.estado</code></td><td>enum: confirmada, pendiente_negocio, disponible, sin_hueco, error</td><td><span class="nivel blindado">blindado</span></td><td><code>ejecuciones.respuesta.estado</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Resultado de la función. En modo hasta_B, disponible significa que se llegó a B.</td></tr><tr><td><code>ejecucion.respuesta.referencia</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>ejecuciones.respuesta.referencia</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Localizador de la reserva que da la web; null si no hay.</td></tr><tr><td><code>ejecucion.respuesta.alternativas.N</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>ejecuciones.respuesta.alternativas</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Hueco alternativo que ofrece la web cuando no hay sitio.</td></tr><tr><td><code>ejecucion.respuesta.motivo</code></td><td>enum: fallo_recorrido, obstaculo, resultado_no_verificable</td><td><span class="nivel estable">estable</span></td><td><code>ejecuciones.respuesta.motivo</code></td><td>ejecutor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Por qué no salió bien; null si salió bien.</td></tr><tr><td><code>corrida.plantilla</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.plantilla</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Plantilla que siguió el agente.</td></tr><tr><td><code>corrida.version_plantilla</code></td><td>entero</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.version_plantilla</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Versión de la plantilla.</td></tr><tr><td><code>corrida.version_catalogo</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.version_catalogo</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Huella del catálogo con el que se validó la respuesta.</td></tr><tr><td><code>corrida.fecha</code></td><td>fecha</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.fecha</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Momento en que el gestor guardó la corrida.</td></tr><tr><td><code>corrida.id_negocio</code></td><td>id</td><td><span class="nivel estable">estable</span></td><td><code>corridas.id_negocio</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Negocio sobre el que trabajó el agente.</td></tr><tr><td><code>corrida.id_proceso</code></td><td>id</td><td><span class="nivel estable">estable</span></td><td><code>corridas.id_proceso</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Proceso sobre el que trabajó el agente.</td></tr><tr><td><code>corrida.id_version</code></td><td>id</td><td><span class="nivel estable">estable</span></td><td><code>corridas.id_version</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Versión que creó o completó el agente.</td></tr><tr><td><code>corrida.entrada</code></td><td>texto_largo</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.entrada</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Plantilla con la Entrada rellena, tal como la recibió el agente.</td></tr><tr><td><code>corrida.respuesta</code></td><td>texto_largo</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.respuesta</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Respuesta del agente, tal cual.</td></tr><tr><td><code>corrida.guardada</code></td><td>booleano</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.guardada</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>true si los valores se escribieron en su colección; false si el gestor encontró errores y no escribió nada.</td></tr><tr><td><code>corrida.entendido</code></td><td>json</td><td><span class="nivel flexible">flexible</span></td><td><code>corridas.entendido</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Lo que entendió el gestor: los valores válidos ya convertidos y anidados por colección.</td></tr><tr><td><code>corrida.errores.N</code></td><td>texto</td><td><span class="nivel estable">estable</span></td><td><code>corridas.errores</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Problema que encontró el gestor al leer la respuesta.</td></tr><tr><td><code>corrida.propuestas.N.ruta</code></td><td>texto</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.propuestas.ruta</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Ruta del campo que propone el agente, sin el prefijo propuesta.</td></tr><tr><td><code>corrida.propuestas.N.valor</code></td><td>texto_largo</td><td><span class="nivel estable">estable</span></td><td><code>corridas.propuestas.valor</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Valor que el agente dio al campo propuesto, tal cual.</td></tr><tr><td><code>corrida.propuestas.N.estado</code></td><td>enum: pendiente, aceptada, alias, rechazada</td><td><span class="nivel blindado">blindado</span></td><td><code>corridas.propuestas.estado</code></td><td>gestor</td><td>gestor</td><td>no</td><td>activo</td><td></td><td>Decisión de la revisión humana; pendiente hasta entonces.</td></tr></tbody></table></div></section><section id="base-de-datos" role="tabpanel" aria-label="Base de datos" hidden><p class="nota">Cinco colecciones. Sus validadores los genera <code>npm run generar</code> desde el catálogo: blindado = obligatorio; estable = puede faltar o ser null; flexible = contenedor libre.</p><details><summary><code>negocios</code> · ids <code>neg-…</code> · 4 campos, 3 blindados</summary><pre>{
-  &quot;$jsonSchema&quot;: {
-    &quot;bsonType&quot;: &quot;object&quot;,
-    &quot;properties&quot;: {
-      &quot;_id&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^neg-&quot;
-      },
-      &quot;nombre&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;minLength&quot;: 1,
-        &quot;description&quot;: &quot;Nombre comercial del local, tal como lo ve el cliente.&quot;
-      },
-      &quot;url&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^https?://&quot;,
-        &quot;description&quot;: &quot;Web principal del local.&quot;
-      },
-      &quot;zona_horaria&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^[A-Za-z_]+(/[A-Za-z0-9_+-]+)*$&quot;,
-        &quot;description&quot;: &quot;Zona horaria IANA del local; todas las horas de reserva se interpretan en ella.&quot;
-      },
-      &quot;telefono&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;bsonType&quot;: &quot;string&quot;,
-            &quot;pattern&quot;: &quot;^\\+[1-9][0-9]{7,14}$&quot;,
-            &quot;description&quot;: &quot;Teléfono público del local en formato E.164 (+34928565098).&quot;
-          },
-          {
-            &quot;bsonType&quot;: &quot;null&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;Teléfono público del local en formato E.164 (+34928565098).&quot;
-      }
-    },
-    &quot;additionalProperties&quot;: false,
-    &quot;required&quot;: [
-      &quot;_id&quot;,
-      &quot;nombre&quot;,
-      &quot;url&quot;,
-      &quot;zona_horaria&quot;
-    ]
-  }
-}</pre></details><details><summary><code>procesos</code> · ids <code>proc-…</code> · 4 campos, 3 blindados</summary><pre>{
-  &quot;$jsonSchema&quot;: {
-    &quot;bsonType&quot;: &quot;object&quot;,
-    &quot;properties&quot;: {
-      &quot;_id&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^proc-&quot;
-      },
-      &quot;id_negocio&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^[a-z]+-[a-z0-9-]+$&quot;,
-        &quot;description&quot;: &quot;Negocio al que pertenece este proceso de reserva.&quot;
-      },
-      &quot;url_inicio&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^https?://&quot;,
-        &quot;description&quot;: &quot;Punto A: URL donde empieza la reserva. El ejecutor abre esta URL antes de correr el script.&quot;
-      },
-      &quot;alcance&quot;: {
-        &quot;enum&quot;: [
-          &quot;hasta_B&quot;,
-          &quot;completo&quot;
-        ],
-        &quot;description&quot;: &quot;Hasta dónde se permite llegar: hasta_B (formulario relleno, sin confirmar) o completo (confirmar con la compuerta abierta).&quot;
-      },
-      &quot;id_version_activa&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;bsonType&quot;: &quot;string&quot;,
-            &quot;pattern&quot;: &quot;^[a-z]+-[a-z0-9-]+$&quot;,
-            &quot;description&quot;: &quot;Versión aprobada que usa el ejecutor. Falta hasta la primera aprobación.&quot;
-          },
-          {
-            &quot;bsonType&quot;: &quot;null&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;Versión aprobada que usa el ejecutor. Falta hasta la primera aprobación.&quot;
-      }
-    },
-    &quot;additionalProperties&quot;: false,
-    &quot;required&quot;: [
-      &quot;_id&quot;,
-      &quot;id_negocio&quot;,
-      &quot;url_inicio&quot;,
-      &quot;alcance&quot;
-    ]
-  }
-}</pre></details><details><summary><code>versiones</code> · ids <code>ver-…</code> · 27 campos, 10 blindados</summary><pre>{
-  &quot;$jsonSchema&quot;: {
-    &quot;bsonType&quot;: &quot;object&quot;,
-    &quot;properties&quot;: {
-      &quot;_id&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^ver-&quot;
-      },
-      &quot;id_proceso&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^[a-z]+-[a-z0-9-]+$&quot;,
-        &quot;description&quot;: &quot;Proceso al que pertenece esta versión.&quot;
-      },
-      &quot;estado&quot;: {
-        &quot;enum&quot;: [
-          &quot;borrador&quot;,
-          &quot;aprobada&quot;,
-          &quot;retirada&quot;
-        ],
-        &quot;description&quot;: &quot;borrador al crearse; aprobada cuando una persona la aprueba tras probarla hasta B; retirada cuando otra la sustituye.&quot;
-      },
-      &quot;creada&quot;: {
-        &quot;bsonType&quot;: &quot;date&quot;,
-        &quot;description&quot;: &quot;Momento en que el gestor creó la versión.&quot;
-      },
-      &quot;aprobacion&quot;: {
-        &quot;bsonType&quot;: &quot;object&quot;,
-        &quot;properties&quot;: {
-          &quot;por&quot;: {
-            &quot;anyOf&quot;: [
-              {
-                &quot;bsonType&quot;: &quot;string&quot;,
-                &quot;minLength&quot;: 1,
-                &quot;description&quot;: &quot;Persona que aprobó la versión.&quot;
-              },
-              {
-                &quot;bsonType&quot;: &quot;null&quot;
-              }
-            ],
-            &quot;description&quot;: &quot;Persona que aprobó la versión.&quot;
-          },
-          &quot;fecha&quot;: {
-            &quot;anyOf&quot;: [
-              {
-                &quot;bsonType&quot;: &quot;date&quot;,
-                &quot;description&quot;: &quot;Momento de la aprobación.&quot;
-              },
-              {
-                &quot;bsonType&quot;: &quot;null&quot;
-              }
-            ],
-            &quot;description&quot;: &quot;Momento de la aprobación.&quot;
-          }
-        },
-        &quot;additionalProperties&quot;: false
-      },
-      &quot;recorrido&quot;: {
-        &quot;bsonType&quot;: &quot;object&quot;,
-        &quot;properties&quot;: {
-          &quot;sistema&quot;: {
-            &quot;bsonType&quot;: &quot;object&quot;,
-            &quot;properties&quot;: {
-              &quot;nombre&quot;: {
-                &quot;anyOf&quot;: [
-                  {
-                    &quot;bsonType&quot;: &quot;string&quot;,
-                    &quot;minLength&quot;: 1,
-                    &quot;description&quot;: &quot;Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, un plugin de WordPress, formulario propio…).&quot;
-                  },
-                  {
-                    &quot;bsonType&quot;: &quot;null&quot;
-                  }
-                ],
-                &quot;description&quot;: &quot;Sistema de reservas que hay detrás del formulario (CoverManager, TheFork, un plugin de WordPress, formulario propio…).&quot;
-              },
-              &quot;evidencia&quot;: {
-                &quot;anyOf&quot;: [
-                  {
-                    &quot;bsonType&quot;: &quot;string&quot;,
-                    &quot;description&quot;: &quot;Qué se vio en la página (dominios, scripts, clases, iframes) que permite afirmar el sistema.&quot;
-                  },
-                  {
-                    &quot;bsonType&quot;: &quot;null&quot;
-                  }
-                ],
-                &quot;description&quot;: &quot;Qué se vio en la página (dominios, scripts, clases, iframes) que permite afirmar el sistema.&quot;
-              }
-            },
-            &quot;additionalProperties&quot;: false
-          },
-          &quot;llega_a_b&quot;: {
-            &quot;anyOf&quot;: [
-              {
-                &quot;bsonType&quot;: &quot;bool&quot;,
-                &quot;description&quot;: &quot;true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista.&quot;
-              },
-              {
-                &quot;bsonType&quot;: &quot;null&quot;
-              }
-            ],
-            &quot;description&quot;: &quot;true si al mapear se llegó a B: formulario relleno, sin errores y con el botón de confirmar a la vista.&quot;
-          },
-          &quot;pasos&quot;: {
-            &quot;bsonType&quot;: &quot;array&quot;,
-            &quot;items&quot;: {
-              &quot;bsonType&quot;: &quot;object&quot;,
-              &quot;properties&quot;: {
-                &quot;accion&quot;: {
-                  &quot;bsonType&quot;: &quot;string&quot;,
-                  &quot;minLength&quot;: 1,
-                  &quot;description&quot;: &quot;Qué se hace en este paso, en lenguaje claro (abrir, pulsar, elegir, esperar…).&quot;
-                },
-                &quot;selector&quot;: {
-                  &quot;anyOf&quot;: [
-                    {
-                      &quot;bsonType&quot;: &quot;string&quot;,
-                      &quot;minLength&quot;: 1,
-                      &quot;description&quot;: &quot;Selector de Playwright del elemento sobre el que se actúa; null si el paso no actúa sobre un elemento.&quot;
-                    },
-                    {
-                      &quot;bsonType&quot;: &quot;null&quot;
-                    }
-                  ],
-                  &quot;description&quot;: &quot;Selector de Playwright del elemento sobre el que se actúa; null si el paso no actúa sobre un elemento.&quot;
-                },
-                &quot;url&quot;: {
-                  &quot;anyOf&quot;: [
-                    {
-                      &quot;bsonType&quot;: &quot;string&quot;,
-                      &quot;pattern&quot;: &quot;^https?://&quot;,
-                      &quot;description&quot;: &quot;URL de la página en la que ocurre el paso.&quot;
-                    },
-                    {
-                      &quot;bsonType&quot;: &quot;null&quot;
-                    }
-                  ],
-                  &quot;description&quot;: &quot;URL de la página en la que ocurre el paso.&quot;
-                }
-              },
-              &quot;additionalProperties&quot;: false,
-              &quot;required&quot;: [
-                &quot;accion&quot;
-              ]
-            }
-          },
-          &quot;campos&quot;: {
-            &quot;bsonType&quot;: &quot;array&quot;,
-            &quot;items&quot;: {
-              &quot;bsonType&quot;: &quot;object&quot;,
-              &quot;properties&quot;: {
-                &quot;nombre&quot;: {
-                  &quot;bsonType&quot;: &quot;string&quot;,
-                  &quot;minLength&quot;: 1,
-                  &quot;description&quot;: &quot;Etiqueta visible del campo del formulario.&quot;
-                },
-                &quot;selector&quot;: {
-                  &quot;bsonType&quot;: &quot;string&quot;,
-                  &quot;minLength&quot;: 1,
-                  &quot;description&quot;: &quot;Selector de Playwright que encuentra el campo de forma única.&quot;
-                },
-                &quot;control&quot;: {
-                  &quot;anyOf&quot;: [
-                    {
-                      &quot;enum&quot;: [
-                        &quot;texto&quot;,
-                        &quot;email&quot;,
-                        &quot;telefono&quot;,
-                        &quot;numero&quot;,
-                        &quot;fecha&quot;,
-                        &quot;hora&quot;,
-                        &quot;select&quot;,
-                        &quot;checkbox&quot;,
-                        &quot;radio&quot;,
-                        &quot;textarea&quot;,
-                        &quot;otro&quot;
-                      ],
-                      &quot;description&quot;: &quot;Tipo de control con el que se rellena el campo.&quot;
-                    },
-                    {
-                      &quot;bsonType&quot;: &quot;null&quot;
-                    }
-                  ],
-                  &quot;description&quot;: &quot;Tipo de control con el que se rellena el campo.&quot;
-                },
-                &quot;obligatorio&quot;: {
-                  &quot;bsonType&quot;: &quot;bool&quot;,
-                  &quot;description&quot;: &quot;true si la web no deja avanzar sin este campo.&quot;
-                },
-                &quot;clase&quot;: {
-                  &quot;enum&quot;: [
-                    &quot;normal&quot;,
-                    &quot;texto_libre&quot;,
-                    &quot;identificador&quot;,
-                    &quot;sensible&quot;,
-                    &quot;consentimiento&quot;
-                  ],
-                  &quot;description&quot;: &quot;Qué clase de dato pide el campo: identificador (DNI, NIE, pasaporte), sensible (nombre, teléfono, email, salud), consentimiento (casilla de privacidad o condiciones), texto_libre (comentarios) y normal (el resto). Un identificador no lleva valor de prueba; cada consentimiento exige un parámetro const: true en la función.&quot;
-                },
-                &quot;evidencia&quot;: {
-                  &quot;anyOf&quot;: [
-                    {
-                      &quot;bsonType&quot;: &quot;string&quot;,
-                      &quot;minLength&quot;: 1,
-                      &quot;description&quot;: &quot;Cómo se sabe si es obligatorio: asterisco, atributo required, mensaje de error al dejarlo vacío…&quot;
-                    },
-                    {
-                      &quot;bsonType&quot;: &quot;null&quot;
-                    }
-                  ],
-                  &quot;description&quot;: &quot;Cómo se sabe si es obligatorio: asterisco, atributo required, mensaje de error al dejarlo vacío…&quot;
-                },
-                &quot;valor_prueba&quot;: {
-                  &quot;anyOf&quot;: [
-                    {
-                      &quot;bsonType&quot;: &quot;string&quot;,
-                      &quot;minLength&quot;: 1,
-                      &quot;description&quot;: &quot;Valor de prueba con el que se rellenó al mapear.&quot;
-                    },
-                    {
-                      &quot;bsonType&quot;: &quot;null&quot;
-                    }
-                  ],
-                  &quot;description&quot;: &quot;Valor de prueba con el que se rellenó al mapear.&quot;
-                }
-              },
-              &quot;additionalProperties&quot;: false,
-              &quot;required&quot;: [
-                &quot;nombre&quot;,
-                &quot;selector&quot;,
-                &quot;obligatorio&quot;,
-                &quot;clase&quot;
-              ]
-            }
-          },
-          &quot;obstaculos&quot;: {
-            &quot;bsonType&quot;: &quot;array&quot;,
-            &quot;items&quot;: {
-              &quot;bsonType&quot;: &quot;object&quot;,
-              &quot;properties&quot;: {
-                &quot;tipo&quot;: {
-                  &quot;enum&quot;: [
-                    &quot;captcha&quot;,
-                    &quot;login&quot;,
-                    &quot;pago&quot;,
-                    &quot;otro&quot;
-                  ],
-                  &quot;description&quot;: &quot;Control que no se esquiva: se anota y se para.&quot;
-                },
-                &quot;descripcion&quot;: {
-                  &quot;bsonType&quot;: &quot;string&quot;,
-                  &quot;minLength&quot;: 1,
-                  &quot;description&quot;: &quot;Qué es el obstáculo y en qué paso aparece.&quot;
-                },
-                &quot;evidencia&quot;: {
-                  &quot;anyOf&quot;: [
-                    {
-                      &quot;bsonType&quot;: &quot;string&quot;,
-                      &quot;minLength&quot;: 1,
-                      &quot;description&quot;: &quot;Lo que se vio en la página (texto, iframe, script) que lo demuestra.&quot;
-                    },
-                    {
-                      &quot;bsonType&quot;: &quot;null&quot;
-                    }
-                  ],
-                  &quot;description&quot;: &quot;Lo que se vio en la página (texto, iframe, script) que lo demuestra.&quot;
-                }
-              },
-              &quot;additionalProperties&quot;: false,
-              &quot;required&quot;: [
-                &quot;tipo&quot;,
-                &quot;descripcion&quot;
-              ]
-            }
-          },
-          &quot;boton_confirmar&quot;: {
-            &quot;bsonType&quot;: &quot;object&quot;,
-            &quot;properties&quot;: {
-              &quot;selector&quot;: {
-                &quot;anyOf&quot;: [
-                  {
-                    &quot;bsonType&quot;: &quot;string&quot;,
-                    &quot;minLength&quot;: 1,
-                    &quot;description&quot;: &quot;Selector de Playwright del botón que envía la reserva. Nunca se pulsa hasta B.&quot;
-                  },
-                  {
-                    &quot;bsonType&quot;: &quot;null&quot;
-                  }
-                ],
-                &quot;description&quot;: &quot;Selector de Playwright del botón que envía la reserva. Nunca se pulsa hasta B.&quot;
-              },
-              &quot;texto&quot;: {
-                &quot;anyOf&quot;: [
-                  {
-                    &quot;bsonType&quot;: &quot;string&quot;,
-                    &quot;minLength&quot;: 1,
-                    &quot;description&quot;: &quot;Texto visible del botón que envía la reserva.&quot;
-                  },
-                  {
-                    &quot;bsonType&quot;: &quot;null&quot;
-                  }
-                ],
-                &quot;description&quot;: &quot;Texto visible del botón que envía la reserva.&quot;
-              }
-            },
-            &quot;additionalProperties&quot;: false
-          },
-          &quot;mensaje_sin_hueco&quot;: {
-            &quot;anyOf&quot;: [
-              {
-                &quot;bsonType&quot;: &quot;string&quot;,
-                &quot;description&quot;: &quot;Texto que muestra la web cuando no hay hueco para la fecha, hora o personas pedidas; null si no se ha visto.&quot;
-              },
-              {
-                &quot;bsonType&quot;: &quot;null&quot;
-              }
-            ],
-            &quot;description&quot;: &quot;Texto que muestra la web cuando no hay hueco para la fecha, hora o personas pedidas; null si no se ha visto.&quot;
-          }
-        },
-        &quot;additionalProperties&quot;: false
-      },
-      &quot;script&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;bsonType&quot;: &quot;string&quot;,
-            &quot;description&quot;: &quot;Módulo JavaScript con las funciones hastaB(page, params, registrar) y confirmar(page).&quot;
-          },
-          {
-            &quot;bsonType&quot;: &quot;null&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;Módulo JavaScript con las funciones hastaB(page, params, registrar) y confirmar(page).&quot;
-      },
-      &quot;funcion&quot;: {
-        &quot;bsonType&quot;: &quot;object&quot;,
-        &quot;properties&quot;: {
-          &quot;nombre&quot;: {
-            &quot;anyOf&quot;: [
-              {
-                &quot;bsonType&quot;: &quot;string&quot;,
-                &quot;minLength&quot;: 1,
-                &quot;description&quot;: &quot;Nombre de la función que expondrá el agente de voz.&quot;
-              },
-              {
-                &quot;bsonType&quot;: &quot;null&quot;
-              }
-            ],
-            &quot;description&quot;: &quot;Nombre de la función que expondrá el agente de voz.&quot;
-          },
-          &quot;parametros&quot;: {
-            &quot;bsonType&quot;: &quot;object&quot;,
-            &quot;description&quot;: &quot;JSON Schema de los parámetros de la función: lo que hay que pedir al cliente.&quot;
-          }
-        },
-        &quot;additionalProperties&quot;: false
-      }
-    },
-    &quot;additionalProperties&quot;: false,
-    &quot;required&quot;: [
-      &quot;_id&quot;,
-      &quot;id_proceso&quot;,
-      &quot;estado&quot;,
-      &quot;creada&quot;
-    ]
-  }
-}</pre></details><details><summary><code>ejecuciones</code> · ids <code>ejec-…</code> · 12 campos, 6 blindados</summary><pre>{
-  &quot;$jsonSchema&quot;: {
-    &quot;bsonType&quot;: &quot;object&quot;,
-    &quot;properties&quot;: {
-      &quot;_id&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^ejec-&quot;
-      },
-      &quot;id_version&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^[a-z]+-[a-z0-9-]+$&quot;,
-        &quot;description&quot;: &quot;Versión cuyo script se ejecutó.&quot;
-      },
-      &quot;modo&quot;: {
-        &quot;enum&quot;: [
-          &quot;hasta_B&quot;,
-          &quot;completo&quot;
-        ],
-        &quot;description&quot;: &quot;hasta_B nunca pulsa confirmar; completo solo con la compuerta abierta.&quot;
-      },
-      &quot;parametros&quot;: {
-        &quot;bsonType&quot;: &quot;object&quot;,
-        &quot;description&quot;: &quot;Parámetros con los que se llamó a la función (datos del cliente).&quot;
-      },
-      &quot;inicio&quot;: {
-        &quot;bsonType&quot;: &quot;date&quot;,
-        &quot;description&quot;: &quot;Momento en que empezó la ejecución.&quot;
-      },
-      &quot;fin&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;bsonType&quot;: &quot;date&quot;,
-            &quot;description&quot;: &quot;Momento en que terminó la ejecución.&quot;
-          },
-          {
-            &quot;bsonType&quot;: &quot;null&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;Momento en que terminó la ejecución.&quot;
-      },
-      &quot;ultima_url&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;bsonType&quot;: &quot;string&quot;,
-            &quot;pattern&quot;: &quot;^https?://&quot;,
-            &quot;description&quot;: &quot;URL en la que estaba el navegador al terminar.&quot;
-          },
-          {
-            &quot;bsonType&quot;: &quot;null&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;URL en la que estaba el navegador al terminar.&quot;
-      },
-      &quot;traza&quot;: {
-        &quot;bsonType&quot;: &quot;array&quot;,
-        &quot;items&quot;: {
-          &quot;bsonType&quot;: &quot;object&quot;,
-          &quot;properties&quot;: {
-            &quot;hora&quot;: {
-              &quot;bsonType&quot;: &quot;date&quot;,
-              &quot;description&quot;: &quot;Momento de esta línea de la traza.&quot;
-            },
-            &quot;mensaje&quot;: {
-              &quot;bsonType&quot;: &quot;string&quot;,
-              &quot;minLength&quot;: 1,
-              &quot;description&quot;: &quot;Qué hizo o vio el script en ese momento.&quot;
-            }
-          },
-          &quot;additionalProperties&quot;: false,
-          &quot;required&quot;: [
-            &quot;hora&quot;,
-            &quot;mensaje&quot;
-          ]
-        }
-      },
-      &quot;respuesta&quot;: {
-        &quot;bsonType&quot;: &quot;object&quot;,
-        &quot;properties&quot;: {
-          &quot;estado&quot;: {
-            &quot;enum&quot;: [
-              &quot;confirmada&quot;,
-              &quot;pendiente_negocio&quot;,
-              &quot;disponible&quot;,
-              &quot;sin_hueco&quot;,
-              &quot;error&quot;
-            ],
-            &quot;description&quot;: &quot;Resultado de la función. En modo hasta_B, disponible significa que se llegó a B.&quot;
-          },
-          &quot;referencia&quot;: {
-            &quot;anyOf&quot;: [
-              {
-                &quot;bsonType&quot;: &quot;string&quot;,
-                &quot;minLength&quot;: 1,
-                &quot;description&quot;: &quot;Localizador de la reserva que da la web; null si no hay.&quot;
-              },
-              {
-                &quot;bsonType&quot;: &quot;null&quot;
-              }
-            ],
-            &quot;description&quot;: &quot;Localizador de la reserva que da la web; null si no hay.&quot;
-          },
-          &quot;alternativas&quot;: {
-            &quot;bsonType&quot;: &quot;array&quot;,
-            &quot;items&quot;: {
-              &quot;anyOf&quot;: [
-                {
-                  &quot;bsonType&quot;: &quot;string&quot;,
-                  &quot;minLength&quot;: 1,
-                  &quot;description&quot;: &quot;Hueco alternativo que ofrece la web cuando no hay sitio.&quot;
-                },
-                {
-                  &quot;bsonType&quot;: &quot;null&quot;
-                }
-              ],
-              &quot;description&quot;: &quot;Hueco alternativo que ofrece la web cuando no hay sitio.&quot;
-            }
-          },
-          &quot;motivo&quot;: {
-            &quot;anyOf&quot;: [
-              {
-                &quot;enum&quot;: [
-                  &quot;fallo_recorrido&quot;,
-                  &quot;obstaculo&quot;,
-                  &quot;resultado_no_verificable&quot;
-                ],
-                &quot;description&quot;: &quot;Por qué no salió bien; null si salió bien.&quot;
-              },
-              {
-                &quot;bsonType&quot;: &quot;null&quot;
-              }
-            ],
-            &quot;description&quot;: &quot;Por qué no salió bien; null si salió bien.&quot;
-          }
-        },
-        &quot;additionalProperties&quot;: false,
-        &quot;required&quot;: [
-          &quot;estado&quot;
-        ]
-      }
-    },
-    &quot;additionalProperties&quot;: false,
-    &quot;required&quot;: [
-      &quot;_id&quot;,
-      &quot;id_version&quot;,
-      &quot;modo&quot;,
-      &quot;inicio&quot;,
-      &quot;respuesta&quot;
-    ]
-  }
-}</pre></details><details><summary><code>corridas</code> · ids <code>corr-…</code> · 15 campos, 9 blindados</summary><pre>{
-  &quot;$jsonSchema&quot;: {
-    &quot;bsonType&quot;: &quot;object&quot;,
-    &quot;properties&quot;: {
-      &quot;_id&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;pattern&quot;: &quot;^corr-&quot;
-      },
-      &quot;plantilla&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;minLength&quot;: 1,
-        &quot;description&quot;: &quot;Plantilla que siguió el agente.&quot;
-      },
-      &quot;version_plantilla&quot;: {
-        &quot;bsonType&quot;: [
-          &quot;int&quot;,
-          &quot;long&quot;
-        ],
-        &quot;description&quot;: &quot;Versión de la plantilla.&quot;
-      },
-      &quot;version_catalogo&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;minLength&quot;: 1,
-        &quot;description&quot;: &quot;Huella del catálogo con el que se validó la respuesta.&quot;
-      },
-      &quot;fecha&quot;: {
-        &quot;bsonType&quot;: &quot;date&quot;,
-        &quot;description&quot;: &quot;Momento en que el gestor guardó la corrida.&quot;
-      },
-      &quot;id_negocio&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;bsonType&quot;: &quot;string&quot;,
-            &quot;pattern&quot;: &quot;^[a-z]+-[a-z0-9-]+$&quot;,
-            &quot;description&quot;: &quot;Negocio sobre el que trabajó el agente.&quot;
-          },
-          {
-            &quot;bsonType&quot;: &quot;null&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;Negocio sobre el que trabajó el agente.&quot;
-      },
-      &quot;id_proceso&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;bsonType&quot;: &quot;string&quot;,
-            &quot;pattern&quot;: &quot;^[a-z]+-[a-z0-9-]+$&quot;,
-            &quot;description&quot;: &quot;Proceso sobre el que trabajó el agente.&quot;
-          },
-          {
-            &quot;bsonType&quot;: &quot;null&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;Proceso sobre el que trabajó el agente.&quot;
-      },
-      &quot;id_version&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;bsonType&quot;: &quot;string&quot;,
-            &quot;pattern&quot;: &quot;^[a-z]+-[a-z0-9-]+$&quot;,
-            &quot;description&quot;: &quot;Versión que creó o completó el agente.&quot;
-          },
-          {
-            &quot;bsonType&quot;: &quot;null&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;Versión que creó o completó el agente.&quot;
-      },
-      &quot;entrada&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;description&quot;: &quot;Plantilla con la Entrada rellena, tal como la recibió el agente.&quot;
-      },
-      &quot;respuesta&quot;: {
-        &quot;bsonType&quot;: &quot;string&quot;,
-        &quot;description&quot;: &quot;Respuesta del agente, tal cual.&quot;
-      },
-      &quot;guardada&quot;: {
-        &quot;bsonType&quot;: &quot;bool&quot;,
-        &quot;description&quot;: &quot;true si los valores se escribieron en su colección; false si el gestor encontró errores y no escribió nada.&quot;
-      },
-      &quot;entendido&quot;: {
-        &quot;bsonType&quot;: &quot;object&quot;,
-        &quot;description&quot;: &quot;Lo que entendió el gestor: los valores válidos ya convertidos y anidados por colección.&quot;
-      },
-      &quot;errores&quot;: {
-        &quot;bsonType&quot;: &quot;array&quot;,
-        &quot;items&quot;: {
-          &quot;anyOf&quot;: [
-            {
-              &quot;bsonType&quot;: &quot;string&quot;,
-              &quot;minLength&quot;: 1,
-              &quot;description&quot;: &quot;Problema que encontró el gestor al leer la respuesta.&quot;
-            },
-            {
-              &quot;bsonType&quot;: &quot;null&quot;
-            }
-          ],
-          &quot;description&quot;: &quot;Problema que encontró el gestor al leer la respuesta.&quot;
-        }
-      },
-      &quot;propuestas&quot;: {
-        &quot;bsonType&quot;: &quot;array&quot;,
-        &quot;items&quot;: {
-          &quot;bsonType&quot;: &quot;object&quot;,
-          &quot;properties&quot;: {
-            &quot;ruta&quot;: {
-              &quot;bsonType&quot;: &quot;string&quot;,
-              &quot;minLength&quot;: 1,
-              &quot;description&quot;: &quot;Ruta del campo que propone el agente, sin el prefijo propuesta.&quot;
-            },
-            &quot;valor&quot;: {
-              &quot;anyOf&quot;: [
-                {
-                  &quot;bsonType&quot;: &quot;string&quot;,
-                  &quot;description&quot;: &quot;Valor que el agente dio al campo propuesto, tal cual.&quot;
-                },
-                {
-                  &quot;bsonType&quot;: &quot;null&quot;
-                }
-              ],
-              &quot;description&quot;: &quot;Valor que el agente dio al campo propuesto, tal cual.&quot;
-            },
-            &quot;estado&quot;: {
-              &quot;enum&quot;: [
-                &quot;pendiente&quot;,
-                &quot;aceptada&quot;,
-                &quot;alias&quot;,
-                &quot;rechazada&quot;
-              ],
-              &quot;description&quot;: &quot;Decisión de la revisión humana; pendiente hasta entonces.&quot;
-            }
-          },
-          &quot;additionalProperties&quot;: false,
-          &quot;required&quot;: [
-            &quot;ruta&quot;,
-            &quot;estado&quot;
-          ]
-        }
-      }
-    },
-    &quot;additionalProperties&quot;: false,
-    &quot;required&quot;: [
-      &quot;_id&quot;,
-      &quot;plantilla&quot;,
-      &quot;version_plantilla&quot;,
-      &quot;version_catalogo&quot;,
-      &quot;fecha&quot;,
-      &quot;entrada&quot;,
-      &quot;respuesta&quot;,
-      &quot;guardada&quot;
-    ]
-  }
-}</pre></details><h2>Diagrama</h2><div id="diagrama" class="diagrama" data-mermaid="erDiagram
-  negocios {
-    id _id PK &quot;neg-…&quot;
-    texto nombre &quot;blindado&quot;
-    url_sin_pii url &quot;blindado&quot;
-    zona_horaria zona_horaria &quot;blindado&quot;
-    telefono telefono &quot;estable&quot;
-  }
-  procesos {
-    id _id PK &quot;proc-…&quot;
-    id id_negocio FK &quot;blindado&quot;
-    url_sin_pii url_inicio &quot;blindado&quot;
-    enum alcance &quot;blindado&quot;
-    id id_version_activa FK &quot;estable&quot;
-  }
-  versiones {
-    id _id PK &quot;ver-…&quot;
-    id id_proceso FK &quot;blindado&quot;
-    enum estado &quot;blindado&quot;
-    fecha creada &quot;blindado&quot;
-    texto aprobacion-por &quot;estable&quot;
-    fecha aprobacion-fecha &quot;estable&quot;
-    texto recorrido-sistema-nombre &quot;estable&quot;
-    texto_largo recorrido-sistema-evidencia &quot;estable&quot;
-    booleano recorrido-llega_a_b &quot;estable&quot;
-    texto recorrido-pasos[]-accion &quot;blindado&quot;
-    texto recorrido-pasos[]-selector &quot;estable&quot;
-    url_sin_pii recorrido-pasos[]-url &quot;estable&quot;
-    texto recorrido-campos[]-nombre &quot;blindado&quot;
-    texto recorrido-campos[]-selector &quot;blindado&quot;
-    enum recorrido-campos[]-control &quot;estable&quot;
-    booleano recorrido-campos[]-obligatorio &quot;blindado&quot;
-    enum recorrido-campos[]-clase &quot;blindado&quot;
-    texto recorrido-campos[]-evidencia &quot;estable&quot;
-    texto recorrido-campos[]-valor_prueba &quot;estable&quot;
-    enum recorrido-obstaculos[]-tipo &quot;blindado&quot;
-    texto recorrido-obstaculos[]-descripcion &quot;blindado&quot;
-    texto recorrido-obstaculos[]-evidencia &quot;estable&quot;
-    texto recorrido-boton_confirmar-selector &quot;estable&quot;
-    texto recorrido-boton_confirmar-texto &quot;estable&quot;
-    texto_largo recorrido-mensaje_sin_hueco &quot;estable&quot;
-    texto_largo script &quot;estable&quot;
-    texto funcion-nombre &quot;estable&quot;
-    json funcion-parametros &quot;flexible&quot;
-  }
-  ejecuciones {
-    id _id PK &quot;ejec-…&quot;
-    id id_version FK &quot;blindado&quot;
-    enum modo &quot;blindado&quot;
-    json parametros &quot;flexible&quot;
-    fecha inicio &quot;blindado&quot;
-    fecha fin &quot;estable&quot;
-    url_sin_pii ultima_url &quot;estable&quot;
-    fecha traza[]-hora &quot;blindado&quot;
-    texto traza[]-mensaje &quot;blindado&quot;
-    enum respuesta-estado &quot;blindado&quot;
-    texto respuesta-referencia &quot;estable&quot;
-    texto respuesta-alternativas[] &quot;estable&quot;
-    enum respuesta-motivo &quot;estable&quot;
-  }
-  corridas {
-    id _id PK &quot;corr-…&quot;
-    texto plantilla &quot;blindado&quot;
-    entero version_plantilla &quot;blindado&quot;
-    texto version_catalogo &quot;blindado&quot;
-    fecha fecha &quot;blindado&quot;
-    id id_negocio FK &quot;estable&quot;
-    id id_proceso FK &quot;estable&quot;
-    id id_version FK &quot;estable&quot;
-    texto_largo entrada &quot;blindado&quot;
-    texto_largo respuesta &quot;blindado&quot;
-    booleano guardada &quot;blindado&quot;
-    json entendido &quot;flexible&quot;
-    texto errores[] &quot;estable&quot;
-    texto propuestas[]-ruta &quot;blindado&quot;
-    texto_largo propuestas[]-valor &quot;estable&quot;
-    enum propuestas[]-estado &quot;blindado&quot;
-  }
-  procesos }o--|| negocios : &quot;id_negocio&quot;
-  procesos }o--o| versiones : &quot;id_version_activa&quot;
-  versiones }o--|| procesos : &quot;id_proceso&quot;
-  ejecuciones }o--|| versiones : &quot;id_version&quot;
-  corridas }o--o| negocios : &quot;id_negocio&quot;
-  corridas }o--o| procesos : &quot;id_proceso&quot;
-  corridas }o--o| versiones : &quot;id_version&quot;"></div></section><section id="agentes" role="tabpanel" aria-label="Agentes" hidden><p class="nota">Qué skill (o parte del código) escribe y lee cada campo. Una plantilla solo puede escribir los campos que la nombran en «escribe»; el gestor rechaza el resto.</p><div class="tabla"><table><thead><tr><th>Campo</th><th>generar-script</th><th>mapear-recorrido</th><th>manual</th><th>ejecutor</th><th>gestor</th></tr></thead><tbody><tr><td><code>negocio.nombre</code></td><td></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td></tr><tr><td><code>negocio.url</code></td><td></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td></tr><tr><td><code>negocio.zona_horaria</code></td><td>lee</td><td>lee</td><td><span class="escribe">escribe</span></td><td>lee</td><td></td></tr><tr><td><code>negocio.telefono</code></td><td></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td></tr><tr><td><code>proceso.id_negocio</code></td><td></td><td></td><td><span class="escribe">escribe</span></td><td></td><td>lee</td></tr><tr><td><code>proceso.url_inicio</code></td><td>lee</td><td><span class="escribe">escribe</span> · lee</td><td><span class="escribe">escribe</span></td><td>lee</td><td></td></tr><tr><td><code>proceso.alcance</code></td><td>lee</td><td>lee</td><td><span class="escribe">escribe</span></td><td>lee</td><td></td></tr><tr><td><code>proceso.id_version_activa</code></td><td></td><td></td><td></td><td>lee</td><td><span class="escribe">escribe</span></td></tr><tr><td><code>version.id_proceso</code></td><td></td><td></td><td></td><td>lee</td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>version.estado</code></td><td></td><td></td><td></td><td>lee</td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>version.creada</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>version.aprobacion.por</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>version.aprobacion.fecha</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>version.recorrido.sistema.nombre</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.sistema.evidencia</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.llega_a_b</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.pasos.N.accion</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.pasos.N.selector</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.pasos.N.url</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.campos.N.nombre</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.campos.N.selector</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.campos.N.control</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.campos.N.obligatorio</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.campos.N.clase</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.campos.N.evidencia</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.campos.N.valor_prueba</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.obstaculos.N.tipo</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.obstaculos.N.descripcion</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.obstaculos.N.evidencia</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.boton_confirmar.selector</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td>lee</td><td></td></tr><tr><td><code>version.recorrido.boton_confirmar.texto</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.recorrido.mensaje_sin_hueco</code></td><td>lee</td><td><span class="escribe">escribe</span></td><td></td><td></td><td></td></tr><tr><td><code>version.script</code></td><td><span class="escribe">escribe</span></td><td></td><td></td><td>lee</td><td></td></tr><tr><td><code>version.funcion.nombre</code></td><td><span class="escribe">escribe</span></td><td></td><td></td><td>lee</td><td></td></tr><tr><td><code>version.funcion.parametros</code></td><td><span class="escribe">escribe</span></td><td></td><td></td><td>lee</td><td></td></tr><tr><td><code>ejecucion.id_version</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.modo</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.parametros</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.inicio</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.fin</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.ultima_url</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.traza.N.hora</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.traza.N.mensaje</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.respuesta.estado</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.respuesta.referencia</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.respuesta.alternativas.N</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>ejecucion.respuesta.motivo</code></td><td></td><td></td><td></td><td><span class="escribe">escribe</span></td><td>lee</td></tr><tr><td><code>corrida.plantilla</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.version_plantilla</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.version_catalogo</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.fecha</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.id_negocio</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.id_proceso</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.id_version</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.entrada</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.respuesta</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.guardada</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.entendido</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.errores.N</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.propuestas.N.ruta</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.propuestas.N.valor</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr><tr><td><code>corrida.propuestas.N.estado</code></td><td></td><td></td><td></td><td></td><td><span class="escribe">escribe</span> · lee</td></tr></tbody></table></div></section><section id="fundamentos" role="tabpanel" aria-label="Fundamentos" hidden><div class="md" data-md="1. **Los agentes juzgan; el código calcula, ejecuta y guarda.** Un agente convierte una web desordenada en datos. Horarios, compuerta, ejecutar el script, comparar resultados y enviar SMS son código.
-2. **Un único catálogo de campos ancla** (`catalogo/`, en git) define todos los campos. De él se generan los validadores de MongoDB, las tablas de las plantillas `.md` y la documentación. No se escriben definiciones de campos en ningún otro sitio.
-3. **La ruta de un ancla es el sitio donde se guarda.** La primera palabra es la colección en singular (`negocio`, `proceso`, `version`, `ejecucion`, `reserva`); el resto es la ruta dentro del documento. Las listas llevan `N` en la definición y un número en la salida.
-4. **Los valores solo viven en MongoDB.** La instancia es el documento (`neg-…`, `proc-…`). Ningún agente escribe en la base de datos: entrega su `.md` y el gestor valida y guarda.
-5. **Cada ejecución de un agente se guarda entera** en `corridas`: plantilla y versión, versión del catálogo, entrada, respuesta tal cual, lo que entendió el gestor y las propuestas. Así se puede volver a leer sin repetir el trabajo del agente."></div></section><section id="documentacion" role="tabpanel" aria-label="Documentación" hidden><div class="md" data-md="# Aprender MongoDB con nuestros datos
-
-Seis ejercicios para empezar con MongoDB sobre la base compartida **`Prueba_software`**, con los datos de Rincón del Amazonas. Cada ejercicio se puede hacer de dos maneras: en la web de Atlas (Data Explorer) y en la consola `mongosh`. Haz la que prefieras, o las dos.
-
-## Antes de empezar
-
-### Qué hay en la base
-
-`Prueba_software` tiene cinco colecciones. Una colección es como una tabla y cada documento, como una fila con forma de JSON.
-
-| Colección | Qué guarda | Ejemplo de `_id` |
-|---|---|---|
-| `negocios` | Los restaurantes | `neg-rincon-del-amazonas` |
-| `procesos` | Dónde empieza la reserva de cada negocio (punto A) | `proc-rincon-del-amazonas` |
-| `versiones` | El recorrido de A a B, el script y la función | `ver-rincon-del-amazonas-1` |
-| `ejecuciones` | Cada vez que el script corrió hasta B | `ejec-…` |
-| `corridas` | Cada trabajo de un agente, entero | `corr-…` |
-
-Cada colección tiene un **validador**: unas reglas que MongoDB comprueba antes de guardar. Las genera `npm run generar` a partir de `catalogo/`. El diagrama de las colecciones y sus relaciones está en [esquema.md](#base-de-datos).
-
-### Una regla importante
-
-En este proyecto los datos reales solo se escriben a través del gestor (`npm run gestor`), nunca a mano. Por eso, en estos ejercicios:
-- **Solo insertas, cambias y borras tu negocio de práctica**, con el `_id` `neg-practica-&lt;tu-nombre&gt;`. En los ejemplos es `neg-practica-ana`; cámbialo por tu nombre, en minúsculas y sin tildes.
-- **Rincón del Amazonas y el resto de datos solo se leen.**
-- **El último paso borra tu negocio de práctica.**
-
-### Cómo entrar
-
-**En la web (Atlas)**
-1. Entra en &lt;https://cloud.mongodb.com&gt; y abre el proyecto.
-2. En el menú, abre **Data Explorer**. En algunas cuentas se llama **Browse Collections**, dentro de *Database* o *Clusters*.
-3. Elige la base **`Prueba_software`** y la colección del ejercicio.
-
-**En la consola (`mongosh`)**
-1. Instálalo: &lt;https://www.mongodb.com/try/download/shell&gt;.
-2. En Atlas, en el clúster, ve a **Connect → Shell**, copia la cadena de conexión y ejecútala en tu terminal. Te pedirá la contraseña de tu usuario de base de datos.
-3. Ya dentro, elige la base:
-
-```js
-use Prueba_software
-```
-
-Deberías ver `switched to db Prueba_software`. Nunca pegues la cadena de conexión con la contraseña en un chat ni en el repositorio.
-
----
-
-## 1. Insertar un negocio
-
-**Objetivo.** Crear tu negocio de práctica con los datos de Rincón del Amazonas.
-
-**En Atlas**
-1. Abre la colección `negocios`.
-2. Pulsa **Insert Document** (o **Add Data → Insert document**).
-3. Cambia a la vista de JSON (`{}`), pega esto y pulsa **Insert**:
-
-```json
-{
-  &quot;_id&quot;: &quot;neg-practica-ana&quot;,
-  &quot;nombre&quot;: &quot;Práctica de Ana&quot;,
-  &quot;url&quot;: &quot;https://restaurantmogan.com/&quot;,
-  &quot;zona_horaria&quot;: &quot;Atlantic/Canary&quot;,
-  &quot;telefono&quot;: &quot;+34928565098&quot;
-}
-```
-
-**En mongosh**
-
-```js
-db.negocios.insertOne({
-  _id: &quot;neg-practica-ana&quot;,
-  nombre: &quot;Práctica de Ana&quot;,
-  url: &quot;https://restaurantmogan.com/&quot;,
-  zona_horaria: &quot;Atlantic/Canary&quot;,
-  telefono: &quot;+34928565098&quot;
-})
-```
-
-**Qué deberías ver**
-
-```js
-{ acknowledged: true, insertedId: 'neg-practica-ana' }
-```
-
-En Atlas, el documento aparece en la lista de `negocios`. Si te sale `E11000 duplicate key error`, ese `_id` ya existe: alguien lo creó antes (o tú). Usa otro nombre.
-
-## 2. Buscarlo
-
-**Objetivo.** Encontrar un documento por su `_id` y después filtrar por otro campo y elegir qué campos ver.
-
-**En Atlas**
-1. En `negocios`, escribe en la barra **Filter** `{ &quot;_id&quot;: &quot;neg-practica-ana&quot; }` y pulsa **Find** (o **Apply**). Sale solo tu negocio.
-2. Cambia el filtro a `{ &quot;zona_horaria&quot;: &quot;Atlantic/Canary&quot; }`.
-3. En **Options → Project** escribe `{ &quot;nombre&quot;: 1, &quot;telefono&quot;: 1 }` y pulsa **Find**.
-
-**En mongosh**
-
-```js
-db.negocios.find({ _id: &quot;neg-practica-ana&quot; })
-db.negocios.find({ zona_horaria: &quot;Atlantic/Canary&quot; }, { nombre: 1, telefono: 1 })
-```
-
-**Qué deberías ver.** La primera consulta devuelve tu documento completo:
-
-```js
-[
-  {
-    _id: 'neg-practica-ana',
-    nombre: 'Práctica de Ana',
-    url: 'https://restaurantmogan.com/',
-    zona_horaria: 'Atlantic/Canary',
-    telefono: '+34928565098'
-  }
-]
-```
-
-La segunda devuelve todos los negocios de Canarias, solo con `nombre` y `telefono` (el `_id` sale siempre):
-
-```js
-[
-  { _id: 'neg-templo-de-pandora', nombre: 'Templo de Pandora', telefono: '+34614201643' },
-  { _id: 'neg-rincon-del-amazonas', nombre: 'Rincón del Amazonas', telefono: '+34928565098' },
-  { _id: 'neg-practica-ana', nombre: 'Práctica de Ana', telefono: '+34928565098' }
-]
-```
-
-Si otras personas están haciendo los ejercicios a la vez, verás también sus negocios de práctica.
-
-## 3. Actualizarlo
-
-**Objetivo.** Cambiar un campo de tu negocio sin tocar el resto.
-
-**En Atlas**
-1. Filtra por `{ &quot;_id&quot;: &quot;neg-practica-ana&quot; }`.
-2. Pasa el ratón por el documento y pulsa el lápiz (**Edit document**).
-3. Cambia `nombre` a `Práctica de Ana (cambiado)` y pulsa **Update**.
-
-**En mongosh**
-
-```js
-db.negocios.updateOne(
-  { _id: &quot;neg-practica-ana&quot; },
-  { $set: { nombre: &quot;Práctica de Ana (cambiado)&quot; } }
-)
-db.negocios.findOne({ _id: &quot;neg-practica-ana&quot; }, { nombre: 1 })
-```
-
-**Qué deberías ver**
-
-```js
-{
-  acknowledged: true,
-  insertedId: null,
-  matchedCount: 1,
-  modifiedCount: 1,
-  upsertedCount: 0
-}
-{ _id: 'neg-practica-ana', nombre: 'Práctica de Ana (cambiado)' }
-```
-
-`matchedCount: 1` significa que encontró el documento, y `modifiedCount: 1`, que lo cambió. `$set` solo toca los campos que le das. Si repites la orden, `modifiedCount` será `0`, porque el valor ya era ese.
-
-## 4. Ver cómo el validador rechaza un documento mal hecho
-
-**Objetivo.** Comprobar que MongoDB no deja guardar un negocio que incumple las reglas del catálogo. Este documento tiene tres errores a propósito:
-- `url` no empieza por `http://` ni `https://`;
-- `telefono` no está en formato E.164 (`+34…` sin espacios);
-- falta `zona_horaria`, que es un campo blindado, es decir, obligatorio.
-
-**En Atlas**
-1. En `negocios`, abre la pestaña **Validation** para ver las reglas: verás `required` con `_id`, `nombre`, `url` y `zona_horaria`.
-2. Inserta este documento como en el ejercicio 1:
-
-```json
-{ &quot;_id&quot;: &quot;neg-practica-ana-mal&quot;, &quot;nombre&quot;: &quot;Mal hecho&quot;, &quot;url&quot;: &quot;restaurantmogan.com&quot;, &quot;telefono&quot;: &quot;928 565 098&quot; }
-```
-
-**En mongosh**
-
-```js
-db.getCollectionInfos({ name: &quot;negocios&quot; })[0].options.validator.$jsonSchema.required
-db.negocios.insertOne({
-  _id: &quot;neg-practica-ana-mal&quot;,
-  nombre: &quot;Mal hecho&quot;,
-  url: &quot;restaurantmogan.com&quot;,
-  telefono: &quot;928 565 098&quot;
-})
-```
-
-**Qué deberías ver.** Primero, los campos obligatorios:
-
-```js
-[ '_id', 'nombre', 'url', 'zona_horaria' ]
-```
-
-Después, el rechazo:
-
-```
-MongoServerError: Document failed validation
-```
-
-En la consola interactiva (y en Atlas) sale debajo el detalle. Resumido, dice:
-- `url`: `regular expression did not match` con el patrón `^https?://`;
-- `telefono`: `regular expression did not match` con el patrón `^\+[1-9][0-9]{7,14}$`;
-- `required`: `missingProperties: [ 'zona_horaria' ]`.
-
-No se ha guardado nada: `db.negocios.findOne({ _id: &quot;neg-practica-ana-mal&quot; })` devuelve `null`.
-
-## 5. Crear un índice
-
-**Objetivo.** Hacer rápida la consulta «las ejecuciones de una versión, de la más reciente a la más antigua», y comprobar que MongoDB usa el índice.
-
-**En Atlas**
-1. Abre la colección `ejecuciones` y la pestaña **Indexes**.
-2. Pulsa **Create Index**, escribe estos campos y pulsa **Create Index**:
-
-```json
-{ &quot;id_version&quot;: 1, &quot;inicio&quot;: -1 }
-```
-
-3. En la pestaña **Documents**, filtra por `{ &quot;id_version&quot;: &quot;ver-rincon-del-amazonas-1&quot; }`, ordena (**Sort**) por `{ &quot;inicio&quot;: -1 }` y pulsa **Explain**. El plan muestra un `IXSCAN` sobre `id_version_1_inicio_-1`.
-
-**En mongosh**
-
-```js
-db.ejecuciones.createIndex({ id_version: 1, inicio: -1 })
-db.ejecuciones.getIndexes()
-db.ejecuciones.find({ id_version: &quot;ver-rincon-del-amazonas-1&quot; }).sort({ inicio: -1 }).explain().queryPlanner.winningPlan
-```
-
-**Qué deberías ver.** El nombre del índice, la lista de índices y el plan:
-
-```js
-id_version_1_inicio_-1
-
-[
-  { v: 2, key: { _id: 1 }, name: '_id_' },
-  { v: 2, key: { id_version: 1, inicio: -1 }, name: 'id_version_1_inicio_-1' }
-]
-
-{
-  stage: 'FETCH',
-  inputStage: {
-    stage: 'IXSCAN',
-    keyPattern: { id_version: 1, inicio: -1 },
-    indexName: 'id_version_1_inicio_-1',
-    …
-  }
-}
-```
-
-`IXSCAN` quiere decir que la consulta recorre el índice. Sin índice verías `COLLSCAN`, que lee toda la colección. Si el índice ya existe porque otra persona hizo el ejercicio, `createIndex` devuelve el mismo nombre y no cambia nada.
-
-## 6. Una agregación que cruza versiones y ejecuciones
-
-**Objetivo.** Para cada versión, contar cuántas veces se ha ejecutado, cuántas llegaron a B y cuándo fue la última. Es lo que comprueba `npm run gestor -- aprobar` antes de aprobar una versión.
-
-Una agregación es una cadena de pasos (*stages*):
-- `$lookup` trae, para cada versión, sus documentos de `ejecuciones`, como un `JOIN`;
-- `$project` calcula los totales.
-
-**En Atlas**
-1. Abre la colección `versiones` y la pestaña **Aggregation**.
-2. Cambia a modo texto (`&lt;/&gt; Text`) y pega el *pipeline*:
-
-```json
-[
-  { &quot;$lookup&quot;: { &quot;from&quot;: &quot;ejecuciones&quot;, &quot;localField&quot;: &quot;_id&quot;, &quot;foreignField&quot;: &quot;id_version&quot;, &quot;as&quot;: &quot;ejecuciones&quot; } },
-  { &quot;$project&quot;: {
-      &quot;estado&quot;: 1,
-      &quot;ejecuciones&quot;: { &quot;$size&quot;: &quot;$ejecuciones&quot; },
-      &quot;llegaron_a_b&quot;: { &quot;$size&quot;: { &quot;$filter&quot;: { &quot;input&quot;: &quot;$ejecuciones&quot;, &quot;cond&quot;: { &quot;$eq&quot;: [&quot;$$this.respuesta.estado&quot;, &quot;disponible&quot;] } } } },
-      &quot;ultima&quot;: { &quot;$max&quot;: &quot;$ejecuciones.inicio&quot; }
-  } }
-]
-```
-
-3. Pulsa **Run**.
-
-**En mongosh**
-
-```js
-db.versiones.aggregate([
-  { $lookup: { from: &quot;ejecuciones&quot;, localField: &quot;_id&quot;, foreignField: &quot;id_version&quot;, as: &quot;ejecuciones&quot; } },
-  { $project: {
-      estado: 1,
-      ejecuciones: { $size: &quot;$ejecuciones&quot; },
-      llegaron_a_b: { $size: { $filter: { input: &quot;$ejecuciones&quot;, cond: { $eq: [&quot;$$this.respuesta.estado&quot;, &quot;disponible&quot;] } } } },
-      ultima: { $max: &quot;$ejecuciones.inicio&quot; }
-  } }
-])
-```
-
-**Qué deberías ver.** Un documento por versión, con esta forma:
-
-```js
-[
-  {
-    _id: 'ver-rincon-del-amazonas-1',
-    estado: 'borrador',
-    ejecuciones: 1,
-    llegaron_a_b: 1,
-    ultima: ISODate('2026-10-22T08:12:35.222Z')
-  }
-]
-```
-
-Los números y la fecha dependen de cuántas veces se haya ejecutado la demo. `estado` será `aprobada` si alguien ya la aprobó. `llegaron_a_b` cuenta las ejecuciones con `respuesta.estado` igual a `disponible`, es decir, las que llegaron al formulario relleno sin pulsar confirmar.
-
----
-
-## Para terminar: borra tu negocio de práctica
-
-**En Atlas.** En `negocios`, filtra por `{ &quot;_id&quot;: &quot;neg-practica-ana&quot; }`, pasa el ratón por el documento y pulsa la papelera (**Delete document**). Confirma.
-
-**En mongosh**
-
-```js
-db.negocios.deleteOne({ _id: &quot;neg-practica-ana&quot; })
-```
-
-**Qué deberías ver**
-
-```js
-{ acknowledged: true, deletedCount: 1 }
-```
-
-El índice del ejercicio 5 se puede quedar: no es un dato y hace más rápida una consulta que el proyecto usa.
-"></div></section></main>
-<footer>Catálogo: 62 campos en 5 colecciones · Generada el 2026-10-22</footer>
-<script src="https://cdn.jsdelivr.net/npm/marked@15.0.6/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<h1 class="sr-only">Arquitectura de acoplamiento a reservas web</h1>
+<div class="app">
+<nav class="hub" id="hub" aria-label="Menú principal">
+<p class="hub-brand"><span class="hub-brand-label">Campos ancla</span></p>
+<div class="hub-inner">
+<a href="#catalogos" data-destino="catalogos" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Catálogos</span></a>
+<a href="#documentacion" data-destino="documentacion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Documentación</span></a>
+<a href="#ajustes/conexiones" data-destino="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Ajustes</span></a>
+</div>
+</nav>
+<div class="app-main">
+<div class="layout">
+<section class="main catalogos" id="catalogos" aria-label="Catálogos">
+<div class="catalogo-tabs" id="catalogoTabs" role="tablist" aria-label="Catálogos"></div>
+<div role="tabpanel" id="panel-proyectos" data-catalogo="proyectos">
+<div id="proyectos-root"></div>
+</div>
+<div role="tabpanel" id="panel-agentes" data-catalogo="agentes" hidden>
+<div id="agentes-root"></div>
+</div>
+<div role="tabpanel" id="panel-skills" data-catalogo="skills" hidden>
+<div id="skills-root"></div>
+</div>
+<div role="tabpanel" id="panel-campos-ancla" data-catalogo="campos-ancla" hidden>
+<div id="campos-ancla-root"></div>
+</div>
+<div role="tabpanel" id="panel-campos-mongodb" data-catalogo="campos-mongodb" hidden>
+<p id="mongoCatalogConnStatus" class="nota mongo-conn-status" aria-live="polite">URI configurada: …</p>
+<div id="campos-mongodb-root"></div>
+</div>
+</section>
+<dialog id="dlgSkill" class="dlg-wide ficha-pane" aria-labelledby="readerNombre">
+<article class="reader dlg-reader" id="reader">
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></span>
+<div>
+<h3 id="readerNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="readerVersion" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistorial" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historial">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="historial" hidden role="dialog" aria-label="Versiones">
+<p class="historial-titulo">Versiones</p>
+<ul id="historialLista"></ul>
+</div>
+</div>
+<button type="button" class="icon-btn" id="btnEditarSkill" aria-label="Editar skill" title="Editar (guarda como versión nueva)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnSubirSkill" aria-label="Subir versión" title="Subir versión (documento completo)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarSkill" aria-label="Eliminar skill" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnCerrarSkill" aria-label="Volver" title="Volver">×</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="readerTabDoc" data-reader-tab="documento" aria-selected="true" aria-controls="readerPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabAnclas" data-reader-tab="anclas" aria-selected="false" aria-controls="readerPanelAnclas">Anclas</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabInterno" data-reader-tab="interno" aria-selected="false" aria-controls="readerPanelInterno">Interno</button>
+</div>
+<div class="reader-panel" id="readerPanelDoc" role="tabpanel" aria-labelledby="readerTabDoc">
+<div class="md-wrap"><div class="md" id="md"></div></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="readerPanelAnclas" role="tabpanel" aria-labelledby="readerTabAnclas" hidden>
+<div id="readerAnclas">
+<div class="skill-anclas-list" id="readerAnclasLista"></div>
+<p class="ancla-ficha-vacio" id="readerAnclasVacio" hidden>Ninguna ancla asociada.</p>
+</div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="readerPanelInterno" role="tabpanel" aria-labelledby="readerTabInterno" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="readerId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="readerInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="readerHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="readerHashFull"></code></button><span id="readerHashVacio">—</span></dd></div>
+</dl>
+</div>
+</article>
+</dialog>
+<dialog id="dlgCampoFicha" class="dlg-wide ficha-pane" aria-label="Ficha del campo ancla">
+<div id="campo-ficha-mount"></div>
+</dialog>
+<dialog id="dlgMongoFicha" class="dlg-wide ficha-pane" aria-label="Ficha del campo MongoDB">
+<div id="mongo-ficha-mount"></div>
+</dialog>
+<dialog id="dlgProyecto" class="dlg-wide ficha-pane" aria-labelledby="proyReaderNombre">
+<article class="reader dlg-reader" id="proyReader">
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9l-.81-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
+<div>
+<h3 id="proyReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="proyReaderVersion" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<button type="button" class="btn primary" id="btnCrearBdProyecto" title="Crea la base, colecciones, índices y validación en Mongo">Crear base de datos</button>
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistorialProyecto" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialProyecto">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="historialProyecto" hidden role="dialog" aria-label="Versiones">
+<p class="historial-titulo">Versiones</p>
+<ul id="historialProyectoLista"></ul>
+</div>
+</div>
+<button type="button" class="icon-btn" id="btnEditarProyecto" aria-label="Editar base de datos" title="Editar (guarda como versión nueva)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarProyecto" aria-label="Eliminar base de datos" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnCerrarProyecto" aria-label="Volver" title="Volver">×</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones de la base de datos">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabColecciones" data-proy-tab="colecciones" aria-selected="false" aria-controls="proyPanelColecciones">Colecciones</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabAgentes" data-proy-tab="agentes" aria-selected="false" aria-controls="proyPanelAgentes">Agentes</button>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelResumen" role="tabpanel" aria-labelledby="proyTabResumen">
+<dl class="ancla-ficha-dl" id="proyResumenDl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="proyReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Base de datos</dt><dd><code id="proyReaderBaseDatos">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="proyInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="proyHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="proyHashFull"></code></button><span id="proyHashVacio">—</span></dd></div>
+<div class="ancla-ficha-fila"><dt>Skills</dt><dd id="proyResumenSkills">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Agentes</dt><dd id="proyResumenAgentes">—</dd></div>
+<div class="ancla-ficha-fila" id="proyLegacyFila" hidden><dt>Estado</dt><dd id="proyLegacyNota">Negocio legado (pendiente de borrar como base de datos)</dd></div>
+</dl>
+<p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
+<div class="editar-anclas-top" style="margin-top:0.75rem">
+<span class="historial-titulo">Skills</span>
+<button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills de la base de datos" title="Editar skills">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+</div>
+<div class="ancla-ficha-skills" id="proySkillsLista"></div>
+<p class="ancla-ficha-vacio" id="proySkillsVacio" hidden>Ninguna skill asociada.</p>
+<div class="md-wrap" style="margin-top:1rem"><div class="md" id="proyMd"></div></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelColecciones" role="tabpanel" aria-labelledby="proyTabColecciones" hidden>
+<p class="ancla-ficha-vacio" id="proyColeccionesVacio" hidden>Sin colecciones en esta base de datos.</p>
+<div class="tabla-scroll"><table class="proy-campos-tabla" id="proyColeccionesTabla" hidden>
+<thead><tr><th>Colección</th><th>Descripción</th><th>Campos</th></tr></thead>
+<tbody id="proyColeccionesBody"></tbody>
+</table></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelDiagrama" role="tabpanel" aria-labelledby="proyTabDiagrama" hidden>
+<p class="ancla-ficha-vacio" id="proyDiagramaEstado">Cargando diagrama…</p>
+<pre class="proy-mermaid-src" id="proyDiagramaMermaid" hidden></pre>
+<div class="proy-diagrama-render" id="proyDiagramaRender" hidden></div>
+<div class="proy-er-boxes" id="proyDiagramaBoxes" hidden></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelCampos" role="tabpanel" aria-labelledby="proyTabCampos" hidden>
+<p class="ancla-ficha-vacio" id="proyCamposVacio" hidden>Sin campos Mongo en esta base de datos.</p>
+<div class="tabla-scroll"><table class="proy-campos-tabla" id="proyCamposTabla" hidden>
+<thead><tr><th>Ancla</th><th>Campo Mongo</th><th>Colección</th><th>Tipo</th></tr></thead>
+<tbody id="proyCamposBody"></tbody>
+</table></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelAgentes" role="tabpanel" aria-labelledby="proyTabAgentes" hidden>
+<p class="ancla-ficha-vacio" id="proyAgentesVacio" hidden>Ningún agente asignado.</p>
+<div id="proyAgentesLista"></div>
+</div>
+</article>
+</dialog>
+<dialog id="dlgNuevoProyecto" aria-labelledby="dlgNuevoProyectoTitulo">
+<form class="dlg" id="formNuevoProyecto">
+<h3 id="dlgNuevoProyectoTitulo">Añadir base de datos</h3>
+<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="form-error" id="nuevoProyectoError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre de la base de datos">
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off" placeholder="Texto corto">
+</label>
+<label>Skills (ids, una por línea)
+<textarea name="skills" placeholder="mapear-recorrido&#10;generar-script"></textarea>
+</label>
+<label>O pega el markdown
+<textarea name="markdown" placeholder="Documento de la base de datos (markdown)." required></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevoProyectoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir base de datos</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarProyecto" class="dlg-wide" aria-labelledby="dlgEditarProyectoTitulo">
+<form class="dlg" id="formEditarProyecto">
+<h3 id="dlgEditarProyectoTitulo">Editar base de datos</h3>
+<p class="nota">Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
+<p class="form-error" id="editarProyectoError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required>
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off">
+</label>
+<div class="ancla-ficha-tabs reader-tabs" id="editarProyTabs" role="tablist" aria-label="Secciones de edición">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="editarProyTabDoc" data-editar-proy-tab="documento" aria-selected="true" aria-controls="editarProyPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="editarProyTabSkills" data-editar-proy-tab="skills" aria-selected="false" aria-controls="editarProyPanelSkills">Skills</button>
+</div>
+<div class="reader-panel" id="editarProyPanelDoc" role="tabpanel" aria-labelledby="editarProyTabDoc">
+<label>Contenido (markdown)
+<textarea name="markdown" rows="12" placeholder="Contenido de la base de datos"></textarea>
+</label>
+</div>
+<div class="reader-panel ancla-ficha-body" id="editarProyPanelSkills" role="tabpanel" aria-labelledby="editarProyTabSkills" hidden>
+<div id="editarProySkillsPicker" class="proy-skills-picker"></div>
+<input type="hidden" name="skills" value="">
+</div>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarProyectoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar versión</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarProyectoSkills" aria-labelledby="dlgEditarProyectoSkillsTitulo">
+<form class="dlg" id="formEditarProyectoSkills">
+<h3 id="dlgEditarProyectoSkillsTitulo">Skills de la base de datos</h3>
+<p class="nota">Marca las skills del catálogo asociadas a esta base de datos. Guardar actualiza la lista; no crea una versión del documento.</p>
+<p class="form-error" id="editarProyectoSkillsError" role="alert"></p>
+<div id="editarProyectoSkillsPicker" class="proy-skills-picker"></div>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarProyectoSkillsCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
+<section class="main catalogos" id="documentacion" hidden aria-label="Documentación">
+<div class="catalogo-tabs" id="docTabs" role="tablist" aria-label="Documentación"></div>
+<div role="tabpanel" id="panel-fundamentos" data-doc="fundamentos">
+<div id="fundamentos-root"></div>
+</div>
+<div class="doc doc-arquitectura" role="tabpanel" id="panel-arquitectura" data-doc="arquitectura" hidden>
+<h3>Arquitectura de relaciones</h3>
+<p>Cómo se enlazan los catálogos entre sí. Los agentes no usan esta pantalla para trabajar: entran por API con una clave de invite.</p>
+<div class="diagrama" aria-label="Diagrama de relaciones">
+<pre>┌─────────────┐         N:M          ┌─────────────┐
+│  Proyecto   │◄───────────────────►│    Skill    │
+└─────────────┘                      └──────┬──────┘
+                                            │ 1:N
+                                            ▼
+                                     ┌─────────────┐
+                                     │ Campo ancla │
+                                     └──────┬──────┘
+                                            │ 0..1  (enlace opcional)
+                                            ▼
+                                     ┌─────────────┐
+                                     │ Campo Mongo │
+                                     └─────────────┘
+
+┌─────────────┐
+│   Agente    │   (acceso / latido; trabaja vía API)
+└─────────────┘
+
+┌─────────────┐
+│ Fundamento  │   (pieza base; vive en Documentación)
+└─────────────┘</pre>
+</div>
+<ul>
+<li><strong>Proyecto ↔ Skill (N:M)</strong> — un proyecto contiene una o más skills; una skill puede estar en uno o más proyectos.</li>
+<li><strong>Skill → Campo ancla (1:N)</strong> — una skill declara uno o más campos ancla.</li>
+<li><strong>Ancla → Campo Mongo (0..1)</strong> — un campo ancla puede enlazar a un campo Mongo (opcional). Con <code>proyeccionMongo: array</code> agrupa <code>version.recorrido.campos.N.*</code> en un array BSON (lista canónica del recorrido).</li>
+<li><strong>Sin anclas huérfanas</strong> — todo hecho de un negocio (p. ej. Pelo Sur) entra como skill del proyecto; no persistir anclas sueltas fuera del catálogo.</li>
+<li><strong>Agente</strong> — invite + registro + latido; trabaja vía API, no con la UI.</li>
+<li><strong>Fundamento</strong> — bloque conceptual en Documentación con el que se describe el sistema.</li>
+</ul>
+</div>
+<div class="doc" role="tabpanel" id="panel-api" data-doc="api" hidden>
+<div id="apiDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando el contrato API…</p></div>
+</div>
+<div class="doc doc-mongodb" role="tabpanel" id="panel-mongodb" data-doc="mongodb" hidden>
+<p id="mongoConnStatus" class="nota mongo-conn-status" aria-live="polite">URI configurada: …</p>
+<p class="nota" style="margin:-4px 0 14px;font-size:13px"><a href="#ajustes/conexiones">Abrir Ajustes → Conexiones</a> para pegar o borrar la URI.</p>
+<div class="catalogo-tabs doc-subtabs" id="mongoDocTabs" role="tablist" aria-label="MongoDB"></div>
+<div id="mongoDocMount" class="api-doc md" aria-live="polite"><p class="estado">Cargando documentación MongoDB…</p></div>
+</div>
+</section>
+<section class="main catalogos" id="ajustes" hidden aria-label="Ajustes">
+<div class="catalogo-tabs" id="ajustesTabs" role="tablist" aria-label="Ajustes">
+<button type="button" class="pestana" role="tab" id="tab-conexiones" data-ajuste="conexiones" aria-selected="true" aria-controls="panel-conexiones">
+<svg class="pestana-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+<span>Conexiones</span>
+</button>
+</div>
+<div role="tabpanel" id="panel-conexiones" data-ajuste-panel="conexiones" aria-labelledby="tab-conexiones">
+<div class="ajustes-sec">
+<h3>MongoDB Atlas</h3>
+<p class="ajustes-lead">Pega la URI aquí. Queda cifrada en el Worker; el panel no la vuelve a mostrar. Documentación → MongoDB sigue siendo solo lectura.</p>
+<div class="ajustes-status-row">
+<span id="ajustesMongoStatus" class="ajustes-status-badge is-no" aria-live="polite">Sin configurar</span>
+<p id="ajustesMongoHint" class="ajustes-hint">La URI guardada no se vuelve a mostrar.</p>
+</div>
+<form class="ajustes-form" id="formAjustesMongo" autocomplete="off">
+<label>URI de conexión
+<input type="password" id="ajustesMongoUri" name="uri" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/" required>
+</label>
+<label>Nombre de base (opcional)
+<input type="text" id="ajustesMongoDb" name="db" autocomplete="off" spellcheck="false" placeholder="software_reservas">
+</label>
+<div class="ajustes-actions">
+<button type="submit" class="btn primary" id="ajustesMongoGuardar">Guardar</button>
+<button type="button" class="btn ghost" id="ajustesMongoProbar">Probar</button>
+<button type="button" class="btn ghost" id="ajustesMongoBorrar">Borrar</button>
+</div>
+<p id="ajustesMongoMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
+</form>
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+<dialog id="dlgNueva" aria-labelledby="dlgNuevaTitulo">
+<form class="dlg" id="formNueva">
+<h3 id="dlgNuevaTitulo">Añadir skill</h3>
+<p class="nota">Crea una skill nueva. Se guarda en este navegador, encima del índice. No se publica en GitHub. Markdown se lee aquí; otro tipo queda para descargar.</p>
+<p class="form-error" id="nuevaError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre de la skill">
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off" placeholder="Texto corto para la tarjeta">
+</label>
+<label>Anclas
+<textarea name="anclas" placeholder="Una por línea o separadas por comas, p. ej. _negocio.nombre_"></textarea>
+</label>
+<label>Archivo
+<input type="file" name="archivo" id="nuevaArchivo">
+<span class="archivo-nombre" id="nuevaArchivoNombre"></span>
+</label>
+<label>O pega el markdown
+<textarea name="markdown" placeholder="Pega aquí el markdown si no subes un archivo."></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevaCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir skill</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgVersion" aria-labelledby="dlgVersionTitulo">
+<form class="dlg" id="formVersion">
+<h3 id="dlgVersionTitulo">Subir versión</h3>
+<p class="destino" id="versionDestino"></p>
+<p class="nota">Carga un documento completo como versión nueva de esta skill. Distinto de Editar: aquí subes el archivo entero. Se guarda en este navegador; no se publica en GitHub.</p>
+<p class="form-error" id="versionError" role="alert"></p>
+<label>Archivo
+<input type="file" name="archivo" id="versionArchivo">
+<span class="archivo-nombre" id="versionArchivoNombre"></span>
+</label>
+<label>O pega el markdown
+<textarea name="markdown" placeholder="Pega aquí el markdown de la nueva versión."></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="versionCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Subir versión</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditar" class="dlg-wide" aria-labelledby="dlgEditarTitulo">
+<form class="dlg" id="formEditar">
+<h3 id="dlgEditarTitulo">Editar skill</h3>
+<p class="nota">Modifica el contenido actual. Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
+<p class="form-error" id="editarError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required>
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off">
+</label>
+<div class="ancla-ficha-tabs reader-tabs" id="editarTabs" role="tablist" aria-label="Secciones de edición">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="editarTabDoc" data-editar-tab="documento" aria-selected="true" aria-controls="editarPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="editarTabAnclas" data-editar-tab="anclas" aria-selected="false" aria-controls="editarPanelAnclas">Anclas</button>
+</div>
+<div class="reader-panel" id="editarPanelDoc" role="tabpanel" aria-labelledby="editarTabDoc">
+<label>Contenido (markdown)
+<textarea name="markdown" rows="12" placeholder="Contenido de la skill"></textarea>
+</label>
+</div>
+<div class="reader-panel ancla-ficha-body" id="editarPanelAnclas" role="tabpanel" aria-labelledby="editarTabAnclas" hidden>
+<div class="editar-anclas" id="editarAnclasBox">
+<div class="editar-anclas-top">
+<button type="button" class="icon-btn" id="btnEditarAnclas" aria-label="Editar anclas" title="Editar anclas">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+</div>
+<div class="skill-anclas-list" id="editarAnclasLista"></div>
+<input type="hidden" name="anclas" value="">
+</div>
+</div>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar versión</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarAnclas" aria-labelledby="dlgEditarAnclasTitulo">
+<form class="dlg" id="formEditarAnclas">
+<h3 id="dlgEditarAnclasTitulo">Editar anclas</h3>
+<p class="nota">Una por línea o separadas por comas. Guardar actualiza la lista de la skill; aún no crea una versión.</p>
+<p class="form-error" id="editarAnclasError" role="alert"></p>
+<label>Anclas
+<textarea name="anclas" rows="8" placeholder="_negocio.nombre_&#10;_proceso.url_inicio_"></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarAnclasCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgCampo" aria-labelledby="dlgCampoTitulo">
+<form class="dlg" id="formCampo">
+<h3 id="dlgCampoTitulo">Añadir ancla</h3>
+<p class="nota">Se guarda en la API viva (Cloudflare D1) cuando hay clave; si no, en este navegador.</p>
+<p class="form-error" id="campoError" role="alert"></p>
+<label>Ancla
+<input type="text" name="ancla" maxlength="120" autocomplete="off" required placeholder="_negocio.nombre_">
+</label>
+<label>Etiqueta
+<input type="text" name="etiqueta" maxlength="120" autocomplete="off" placeholder="Nombre del negocio">
+</label>
+<label>Aliases (uno por línea)
+<textarea name="aliases" rows="3" placeholder="contacto.telefono&#10;telefono_local"></textarea>
+</label>
+<label>Clave Mongo
+<input type="text" name="claveMongo" maxlength="120" autocomplete="off" placeholder="nombre">
+</label>
+<label>Colección
+<input type="text" name="coleccion" maxlength="80" autocomplete="off" placeholder="negocios">
+</label>
+<label>Base de datos
+<input type="text" name="baseDatos" maxlength="80" autocomplete="off" placeholder="software_reservas">
+</label>
+<label>Tipo
+<input type="text" name="tipo" maxlength="40" autocomplete="off" placeholder="string">
+</label>
+<label><input type="checkbox" name="obligatorio"> Obligatorio</label>
+<label><input type="checkbox" name="sensible"> Sensible (enmascarar en UI/logs)</label>
+<label>Formato
+<input type="text" name="formato" maxlength="80" autocomplete="off" placeholder="uri, sin_pii">
+</label>
+<label>Descripción
+<textarea name="descripcion" placeholder="Qué significa este campo"></textarea>
+</label>
+<label>Ejemplo
+<input type="text" name="ejemplo" maxlength="200" autocomplete="off">
+</label>
+<label>Usado en skills (ids)
+<textarea name="skills" placeholder="mapear-recorrido&#10;descubrir-negocio"></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="campoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir ancla</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgMongo" aria-labelledby="dlgMongoTitulo">
+<form class="dlg" id="formMongo">
+<h3 id="dlgMongoTitulo">Añadir campo MongoDB</h3>
+<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="form-error" id="mongoError" role="alert"></p>
+<label>Colección
+<input type="text" name="coleccion" maxlength="80" autocomplete="off" required placeholder="negocios">
+</label>
+<label>Clave
+<input type="text" name="clave" maxlength="120" autocomplete="off" required placeholder="nombre">
+</label>
+<label>Base de datos
+<input type="text" name="baseDatos" maxlength="80" autocomplete="off" placeholder="software_reservas">
+</label>
+<label>bsonType
+<input type="text" name="bsonType" maxlength="40" autocomplete="off" placeholder="string">
+</label>
+<label><input type="checkbox" name="obligatorio"> Obligatorio</label>
+<label>Descripción
+<textarea name="descripcion" placeholder="Qué guarda este campo"></textarea>
+</label>
+<label>Enlazado a ancla
+<input type="text" name="ancla" maxlength="120" autocomplete="off" placeholder="_negocio.nombre_">
+</label>
+<label>Proyección Mongo
+<select name="proyeccionMongo">
+<option value="">—</option>
+<option value="array">array (recorrido.campos.N.* → [{…}])</option>
+</select>
+</label>
+<label>Elemento proyección (JSON)
+<textarea name="proyeccionElemento" rows="3" placeholder='{"nombre":"version.recorrido.campos.N.nombre","selector":"version.recorrido.campos.N.selector","clase":"version.recorrido.campos.N.clase"}'></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="mongoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir campo</button>
+</div>
+</form>
+</dialog>
+
+<dialog id="dlgAgenteFicha" class="dlg-wide ficha-pane" aria-labelledby="agenteReaderNombre">
+<article class="reader dlg-reader" id="agenteReader">
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon agente-ficha-avatar" id="agenteFichaAvatar" aria-hidden="true"></span>
+<div>
+<h3 id="agenteReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="agenteReaderEstado" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<button type="button" class="icon-btn" id="btnEditarAgente" aria-label="Editar agente" title="Editar nombre y foto">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarAgente" aria-label="Eliminar agente" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnCerrarAgente" aria-label="Volver" title="Volver">×</button>
+</div>
+</div>
+<div class="ancla-ficha-body">
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="agenteReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Estado</dt><dd id="agenteReaderEstadoDetalle">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Último latido</dt><dd id="agenteReaderLastSeen">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Invite</dt><dd><code id="agenteReaderInvite">—</code></dd></div>
+</dl>
+<p class="origen" id="agenteReaderDesc" hidden></p>
+</div>
+</article>
+</dialog>
+<dialog id="dlgFundamento" class="dlg-wide ficha-pane" aria-labelledby="fundReaderNombre">
+<article class="reader dlg-reader" id="fundReader">
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>
+<div>
+<h3 id="fundReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="fundReaderVersion" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistorialFund" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialFund">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="historialFund" hidden role="dialog" aria-label="Versiones">
+<p class="historial-titulo">Versiones</p>
+<ul id="historialFundLista"></ul>
+</div>
+</div>
+<button type="button" class="icon-btn" id="btnEditarFundamento" aria-label="Editar fundamento" title="Editar (guarda como versión nueva)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarFundamento" aria-label="Eliminar fundamento" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnCerrarFundamento" aria-label="Volver" title="Volver">×</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="fundReaderTabs" role="tablist" aria-label="Secciones del fundamento">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="fundTabDoc" data-fund-tab="documento" aria-selected="true" aria-controls="fundPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="fundTabInterno" data-fund-tab="interno" aria-selected="false" aria-controls="fundPanelInterno">Interno</button>
+</div>
+<div class="reader-panel" id="fundPanelDoc" role="tabpanel" aria-labelledby="fundTabDoc">
+<div class="md-wrap"><div class="md" id="fundMd"></div></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="fundPanelInterno" role="tabpanel" aria-labelledby="fundTabInterno" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="fundReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="fundInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><button type="button" class="hash-full-btn" id="fundHashBtn" hidden title="Clic para copiar"><code class="hash-full" id="fundHashFull"></code></button><span id="fundHashVacio">—</span></dd></div>
+</dl>
+</div>
+</article>
+</dialog>
+<dialog id="dlgNuevoFundamento" aria-labelledby="dlgNuevoFundamentoTitulo">
+<form class="dlg" id="formNuevoFundamento">
+<h3 id="dlgNuevoFundamentoTitulo">Añadir fundamento</h3>
+<p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
+<p class="form-error" id="nuevoFundamentoError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre del fundamento">
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off" placeholder="Texto corto">
+</label>
+<label>Contenido (markdown)
+<textarea name="markdown" rows="10" placeholder="Documento del fundamento" required></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevoFundamentoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Añadir fundamento</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarFundamento" class="dlg-wide" aria-labelledby="dlgEditarFundamentoTitulo">
+<form class="dlg" id="formEditarFundamento">
+<h3 id="dlgEditarFundamentoTitulo">Editar fundamento</h3>
+<p class="nota">Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
+<p class="form-error" id="editarFundamentoError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required>
+</label>
+<label>Descripción
+<input type="text" name="descripcion" maxlength="280" autocomplete="off">
+</label>
+<label>Contenido (markdown)
+<textarea name="markdown" rows="12" placeholder="Contenido"></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarFundamentoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar versión</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
+<div class="dlg" id="panelDarAcceso">
+<h3 id="dlgDarAccesoTitulo">Nuevo agente</h3>
+<p class="nota">Se crea una clave en Cloudflare. Copia el bloque y pégalo al agente: lee Documentación → API, se registra y late solo. Sin caducidad. Sin GitHub.</p>
+<p class="form-error" id="darAccesoError" role="alert"></p>
+<div class="agente-clave-row">
+<div class="agente-clave-box">
+<span>Clave</span>
+<code id="darAccesoClave">…</code>
+</div>
+<button type="button" class="btn ghost" id="darAccesoCopiarClave">Copiar clave</button>
+</div>
+<label for="darAccesoTexto">Para pegar en el agente
+<textarea id="darAccesoTexto" class="agente-instrucciones" readonly spellcheck="false"></textarea>
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="darAccesoCerrar">Cerrar</button>
+<button type="button" class="btn primary" id="darAccesoCopiar">Copiar todo</button>
+</div>
+</div>
+</dialog>
+<dialog id="dlgEditarAgente" aria-labelledby="dlgEditarAgenteTitulo">
+<form class="dlg" id="formEditarAgente">
+<h3 id="dlgEditarAgenteTitulo">Editar agente</h3>
+<p class="nota">Se guarda en la API (D1) cuando hay clave; si no, solo en este navegador.</p>
+<p class="form-error" id="editarAgenteError" role="alert"></p>
+<label>Nombre
+<input type="text" name="nombre" maxlength="120" autocomplete="off" required>
+</label>
+<label>Foto (URL)
+<input type="url" name="foto" maxlength="500" autocomplete="off" placeholder="https://…">
+</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarAgenteCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEliminar" aria-labelledby="dlgEliminarTitulo">
+<form class="dlg" id="formEliminar">
+<h3 id="dlgEliminarTitulo">¿Estás seguro de eliminar?</h3>
+<p class="nota" id="eliminarAviso" hidden></p>
+<p class="form-error" id="eliminarError" role="alert"></p>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="eliminarCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Confirmar</button>
+</div>
+</form>
+</dialog>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script>
-for (const el of document.querySelectorAll('[data-md]')) el.innerHTML = marked.parse(el.dataset.md);
-const oscuro = matchMedia('(prefers-color-scheme: dark)').matches;
-mermaid.initialize({ startOnLoad: false, theme: oscuro ? 'dark' : 'default' });
-const caja = document.getElementById('diagrama');
-mermaid.render('diagrama-svg', caja.dataset.mermaid).then(({ svg }) => { caja.innerHTML = svg; });
-function mostrar() {
-  const id = (location.hash.slice(1) || 'skills');
-  const existe = document.getElementById(id)?.matches('section') ? id : 'skills';
-  for (const s of document.querySelectorAll('main > section')) s.hidden = s.id !== existe;
-  for (const a of document.querySelectorAll('nav a')) a.setAttribute('aria-selected', a.getAttribute('href') === '#' + existe);
-}
-addEventListener('hashchange', mostrar);
-mostrar();
+(function () {
+  var IDS = ['catalogos', 'documentacion', 'ajustes'];
+  function abrir(id) {
+    if (IDS.indexOf(id) < 0) id = 'catalogos';
+    for (var i = 0; i < IDS.length; i++) {
+      var nodo = document.getElementById(IDS[i]);
+      if (nodo) nodo.hidden = IDS[i] !== id;
+    }
+    var links = document.querySelectorAll('#hub [data-destino]');
+    for (var j = 0; j < links.length; j++) {
+      if (links[j].getAttribute('data-destino') === id) links[j].setAttribute('aria-current', 'page');
+      else links[j].removeAttribute('aria-current');
+    }
+  }
+  function desdeHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (h.indexOf('/') >= 0) h = h.split('/')[0];
+    if (h === 'mapa') return 'catalogos';
+    return IDS.indexOf(h) < 0 ? 'catalogos' : h;
+  }
+  window.abrirDestino = abrir;
+  window.addEventListener('hashchange', function () { abrir(desdeHash()); });
+  var hub = document.getElementById('hub');
+  if (hub) hub.addEventListener('click', function (e) {
+    var n = e.target;
+    while (n && n !== hub) {
+      if (n.getAttribute && n.getAttribute('data-destino')) {
+        if (typeof window.cerrarTodasFichasPane === 'function') window.cerrarTodasFichasPane();
+        abrir(n.getAttribute('data-destino'));
+        return;
+      }
+      n = n.parentNode;
+    }
+  });
+  abrir(desdeHash());
+})();
 </script>
+<script src="skills-ui.js?v=20261020y"></script>
+<script src="campos-ancla-ui.js?v=20261022fullpane1"></script>
+<script src="campos-mongodb-ui.js?v=20261022fullpane1"></script>
+<script src="proyectos-ui.js?v=20261022fullpane1"></script>
+<script src="agentes-ui.js?v=20261021d"></script>
+<script src="fundamentos-ui.js?v=20261020z"></script>
+<script src="catalogo-ui.js?v=20261022fullpane1"></script>
+<script src="ajustes-ui.js?v=20261022fullpane1"></script>
+
 </body>
 </html>

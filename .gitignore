@@ -1,4 +1,9 @@
-.env
 node_modules/
-trabajo/
-conexiones.local.json
+.wrangler/
+.dev.vars
+.seed-tmp.sql
+worker-configuration.d.ts
+dist-ui/
+*.log
+.DS_Store
+.playwright-mcp/
