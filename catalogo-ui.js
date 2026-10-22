@@ -1038,6 +1038,8 @@ function iconoDePestanaFicha(tabId) {
     definicion: 'definicion',
     historial: 'historial',
     mongo: 'mongo',
+    // Ficha ancla: pestaña «Campo» (catálogo Campos) — mismo Lucide cilindro.
+    campo: 'mongo',
     coleccion: 'coleccion',
     empujar: 'empujar',
     acl: 'acl',

@@ -88,7 +88,8 @@
     var items = [
       { id: 'definicion', label: 'Definición' },
       { id: 'historial', label: 'Historial' },
-      { id: 'mongo', label: 'Mongo' },
+      // Campo = catálogo Campos (no «campo ancla»). Id interno `campo`; icono Lucide = mongo.
+      { id: 'campo', label: 'Campo' },
       { id: 'skills', label: 'Skills' },
       { id: 'interno', label: 'Interno' }
     ];
@@ -193,70 +194,37 @@
     );
   }
 
-  function IconoMongoFila() {
-    return e('svg', {
-      className: 'catalogo-fila-svg',
-      viewBox: '0 0 24 24',
-      fill: 'none',
-      stroke: 'currentColor',
-      strokeWidth: '2',
-      strokeLinecap: 'round',
-      strokeLinejoin: 'round',
-      'aria-hidden': 'true'
-    },
-      e('ellipse', { cx: '12', cy: '6', rx: '7', ry: '3' }),
-      e('path', { d: 'M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6' }),
-      e('path', { d: 'M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6' })
-    );
-  }
-
-  function etiquetaMongoFila(m) {
-    var clave = String((m && m.clave) || '').trim();
-    if (clave) {
-      return clave.split(/[._]/).filter(Boolean).map(function (p) {
-        if (p.length === 1) return p.toUpperCase();
-        return p.charAt(0).toUpperCase() + p.slice(1);
-      }).join(' ');
-    }
-    return (m && (m.campo || m.id)) || 'Campo';
-  }
-
-  function PanelMongo(props) {
+  function PanelCampo(props) {
     var mongo = props.mongo || null;
     var onAbrirCampo = props.onAbrirCampo;
-    // Solo pintar enlace real del catálogo Campos. Sin match → vacío (no inferir desde el ancla).
+    // Solo enlace real del catálogo Campos. Sin match → vacío (no inferir desde el ancla).
     if (!mongo || !mongo.id) {
       return e('p', {
         className: 'ancla-ficha-vacio',
-        id: 'ancla-panel-mongo',
+        id: 'ancla-panel-campo',
         role: 'tabpanel'
       }, 'Ningún campo del catálogo Campos está enlazado a este ancla.');
     }
-    var codigo = mongo.campo || ((mongo.coleccion || '') + '.' + (mongo.clave || ''));
-    var titulo = etiquetaMongoFila(mongo);
-    var secundario = codigo;
-    if (mongo.baseDatos) secundario = codigo + ' · ' + mongo.baseDatos;
+    // Misma FilaLista que catálogo Campos / CamposMongoUI (no duplicar markup).
+    var FilaCampo = (typeof window !== 'undefined' && window.CamposMongoUI && window.CamposMongoUI.FilaLista) || null;
+    if (!FilaCampo) {
+      return e('p', {
+        className: 'ancla-ficha-vacio',
+        id: 'ancla-panel-campo',
+        role: 'tabpanel'
+      }, 'No se pudo cargar la fila del catálogo Campos.');
+    }
     return e('div', {
-      className: 'catalogo-lista proy-tab-catalogo',
-      id: 'ancla-panel-mongo',
+      className: 'catalogo-lista proy-tab-catalogo catalogo-lista-enlace',
+      id: 'ancla-panel-campo',
       role: 'list',
-      'aria-label': 'Campo Mongo asociado'
+      'aria-label': 'Campo asociado'
     },
-      e('button', {
-        type: 'button',
-        className: 'catalogo-fila',
-        role: 'listitem',
-        title: mongo.descripcion || titulo,
-        'aria-label': 'Abrir campo ' + titulo,
-        onClick: function () { if (onAbrirCampo) onAbrirCampo(mongo.id); }
-      },
-        e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoMongoFila)),
-        e('span', { className: 'catalogo-fila-main' },
-          e('span', { className: 'catalogo-fila-titulo' }, titulo),
-          e('code', { className: 'catalogo-fila-codigo' }, secundario)
-        ),
-        e('span', { className: 'catalogo-fila-enlace', 'aria-hidden': 'true' }, e(IconoEnlaceExterno))
-      )
+      e(FilaCampo, {
+        campo: mongo,
+        abierta: false,
+        onAbrir: function (id) { if (onAbrirCampo) onAbrirCampo(id); }
+      })
     );
   }
 
@@ -447,7 +415,7 @@
       e('div', { className: 'ancla-ficha-body' },
         tab === 'definicion' ? e(PanelDefinicion, { campo: c }) : null,
         tab === 'historial' ? e(PanelHistorial, { campo: c, negocioId: props.negocioId || 'pelo-sur' }) : null,
-        tab === 'mongo' ? e(PanelMongo, {
+        tab === 'campo' ? e(PanelCampo, {
           campo: c,
           mongo: props.mongo,
           onAbrirCampo: props.onAbrirCampo

@@ -514,6 +514,8 @@
     refrescar: function (bridge) { montarGrid(bridge); },
     montarLista: montarLista,
     mostrarFicha: mostrarFicha,
-    limpiarFicha: limpiarFicha
+    limpiarFicha: limpiarFicha,
+    /** Misma fila del catálogo Campos; reutilizable en ficha ancla → pestaña Campo. */
+    FilaLista: FilaLista
   };
 })();
