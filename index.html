@@ -262,6 +262,8 @@ dialog::backdrop{background:#17212f66}
 .reader-tabs{margin:4px 0 0}
 .reader-panel[hidden]{display:none!important}
 .catalogo-lista{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
+/* Enlace único en ficha (p. ej. ancla → Campo): una columna, misma fila que el catálogo */
+.catalogo-lista-enlace{grid-template-columns:1fr;max-width:min(100%,28rem)}
 .catalogo-fila{display:flex;align-items:center;gap:12px;width:100%;min-width:0;margin:0;padding:12px 12px 12px 14px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;font:inherit;text-align:left;color:inherit;cursor:pointer;transition:background .12s ease,border-color .12s ease}
 .catalogo-fila:hover{background:#f5f8fc;border-color:#c9d5e8}
 .catalogo-fila:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
@@ -1256,14 +1258,14 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 })();
 </script>
 <script src="skills-ui.js?v=20261022tabs2"></script>
-<script src="campos-ancla-ui.js?v=20261022polish1"></script>
-<script src="campos-mongodb-ui.js?v=20261022tabsia1"></script>
+<script src="campos-ancla-ui.js?v=20261022anclatabcampo1"></script>
+<script src="campos-mongodb-ui.js?v=20261022anclatabcampo1"></script>
 <script src="clusters-ui.js?v=20261022cluster1"></script>
 <script src="proyectos-ui.js?v=20261022cluster1"></script>
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022bdcluster1"></script>
+<script src="catalogo-ui.js?v=20261022anclatabcampo1"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>
