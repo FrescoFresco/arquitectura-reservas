@@ -161,16 +161,16 @@
       "hash": "esquemas-bd-ancla-recorrido-pasos-v1"
     },
     {
-      "id": "version.recorrido.campos.N",
-      "ancla": "_version.recorrido.campos.N_",
-      "etiqueta": "Campo N del recorrido (lista)",
+      "id": "version.recorrido.campos",
+      "ancla": "_version.recorrido.campos_",
+      "etiqueta": "Campos del recorrido (array)",
       "claveMongo": "recorrido.campos",
       "coleccion": "versiones",
       "baseDatos": "software_reservas",
       "tipo": "array",
       "obligatorio": false,
       "formato": "proyeccion-array",
-      "descripcion": "Ancla de lista (X1/X5): índice de la proyección array versiones.recorrido.campos. Plantillas hijas: nombre, selector, clase.",
+      "descripcion": "Lista canónica de campos del formulario (array BSON). Elementos: nombre, selector, clase. Sin N literal.",
       "ejemplo": "[{nombre, selector, clase}]",
       "skills": [
         "mapear-recorrido",
@@ -178,63 +178,7 @@
       ],
       "aliases": [],
       "sensible": false,
-      "hash": "audit-x3-version-recorrido-campos-N"
-    },
-    {
-      "id": "version.recorrido.campos.N.nombre",
-      "ancla": "_version.recorrido.campos.N.nombre_",
-      "etiqueta": "Campo N · nombre",
-      "claveMongo": "recorrido.campos.N.nombre",
-      "coleccion": "versiones",
-      "baseDatos": "software_reservas",
-      "tipo": "string",
-      "obligatorio": false,
-      "formato": "",
-      "descripcion": "Plantilla: nombre del campo N en la versión del recorrido (lista canónica; no formularios.campos).",
-      "ejemplo": "Teléfono",
-      "skills": [
-        "mapear-recorrido"
-      ],
-      "aliases": [],
-      "sensible": false,
-      "hash": "audit-x1-version-recorrido-campos-N-nombre"
-    },
-    {
-      "id": "version.recorrido.campos.N.selector",
-      "ancla": "_version.recorrido.campos.N.selector_",
-      "etiqueta": "Campo N · selector",
-      "claveMongo": "recorrido.campos.N.selector",
-      "coleccion": "versiones",
-      "baseDatos": "software_reservas",
-      "tipo": "string",
-      "obligatorio": true,
-      "formato": "playwright-locator",
-      "descripcion": "Selector de Playwright del campo N (lista canónica en la versión del recorrido).",
-      "ejemplo": "#client-phone",
-      "skills": [
-        "mapear-recorrido",
-        "generar-script"
-      ],
-      "hash": "0516b8222d3004f6703688a50aac9f182b7629397629867d74e4c39ada15c364"
-    },
-    {
-      "id": "version.recorrido.campos.N.clase",
-      "ancla": "_version.recorrido.campos.N.clase_",
-      "etiqueta": "Campo N · clase",
-      "claveMongo": "recorrido.campos.N.clase",
-      "coleccion": "versiones",
-      "baseDatos": "software_reservas",
-      "tipo": "string",
-      "obligatorio": true,
-      "formato": "enum:normal|texto_libre|identificador|sensible|consentimiento",
-      "descripcion": "Clase del campo N (X3): normal | texto_libre | identificador | sensible | consentimiento. Sustituye el sí/no `sensible`. Nunca persistir el valor PII del cliente.",
-      "ejemplo": "normal",
-      "skills": [
-        "mapear-recorrido"
-      ],
-      "aliases": [],
-      "sensible": false,
-      "hash": "audit-x3-version-recorrido-campos-N-clase"
+      "hash": "skill-io-recorrido-campos-array"
     },
     {
       "id": "version.recorrido.boton_confirmar.selector",
@@ -397,6 +341,150 @@
       ],
       "sensible": false,
       "hash": "audit-x4-reserva_prueba-nota"
+    },
+    {
+      "id": "cliente.nombre",
+      "ancla": "_cliente.nombre_",
+      "etiqueta": "Nombre del cliente",
+      "claveMongo": "nombre",
+      "coleccion": "clientes",
+      "baseDatos": "software_llamadas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "",
+      "descripcion": "Nombre del cliente (software llamadas).",
+      "ejemplo": "Ana Pérez",
+      "skills": [],
+      "hash": "llamadas-ancla-cliente-nombre-v1"
+    },
+    {
+      "id": "cliente.telefono",
+      "ancla": "_cliente.telefono_",
+      "etiqueta": "Teléfono del cliente",
+      "claveMongo": "telefono",
+      "coleccion": "clientes",
+      "baseDatos": "software_llamadas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "e164",
+      "descripcion": "Teléfono E.164 del cliente.",
+      "ejemplo": "+34600000000",
+      "skills": [],
+      "sensible": true,
+      "hash": "llamadas-ancla-cliente-telefono-v1"
+    },
+    {
+      "id": "llamada.cliente_id",
+      "ancla": "_llamada.cliente_id_",
+      "etiqueta": "Cliente de la llamada",
+      "claveMongo": "cliente_id",
+      "coleccion": "llamadas",
+      "baseDatos": "software_llamadas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "",
+      "descripcion": "Referencia a clientes._id.",
+      "ejemplo": "cli_…",
+      "skills": [],
+      "hash": "llamadas-ancla-cliente-id-v1"
+    },
+    {
+      "id": "llamada.fecha",
+      "ancla": "_llamada.fecha_",
+      "etiqueta": "Fecha de la llamada",
+      "claveMongo": "fecha",
+      "coleccion": "llamadas",
+      "baseDatos": "software_llamadas",
+      "tipo": "date",
+      "obligatorio": true,
+      "formato": "iso8601",
+      "descripcion": "Momento de la llamada.",
+      "ejemplo": "2026-10-22T12:00:00.000Z",
+      "skills": [],
+      "hash": "llamadas-ancla-fecha-v1"
+    },
+    {
+      "id": "llamada.resultado",
+      "ancla": "_llamada.resultado_",
+      "etiqueta": "Resultado de la llamada",
+      "claveMongo": "resultado",
+      "coleccion": "llamadas",
+      "baseDatos": "software_llamadas",
+      "tipo": "string",
+      "obligatorio": true,
+      "formato": "enum:contesto|no_contesto|cita",
+      "descripcion": "Resultado: contesto | no_contesto | cita.",
+      "ejemplo": "cita",
+      "skills": [],
+      "hash": "llamadas-ancla-resultado-v1"
+    },
+    {
+      "id": "ejecucion.respuesta.motivo",
+      "ancla": "_ejecucion.respuesta.motivo_",
+      "etiqueta": "Motivo de la respuesta",
+      "claveMongo": "respuesta.motivo",
+      "coleccion": "ejecuciones",
+      "baseDatos": "software_reservas",
+      "tipo": "string",
+      "obligatorio": false,
+      "formato": "",
+      "descripcion": "Motivo del fallo o resultado de la ejecución.",
+      "ejemplo": "selector_roto",
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "hash": "skill-io-ejecucion-motivo-v1"
+    },
+    {
+      "id": "ejecucion.traza",
+      "ancla": "_ejecucion.traza_",
+      "etiqueta": "Traza de la ejecución",
+      "claveMongo": "traza",
+      "coleccion": "ejecuciones",
+      "baseDatos": "software_reservas",
+      "tipo": "array",
+      "obligatorio": false,
+      "formato": "proyeccion-array",
+      "descripcion": "Líneas de traza de la ejecución (array). Sin N literal.",
+      "ejemplo": "[{mensaje}]",
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "hash": "skill-io-ejecucion-traza-v1"
+    },
+    {
+      "id": "corrida.errores",
+      "ancla": "_corrida.errores_",
+      "etiqueta": "Errores de la corrida",
+      "claveMongo": "errores",
+      "coleccion": "ejecuciones",
+      "baseDatos": "software_reservas",
+      "tipo": "array",
+      "obligatorio": false,
+      "formato": "proyeccion-array",
+      "descripcion": "Problemas detectados en la corrida (array). Sin N literal.",
+      "ejemplo": "[\"selector no encontrado\"]",
+      "skills": [
+        "diagnosticar-alerta"
+      ],
+      "hash": "skill-io-corrida-errores-v1"
+    },
+    {
+      "id": "version.funcion.parametros",
+      "ancla": "_version.funcion.parametros_",
+      "etiqueta": "Parámetros de la función",
+      "claveMongo": "funcion.parametros",
+      "coleccion": "versiones",
+      "baseDatos": "software_reservas",
+      "tipo": "object",
+      "obligatorio": false,
+      "formato": "json-schema",
+      "descripcion": "JSON Schema de los parámetros de la función Playwright.",
+      "ejemplo": "{\"type\":\"object\"}",
+      "skills": [
+        "generar-script"
+      ],
+      "hash": "skill-io-funcion-parametros-v1"
     }
   ]
 }

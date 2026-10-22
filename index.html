@@ -176,6 +176,14 @@ dialog::backdrop{background:#17212f66}
 .agentes-sync{margin-right:auto;font-size:12px;font-weight:600;color:#8a97a8;white-space:nowrap}
 .dlg .reader-tabs{margin:12px 0 0}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
+.skill-io-subtabs{margin:0 0 10px;gap:4px}
+.skill-conexion{display:flex;flex-direction:column;gap:14px}
+.skill-conexion-card{margin:0;padding:12px 14px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fbff}
+.skill-conexion-card h4{margin:0 0 6px;font-size:13px;font-weight:700;color:#17212f}
+.skill-conexion-card pre{margin:0;padding:10px 12px;border-radius:8px;background:#17212f;color:#e8eef8;font-size:11px;line-height:1.45;overflow:auto;white-space:pre-wrap}
+.skill-conexion-card code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.operativa-huecos{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.operativa-huecos li{margin:0;padding:8px 12px;border-radius:8px;background:#fecaca;color:#7f1d1d;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .editar-anclas-top{justify-content:flex-end}
 .ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;line-height:1.25;padding:2px 6px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
 .ancla-aliases{display:flex;flex-wrap:wrap;gap:6px}
@@ -446,6 +454,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="readerTabDoc" data-reader-tab="documento" aria-selected="true" aria-controls="readerPanelDoc">Documento</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabAnclas" data-reader-tab="anclas" aria-selected="false" aria-controls="readerPanelAnclas">Anclas</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabConexion" data-reader-tab="conexion" aria-selected="false" aria-controls="readerPanelConexion">Conexión</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabBases" data-reader-tab="bases" aria-selected="false" aria-controls="readerPanelBases">Bases de datos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabInterno" data-reader-tab="interno" aria-selected="false" aria-controls="readerPanelInterno">Interno</button>
 </div>
@@ -454,9 +463,18 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelAnclas" role="tabpanel" aria-labelledby="readerTabAnclas" hidden>
 <div id="readerAnclas">
-<div class="skill-anclas-list" id="readerAnclasLista"></div>
-<p class="ancla-ficha-vacio" id="readerAnclasVacio" hidden>Ninguna ancla asociada.</p>
+<div class="ancla-ficha-tabs reader-tabs skill-io-subtabs" id="readerAnclasSubtabs" role="tablist" aria-label="Entradas o salidas">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-skill-io-sub="entradas" aria-selected="true">Entradas</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-skill-io-sub="salidas" aria-selected="false">Salidas</button>
 </div>
+<p class="ajustes-hint" id="readerAnclasHint">Anclas que la skill <strong id="readerAnclasHintVerb">lee</strong>.</p>
+<div class="proy-tab-catalogo catalogo-lista" id="readerAnclasLista" role="list"></div>
+<p class="ancla-ficha-vacio" id="readerAnclasVacio" hidden>Ninguna ancla en esta lista.</p>
+</div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="readerPanelConexion" role="tabpanel" aria-labelledby="readerTabConexion" hidden>
+<p class="ajustes-hint">Las dos llamadas que hará el agente al ejecutar esta skill (solo lectura; se generan solas).</p>
+<div id="readerConexionBox" class="skill-conexion"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelBases" role="tabpanel" aria-labelledby="readerTabBases" hidden>
 <div id="readerBasesLista" class="proy-tab-catalogo"></div>
@@ -518,6 +536,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabOperativa" data-proy-tab="operativa" aria-selected="false" aria-controls="proyPanelOperativa">Operativa</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabEmpujar" data-proy-tab="empujar" aria-selected="false" aria-controls="proyPanelEmpujar">Empujar</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabInterno" data-proy-tab="interno" aria-selected="false" aria-controls="proyPanelInterno">Interno</button>
 </div>
@@ -561,6 +580,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </button>
 </div>
 <div id="proySkillsTabLista" class="proy-tab-catalogo"></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelOperativa" role="tabpanel" aria-labelledby="proyTabOperativa" hidden>
+<p class="ajustes-hint">Cadena de skills: una salida de A que coincide con una entrada de B. En <span style="color:#b91c1c;font-weight:600">rojo</span> las entradas que ninguna skill escribe.</p>
+<p class="ancla-ficha-vacio" id="proyOperativaEstado">Cargando operativa…</p>
+<div class="proy-diagrama-render" id="proyOperativaRender" hidden></div>
+<ul class="operativa-huecos" id="proyOperativaHuecos" hidden></ul>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelEmpujar" role="tabpanel" aria-labelledby="proyTabEmpujar" hidden>
 <p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run). Usa el botón <strong>Empujar esquema</strong> arriba o el de esta pestaña.</p>
@@ -938,12 +963,18 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel ancla-ficha-body" id="editarPanelAnclas" role="tabpanel" aria-labelledby="editarTabAnclas" hidden>
 <div class="editar-anclas" id="editarAnclasBox">
+<div class="ancla-ficha-tabs reader-tabs skill-io-subtabs" id="editarAnclasSubtabs" role="tablist" aria-label="Editar entradas o salidas">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-editar-io-sub="entradas" aria-selected="true">Entradas</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-editar-io-sub="salidas" aria-selected="false">Salidas</button>
+</div>
 <div class="editar-anclas-top">
-<button type="button" class="icon-btn" id="btnEditarAnclas" aria-label="Editar anclas" title="Editar anclas">
+<button type="button" class="icon-btn" id="btnEditarAnclas" aria-label="Editar anclas de esta lista" title="Editar anclas de esta lista">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
 </button>
 </div>
-<div class="skill-anclas-list" id="editarAnclasLista"></div>
+<div class="proy-tab-catalogo catalogo-lista" id="editarAnclasLista" role="list"></div>
+<input type="hidden" name="entradas" value="">
+<input type="hidden" name="salidas" value="">
 <input type="hidden" name="anclas" value="">
 </div>
 </div>
@@ -956,7 +987,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <dialog id="dlgEditarAnclas" aria-labelledby="dlgEditarAnclasTitulo">
 <form class="dlg" id="formEditarAnclas">
 <h3 id="dlgEditarAnclasTitulo">Editar anclas</h3>
-<p class="nota">Una por línea o separadas por comas. Guardar actualiza la lista de la skill; aún no crea una versión.</p>
+<p class="nota" id="editarAnclasNota">Una por línea o separadas por comas. Se asignan a <strong id="editarAnclasDirLabel">entradas</strong> de la skill.</p>
 <p class="form-error" id="editarAnclasError" role="alert"></p>
 <label>Anclas
 <textarea name="anclas" rows="8" placeholder="_negocio.nombre_&#10;_proceso.url_inicio_"></textarea>
@@ -1273,7 +1304,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="skills-ui.js?v=20261022tabs2"></script>
+<script src="skills-ui.js?v=20261022skillio1"></script>
 <script src="campos-ancla-ui.js?v=20261022polish1"></script>
 <script src="campos-mongodb-ui.js?v=20261022tabsia1"></script>
 <script src="clusters-ui.js?v=20261022cluster1"></script>
@@ -1281,7 +1312,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022bdcluster1"></script>
+<script src="catalogo-ui.js?v=20261022skillio1"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>

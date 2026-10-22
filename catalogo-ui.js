@@ -503,8 +503,23 @@ function normalizeInstruccion(item, versionFn) {
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
     out.descripcion = item.descripcion.trim().slice(0, 280);
   }
-  const anclas = normalizarAnclas(item.anclas);
+  const entradas = normalizarAnclas(item.entradas);
+  const salidas = normalizarAnclas(item.salidas);
+  let anclas = normalizarAnclas(item.anclas);
+  if (entradas.length || salidas.length) {
+    out.entradas = entradas;
+    out.salidas = salidas;
+    const seen = new Set();
+    anclas = [];
+    entradas.concat(salidas).forEach(function (a) {
+      if (seen.has(a)) return;
+      seen.add(a);
+      anclas.push(a);
+    });
+  }
   if (anclas.length) out.anclas = anclas;
+  if (!out.entradas) out.entradas = [];
+  if (!out.salidas) out.salidas = out.anclas ? out.anclas.slice() : [];
   return out;
 }
 
@@ -548,8 +563,69 @@ function copiaVersion(v) {
 
 function conMetaSkill(destino, fuente) {
   if (fuente.descripcion) destino.descripcion = fuente.descripcion;
+  if (fuente.entradas) destino.entradas = fuente.entradas.slice();
+  if (fuente.salidas) destino.salidas = fuente.salidas.slice();
   if (fuente.anclas && fuente.anclas.length) destino.anclas = fuente.anclas.slice();
+  else if (destino.entradas || destino.salidas) {
+    const seen = new Set();
+    const u = [];
+    (destino.entradas || []).concat(destino.salidas || []).forEach(function (a) {
+      if (seen.has(a)) return;
+      seen.add(a);
+      u.push(a);
+    });
+    destino.anclas = u;
+  }
+  if (!destino.entradas) destino.entradas = [];
+  if (!destino.salidas) destino.salidas = destino.anclas ? destino.anclas.slice() : [];
   return destino;
+}
+
+function skillIoListas(ins) {
+  const entradas = normalizarAnclas((ins && ins.entradas) || []);
+  let salidas = normalizarAnclas((ins && ins.salidas) || []);
+  if (!entradas.length && !salidas.length) {
+    salidas = normalizarAnclas((ins && ins.anclas) || []);
+  }
+  return { entradas: entradas, salidas: salidas };
+}
+
+function campoAnclaPorToken(ancla) {
+  refrescarCampos();
+  const list = (state.campos && state.campos.lista) || [];
+  return list.find(function (c) {
+    return c.ancla === ancla || c.id === String(ancla || '').replace(/^_|_$/g, '');
+  }) || { id: String(ancla || '').replace(/^_|_$/g, ''), ancla: ancla, etiqueta: ancla };
+}
+
+function filaCatalogoAnclaDom(campo, onAbrir) {
+  const btn = el('button', 'catalogo-fila', null);
+  btn.type = 'button';
+  btn.setAttribute('role', 'listitem');
+  const titulo = campo.etiqueta || campo.ancla || campo.id;
+  btn.title = titulo;
+  btn.setAttribute('aria-label', 'Abrir ' + titulo);
+  const icon = el('span', 'catalogo-fila-icon', null);
+  icon.setAttribute('aria-hidden', 'true');
+  if (typeof window.svgPestanaCatalogo === 'function') {
+    const svg = window.svgPestanaCatalogo('ancla');
+    svg.setAttribute('class', 'catalogo-fila-svg');
+    icon.append(svg);
+  }
+  const main = el('span', 'catalogo-fila-main', null);
+  main.append(el('span', 'catalogo-fila-titulo', titulo));
+  main.append(el('code', 'catalogo-fila-codigo', campo.ancla || ''));
+  const enlace = el('span', 'catalogo-fila-enlace', null);
+  enlace.setAttribute('aria-hidden', 'true');
+  if (typeof window.svgPestanaCatalogo === 'function') {
+    // Lucide external-link approx via existing catalog pattern: use text arrow if needed
+    enlace.textContent = '↗';
+  }
+  btn.append(icon, main, enlace);
+  btn.addEventListener('click', function () {
+    if (typeof onAbrir === 'function') onAbrir(campo.ancla || campo.id);
+  });
+  return btn;
 }
 
 function mergeInstrucciones(remotas, locales, eliminados) {
@@ -1026,10 +1102,13 @@ function iconoDePestanaFicha(tabId) {
   const mapa = {
     documento: 'documento',
     anclas: 'ancla',
+    entradas: 'ancla',
+    salidas: 'ancla',
     interno: 'interno',
     resumen: 'resumen',
     colecciones: 'coleccion',
     diagrama: 'diagrama',
+    operativa: 'diagrama',
     campos: 'mongo',
     skills: 'skills',
     conexion: 'conexion',
@@ -1904,27 +1983,55 @@ function textoDeVersionActual(v) {
   return Promise.resolve('');
 }
 
-function pintarEditarAnclasCapsulas(texto) {
+function editarIoSubActual() {
+  const on = document.querySelector('#editarAnclasSubtabs [data-editar-io-sub].is-on');
+  return (on && on.getAttribute('data-editar-io-sub')) || 'entradas';
+}
+
+function pintarEditarAnclasCapsulas() {
   const lista = document.getElementById('editarAnclasLista');
-  if (!lista) return;
-  const anclas = normalizarAnclas(String(texto || '').split(/[\n,]+/));
+  const form = document.getElementById('formEditar');
+  if (!lista || !form) return;
+  const sub = editarIoSubActual();
+  const raw = sub === 'salidas'
+    ? (form.salidas && form.salidas.value)
+    : (form.entradas && form.entradas.value);
+  const anclas = normalizarAnclas(String(raw || '').split(/[\n,]+/));
   lista.replaceChildren();
   anclas.forEach(function (a) {
-    const btn = el('button', 'ancla-pill ancla-pill-btn', a);
-    btn.type = 'button';
-    btn.title = 'Ver campo ancla';
-    btn.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      abrirFichaAncla(a);
-    });
-    lista.append(btn);
+    lista.append(filaCatalogoAnclaDom(campoAnclaPorToken(a), function (tok) {
+      abrirFichaAncla(tok);
+    }));
   });
+  const ent = normalizarAnclas(String((form.entradas && form.entradas.value) || '').split(/[\n,]+/));
+  const sal = normalizarAnclas(String((form.salidas && form.salidas.value) || '').split(/[\n,]+/));
+  const seen = new Set();
+  const union = [];
+  ent.concat(sal).forEach(function (a) {
+    if (seen.has(a)) return;
+    seen.add(a);
+    union.push(a);
+  });
+  if (form.anclas) form.anclas.value = union.join('\n');
+}
+
+function seleccionarEditarIoSub(id) {
+  const tabs = document.querySelectorAll('#editarAnclasSubtabs [data-editar-io-sub]');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-editar-io-sub') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  pintarEditarAnclasCapsulas();
 }
 
 function valorAnclasEdicion() {
   const form = document.getElementById('formEditar');
-  if (!form || !form.anclas) return '';
-  return form.anclas.value || '';
+  if (!form) return '';
+  const sub = editarIoSubActual();
+  if (sub === 'salidas' && form.salidas) return form.salidas.value || '';
+  if (form.entradas) return form.entradas.value || '';
+  return form.anclas ? form.anclas.value || '' : '';
 }
 
 function abrirDialogoEditarAnclas() {
@@ -1934,6 +2041,11 @@ function abrirDialogoEditarAnclas() {
   if (!form || !dlg || !formAnclas) return;
   const err = document.getElementById('editarAnclasError');
   if (err) err.textContent = '';
+  const sub = editarIoSubActual();
+  const dirLabel = document.getElementById('editarAnclasDirLabel');
+  if (dirLabel) dirLabel.textContent = sub;
+  const titulo = document.getElementById('dlgEditarAnclasTitulo');
+  if (titulo) titulo.textContent = sub === 'salidas' ? 'Editar salidas' : 'Editar entradas';
   formAnclas.anclas.value = valorAnclasEdicion();
   dlg.showModal();
   formAnclas.anclas.focus();
@@ -1944,10 +2056,12 @@ function onSubmitEditarAnclas(e) {
   const form = document.getElementById('formEditar');
   const formAnclas = e.currentTarget;
   const dlg = document.getElementById('dlgEditarAnclas');
-  if (!form || !form.anclas) return;
+  if (!form) return;
   const anclas = normalizarAnclas(String(formAnclas.anclas.value || '').split(/[\n,]+/));
-  form.anclas.value = anclas.join('\n');
-  pintarEditarAnclasCapsulas(form.anclas.value);
+  const sub = editarIoSubActual();
+  if (sub === 'salidas' && form.salidas) form.salidas.value = anclas.join('\n');
+  else if (form.entradas) form.entradas.value = anclas.join('\n');
+  pintarEditarAnclasCapsulas();
   if (dlg && dlg.open) dlg.close();
 }
 
@@ -2089,8 +2203,11 @@ function abrirDialogoEditar(id) {
   limpiarError('editarError');
   form.nombre.value = ins.nombre;
   form.descripcion.value = ins.descripcion || '';
-  form.anclas.value = (ins.anclas || []).join('\n');
-  pintarEditarAnclasCapsulas(form.anclas.value);
+  const io = skillIoListas(ins);
+  if (form.entradas) form.entradas.value = io.entradas.join('\n');
+  if (form.salidas) form.salidas.value = io.salidas.join('\n');
+  form.anclas.value = (ins.anclas || io.entradas.concat(io.salidas)).join('\n');
+  seleccionarEditarIoSub('entradas');
   form.markdown.value = 'Cargando…';
   seleccionarEditarTab('documento');
   dlg.showModal();
@@ -2100,7 +2217,7 @@ function abrirDialogoEditar(id) {
     const md = text || '';
     form.markdown.value = md;
     form.dataset.snapMarkdown = md;
-    form.dataset.snapAnclas = anclasCanonicasTexto(ins.anclas || []);
+    form.dataset.snapAnclas = anclasCanonicasTexto(io.entradas.concat(io.salidas));
     form.nombre.focus();
   });
 }
@@ -2117,6 +2234,8 @@ async function guardarEdicionSkill(id, meta, markdown, hash) {
   }
   if (meta.nombre) entrada.nombre = meta.nombre;
   if (meta.descripcion != null) entrada.descripcion = meta.descripcion;
+  if (meta.entradas) entrada.entradas = meta.entradas;
+  if (meta.salidas) entrada.salidas = meta.salidas;
   if (meta.anclas) entrada.anclas = meta.anclas;
   if (!Array.isArray(entrada.versiones)) entrada.versiones = [];
   const creada = {
@@ -2148,10 +2267,25 @@ async function onSubmitEditar(e) {
     return;
   }
   const descripcion = form.descripcion.value.trim().slice(0, 280);
+  const entradasFinal = normalizarAnclas(
+    String((form.entradas && form.entradas.value) || '').split(/[\n,]+/)
+  );
+  let salidasFinal = normalizarAnclas(
+    String((form.salidas && form.salidas.value) || '').split(/[\n,]+/)
+  );
   const anclasNorm = normalizarAnclas(
     form.anclas.value.split(/[\n,]+/).map(function (s) { return s.trim(); }).filter(Boolean)
   );
-  const anclasFinal = anclasNorm.length ? anclasNorm : anclasDeMarkdown(markdown);
+  if (!entradasFinal.length && !salidasFinal.length) {
+    salidasFinal = anclasNorm.length ? anclasNorm : anclasDeMarkdown(markdown);
+  }
+  const seenU = new Set();
+  const anclasFinal = [];
+  entradasFinal.concat(salidasFinal).forEach(function (a) {
+    if (seenU.has(a)) return;
+    seenU.add(a);
+    anclasFinal.push(a);
+  });
   const snapMd = form.dataset.snapMarkdown;
   const snapAnclas = form.dataset.snapAnclas;
   if (typeof snapMd === 'string' && typeof snapAnclas === 'string') {
@@ -2163,14 +2297,31 @@ async function onSubmitEditar(e) {
   submit.disabled = true;
   try {
     const hash = await sha256Hex(markdown);
+    await asegurarClaveCatalogo();
+    const data = await apiFetchAuth('/v1/skills/' + encodeURIComponent(id), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: nombre,
+        descripcion: descripcion,
+        markdown: markdown,
+        entradas: entradasFinal,
+        salidas: salidasFinal,
+        anclas: anclasFinal
+      })
+    });
+    if (data && data.ok === false) throw new Error(data.error || 'No se pudo guardar');
     const creada = await guardarEdicionSkill(id, {
       nombre: nombre,
       descripcion: descripcion,
+      entradas: entradasFinal,
+      salidas: salidasFinal,
       anclas: anclasFinal
     }, markdown, hash);
     document.getElementById('dlgEditar').close();
     state.pendingFocus = id;
-    abrirInstruccion(id, creada.numero);
+    cargarSkills();
+    setTimeout(function () { abrirInstruccion(id, creada.numero); }, 200);
   } catch (err) {
     if (error) error.textContent = err.message;
   } finally {
@@ -2308,25 +2459,71 @@ function renderHistorial(ins, abierta) {
   });
 }
 
+function readerIoSubActual() {
+  const on = document.querySelector('#readerAnclasSubtabs [data-skill-io-sub].is-on');
+  return (on && on.getAttribute('data-skill-io-sub')) || 'entradas';
+}
+
+function seleccionarReaderIoSub(id) {
+  const tabs = document.querySelectorAll('#readerAnclasSubtabs [data-skill-io-sub]');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-skill-io-sub') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  const hintVerb = document.getElementById('readerAnclasHintVerb');
+  if (hintVerb) hintVerb.textContent = id === 'salidas' ? 'escribe' : 'lee';
+  pintarReaderAnclas(instruccionAbierta());
+}
+
 function pintarReaderAnclas(ins) {
   const box = document.getElementById('readerAnclas');
   const lista = document.getElementById('readerAnclasLista');
   const vacio = document.getElementById('readerAnclasVacio');
   if (!box || !lista) return;
-  const anclas = Array.isArray(ins && ins.anclas) ? ins.anclas : [];
+  const io = skillIoListas(ins || {});
+  const sub = readerIoSubActual();
+  const anclas = sub === 'salidas' ? io.salidas : io.entradas;
   lista.replaceChildren();
   if (!anclas.length) {
-    if (vacio) vacio.hidden = false;
+    if (vacio) {
+      vacio.hidden = false;
+      vacio.textContent = sub === 'salidas'
+        ? 'Ninguna ancla de salida.'
+        : 'Ninguna ancla de entrada.';
+    }
     return;
   }
   if (vacio) vacio.hidden = true;
   anclas.forEach(function (a) {
-    const btn = el('button', 'ancla-pill ancla-pill-btn', a);
-    btn.type = 'button';
-    btn.title = 'Ver campo ancla';
-    btn.addEventListener('click', function () { abrirFichaAncla(a); });
-    lista.append(btn);
+    lista.append(filaCatalogoAnclaDom(campoAnclaPorToken(a), function (tok) {
+      abrirFichaAncla(tok);
+    }));
   });
+}
+
+function pintarSkillConexion(ins) {
+  const box = document.getElementById('readerConexionBox');
+  if (!box) return;
+  box.replaceChildren();
+  if (!ins || !ins.id) {
+    box.append(el('p', 'ancla-ficha-vacio', 'Abre una skill para ver la conexión.'));
+    return;
+  }
+  const base = (typeof window.API_BASE === 'string' && window.API_BASE)
+    || 'https://campos-ancla-api.web-legal-es.workers.dev';
+  const sid = encodeURIComponent(ins.id);
+  const getCard = el('div', 'skill-conexion-card', null);
+  getCard.append(el('h4', null, '1. Leer entradas'));
+  const getPre = document.createElement('pre');
+  getPre.textContent = 'GET ' + base + '/v1/ejecutar/' + sid + '/entradas?negocio=<id>\n→ { "_ancla_": valor }';
+  getCard.append(getPre);
+  const postCard = el('div', 'skill-conexion-card', null);
+  postCard.append(el('h4', null, '2. Escribir salidas'));
+  const postPre = document.createElement('pre');
+  postPre.textContent = 'POST ' + base + '/v1/ejecutar/' + sid + '/salidas\nAuthorization: Bearer inv_…\n{ "negocio": "<id>", "valores": { "_ancla_": valor } }\n→ 400 si el ancla no está en salidas';
+  postCard.append(postPre);
+  box.append(getCard, postCard);
 }
 
 function renderReader() {
@@ -2383,6 +2580,7 @@ function seleccionarReaderTab(id) {
   const tabs = document.querySelectorAll('#readerTabs [data-reader-tab]');
   const panelDoc = document.getElementById('readerPanelDoc');
   const panelAnclas = document.getElementById('readerPanelAnclas');
+  const panelConexion = document.getElementById('readerPanelConexion');
   const panelBases = document.getElementById('readerPanelBases');
   const panelInterno = document.getElementById('readerPanelInterno');
   tabs.forEach(function (btn) {
@@ -2392,8 +2590,13 @@ function seleccionarReaderTab(id) {
   });
   if (panelDoc) panelDoc.hidden = id !== 'documento';
   if (panelAnclas) panelAnclas.hidden = id !== 'anclas';
+  if (panelConexion) panelConexion.hidden = id !== 'conexion';
   if (panelBases) panelBases.hidden = id !== 'bases';
   if (panelInterno) panelInterno.hidden = id !== 'interno';
+  if (id === 'anclas') {
+    seleccionarReaderIoSub(readerIoSubActual());
+  }
+  if (id === 'conexion') pintarSkillConexion(instruccionAbierta());
   if (id === 'bases') pintarSkillBases(instruccionAbierta());
 }
 
@@ -3805,6 +4008,18 @@ function iniciar() {
     const dlg = document.getElementById('dlgEditarAnclas');
     if (dlg && dlg.open) dlg.close();
   });
+  const readerAnclasSubtabs = document.getElementById('readerAnclasSubtabs');
+  if (readerAnclasSubtabs) readerAnclasSubtabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-skill-io-sub]');
+    if (!btn) return;
+    seleccionarReaderIoSub(btn.getAttribute('data-skill-io-sub'));
+  });
+  const editarAnclasSubtabs = document.getElementById('editarAnclasSubtabs');
+  if (editarAnclasSubtabs) editarAnclasSubtabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-editar-io-sub]');
+    if (!btn) return;
+    seleccionarEditarIoSub(btn.getAttribute('data-editar-io-sub'));
+  });
   const formEliminar = document.getElementById('formEliminar');
   if (formEliminar) formEliminar.addEventListener('submit', onSubmitEliminar);
   const formCampo = document.getElementById('formCampo');
@@ -4259,6 +4474,7 @@ function seleccionarProyReaderTab(id) {
     diagrama: document.getElementById('proyPanelDiagrama'),
     campos: document.getElementById('proyPanelCampos'),
     skills: document.getElementById('proyPanelSkills'),
+    operativa: document.getElementById('proyPanelOperativa'),
     empujar: document.getElementById('proyPanelEmpujar'),
     interno: document.getElementById('proyPanelInterno')
   };
@@ -4281,7 +4497,55 @@ function seleccionarProyReaderTab(id) {
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
   if (id === 'campos') pintarProyectoCampos(proy);
   if (id === 'skills') pintarProyectoSkillsTab(proy);
+  if (id === 'operativa') cargarProyectoOperativa(proy);
   if (id === 'empujar') pintarProyectoEmpujarAuto(proy);
+}
+
+function cargarProyectoOperativa(proy) {
+  const estado = document.getElementById('proyOperativaEstado');
+  const render = document.getElementById('proyOperativaRender');
+  const huecosEl = document.getElementById('proyOperativaHuecos');
+  if (!proy || !proy.id) return;
+  if (estado) {
+    estado.hidden = false;
+    estado.textContent = 'Cargando operativa…';
+  }
+  if (render) {
+    render.hidden = true;
+    render.replaceChildren();
+  }
+  if (huecosEl) {
+    huecosEl.hidden = true;
+    huecosEl.replaceChildren();
+  }
+  apiFetch('/v1/proyectos/' + encodeURIComponent(proy.id) + '/operativa')
+    .then(function (data) {
+      if (!data || !data.ok) throw new Error((data && data.error) || 'Sin operativa');
+      if (estado) estado.hidden = true;
+      if (render) {
+        render.hidden = false;
+        renderMermaidEn(render, data.mermaid || 'flowchart LR\n  vacio["Sin skills"]');
+      }
+      const huecos = data.huecos || [];
+      if (huecosEl) {
+        if (huecos.length) {
+          huecosEl.hidden = false;
+          huecos.forEach(function (h) {
+            const li = document.createElement('li');
+            li.textContent = 'Entrada sin productor: ' + h;
+            huecosEl.append(li);
+          });
+        } else {
+          huecosEl.hidden = true;
+        }
+      }
+    })
+    .catch(function (err) {
+      if (estado) {
+        estado.hidden = false;
+        estado.textContent = (err && err.message) || 'No se pudo cargar la operativa.';
+      }
+    });
 }
 
 function seleccionarEditarProyTab(id) {
