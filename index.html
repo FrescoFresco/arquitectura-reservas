@@ -330,6 +330,13 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
   dialog.ficha-pane[open]{left:0;bottom:calc(57px + env(safe-area-inset-bottom));z-index:35}
 }
 
+.ficha-atras-bar{flex:none;display:flex;align-items:center;padding:10px 14px 0;background:#fbfdff;position:sticky;top:0;z-index:4}
+.ficha-atras-btn{appearance:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 14px;margin:0;border:0;border-radius:10px;background:transparent;color:#1c63d5;font:inherit;font-size:15px;font-weight:800;cursor:pointer;touch-action:manipulation}
+.ficha-atras-btn:hover{background:#edf3ff}
+.ficha-atras-btn:focus-visible{outline:2px solid #1c63d5;outline-offset:2px}
+.ficha-atras-btn .ficha-atras-flecha{font-size:18px;line-height:1}
+dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
+
 </style>
 </head>
 <body>
@@ -366,6 +373,7 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 </section>
 <dialog id="dlgSkill" class="dlg-wide ficha-pane" aria-labelledby="readerNombre">
 <article class="reader dlg-reader" id="reader">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasSkill"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
 <div class="reader-top">
 <div class="reader-top-titulo">
 <span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></span>
@@ -393,7 +401,7 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 <button type="button" class="icon-btn" id="btnEliminarSkill" aria-label="Eliminar skill" title="Eliminar">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
-<button type="button" class="icon-btn" id="btnCerrarSkill" aria-label="Volver" title="Volver">×</button>
+<button type="button" class="icon-btn ficha-cerrar-legacy" id="btnCerrarSkill" aria-label="Atrás" title="Atrás" hidden>×</button>
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
@@ -420,13 +428,16 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 </article>
 </dialog>
 <dialog id="dlgCampoFicha" class="dlg-wide ficha-pane" aria-label="Ficha del campo ancla">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasCampo"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
 <div id="campo-ficha-mount"></div>
 </dialog>
 <dialog id="dlgMongoFicha" class="dlg-wide ficha-pane" aria-label="Ficha del campo MongoDB">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasMongo"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
 <div id="mongo-ficha-mount"></div>
 </dialog>
 <dialog id="dlgProyecto" class="dlg-wide ficha-pane" aria-labelledby="proyReaderNombre">
 <article class="reader dlg-reader" id="proyReader">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasProyecto"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
 <div class="reader-top">
 <div class="reader-top-titulo">
 <span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9l-.81-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
@@ -452,7 +463,7 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 <button type="button" class="icon-btn" id="btnEliminarProyecto" aria-label="Eliminar base de datos" title="Eliminar">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
-<button type="button" class="icon-btn" id="btnCerrarProyecto" aria-label="Volver" title="Volver">×</button>
+<button type="button" class="icon-btn ficha-cerrar-legacy" id="btnCerrarProyecto" aria-label="Atrás" title="Atrás" hidden>×</button>
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones de la base de datos">
@@ -844,6 +855,7 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 
 <dialog id="dlgAgenteFicha" class="dlg-wide ficha-pane" aria-labelledby="agenteReaderNombre">
 <article class="reader dlg-reader" id="agenteReader">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasAgente"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
 <div class="reader-top">
 <div class="reader-top-titulo">
 <span class="ficha-titulo-icon agente-ficha-avatar" id="agenteFichaAvatar" aria-hidden="true"></span>
@@ -859,7 +871,7 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 <button type="button" class="icon-btn" id="btnEliminarAgente" aria-label="Eliminar agente" title="Eliminar">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
-<button type="button" class="icon-btn" id="btnCerrarAgente" aria-label="Volver" title="Volver">×</button>
+<button type="button" class="icon-btn ficha-cerrar-legacy" id="btnCerrarAgente" aria-label="Atrás" title="Atrás" hidden>×</button>
 </div>
 </div>
 <div class="ancla-ficha-body">
@@ -875,6 +887,7 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 </dialog>
 <dialog id="dlgFundamento" class="dlg-wide ficha-pane" aria-labelledby="fundReaderNombre">
 <article class="reader dlg-reader" id="fundReader">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasFundamento"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
 <div class="reader-top">
 <div class="reader-top-titulo">
 <span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>
@@ -899,7 +912,7 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 <button type="button" class="icon-btn" id="btnEliminarFundamento" aria-label="Eliminar fundamento" title="Eliminar">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 </button>
-<button type="button" class="icon-btn" id="btnCerrarFundamento" aria-label="Volver" title="Volver">×</button>
+<button type="button" class="icon-btn ficha-cerrar-legacy" id="btnCerrarFundamento" aria-label="Atrás" title="Atrás" hidden>×</button>
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="fundReaderTabs" role="tablist" aria-label="Secciones del fundamento">
@@ -1048,13 +1061,13 @@ dialog.ficha-pane[open] #mongo-ficha-mount{min-height:100%}
 })();
 </script>
 <script src="skills-ui.js?v=20261020y"></script>
-<script src="campos-ancla-ui.js?v=20261022fullpane1"></script>
-<script src="campos-mongodb-ui.js?v=20261022fullpane1"></script>
-<script src="proyectos-ui.js?v=20261022fullpane1"></script>
+<script src="campos-ancla-ui.js?v=20261022atras1"></script>
+<script src="campos-mongodb-ui.js?v=20261022atras1"></script>
+<script src="proyectos-ui.js?v=20261022atras1"></script>
 <script src="agentes-ui.js?v=20261021d"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="catalogo-ui.js?v=20261022fullpane1"></script>
-<script src="ajustes-ui.js?v=20261022fullpane1"></script>
+<script src="catalogo-ui.js?v=20261022atras1"></script>
+<script src="ajustes-ui.js?v=20261022atras1"></script>
 
 </body>
 </html>

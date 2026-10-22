@@ -50,9 +50,13 @@ function openFichaPane(dlg) {
     const other = document.getElementById(id);
     if (other && other.open) other.close();
   });
-  if (!dlg.open) {
+  const wasOpen = !!dlg.open;
+  if (!wasOpen) {
     if (typeof dlg.show === 'function') dlg.show();
     else if (typeof dlg.showModal === 'function') dlg.showModal();
+    try {
+      history.pushState({ fichaPane: dlg.id || true }, '', location.href);
+    } catch (err) {}
   }
   syncFichaPaneClass();
 }
@@ -65,6 +69,29 @@ function cerrarTodasFichasPane() {
   syncFichaPaneClass();
 }
 window.cerrarTodasFichasPane = cerrarTodasFichasPane;
+
+/** Cierra la ficha abierta; si hay entrada de historial, usa atrás del navegador. */
+function atrasDesdeFicha(closeFn) {
+  if (history.state && history.state.fichaPane) {
+    try {
+      history.back();
+      return;
+    } catch (err) {}
+  }
+  if (typeof closeFn === 'function') closeFn();
+}
+
+function cerrarFichasPorPopstate() {
+  let hubo = false;
+  FICHA_PANE_IDS.forEach(function (id) {
+    const d = document.getElementById(id);
+    if (d && d.open) {
+      d.close();
+      hubo = true;
+    }
+  });
+  if (hubo) syncFichaPaneClass();
+}
 
 
 function esHashHex(h) {
@@ -3484,6 +3511,13 @@ function iniciar() {
   if (historialLista) historialLista.addEventListener('click', onClickHistorial);
   const btnCerrarSkill = document.getElementById('btnCerrarSkill');
   if (btnCerrarSkill) btnCerrarSkill.addEventListener('click', cerrarSkillModal);
+  const btnAtrasSkill = document.getElementById('btnAtrasSkill');
+  if (btnAtrasSkill) btnAtrasSkill.addEventListener('click', function () { atrasDesdeFicha(cerrarSkillModal); });
+  const btnAtrasCampo = document.getElementById('btnAtrasCampo');
+  if (btnAtrasCampo) btnAtrasCampo.addEventListener('click', function () { atrasDesdeFicha(cerrarFichaCampo); });
+  const btnAtrasMongo = document.getElementById('btnAtrasMongo');
+  if (btnAtrasMongo) btnAtrasMongo.addEventListener('click', function () { atrasDesdeFicha(cerrarFichaMongo); });
+  window.addEventListener('popstate', cerrarFichasPorPopstate);
   const btnEditarSkill = document.getElementById('btnEditarSkill');
   if (btnEditarSkill) btnEditarSkill.addEventListener('click', function () {
     if (!state.abiertaId) return;
@@ -4638,6 +4672,8 @@ function cargarProyectos() {
 function wireProyectosUi() {
   const btnCerrar = document.getElementById('btnCerrarProyecto');
   if (btnCerrar) btnCerrar.addEventListener('click', cerrarProyectoModal);
+  const btnAtrasProyecto = document.getElementById('btnAtrasProyecto');
+  if (btnAtrasProyecto) btnAtrasProyecto.addEventListener('click', function () { atrasDesdeFicha(cerrarProyectoModal); });
   const btnEditar = document.getElementById('btnEditarProyecto');
   if (btnEditar) btnEditar.addEventListener('click', function () {
     if (!state.proyectos.abiertoId) return;
@@ -5662,6 +5698,8 @@ function cargarAgentes() {
 function wireAgentesUi() {
   const btnCerrar = document.getElementById('btnCerrarAgente');
   if (btnCerrar) btnCerrar.addEventListener('click', cerrarAgenteModal);
+  const btnAtrasAgente = document.getElementById('btnAtrasAgente');
+  if (btnAtrasAgente) btnAtrasAgente.addEventListener('click', function () { atrasDesdeFicha(cerrarAgenteModal); });
   const btnEditarAg = document.getElementById('btnEditarAgente');
   if (btnEditarAg) btnEditarAg.addEventListener('click', function () {
     if (!state.agentes.abiertoId) return;
@@ -6266,6 +6304,8 @@ function cargarFundamentos() {
 function wireFundamentosUi() {
   const btnCerrar = document.getElementById('btnCerrarFundamento');
   if (btnCerrar) btnCerrar.addEventListener('click', cerrarFundamentoModal);
+  const btnAtrasFundamento = document.getElementById('btnAtrasFundamento');
+  if (btnAtrasFundamento) btnAtrasFundamento.addEventListener('click', function () { atrasDesdeFicha(cerrarFundamentoModal); });
   const btnEditar = document.getElementById('btnEditarFundamento');
   if (btnEditar) btnEditar.addEventListener('click', function () {
     if (!state.fundamentos.abiertoId) return;
