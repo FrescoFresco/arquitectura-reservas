@@ -20,7 +20,7 @@ Los JSON de `catalogo/` son semilla/fallback de la UI. **No uses `GITHUB_TOKEN` 
 
 ## Qué puedes modificar (vía API)
 
-Skills, Campos ancla, Campos MongoDB, Esquemas de BD (`/v1/proyectos` + alias `/v1/esquemas`), Fundamentos — cada cambio versionado donde aplica. Eliminar skill limpia asociaciones N:M en esquemas.
+Skills, Campos ancla, Campos MongoDB, Base de datos (`/v1/proyectos` + alias `/v1/esquemas`), Fundamentos — cada cambio versionado donde aplica. Eliminar skill limpia asociaciones N:M en bases de datos.
 
 No hay cola de comentarios / Metricool todavía.
 

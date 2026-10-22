@@ -1,6 +1,6 @@
 {
   "id": "proyectos",
-  "nombre": "Esquemas de BD",
+  "nombre": "Base de datos",
   "proyectos": [
     {
       "id": "reservas",

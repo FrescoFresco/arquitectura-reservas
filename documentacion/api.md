@@ -134,7 +134,7 @@ X-Agente-Clave: inv_…
 | Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
 | Mongo | `GET /v1/mongo` | `GET /v1/mongo/:id` | `POST /v1/mongo` | `PUT /v1/mongo/:id` | `DELETE /v1/mongo/:id` |
-| Esquemas de BD (alias Proyectos) | `GET /v1/proyectos` · `GET /v1/esquemas` | `GET /v1/proyectos/:id` · `/v1/esquemas/:id` | `POST` igual | `PUT` igual | `DELETE` igual |
+| Base de datos (API: proyectos / alias esquemas) | `GET /v1/proyectos` · `GET /v1/esquemas` | `GET /v1/proyectos/:id` · `/v1/esquemas/:id` | `POST` igual | `PUT` igual | `DELETE` igual |
 | Fundamentos | `GET /v1/fundamentos` | `GET /v1/fundamentos/:id` | `POST /v1/fundamentos` | `PUT /v1/fundamentos/:id` | `DELETE /v1/fundamentos/:id` |
 
 Prefijo completo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
@@ -157,9 +157,9 @@ Content-Type: application/json
 `PUT /v1/skills/:id` crea **versión nueva** (no pisa el markdown anterior).  
 `DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`).
 
-### Esquemas de BD (= softwares; rutas `/v1/proyectos` y alias `/v1/esquemas`)
+### Base de datos (= softwares; rutas `/v1/proyectos` y alias `/v1/esquemas`)
 
-En la UI el panel se llama **Esquemas de BD**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico. Un esquema es un software (`reservas`, `llamadas`, …), no un negocio. Campos:
+En la UI el panel se llama **Base de datos**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico (no se renombran las rutas). Cada entrada es un software (`reservas`, `llamadas`, …), no un negocio. Campos:
 
 ```json
 {
@@ -186,20 +186,20 @@ GET  {API_BASE}/v1/esquemas/:id/diagrama
 POST {API_BASE}/v1/proyectos/:id/crear-bd
 POST {API_BASE}/v1/esquemas/:id/crear-bd
 Authorization: Bearer inv_…
-→ crea DB/colecciones/índices/$jsonSchema desde campos Mongo del esquema
+→ crea DB/colecciones/índices/$jsonSchema desde campos Mongo de la base de datos
   Sin URI → { mock:true, dryRun:true, plan, source hint } (URI en Ajustes → Conexiones; default db del schema, p. ej. software_reservas)
 ```
 
-### Campos MongoDB ↔ esquema
+### Campos MongoDB ↔ base de datos
 
-Campo obligatorio `"proyecto": "reservas"` (id del esquema). `baseDatos` se toma del esquema (no a mano). `coleccion` debe estar en `colecciones`. Tipos `object` / `array` admiten `"hijos": […]`; `enum` opcional (p. ej. resultado de llamada).
+Campo obligatorio `"proyecto": "reservas"` (id de la base de datos). `baseDatos` se toma de esa entrada (no a mano). `coleccion` debe estar en `colecciones`. Tipos `object` / `array` admiten `"hijos": […]`; `enum` opcional (p. ej. resultado de llamada).
 
 ```
 GET {API_BASE}/v1/mongo?proyecto=reservas
 GET {API_BASE}/v1/mongo?proyecto=llamadas
 ```
 
-### Agentes — permisos por esquema
+### Agentes — permisos por base de datos
 
 ```json
 { "proyectos": ["reservas"], "lee": ["_negocio.telefono_"], "escribe": ["_ejecucion.respuesta.estado_"] }
@@ -207,9 +207,9 @@ GET {API_BASE}/v1/mongo?proyecto=llamadas
 
 `PUT /v1/agentes/:id` acepta `proyectos`, `lee`, `escribe`.
 
-### Esquema ↔ skills (N:M)
+### Base de datos ↔ skills (N:M)
 
-En el cuerpo: `"skills": ["mapear-recorrido", "generar-script"]`. Borrar un esquema no borra las skills.
+En el cuerpo: `"skills": ["mapear-recorrido", "generar-script"]`. Borrar una base de datos no borra las skills.
 
 ### Ancla ↔ Mongo (0..1)
 

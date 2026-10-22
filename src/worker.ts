@@ -460,7 +460,7 @@ app.get('/v1/proyectos', async (c) => {
     >;
     return mapProyectoRow(row, skillsBy.get(id) || [], versBy.get(id) || []);
   });
-  return c.json({ ok: true, id: 'proyectos', nombre: 'Esquemas de BD', proyectos: out, alias: 'esquemas' });
+  return c.json({ ok: true, id: 'proyectos', nombre: 'Base de datos', proyectos: out, alias: 'esquemas' });
 });
 
 app.get('/v1/proyectos/:id/diagrama', async (c) => {
@@ -1451,7 +1451,7 @@ app.delete('/v1/proyectos/:id', async (c) => {
     return jsonError(
       c,
       409,
-      'Esquema legado (negocio). Tras migrar a negocios, borra con { "confirmLegacy": true }.'
+      'Entrada legado (negocio). Tras migrar a negocios, borra con { "confirmLegacy": true }.'
     );
   }
   await c.env.DB.prepare('DELETE FROM proyecto_skills WHERE proyecto_id = ?').bind(id).run();
