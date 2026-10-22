@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { cargar, comprobar, patron } from '../src/catalogo.js';
-import { validador, rellenarPlantilla, documentacion } from '../src/generador.js';
+import { validador, rellenarPlantilla, documentacion, diagrama, rutaMongo } from '../src/generador.js';
 
 const def = (id, tipo, nivel, extra = {}) => ({
   id, tipo, nivel, descripcion: id, escribe: ['mapear-recorrido'], lee: ['generar-script'], sensible: false, estado: 'activo', ...extra,
@@ -90,4 +90,22 @@ test('documentacion lista todos los campos con su estado', () => {
   const d = documentacion(mini);
   assert.match(d, /`version\.viejo`.*obsoleto → `version\.script`/);
   assert.match(d, /colección `versiones`/);
+});
+
+test('diagrama: entidades, campos con tipo y nivel, y relaciones por los id_*', () => {
+  const d = diagrama(cargar());
+  assert.match(d, /^erDiagram\n/);
+  assert.match(d, / {2}versiones \{\n {4}id _id PK "ver-…"/);
+  assert.match(d, / {4}texto recorrido-campos\[\]-nombre "blindado"/);
+  assert.match(d, / {4}texto respuesta-alternativas\[\] "estable"/);
+  assert.ok(d.includes('procesos }o--|| negocios : "id_negocio"'), 'blindado: siempre hay negocio');
+  assert.ok(d.includes('procesos }o--o| versiones : "id_version_activa"'), 'estable: puede no haber versión activa');
+  assert.ok(d.includes('ejecuciones }o--|| versiones : "id_version"'));
+  const nombres = d.split('\n').filter((l) => /^ {4}\S/.test(l)).map((l) => l.trim().split(' ')[1]);
+  assert.ok(nombres.every((n) => !n.includes('.')), 'Mermaid no admite puntos en los nombres');
+});
+
+test('rutaMongo quita la colección y las N', () => {
+  assert.equal(rutaMongo('version.recorrido.campos.N.nombre'), 'recorrido.campos.nombre');
+  assert.equal(rutaMongo('negocio.zona_horaria'), 'zona_horaria');
 });

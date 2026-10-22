@@ -79,6 +79,41 @@ export function documentacion(defs) {
   return partes.join('\n') + '\n';
 }
 
+// version.recorrido.campos.N.nombre -> recorrido.campos.nombre (la ruta que se escribe en una consulta de MongoDB).
+export const rutaMongo = (id) => id.split('.').slice(1).filter((s) => s !== 'N').join('.');
+
+// Diagrama Mermaid erDiagram: una entidad por colección, cada campo con tipo y nivel, y relaciones por los campos id_*.
+// Mermaid no admite puntos en los nombres de atributo: recorrido.campos.N.nombre se escribe recorrido-campos[]-nombre.
+export function diagrama(defs) {
+  const lineas = ['erDiagram'];
+  const relaciones = [];
+  for (const [raiz, c] of Object.entries(COLECCIONES)) {
+    lineas.push(`  ${c.nombre} {`, `    id _id PK "${c.prefijo}-…"`);
+    for (const d of defs.filter((d) => d.id.startsWith(raiz + '.') && d.estado !== 'propuesto')) {
+      const nombre = d.id.split('.').slice(1).join('-').replace(/-N(?=-|$)/g, '[]');
+      const destino = d.tipo === 'id' && Object.keys(COLECCIONES).find((r) => new RegExp(`(^|\\.)id_${r}(_|$)`).test(d.id));
+      lineas.push(`    ${d.tipo} ${nombre}${destino ? ' FK' : ''} "${d.nivel}${d.estado === 'obsoleto' ? ', obsoleto' : ''}"`);
+      if (destino) relaciones.push(`  ${c.nombre} }o--${d.nivel === 'blindado' ? '||' : 'o|'} ${COLECCIONES[destino].nombre} : "${d.id.split('.').pop()}"`);
+    }
+    lineas.push('  }');
+  }
+  return [...lineas, ...relaciones].join('\n');
+}
+
+export const esquemaMd = (defs) =>
+  [
+    '# Esquema de la base de datos',
+    '',
+    '> Generado por `npm run esquema` desde `catalogo/`. No lo edites a mano.',
+    '',
+    'Una caja por colección. Cada línea es un campo: tipo, nombre y nivel. En los nombres, `-` separa niveles del documento y `[]` marca una lista (`recorrido-campos[]-nombre` es `recorrido.campos.N.nombre`). Las líneas entre cajas salen de los campos `id_*`: `||` si el campo es blindado (siempre está) y `o|` si es estable (puede faltar).',
+    '',
+    '```mermaid',
+    diagrama(defs),
+    '```',
+    '',
+  ].join('\n');
+
 async function aplicarValidadores(defs) {
   const { conectar } = await import('./db.js');
   const { cliente, db } = await conectar();
@@ -95,7 +130,11 @@ async function aplicarValidadores(defs) {
   }
 }
 
-if (import.meta.main) {
+if (import.meta.main && process.argv[2] === 'esquema') {
+  mkdirSync(new URL('../docs/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('../docs/esquema.md', import.meta.url), esquemaMd(cargar()));
+  console.log('Esquema: docs/esquema.md');
+} else if (import.meta.main) {
   const defs = cargar();
   console.log(`Catálogo: ${defs.length} campos, sin errores.`);
   const dir = new URL('../plantillas/', import.meta.url);
@@ -106,6 +145,7 @@ if (import.meta.main) {
   }
   mkdirSync(new URL('../docs/', import.meta.url), { recursive: true });
   writeFileSync(new URL('../docs/catalogo.md', import.meta.url), documentacion(defs));
-  console.log('  documentación: docs/catalogo.md');
+  writeFileSync(new URL('../docs/esquema.md', import.meta.url), esquemaMd(defs));
+  console.log('  documentación: docs/catalogo.md y docs/esquema.md');
   await aplicarValidadores(defs);
 }

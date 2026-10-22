@@ -8,6 +8,7 @@
   },
   "scripts": {
     "generar": "node --env-file-if-exists=.env src/generador.js",
+    "esquema": "node src/generador.js esquema",
     "semilla": "node --env-file-if-exists=.env src/semilla.js",
     "cargar-demo": "node --env-file-if-exists=.env src/cargar-demo.js",
     "gestor": "node --env-file-if-exists=.env src/gestor.js",
