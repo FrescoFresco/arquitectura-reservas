@@ -1,19 +1,15 @@
 -- Skills I/O: entradas (lee) / salidas (escribe). `anclas` en API = unión.
 -- Reemplaza skill_anclas (skill_id, ancla) por (skill_id, ancla, direccion).
-
-PRAGMA foreign_keys = OFF;
+-- Sin FK en la tabla temporal (D1 no respeta PRAGMA foreign_keys=OFF de forma fiable).
 
 CREATE TABLE skill_anclas_io (
   skill_id TEXT NOT NULL,
   ancla TEXT NOT NULL,
   direccion TEXT NOT NULL CHECK (direccion IN ('entrada', 'salida')),
-  PRIMARY KEY (skill_id, ancla, direccion),
-  FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
+  PRIMARY KEY (skill_id, ancla, direccion)
 );
 
--- Migación por skill (reglas de producto). Lo no clasificado → salida (legado = lo que la skill produce).
-
--- descubrir-negocio: lee URL semilla; escribe identidad / punto A (url también como salida confirmada)
+-- descubrir-negocio
 INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
 SELECT skill_id, ancla, 'entrada' FROM skill_anclas
 WHERE skill_id = 'descubrir-negocio' AND ancla = '_negocio.url_';
@@ -22,7 +18,7 @@ INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
 SELECT skill_id, ancla, 'salida' FROM skill_anclas
 WHERE skill_id = 'descubrir-negocio';
 
--- mapear-recorrido: lee url / url_inicio; escribe recorrido.*
+-- mapear-recorrido
 INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
 SELECT skill_id, ancla, 'entrada' FROM skill_anclas
 WHERE skill_id = 'mapear-recorrido'
@@ -33,7 +29,7 @@ SELECT skill_id, ancla, 'salida' FROM skill_anclas
 WHERE skill_id = 'mapear-recorrido'
   AND ancla NOT IN ('_negocio.url_', '_proceso.url_inicio_', '_negocio.nombre_', '_negocio.zona_horaria_');
 
--- generar-script: lee recorrido / url_inicio; escribe script + función
+-- generar-script
 INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
 SELECT skill_id, ancla, 'entrada' FROM skill_anclas
 WHERE skill_id = 'generar-script'
@@ -48,7 +44,7 @@ WHERE skill_id = 'generar-script'
   AND ancla NOT LIKE '_version.recorrido.%'
   AND ancla != '_proceso.url_inicio_';
 
--- diagnosticar-alerta: lee ejecución + url; escribe errores / llega_a_b
+-- diagnosticar-alerta
 INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
 SELECT skill_id, ancla, 'entrada' FROM skill_anclas
 WHERE skill_id = 'diagnosticar-alerta'
@@ -63,7 +59,7 @@ WHERE skill_id = 'diagnosticar-alerta'
   AND ancla NOT LIKE '_ejecucion.%'
   AND ancla != '_proceso.url_inicio_';
 
--- Resto de skills: todo como salida (compat)
+-- Resto
 INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
 SELECT sa.skill_id, sa.ancla, 'salida'
 FROM skill_anclas sa
@@ -72,28 +68,73 @@ WHERE NOT EXISTS (
   WHERE io.skill_id = sa.skill_id AND io.ancla = sa.ancla
 );
 
+-- Sustituir literales N: insertar canónicos, luego borrar variantes con N
+INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
+SELECT DISTINCT skill_id, '_version.recorrido.campos_', direccion
+FROM skill_anclas_io
+WHERE ancla LIKE '_version.recorrido.campos.N%';
+
+INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
+SELECT DISTINCT skill_id, '_ejecucion.traza_', direccion
+FROM skill_anclas_io
+WHERE ancla = '_ejecucion.traza.N.mensaje_';
+
+INSERT OR IGNORE INTO skill_anclas_io (skill_id, ancla, direccion)
+SELECT DISTINCT skill_id, '_corrida.errores_', direccion
+FROM skill_anclas_io
+WHERE ancla = '_corrida.errores.N_';
+
+DELETE FROM skill_anclas_io
+WHERE ancla LIKE '_version.recorrido.campos.N%'
+   OR ancla = '_ejecucion.traza.N.mensaje_'
+   OR ancla = '_corrida.errores.N_';
+
 DROP TABLE skill_anclas;
 ALTER TABLE skill_anclas_io RENAME TO skill_anclas;
 CREATE INDEX IF NOT EXISTS idx_skill_anclas_ancla ON skill_anclas(ancla);
 CREATE INDEX IF NOT EXISTS idx_skill_anclas_dir ON skill_anclas(skill_id, direccion);
 
--- Quitar literales N de anclas de proyección: canónico = array sin .N.
-UPDATE ancla_skills SET ancla_id = 'version.recorrido.campos'
-WHERE ancla_id = 'version.recorrido.campos.N';
-UPDATE ancla_valores_negocio SET ancla_id = 'version.recorrido.campos'
-WHERE ancla_id = 'version.recorrido.campos.N';
-UPDATE anclas
-SET id = 'version.recorrido.campos',
-    ancla = '_version.recorrido.campos_',
-    etiqueta = 'Campos del recorrido (array)',
-    clave_mongo = 'recorrido.campos',
-    formato = 'proyeccion-array',
-    descripcion = 'Lista canónica de campos del formulario (array BSON). Elementos: nombre, selector, clase. Sin N literal en la ancla.',
-    hash = 'skill-io-recorrido-campos-array',
-    updated_at = datetime('now')
+-- Renombrar ancla array sin tocar PK de hijos primero: insertar nueva, migrar FKs, borrar vieja
+INSERT OR IGNORE INTO anclas (
+  id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato,
+  descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at
+)
+SELECT
+  'version.recorrido.campos',
+  '_version.recorrido.campos_',
+  'Campos del recorrido (array)',
+  'recorrido.campos',
+  coleccion,
+  base_datos,
+  'array',
+  obligatorio,
+  'proyeccion-array',
+  'Lista canónica de campos del formulario (array BSON). Elementos: nombre, selector, clase. Sin N literal en la ancla.',
+  ejemplo,
+  'skill-io-recorrido-campos-array',
+  aliases,
+  observaciones,
+  valor_actual,
+  sensible,
+  created_at,
+  datetime('now')
+FROM anclas
 WHERE id = 'version.recorrido.campos.N' OR ancla = '_version.recorrido.campos.N_';
 
--- Plantillas hijas con N dejan de ser anclas de catálogo (viven en proyeccionElemento del campo Mongo).
+INSERT OR IGNORE INTO ancla_skills (ancla_id, skill_id)
+SELECT 'version.recorrido.campos', skill_id FROM ancla_skills
+WHERE ancla_id = 'version.recorrido.campos.N';
+
+INSERT OR IGNORE INTO ancla_valores_negocio (negocio_id, ancla_id, observaciones, valor_actual, updated_at)
+SELECT negocio_id, 'version.recorrido.campos', observaciones, valor_actual, updated_at
+FROM ancla_valores_negocio
+WHERE ancla_id = 'version.recorrido.campos.N';
+
+DELETE FROM ancla_skills WHERE ancla_id = 'version.recorrido.campos.N';
+DELETE FROM ancla_valores_negocio WHERE ancla_id = 'version.recorrido.campos.N';
+DELETE FROM anclas WHERE id = 'version.recorrido.campos.N' OR ancla = '_version.recorrido.campos.N_';
+
+-- Plantillas hijas con N fuera del catálogo
 DELETE FROM ancla_skills WHERE ancla_id IN (
   'version.recorrido.campos.N.nombre',
   'version.recorrido.campos.N.selector',
@@ -110,44 +151,20 @@ DELETE FROM anclas WHERE id IN (
   'version.recorrido.campos.N.clase'
 );
 
--- skill_anclas: sustituir anclas N.* / .N_ por el array canónico
-UPDATE skill_anclas
-SET ancla = '_version.recorrido.campos_'
-WHERE ancla IN (
-  '_version.recorrido.campos.N_',
-  '_version.recorrido.campos.N.nombre_',
-  '_version.recorrido.campos.N.selector_',
-  '_version.recorrido.campos.N.clase_'
-);
-
--- Dedup tras el UPDATE (mismo skill+ancla+direccion)
-DELETE FROM skill_anclas
-WHERE rowid NOT IN (
-  SELECT MIN(rowid) FROM skill_anclas GROUP BY skill_id, ancla, direccion
-);
-
 UPDATE campos_mongo
 SET ancla = '_version.recorrido.campos_',
     proyeccion_elemento = '{"nombre":"nombre","selector":"selector","clase":"clase"}',
-    descripcion = 'Lista canónica de campos del formulario en la versión del recorrido (array). Elementos {nombre, selector, clase}. clase ∈ normal|texto_libre|identificador|sensible|consentimiento.',
+    descripcion = 'Lista canónica de campos del formulario en la versión del recorrido (array). Elementos {nombre, selector, clase}.',
     hash = 'skill-io-versiones-recorrido-campos',
     updated_at = datetime('now')
 WHERE id = 'versiones-recorrido-campos';
 
--- También limpiar traza/errores con N literal si existen como anclas huérfanas en skills
-UPDATE skill_anclas SET ancla = '_ejecucion.traza_'
-WHERE ancla = '_ejecucion.traza.N.mensaje_';
-UPDATE skill_anclas SET ancla = '_corrida.errores_'
-WHERE ancla = '_corrida.errores.N_';
-
--- Enum llamadas.resultado (idempotente)
 UPDATE campos_mongo
 SET enum_json = '["contesto","no_contesto","cita"]',
     descripcion = 'Resultado: contesto | no_contesto | cita.',
     updated_at = datetime('now')
 WHERE id = 'llamadas-resultado' OR (coleccion = 'llamadas' AND clave = 'resultado');
 
--- Campos ancla para los 5 campos de software_llamadas (clientes + llamadas)
 INSERT OR IGNORE INTO anclas (
   id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato,
   descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at
@@ -189,14 +206,12 @@ WHERE id = 'llamadas-fecha';
 UPDATE campos_mongo SET ancla = '_llamada.resultado_', updated_at = datetime('now')
 WHERE id = 'llamadas-resultado';
 
--- Asegurar las 4 skills en BD reservas
 INSERT OR IGNORE INTO proyecto_skills (proyecto_id, skill_id) VALUES
   ('reservas', 'descubrir-negocio'),
   ('reservas', 'mapear-recorrido'),
   ('reservas', 'generar-script'),
   ('reservas', 'diagnosticar-alerta');
 
--- Anclas auxiliares sin N (traza/errores/motivo/parametros)
 INSERT OR IGNORE INTO anclas (
   id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato,
   descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at
@@ -221,6 +236,3 @@ INSERT OR IGNORE INTO anclas (
   'versiones', 'software_reservas', 'object', 0, 'json-schema', 'JSON Schema de parámetros.',
   '{"type":"object"}', 'skill-io-funcion-parametros-v1', '[]', '[]', '', 0, datetime('now'), datetime('now')
 );
-
-PRAGMA foreign_keys = ON;
-
