@@ -706,59 +706,59 @@
   }
 
   function pintarSystemPromptPicker(containerId, selectedId) {
-    var box = document.getElementById(containerId);
-    if (!box) return;
-    box.replaceChildren();
     refrescar();
     var prompts = spState.lista.slice().sort(function (a, b) {
       return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
     });
-    var none = document.createElement('label');
-    var noneInput = document.createElement('input');
-    noneInput.type = 'radio';
-    noneInput.name = 'systemPrompt';
-    noneInput.value = '';
-    noneInput.checked = !selectedId;
-    var noneMeta = document.createElement('span');
-    noneMeta.className = 'proy-skill-meta';
-    noneMeta.appendChild(document.createTextNode('Ninguno'));
-    none.appendChild(noneInput);
-    none.appendChild(noneMeta);
-    box.appendChild(none);
-    if (!prompts.length) {
-      var p = document.createElement('p');
-      p.className = 'ancla-ficha-vacio';
-      p.textContent = 'No hay system prompts en el catálogo.';
-      box.appendChild(p);
+    var items = [
+      {
+        icono: 'system-prompt',
+        titulo: 'Ninguno',
+        secundario: 'Sin system prompt',
+        value: '',
+        title: 'Ningún system prompt',
+        ariaLabel: 'Sin system prompt'
+      }
+    ];
+    prompts.forEach(function (item) {
+      var actual = versionActual(item);
+      var partes = [];
+      if (typeof formatVersion === 'function') {
+        partes.push(formatVersion(actual.numero, actual.fecha));
+      } else {
+        partes.push('v' + (actual.numero || 1));
+      }
+      var nSkills = Array.isArray(item.skills) ? item.skills.length : 0;
+      if (nSkills) partes.push(nSkills + (nSkills === 1 ? ' skill' : ' skills'));
+      if (actual.origen === 'local') partes.push('local');
+      items.push({
+        icono: 'system-prompt',
+        titulo: item.nombre || item.id,
+        secundario: partes.join(' · '),
+        value: item.id,
+        title: item.descripcion || item.nombre || item.id,
+        ariaLabel: 'Seleccionar system prompt ' + (item.nombre || item.id)
+      });
+    });
+    if (typeof pintarCatalogoPicker === 'function') {
+      pintarCatalogoPicker(containerId, items, {
+        mode: 'single',
+        selectedId: selectedId || '',
+        emptyMsg: prompts.length ? '' : null,
+        ariaLabel: 'System prompts del catálogo'
+      });
       return;
     }
-    prompts.forEach(function (item) {
-      var label = document.createElement('label');
-      var input = document.createElement('input');
-      input.type = 'radio';
-      input.name = 'systemPrompt';
-      input.value = item.id;
-      input.checked = selectedId === item.id;
-      var meta = document.createElement('span');
-      meta.className = 'proy-skill-meta';
-      meta.appendChild(document.createTextNode(item.nombre || item.id));
-      var idSpan = document.createElement('span');
-      idSpan.className = 'proy-skill-id';
-      idSpan.textContent = item.id;
-      meta.appendChild(idSpan);
-      label.appendChild(input);
-      label.appendChild(meta);
-      box.appendChild(label);
-    });
+    // Fallback si catalogo-ui no expuso el helper
+    var box = document.getElementById(containerId);
+    if (!box) return;
+    box.replaceChildren();
+    box.appendChild(document.createTextNode('No se pudo cargar el selector.'));
   }
 
   function systemPromptDesdePicker(containerId) {
-    var box = document.getElementById(containerId);
-    if (!box) return null;
-    var checked = box.querySelector('input[type="radio"][name="systemPrompt"]:checked');
-    if (!checked) return null;
-    var v = String(checked.value || '').trim();
-    return v || null;
+    if (typeof valorPickerUnico === 'function') return valorPickerUnico(containerId);
+    return null;
   }
 
   function abrirDialogoEditarSkillSystemPrompt() {

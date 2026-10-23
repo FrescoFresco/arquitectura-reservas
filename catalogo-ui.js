@@ -5941,42 +5941,174 @@ function abrirProyecto(id, numero) {
   pintarProyectos();
 }
 
-function pintarSkillsPicker(containerId, selectedIds) {
+/** Lucide external-link para filas de catálogo (mismo trazo que SkillsUI / SystemPromptsUI). */
+function svgCatalogoEnlace() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('class', 'catalogo-fila-enlace-svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.append(svgPath('M15 3h6v6'), svgPath('M10 14L21 3'), svgPath('M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'));
+  return svg;
+}
+
+/**
+ * Fila seleccionable con el mismo aspecto catalogo-fila que Catálogos.
+ * opts: { icono, titulo, secundario, value, selected, mode:'multi'|'single', title, ariaLabel }
+ */
+function filaSeleccionCatalogo(opts) {
+  opts = opts || {};
+  const mode = opts.mode === 'single' ? 'single' : 'multi';
+  const selected = !!opts.selected;
+  const btn = el('button', 'catalogo-fila' + (selected ? ' is-selected' : ''), null);
+  btn.type = 'button';
+  btn.setAttribute('role', mode === 'single' ? 'radio' : 'checkbox');
+  btn.setAttribute(mode === 'single' ? 'aria-checked' : 'aria-pressed', selected ? 'true' : 'false');
+  btn.dataset.pickerValue = opts.value == null ? '' : String(opts.value);
+  btn.title = opts.title || opts.titulo || '';
+  if (opts.ariaLabel) btn.setAttribute('aria-label', opts.ariaLabel);
+
+  const icon = el('span', 'catalogo-fila-icon', null);
+  icon.setAttribute('aria-hidden', 'true');
+  if (opts.icono && typeof svgPestanaCatalogo === 'function') {
+    const svg = svgPestanaCatalogo(opts.icono);
+    svg.setAttribute('class', 'catalogo-fila-svg');
+    icon.append(svg);
+  }
+  const main = el('span', 'catalogo-fila-main', null);
+  main.append(el('span', 'catalogo-fila-titulo', opts.titulo || ''));
+  if (opts.secundario != null && opts.secundario !== '') {
+    main.append(el('span', 'catalogo-fila-codigo', opts.secundario));
+  }
+  const enlace = el('span', 'catalogo-fila-enlace', null);
+  enlace.setAttribute('aria-hidden', 'true');
+  enlace.append(svgCatalogoEnlace());
+  btn.append(icon, main, enlace);
+
+  btn.addEventListener('click', function () {
+    const box = btn.parentElement;
+    if (!box) return;
+    if (mode === 'single') {
+      Array.from(box.querySelectorAll('.catalogo-fila[role="radio"]')).forEach(function (peer) {
+        const on = peer === btn;
+        peer.classList.toggle('is-selected', on);
+        peer.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+    } else {
+      const next = btn.getAttribute('aria-pressed') !== 'true';
+      btn.classList.toggle('is-selected', next);
+      btn.setAttribute('aria-pressed', next ? 'true' : 'false');
+    }
+  });
+  return btn;
+}
+
+function prepararPickerBox(box) {
+  if (!box) return;
+  box.classList.add('catalogo-lista', 'catalogo-picker');
+  box.replaceChildren();
+}
+
+/** Picker multi/single con filas catalogo-fila. items: { icono, titulo, secundario, value, title, ariaLabel }[] */
+function pintarCatalogoPicker(containerId, items, opts) {
+  opts = opts || {};
   const box = document.getElementById(containerId);
   if (!box) return;
-  box.replaceChildren();
-  const selected = new Set((selectedIds || []).map(function (s) { return String(s).toLowerCase(); }));
+  prepararPickerBox(box);
+  const mode = opts.mode === 'single' ? 'single' : 'multi';
+  box.setAttribute('role', mode === 'single' ? 'radiogroup' : 'group');
+  if (opts.ariaLabel) box.setAttribute('aria-label', opts.ariaLabel);
+
+  let selectedSet = null;
+  let selectedOne = null;
+  if (mode === 'single') {
+    selectedOne = opts.selectedId == null ? null : String(opts.selectedId);
+  } else {
+    selectedSet = new Set((opts.selectedIds || []).map(function (s) { return String(s).toLowerCase(); }));
+  }
+
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length && opts.emptyMsg) {
+    box.classList.remove('catalogo-lista');
+    box.append(el('p', 'ancla-ficha-vacio', opts.emptyMsg));
+    return;
+  }
+  list.forEach(function (item) {
+    const value = item.value == null ? '' : String(item.value);
+    const selected = mode === 'single'
+      ? (selectedOne == null ? value === '' : value === selectedOne)
+      : selectedSet.has(value.toLowerCase());
+    box.append(filaSeleccionCatalogo({
+      mode: mode,
+      icono: item.icono,
+      titulo: item.titulo,
+      secundario: item.secundario,
+      value: value,
+      selected: selected,
+      title: item.title,
+      ariaLabel: item.ariaLabel
+    }));
+  });
+}
+
+function valoresPickerSeleccionados(containerId) {
+  const box = document.getElementById(containerId);
+  if (!box) return [];
+  return Array.from(box.querySelectorAll('.catalogo-fila[aria-pressed="true"]')).map(function (node) {
+    return node.dataset.pickerValue || '';
+  }).filter(Boolean);
+}
+
+function valorPickerUnico(containerId) {
+  const box = document.getElementById(containerId);
+  if (!box) return null;
+  const checked = box.querySelector('.catalogo-fila[role="radio"][aria-checked="true"]');
+  if (!checked) return null;
+  const v = String(checked.dataset.pickerValue || '').trim();
+  return v || null;
+}
+
+function pintarSkillsPicker(containerId, selectedIds) {
   refrescar();
   const skills = state.instrucciones.slice().sort(function (a, b) {
     return a.nombre.localeCompare(b.nombre, 'es');
   });
-  if (!skills.length) {
-    box.append(el('p', 'ancla-ficha-vacio', 'No hay skills en el catálogo.'));
-    return;
-  }
-  skills.forEach(function (ins) {
-    const label = document.createElement('label');
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.name = 'skill';
-    input.value = ins.id;
-    input.checked = selected.has(ins.id.toLowerCase());
-    const meta = el('span', 'proy-skill-meta', null);
-    meta.append(el('span', null, ins.nombre));
-    meta.append(el('span', 'proy-skill-id', ins.id));
-    label.append(input);
-    label.append(meta);
-    box.append(label);
+  const items = skills.map(function (ins) {
+    const actual = versionActual(ins);
+    let secundario = formatVersion(actual.numero, actual.fecha);
+    if (actual.origen === 'local') secundario += ' · local';
+    return {
+      icono: 'skills',
+      titulo: ins.nombre,
+      secundario: secundario,
+      value: ins.id,
+      title: ins.descripcion || ins.nombre,
+      ariaLabel: 'Seleccionar skill ' + ins.nombre
+    };
+  });
+  pintarCatalogoPicker(containerId, items, {
+    mode: 'multi',
+    selectedIds: selectedIds || [],
+    emptyMsg: 'No hay skills en el catálogo.',
+    ariaLabel: 'Skills del catálogo'
   });
 }
 
 function skillsDesdePicker(containerId) {
-  const box = document.getElementById(containerId);
-  if (!box) return [];
-  return Array.from(box.querySelectorAll('input[type="checkbox"][name="skill"]:checked')).map(function (el) {
-    return el.value;
-  });
+  return valoresPickerSeleccionados(containerId);
 }
+
+window.filaSeleccionCatalogo = filaSeleccionCatalogo;
+window.pintarCatalogoPicker = pintarCatalogoPicker;
+window.valoresPickerSeleccionados = valoresPickerSeleccionados;
+window.valorPickerUnico = valorPickerUnico;
+window.pintarSkillsPicker = pintarSkillsPicker;
+window.skillsDesdePicker = skillsDesdePicker;
 
 function textoVersionProyectoActual(v) {
   if (!v) return Promise.resolve('');
