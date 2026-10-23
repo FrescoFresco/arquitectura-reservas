@@ -77,7 +77,13 @@
       'aria-label': 'Ver base de datos ' + proy.nombre,
       onClick: function () { props.onAbrir(proy.id); }
     },
-      e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoProyecto)),
+      e('span', {
+        className: 'catalogo-fila-icon',
+        'aria-hidden': 'true',
+        style: (typeof window !== 'undefined' && window.ColorEntidad)
+          ? window.ColorEntidad.reactStyle(proy.color)
+          : undefined
+      }, e(IconoProyecto)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, proy.nombre),
         e('span', { className: 'catalogo-fila-codigo' }, secundario)
@@ -167,7 +173,13 @@
       secundario += (desc ? ' · ' : '') + n + (n === 1 ? ' campo' : ' campos');
     }
     var kids = [
-      e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoColeccion)),
+      e('span', {
+        className: 'catalogo-fila-icon',
+        'aria-hidden': 'true',
+        style: (typeof window !== 'undefined' && window.ColorEntidad)
+          ? window.ColorEntidad.reactStyle(col.color)
+          : undefined
+      }, e(IconoColeccion)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, id),
         e('span', { className: 'catalogo-fila-codigo' }, secundario)

@@ -11,6 +11,7 @@ const out = join(root, 'dist-ui');
 
 const files = [
   'index.html',
+  'color-entidad-ui.js',
   'ajustes-ui.js',
   'agentes-ui.js',
   'campos-ancla-ui.js',

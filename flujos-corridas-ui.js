@@ -31,21 +31,6 @@
     flujoCorridasToken: 0
   };
 
-  /** Hook color-por-entidad: tinte del tile si la API ya envía `color` (PR paralelo). */
-  function aplicarColorTile(iconEl, color) {
-    if (!iconEl) return;
-    var c = String(color || '').trim();
-    if (!c) {
-      iconEl.style.removeProperty('--entity-color');
-      iconEl.style.removeProperty('background');
-      iconEl.style.removeProperty('color');
-      return;
-    }
-    iconEl.style.setProperty('--entity-color', c);
-    iconEl.style.background = 'color-mix(in srgb, ' + c + ' 18%, #fff)';
-    iconEl.style.color = c;
-  }
-
   function apiBase() {
     return typeof window.apiBaseUrl === 'function'
       ? window.apiBaseUrl()
@@ -143,6 +128,7 @@
     var icon = document.createElement('span');
     icon.className = 'catalogo-fila-icon';
     icon.setAttribute('aria-hidden', 'true');
+    if (window.ColorEntidad) window.ColorEntidad.applyToEl(icon, f.color);
     if (typeof window.svgPestanaCatalogo === 'function') {
       var svg = window.svgPestanaCatalogo('flujo');
       if (svg) {
@@ -151,7 +137,6 @@
         icon.append(svg);
       }
     }
-    aplicarColorTile(icon, f.color);
     var main = document.createElement('span');
     main.className = 'catalogo-fila-main';
     var tit = document.createElement('span');
@@ -356,8 +341,6 @@
     var ver = document.getElementById('flujoReaderVersion');
     if (nombre) nombre.textContent = f.nombre || f.id;
     if (ver) ver.textContent = formatVersionLabel(f.version, null);
-    var iconWrap = document.querySelector('#flujoReader .ficha-titulo-icon');
-    if (iconWrap) aplicarColorTile(iconWrap, f.color);
     var idEl = document.getElementById('flujoReaderId');
     var proyEl = document.getElementById('flujoReaderProyecto');
     var descEl = document.getElementById('flujoReaderDesc');
@@ -387,6 +370,28 @@
     if (onVer) pintarFlujoVersionesTab();
     var onCor = document.querySelector('#flujoReaderTabs [data-flujo-tab="corridas"].is-on');
     if (onCor) cargarFlujoCorridas();
+    var dlg = document.getElementById('dlgFlujo');
+    if (dlg && typeof window.cablearColorFicha === 'function') {
+      window.cablearColorFicha(dlg, {
+        kind: 'flujo',
+        id: f.id,
+        iconKind: 'flujo',
+        getColor: function () { return f.color; },
+        getUsados: function () {
+          return typeof window.coloresUsadosCatalogo === 'function'
+            ? window.coloresUsadosCatalogo('flujo', f.id)
+            : [];
+        },
+        onSaved: function (hex) {
+          f.color = hex;
+          if (st.flujoAbierto) st.flujoAbierto.color = hex;
+          st.flujos.forEach(function (x) { if (x.id === f.id) x.color = hex; });
+          st.catalogFlujos.forEach(function (x) { if (x.id === f.id) x.color = hex; });
+          pintarListaFlujosProyecto();
+          pintarListaFlujosCatalogo();
+        }
+      });
+    }
   }
 
   function renderGrafoEn(el, src) {
@@ -1424,8 +1429,12 @@
     abrirFlujo: abrirFlujo,
     abrirCorrida: abrirCorrida,
     abrirNuevoFlujo: abrirNuevoFlujo,
+    refrescarListas: refrescarListasTrasCambio,
+    pintarListaFlujosProyecto: pintarListaFlujosProyecto,
+    pintarListaFlujosCatalogo: pintarListaFlujosCatalogo,
     wire: wire,
-    state: st
+    state: st,
+    get flujos() { return st.flujos || []; }
   };
 
   if (document.readyState === 'loading') {

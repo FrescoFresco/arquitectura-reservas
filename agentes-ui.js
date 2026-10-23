@@ -47,12 +47,19 @@
     var nombre = props.nombre || '?';
     var foto = props.foto;
     var inicial = String(nombre).trim().charAt(0).toUpperCase() || '?';
+    var style = (typeof window !== 'undefined' && window.ColorEntidad && !foto)
+      ? window.ColorEntidad.reactStyle(props.color)
+      : undefined;
     if (foto) {
       return e('span', { className: 'agente-avatar', 'aria-hidden': 'true' },
         e('img', { src: foto, alt: '', className: 'agente-avatar-img' })
       );
     }
-    return e('span', { className: 'agente-avatar agente-avatar-inicial', 'aria-hidden': 'true' }, inicial);
+    return e('span', {
+      className: 'agente-avatar agente-avatar-inicial',
+      'aria-hidden': 'true',
+      style: style
+    }, inicial);
   }
 
   function AgenteFila(props) {
@@ -72,7 +79,7 @@
       'aria-label': 'Ver agente ' + ag.nombre,
       onClick: function () { props.onAbrir(ag.id); }
     },
-      e(Avatar, { nombre: ag.nombre, foto: ag.foto }),
+      e(Avatar, { nombre: ag.nombre, foto: ag.foto, color: ag.color }),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, ag.nombre),
         e('span', { className: 'catalogo-fila-codigo agente-fila-meta' },
