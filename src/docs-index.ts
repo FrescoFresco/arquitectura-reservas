@@ -197,6 +197,13 @@ export const API_DOCS_INDEX = {
     },
     { method: 'GET', path: '/v1/proyectos/:id/mongo-config', auth: false, summary: 'Estado (lee cluster)' },
     { method: 'POST', path: '/v1/proyectos/:id/crear-bd', auth: true, summary: 'Empujar DDL hub→Atlas' },
+    {
+      method: 'GET',
+      path: '/v1/proyectos/:id/empujes',
+      auth: false,
+      alias: '/v1/esquemas/:id/empujes',
+      summary: 'Historial empujes (keyset ?limit=&cursor=&estado=&desde=&hasta=)',
+    },
     { method: 'POST', path: '/v1/proyectos', auth: true, summary: 'Crear BD' },
     { method: 'PUT', path: '/v1/proyectos/:id', auth: true, summary: 'Nueva versión BD' },
     { method: 'DELETE', path: '/v1/proyectos/:id', auth: true, summary: 'Borrar BD' },

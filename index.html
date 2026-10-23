@@ -358,6 +358,21 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .cluster-last-sync.is-err{color:#b42318}
 .cluster-last-sync.is-ok{color:#0f7a45}
 .proy-empujar-auto-nota{margin:0 0 12px;padding:10px 12px;border:1px solid #d7e6f8;border-radius:10px;background:#f5f9ff;font-size:13px;color:#31506e;line-height:1.45}
+.proy-historial-filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:0 0 12px}
+.proy-historial-filtros label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#5f6f84}
+.proy-historial-filtros select,.proy-historial-filtros input[type="datetime-local"]{font:inherit;font-size:13px;font-weight:500;padding:6px 8px;border:1px solid #d5dde8;border-radius:8px;background:#fff;color:#17212f;min-width:9rem}
+.proy-historial-tabla{width:100%;border-collapse:collapse;font-size:13px}
+.proy-historial-tabla th,.proy-historial-tabla td{text-align:left;padding:8px 10px;border-bottom:1px solid #e5eaf1;vertical-align:top}
+.proy-historial-tabla th{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#677488;background:#f8fafc}
+.proy-historial-tabla tbody tr{cursor:pointer}
+.proy-historial-tabla tbody tr:hover{background:#f4f7fb}
+.proy-historial-tabla tbody tr.is-open{background:#edf3ff}
+.proy-historial-modo,.proy-historial-estado{display:inline-block;font-size:12px;font-weight:600}
+.proy-historial-estado.is-ok{color:#0f7a45}
+.proy-historial-estado.is-err{color:#b42318}
+.proy-historial-resumen{color:#31506e;max-width:28rem;overflow-wrap:anywhere}
+.proy-historial-detalle{margin:12px 0 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#0f172a;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap;overflow:auto;max-height:min(50vh,420px)}
+.proy-historial-pager{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 0}
 .tabla-scroll{overflow:auto}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
@@ -562,6 +577,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabOperativa" data-proy-tab="operativa" aria-selected="false" aria-controls="proyPanelOperativa">Operativa</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabEmpujar" data-proy-tab="empujar" aria-selected="false" aria-controls="proyPanelEmpujar">Empujar</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabHistorial" data-proy-tab="historial" aria-selected="false" aria-controls="proyPanelHistorial">Historial</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabInterno" data-proy-tab="interno" aria-selected="false" aria-controls="proyPanelInterno">Interno</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelResumen" role="tabpanel" aria-labelledby="proyTabResumen">
@@ -620,6 +636,38 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
 <div class="proy-empujar-plan" id="proyEmpujarPlan" hidden></div>
 <p class="cluster-last-sync" id="proyEmpujarLastSync" hidden></p>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelHistorial" role="tabpanel" aria-labelledby="proyTabHistorial" hidden>
+<p class="ajustes-hint">Log de cada empuje de esquema de esta base (manual, dry-run y auto-sync). Clic en una fila para ver el JSON crudo.</p>
+<div class="proy-historial-filtros" id="proyHistorialFiltros">
+<label>Estado
+<select id="proyHistorialEstado" aria-label="Filtrar por estado">
+<option value="">Todos</option>
+<option value="ok">ok</option>
+<option value="error">error</option>
+</select>
+</label>
+<label>Desde
+<input type="datetime-local" id="proyHistorialDesde" aria-label="Desde">
+</label>
+<label>Hasta
+<input type="datetime-local" id="proyHistorialHasta" aria-label="Hasta">
+</label>
+<button type="button" class="btn" id="btnProyHistorialFiltrar">Filtrar</button>
+</div>
+<p class="ancla-ficha-vacio" id="proyHistorialEstadoMsg" hidden>Cargando historial…</p>
+<div class="tabla-scroll" id="proyHistorialTablaWrap" hidden>
+<table class="proy-historial-tabla" id="proyHistorialTabla">
+<thead>
+<tr><th>Cuándo</th><th>Modo</th><th>Estado</th><th>Resumen</th><th></th></tr>
+</thead>
+<tbody id="proyHistorialBody"></tbody>
+</table>
+</div>
+<pre class="proy-historial-detalle api-error-raw" id="proyHistorialDetalle" hidden></pre>
+<div class="proy-historial-pager" id="proyHistorialPager" hidden>
+<button type="button" class="btn" id="btnProyHistorialMas" hidden>Cargar más</button>
+</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelInterno" role="tabpanel" aria-labelledby="proyTabInterno" hidden>
 <dl class="ancla-ficha-dl">

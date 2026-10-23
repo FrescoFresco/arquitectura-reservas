@@ -457,6 +457,15 @@ Authorization: Bearer inv_…
 → crea DB/colecciones/índices/$jsonSchema desde campos Mongo de la base de datos
   URI: la del Cluster del esquema. Sin fallback a URI global ni a env.
   Sin URI → { mock:true, dryRun:true, plan, source } (default db del schema, p. ej. software_reservas)
+  Cada intento (manual o auto-sync) se guarda en D1 `esquema_empujes`.
+
+GET {API_BASE}/v1/proyectos/:id/empujes?limit=50&cursor=&estado=&desde=&hasta=
+GET {API_BASE}/v1/esquemas/:id/empujes
+→ { ok, proyecto, limit, nextCursor, filters, empujes: [
+      { id, proyectoId, ts, modo: "real"|"dry-run"|"auto", ok, estado: "ok"|"error", resumen, detalle }
+    ] }
+  Paginación keyset (`cursor` = `ts~id` del último de la página). `estado=ok|error`.
+  `desde` / `hasta` = ISO (filtro opcional por `ts`). `detalle` = JSON crudo del resultado o error.
 ```
 
 ### Campos MongoDB ↔ base de datos

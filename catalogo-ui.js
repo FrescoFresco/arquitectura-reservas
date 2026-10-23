@@ -278,7 +278,17 @@ const state = {
     reabrirColeccionTab: null,
     fetchToken: 0,
     inflightRuta: null,
-    reabrirTrasSkill: null
+    reabrirTrasSkill: null,
+    empujes: {
+      items: [],
+      nextCursor: null,
+      loading: false,
+      token: 0,
+      openId: null,
+      estado: '',
+      desde: '',
+      hasta: ''
+    }
   },
   apiDoc: { loaded: false, loading: false, error: false },
   arqDoc: {
@@ -4558,6 +4568,7 @@ function seleccionarProyReaderTab(id) {
     skills: document.getElementById('proyPanelSkills'),
     operativa: document.getElementById('proyPanelOperativa'),
     empujar: document.getElementById('proyPanelEmpujar'),
+    historial: document.getElementById('proyPanelHistorial'),
     interno: document.getElementById('proyPanelInterno')
   };
   // Compat: nombres antiguos (agentes/conexión ya no son pestaña de BD)
@@ -4581,6 +4592,7 @@ function seleccionarProyReaderTab(id) {
   if (id === 'skills') pintarProyectoSkillsTab(proy);
   if (id === 'operativa') cargarProyectoOperativa(proy);
   if (id === 'empujar') pintarProyectoEmpujarAuto(proy);
+  if (id === 'historial') cargarProyectoHistorialEmpujes(proy, { reset: true });
 }
 
 function cargarProyectoOperativa(proy) {
@@ -5241,15 +5253,194 @@ async function onCrearBaseDatosProyecto() {
     });
     if (!data || data.ok === false) throw new Error((data && data.error) || 'Error');
     pintarPlanEmpujarEsquema(data, proy);
+    state.proyectos.empujes.token += 1;
   } catch (err) {
     if (msg) {
       msg.classList.remove('is-ok');
       showApiErrorRaw(msg, err, { kind: 'is-err', statusLabel: true });
     }
+    state.proyectos.empujes.token += 1;
   } finally {
     if (btn) btn.disabled = false;
     if (btnTab) btnTab.disabled = false;
   }
+}
+
+function datetimeLocalToIso(value) {
+  const s = String(value || '').trim();
+  if (!s) return '';
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString();
+}
+
+function formatEmpujeCuando(ts) {
+  const s = String(ts || '').trim();
+  if (!s) return '—';
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  try {
+    return d.toLocaleString('es-ES', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch (e) {
+    return s;
+  }
+}
+
+function labelEmpujeModo(modo) {
+  if (modo === 'auto') return 'auto';
+  if (modo === 'dry-run') return 'dry-run';
+  return 'real';
+}
+
+function pintarProyectoHistorialTabla() {
+  const body = document.getElementById('proyHistorialBody');
+  const wrap = document.getElementById('proyHistorialTablaWrap');
+  const vacio = document.getElementById('proyHistorialEstadoMsg');
+  const pager = document.getElementById('proyHistorialPager');
+  const btnMas = document.getElementById('btnProyHistorialMas');
+  const detalle = document.getElementById('proyHistorialDetalle');
+  const st = state.proyectos.empujes;
+  if (!body) return;
+  body.replaceChildren();
+  const items = st.items || [];
+  if (!items.length) {
+    if (wrap) wrap.hidden = true;
+    if (vacio && !st.loading) {
+      vacio.hidden = false;
+      vacio.textContent = 'Sin empujes todavía para esta base.';
+    }
+  } else {
+    if (wrap) wrap.hidden = false;
+    if (vacio) vacio.hidden = true;
+    items.forEach(function (e) {
+      const tr = document.createElement('tr');
+      tr.dataset.empujeId = e.id;
+      if (st.openId === e.id) tr.classList.add('is-open');
+      const tdCuando = document.createElement('td');
+      tdCuando.textContent = formatEmpujeCuando(e.ts);
+      const tdModo = document.createElement('td');
+      const modoSpan = document.createElement('span');
+      modoSpan.className = 'proy-historial-modo';
+      modoSpan.textContent = labelEmpujeModo(e.modo);
+      tdModo.append(modoSpan);
+      const tdEstado = document.createElement('td');
+      const estSpan = document.createElement('span');
+      estSpan.className = 'proy-historial-estado ' + (e.ok ? 'is-ok' : 'is-err');
+      estSpan.textContent = e.ok ? 'ok' : 'error';
+      tdEstado.append(estSpan);
+      const tdRes = document.createElement('td');
+      tdRes.className = 'proy-historial-resumen';
+      tdRes.textContent = e.resumen || '—';
+      const tdOpen = document.createElement('td');
+      tdOpen.textContent = st.openId === e.id ? '▾' : '▸';
+      tdOpen.setAttribute('aria-label', 'Ver detalle');
+      tr.append(tdCuando, tdModo, tdEstado, tdRes, tdOpen);
+      body.append(tr);
+    });
+  }
+  if (pager) pager.hidden = !st.nextCursor;
+  if (btnMas) {
+    btnMas.hidden = !st.nextCursor;
+    btnMas.disabled = !!st.loading;
+  }
+  if (detalle) {
+    const open = items.find(function (x) { return x.id === st.openId; });
+    if (open) {
+      detalle.hidden = false;
+      try {
+        detalle.textContent = JSON.stringify(open.detalle != null ? open.detalle : open, null, 2);
+      } catch (err) {
+        detalle.textContent = String(open.detalle || '');
+      }
+    } else {
+      detalle.hidden = true;
+      detalle.textContent = '';
+    }
+  }
+}
+
+function cargarProyectoHistorialEmpujes(proy, opts) {
+  const o = opts || {};
+  const reset = o.reset !== false && !o.append;
+  const append = !!o.append;
+  if (!proy || !proy.id) return;
+  const st = state.proyectos.empujes;
+  if (st.loading && append) return;
+  if (reset) {
+    st.items = [];
+    st.nextCursor = null;
+    st.openId = null;
+    if (o.readFilters !== false) {
+      const estEl = document.getElementById('proyHistorialEstado');
+      const desdeEl = document.getElementById('proyHistorialDesde');
+      const hastaEl = document.getElementById('proyHistorialHasta');
+      st.estado = estEl ? String(estEl.value || '') : '';
+      st.desde = datetimeLocalToIso(desdeEl && desdeEl.value);
+      st.hasta = datetimeLocalToIso(hastaEl && hastaEl.value);
+    }
+  }
+  if (append && !st.nextCursor) return;
+
+  const token = ++st.token;
+  st.loading = true;
+  const vacio = document.getElementById('proyHistorialEstadoMsg');
+  if (vacio && !append) {
+    vacio.hidden = false;
+    vacio.textContent = 'Cargando historial…';
+  }
+  pintarProyectoHistorialTabla();
+
+  const qs = new URLSearchParams();
+  qs.set('limit', '50');
+  if (append && st.nextCursor) qs.set('cursor', st.nextCursor);
+  if (st.estado) qs.set('estado', st.estado);
+  if (st.desde) qs.set('desde', st.desde);
+  if (st.hasta) qs.set('hasta', st.hasta);
+
+  fetch(apiBaseUrl() + '/v1/proyectos/' + encodeURIComponent(proy.id) + '/empujes?' + qs.toString(), {
+    cache: 'no-store'
+  })
+    .then(function (res) {
+      return res.text().then(function (raw) {
+        var data = null;
+        try { data = raw ? JSON.parse(raw) : {}; } catch (e) { data = null; }
+        if (!res.ok || (data && data.ok === false)) {
+          var err = new Error((data && data.error) || ('HTTP ' + res.status));
+          err.status = res.status;
+          err.data = data;
+          err.rawBody = raw;
+          throw err;
+        }
+        return data;
+      });
+    })
+    .then(function (data) {
+      if (token !== state.proyectos.empujes.token) return;
+      const abierta = proyectoAbierto();
+      if (!abierta || abierta.id !== proy.id) return;
+      const list = (data && Array.isArray(data.empujes)) ? data.empujes : [];
+      if (append) st.items = (st.items || []).concat(list);
+      else st.items = list;
+      st.nextCursor = (data && data.nextCursor) || null;
+      st.loading = false;
+      pintarProyectoHistorialTabla();
+    })
+    .catch(function (err) {
+      if (token !== state.proyectos.empujes.token) return;
+      st.loading = false;
+      if (vacio) {
+        vacio.hidden = false;
+        showApiErrorRaw(vacio, err, { kind: 'is-err', statusLabel: true });
+      }
+      pintarProyectoHistorialTabla();
+    });
 }
 
 function pintarProyectoCluster(proy) {
@@ -7022,6 +7213,27 @@ function wireProyectosUi() {
   if (btnCrearBd) btnCrearBd.addEventListener('click', onCrearBaseDatosProyecto);
   const btnEmpujarTab = document.getElementById('btnEmpujarEsquemaTab');
   if (btnEmpujarTab) btnEmpujarTab.addEventListener('click', onCrearBaseDatosProyecto);
+  const btnHistFiltrar = document.getElementById('btnProyHistorialFiltrar');
+  if (btnHistFiltrar) btnHistFiltrar.addEventListener('click', function () {
+    const proy = proyectoAbierto();
+    if (!proy) return;
+    cargarProyectoHistorialEmpujes(proy, { reset: true });
+  });
+  const btnHistMas = document.getElementById('btnProyHistorialMas');
+  if (btnHistMas) btnHistMas.addEventListener('click', function () {
+    const proy = proyectoAbierto();
+    if (!proy) return;
+    cargarProyectoHistorialEmpujes(proy, { append: true, reset: false });
+  });
+  const histBody = document.getElementById('proyHistorialBody');
+  if (histBody) histBody.addEventListener('click', function (e) {
+    const tr = e.target.closest('tr[data-empuje-id]');
+    if (!tr) return;
+    const id = tr.getAttribute('data-empuje-id');
+    const st = state.proyectos.empujes;
+    st.openId = st.openId === id ? null : id;
+    pintarProyectoHistorialTabla();
+  });
   const proyTabs = document.getElementById('proyReaderTabs');
   if (proyTabs) proyTabs.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-proy-tab]');

@@ -54,8 +54,11 @@ import {
   type RelacionDef,
 } from './proyecto-schema';
 import {
+  listEsquemaEmpujes,
   parseLastSyncRow,
   recordClusterLastSync,
+  recordEsquemaEmpuje,
+  resolveEmpujeModo,
   scheduleDebouncedSchemaSync,
   type LastSyncSummary,
 } from './schema-auto-sync';
@@ -2582,6 +2585,58 @@ app.post('/v1/proyectos/:id/crear-bd', async (c) => {
   return c.json(outcome.body);
 });
 
+/**
+ * Historial de empujes de esquema de esta Base de datos (manual + auto-sync).
+ * Keyset: ?limit=50&cursor=ts~id&estado=ok|error&desde=&hasta=
+ */
+app.get('/v1/proyectos/:id/empujes', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT id FROM proyectos WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
+
+  const limitRaw = c.req.query('limit');
+  const cursor = c.req.query('cursor') || '';
+  const estadoRaw = String(c.req.query('estado') || '')
+    .trim()
+    .toLowerCase();
+  const estado =
+    estadoRaw === 'ok' || estadoRaw === 'error'
+      ? (estadoRaw as 'ok' | 'error')
+      : ('' as const);
+  const desde = String(c.req.query('desde') || '').trim();
+  const hasta = String(c.req.query('hasta') || '').trim();
+
+  const listed = await listEsquemaEmpujes(c.env.DB, id, {
+    limit: limitRaw ? Number(limitRaw) : 50,
+    cursor,
+    estado,
+    desde,
+    hasta,
+  });
+
+  return c.json({
+    ok: true,
+    proyecto: id,
+    limit: listed.limit,
+    nextCursor: listed.nextCursor,
+    filters: {
+      ...(estado ? { estado } : {}),
+      ...(desde ? { desde } : {}),
+      ...(hasta ? { hasta } : {}),
+    },
+    empujes: listed.items.map((e) => ({
+      id: e.id,
+      proyectoId: e.proyectoId,
+      ts: e.ts,
+      modo: e.modo,
+      ok: e.ok,
+      estado: e.ok ? 'ok' : 'error',
+      resumen: e.resumen,
+      detalle: e.detalle,
+    })),
+  });
+});
+
 app.delete('/v1/proyectos/:id', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare('SELECT legacy_negocio FROM proyectos WHERE id = ?')
@@ -2596,6 +2651,7 @@ app.delete('/v1/proyectos/:id', async (c) => {
       'Entrada legado (negocio). Tras migrar a negocios, borra con { "confirmLegacy": true }.'
     );
   }
+  await c.env.DB.prepare('DELETE FROM esquema_empujes WHERE proyecto_id = ?').bind(id).run();
   await c.env.DB.prepare('DELETE FROM proyecto_skills WHERE proyecto_id = ?').bind(id).run();
   await c.env.DB.prepare('DELETE FROM proyecto_versions WHERE proyecto_id = ?').bind(id).run();
   await c.env.DB.prepare('DELETE FROM proyectos WHERE id = ?').bind(id).run();
@@ -3797,11 +3853,25 @@ async function ejecutarCrearBd(
     return { ok: false, status: 404, body: { ok: false, error: 'Proyecto no encontrado.' } };
   }
   const proy = await hydrateProyecto(env.DB, row as Record<string, unknown>);
+  const earlyFail = async (status: number, error: string): Promise<CrearBdOutcome> => {
+    const body = { ok: false, error, proyecto: id, auto: !!opts.auto };
+    await recordEsquemaEmpuje(env.DB, {
+      proyectoId: id,
+      modo: resolveEmpujeModo({
+        auto: !!opts.auto,
+        dryRun: opts.dryRun === true,
+        mock: opts.mock === true,
+      }),
+      ok: false,
+      detalle: body,
+    });
+    return { ok: false, status, body };
+  };
   if (!proy.baseDatos) {
-    return { ok: false, status: 400, body: { ok: false, error: 'El proyecto no tiene baseDatos.' } };
+    return earlyFail(400, 'El proyecto no tiene baseDatos.');
   }
   if (!proy.colecciones.length) {
-    return { ok: false, status: 400, body: { ok: false, error: 'El proyecto no tiene colecciones.' } };
+    return earlyFail(400, 'El proyecto no tiene colecciones.');
   }
 
   const camposRows = await env.DB.prepare('SELECT * FROM campos_mongo WHERE proyecto = ?').bind(id).all();
@@ -3849,7 +3919,23 @@ async function ejecutarCrearBd(
   const clusterId = String(proy.clusterId || '').trim();
   const at = nowIso();
 
-  const record = async (summary: LastSyncSummary) => {
+  const record = async (
+    summary: LastSyncSummary,
+    detalle: Record<string, unknown>,
+    empujeOk: boolean
+  ) => {
+    const modo = resolveEmpujeModo({
+      auto: !!opts.auto,
+      dryRun: !!summary.dryRun || !!detalle.dryRun,
+      mock: !!summary.mock || !!detalle.mock,
+    });
+    await recordEsquemaEmpuje(env.DB, {
+      proyectoId: id,
+      ts: at,
+      modo,
+      ok: empujeOk,
+      detalle,
+    });
     if (!clusterId) return;
     try {
       await recordClusterLastSync(env.DB, clusterId, summary);
@@ -3881,52 +3967,69 @@ async function ejecutarCrearBd(
       updated: [] as string[],
       indexes: [] as unknown[],
     };
-    await record({
-      at,
-      ok: true,
-      proyecto: id,
-      auto: !!opts.auto,
-      dryRun: !!body.dryRun,
-      mock: !!body.mock,
-      db: proy.baseDatos,
-      hint: body.hint,
-    });
+    await record(
+      {
+        at,
+        ok: true,
+        proyecto: id,
+        auto: !!opts.auto,
+        dryRun: !!body.dryRun,
+        mock: !!body.mock,
+        db: proy.baseDatos,
+        hint: body.hint,
+      },
+      body,
+      true
+    );
     return { ok: true, body };
   }
 
   try {
     const result = await createProjectDatabase(resolved.env, proy.baseDatos, plans);
     const body = { ok: true, proyecto: id, auto: !!opts.auto, ...result };
-    await record({
-      at,
-      ok: true,
-      proyecto: id,
-      auto: !!opts.auto,
-      db: result.db || proy.baseDatos,
-      created: result.created,
-      updated: result.updated,
-    });
+    await record(
+      {
+        at,
+        ok: true,
+        proyecto: id,
+        auto: !!opts.auto,
+        db: result.db || proy.baseDatos,
+        created: result.created,
+        updated: result.updated,
+      },
+      body,
+      true
+    );
     return { ok: true, body };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'crear-bd falló';
     if (msg === 'configure MONGODB_URI') {
-      await record({
+      const body = mongoNotConfiguredError();
+      await record(
+        {
+          at,
+          ok: false,
+          proyecto: id,
+          auto: !!opts.auto,
+          error: 'Sin URI Mongo configurada en el Cluster.',
+        },
+        body as Record<string, unknown>,
+        false
+      );
+      return { ok: false, status: 503, body };
+    }
+    const body = mongoDriverErrorBody(err);
+    await record(
+      {
         at,
         ok: false,
         proyecto: id,
         auto: !!opts.auto,
-        error: 'Sin URI Mongo configurada en el Cluster.',
-      });
-      return { ok: false, status: 503, body: mongoNotConfiguredError() };
-    }
-    const body = mongoDriverErrorBody(err);
-    await record({
-      at,
-      ok: false,
-      proyecto: id,
-      auto: !!opts.auto,
-      error: body.error,
-    });
+        error: body.error,
+      },
+      body as Record<string, unknown>,
+      false
+    );
     return { ok: false, status: 502, body };
   }
 }
