@@ -204,276 +204,190 @@ function apiFetchAuth(path, opts) {
   return apiFetch(path, init);
 }
 
-/** Rutas PUT color-only por tipo de entidad de catálogo. */
-var COLOR_ENTIDAD_PATHS = {
-  skill: '/v1/skills/',
-  ancla: '/v1/anclas/',
-  mongo: '/v1/mongo/',
-  cluster: '/v1/clusters/',
-  proyecto: '/v1/proyectos/',
-  'system-prompt': '/v1/system-prompts/',
-  fundamento: '/v1/fundamentos/',
-  agente: '/v1/agentes/',
-  flujo: '/v1/flujos/'
-};
-
-function coloresUsadosCatalogo(kind, excludeId) {
-  const out = [];
-  function push(c) {
-    if (c && typeof c === 'string') out.push(c);
-  }
-  if (kind === 'skill') {
-    (state.instrucciones || []).forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
-  } else if (kind === 'ancla') {
-    ((state.campos && state.campos.lista) || []).forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
-  } else if (kind === 'mongo') {
-    ((state.mongo && state.mongo.lista) || []).forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
-  } else if (kind === 'cluster') {
-    ((state.clusters && state.clusters.lista) || []).forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
-  } else if (kind === 'proyecto') {
-    ((state.proyectos && state.proyectos.lista) || []).forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
-  } else if (kind === 'system-prompt') {
-    ((state.systemPrompts && state.systemPrompts.lista) || []).forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
-  } else if (kind === 'fundamento') {
-    ((state.fundamentos && state.fundamentos.lista) || []).forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
-  } else if (kind === 'agente') {
-    ((state.agentes && state.agentes.lista) || []).forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
-  } else if (kind === 'flujo') {
-    var flujosSeen = {};
-    function pushFlujo(x) {
-      if (!x || !x.id || x.id === excludeId || flujosSeen[x.id]) return;
-      flujosSeen[x.id] = true;
-      push(x.color);
-    }
-    ((state.flujos && state.flujos.lista) || []).forEach(pushFlujo);
-    var fc = window.FlujosCorridasUI && window.FlujosCorridasUI.state;
-    if (fc) {
-      (fc.flujos || []).forEach(pushFlujo);
-      (fc.catalogFlujos || []).forEach(pushFlujo);
-    }
-  } else if (kind === 'coleccion') {
-    ((state.colecciones && state.colecciones.lista) || []).forEach(function (x) {
-      if (x.key !== excludeId && x.id !== excludeId) push(x.color);
-    });
-  }
-  return out;
-}
-
-function aplicarColorLocal(kind, id, color) {
-  function setOn(list, key) {
-    if (!list) return;
-    list.forEach(function (x) {
-      if (x[key] === id) x.color = color;
-    });
-  }
-  if (kind === 'skill') setOn(state.instrucciones, 'id');
-  else if (kind === 'ancla') setOn(state.campos && state.campos.lista, 'id');
-  else if (kind === 'mongo') setOn(state.mongo && state.mongo.lista, 'id');
-  else if (kind === 'cluster') setOn(state.clusters && state.clusters.lista, 'id');
-  else if (kind === 'proyecto') setOn(state.proyectos && state.proyectos.lista, 'id');
-  else if (kind === 'system-prompt') setOn(state.systemPrompts && state.systemPrompts.lista, 'id');
-  else if (kind === 'fundamento') setOn(state.fundamentos && state.fundamentos.lista, 'id');
-  else if (kind === 'agente') setOn(state.agentes && state.agentes.lista, 'id');
-  else if (kind === 'flujo') setOn(state.flujos && state.flujos.lista, 'id');
-  else if (kind === 'coleccion') {
-    ((state.colecciones && state.colecciones.lista) || []).forEach(function (x) {
-      if (x.key === id || x.id === id) x.color = color;
-    });
-    ((state.proyectos && state.proyectos.lista) || []).forEach(function (proy) {
-      (proy.colecciones || []).forEach(function (c) {
-        const key = (typeof claveColeccion === 'function')
-          ? claveColeccion(proy.id, c.id)
-          : (proy.id + '/' + c.id);
-        if (key === id || c.id === id) c.color = color;
-      });
-    });
-  }
-}
-
-/** Extrae el objeto entidad de una respuesta PUT (skill|ancla|…|proyecto). */
-function entidadDeRespuestaColor(data) {
-  if (!data || typeof data !== 'object') return null;
-  return (
-    data.skill ||
-    data.ancla ||
-    data.campo ||
-    data.cluster ||
-    data.proyecto ||
-    data.systemPrompt ||
-    data.fundamento ||
-    data.agente ||
-    data.flujo ||
-    null
-  );
-}
-
 /**
- * Comprueba que la API echoó `color` (evita el fallo: Worker viejo sin color-only
- * que hace bump de versión MD y no persiste el tile).
+ * Color catálogo — capa fina sobre window.ColorEntidad (módulo único).
+ * Persistencia, picker y tint viven en color-entidad-ui.js.
  */
-function assertColorPersistido(data, color, kind, coleccionId) {
-  const want = color == null || color === '' ? null : String(color).toLowerCase();
-  if (kind === 'coleccion') {
-    const proy = data && data.proyecto;
-    const cols = proy && Array.isArray(proy.colecciones) ? proy.colecciones : null;
-    if (!cols) {
-      throw new Error('La API no devolvió colecciones con color. ¿Worker desactualizado?');
-    }
-    if (coleccionId) {
-      const hit = cols.find(function (c) { return c && c.id === coleccionId; });
-      if (!hit || !Object.prototype.hasOwnProperty.call(hit, 'color')) {
-        throw new Error('La colección no devolvió color tras guardar.');
-      }
-      const gotCol = hit.color == null || hit.color === '' ? null : String(hit.color).toLowerCase();
-      if (gotCol !== want) {
-        throw new Error('El color de colección no coincidió tras guardar.');
-      }
-    }
-    return;
+function coloresUsadosCatalogo(kind, excludeId) {
+  if (window.ColorEntidad && typeof window.ColorEntidad.coloresUsados === 'function') {
+    return window.ColorEntidad.coloresUsados(kind, excludeId);
   }
-  const ent = entidadDeRespuestaColor(data);
-  if (!ent || !Object.prototype.hasOwnProperty.call(ent, 'color')) {
-    throw new Error(
-      'La API no devolvió el campo color (Worker desactualizado). No se guardó el tinte.'
-    );
-  }
-  const got = ent.color == null || ent.color === '' ? null : String(ent.color).toLowerCase();
-  if (got !== want) {
-    throw new Error('El color no coincidió tras guardar (API: ' + got + ', pedido: ' + want + ').');
-  }
+  return [];
 }
 
 function guardarColorEntidad(kind, id, color) {
-  if (kind === 'coleccion') {
-    // Persist in proyecto.colecciones JSON (id = "proyectoId/coleccionId" o key).
-    const parts = String(id).split('/');
-    const proyId = parts[0];
-    const colId = parts.slice(1).join('/') || parts[1];
-    const proy = ((state.proyectos && state.proyectos.lista) || []).find(function (p) {
-      return p.id === proyId;
-    });
-    if (!proy) return Promise.reject(new Error('Base de datos no encontrada.'));
-    const cols = (proy.colecciones || []).map(function (c) {
-      const o = { id: c.id, descripcion: c.descripcion || '' };
-      if (c.id === colId) o.color = color;
-      else if (Object.prototype.hasOwnProperty.call(c, 'color')) o.color = c.color;
-      return o;
-    });
-    return asegurarClaveCatalogo().then(function () {
-      return apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proyId), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ colecciones: cols })
-      });
-    }).then(function (data) {
-      assertColorPersistido(data, color, kind, colId);
-      aplicarColorLocal(kind, id, color);
+  if (!window.ColorEntidad || typeof window.ColorEntidad.guardar !== 'function') {
+    return Promise.reject(new Error('ColorEntidad no cargado.'));
+  }
+  return window.ColorEntidad.guardar(kind, id, color, {
+    getProyecto: function (proyId) {
+      return ((state.proyectos && state.proyectos.lista) || []).find(function (p) {
+        return p.id === proyId;
+      }) || null;
+    },
+    onProyectoUpdated: function (proyId, data) {
       if (data && data.proyecto) {
         const idx = (state.proyectos.lista || []).findIndex(function (p) { return p.id === proyId; });
         if (idx >= 0) state.proyectos.lista[idx] = Object.assign({}, state.proyectos.lista[idx], data.proyecto);
       }
-      return data;
-    });
-  }
-  const base = COLOR_ENTIDAD_PATHS[kind];
-  if (!base) return Promise.reject(new Error('Tipo de color desconocido.'));
-  return asegurarClaveCatalogo().then(function () {
-    return apiFetchAuth(base + encodeURIComponent(id), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ color: color })
-    });
-  }).then(function (data) {
-    assertColorPersistido(data, color, kind);
-    aplicarColorLocal(kind, id, color);
-    return data;
+    }
   });
 }
 
-/**
- * Cablea el tile del header de ficha como picker de color.
- * iconSel: selector CSS dentro de dlg, o elemento.
- */
 function cablearColorFicha(dlgOrEl, opts) {
   opts = opts || {};
-  if (!window.ColorEntidad) return;
-  let icon = null;
-  if (typeof dlgOrEl === 'string') icon = document.querySelector(dlgOrEl);
-  else if (dlgOrEl && dlgOrEl.querySelector) {
-    icon = dlgOrEl.querySelector('.ficha-titulo-icon') || dlgOrEl;
-  } else {
-    icon = dlgOrEl;
-  }
-  if (!icon) return;
-  const kind = opts.kind;
-  const id = opts.id;
-  window.ColorEntidad.bindFichaIcon(icon, {
-    iconKind: opts.iconKind || kind || 'skill',
-    getColor: function () {
-      if (typeof opts.getColor === 'function') return opts.getColor();
-      return opts.color || null;
-    },
-    getUsados: function () {
-      if (typeof opts.getUsados === 'function') return opts.getUsados();
-      return coloresUsadosCatalogo(kind, id);
-    },
-    onSave: function (hex) {
-      opts.color = hex;
-      guardarColorEntidad(kind, id, hex).then(function () {
-        if (typeof opts.onSaved === 'function') opts.onSaved(hex);
-        // Refrescar listados React / DOM
-        try {
-          if (kind === 'skill' && typeof pintarSkills === 'function') pintarSkills();
-          else if (kind === 'ancla' && window.CamposAnclaUI && typeof window.CamposAnclaUI.refrescar === 'function' && typeof camposBridge === 'function') {
-            window.CamposAnclaUI.refrescar(camposBridge());
-          } else if (kind === 'mongo' && window.CamposMongoUI && typeof window.CamposMongoUI.refrescar === 'function' && typeof mongoBridge === 'function') {
-            window.CamposMongoUI.refrescar(mongoBridge());
-          } else if (kind === 'agente' && typeof pintarAgentes === 'function') pintarAgentes();
-          else if (kind === 'cluster' && window.ClustersUI && typeof window.ClustersUI.refrescar === 'function') {
-            window.ClustersUI.refrescar();
-          } else if (kind === 'proyecto' && window.ProyectosUI && typeof window.ProyectosUI.refrescar === 'function') {
-            window.ProyectosUI.refrescar();
-          } else if (kind === 'coleccion' && window.ColeccionesUI && typeof window.ColeccionesUI.refrescar === 'function') {
-            window.ColeccionesUI.refrescar();
-          } else if (kind === 'fundamento' && window.FundamentosUI && typeof window.FundamentosUI.refrescar === 'function') {
-            window.FundamentosUI.refrescar();
-          } else if (kind === 'system-prompt' && window.SystemPromptsUI && typeof window.SystemPromptsUI.refrescar === 'function') {
-            window.SystemPromptsUI.refrescar();
-          } else if (kind === 'flujo' && window.FlujosCorridasUI) {
-            if (typeof window.FlujosCorridasUI.refrescarListas === 'function') {
-              window.FlujosCorridasUI.refrescarListas();
-            } else if (typeof window.FlujosCorridasUI.cargarCatalogo === 'function') {
-              window.FlujosCorridasUI.cargarCatalogo();
-            }
-          }
-        } catch (e) {}
-      }).catch(function (err) {
-        console.error(err);
-        alert((err && err.message) || 'No se pudo guardar el color.');
-      });
+  if (!window.ColorEntidad || typeof window.ColorEntidad.bindCatalogFicha !== 'function') return;
+  window.ColorEntidad.bindCatalogFicha(dlgOrEl, Object.assign({}, opts, {
+    coleccionOpts: {
+      getProyecto: function (proyId) {
+        return ((state.proyectos && state.proyectos.lista) || []).find(function (p) {
+          return p.id === proyId;
+        }) || null;
+      },
+      onProyectoUpdated: function (proyId, data) {
+        if (data && data.proyecto) {
+          const idx = (state.proyectos.lista || []).findIndex(function (p) { return p.id === proyId; });
+          if (idx >= 0) state.proyectos.lista[idx] = Object.assign({}, state.proyectos.lista[idx], data.proyecto);
+        }
+      }
     }
-  });
+  }));
 }
 
 window.guardarColorEntidad = guardarColorEntidad;
 window.coloresUsadosCatalogo = coloresUsadosCatalogo;
 window.cablearColorFicha = cablearColorFicha;
+
+/** Registra kinds en ColorEntidad (listas + refresh). Llamar tras definir state. */
+function registrarColorEntidadKinds() {
+  if (!window.ColorEntidad || typeof window.ColorEntidad.registerKind !== 'function') return;
+  window.ColorEntidad.configure({
+    ensureAuth: asegurarClaveCatalogo,
+    apiFetchAuth: apiFetchAuth
+  });
+  function setOnList(list, id, color) {
+    if (!list) return;
+    list.forEach(function (x) {
+      if (x && x.id === id) x.color = color;
+    });
+  }
+  window.ColorEntidad.registerKind('skill', {
+    listItems: function () { return state.instrucciones || []; },
+    applyLocal: function (id, color) { setOnList(state.instrucciones, id, color); },
+    refresh: function () { if (typeof pintarSkills === 'function') pintarSkills(); }
+  });
+  window.ColorEntidad.registerKind('ancla', {
+    listItems: function () { return (state.campos && state.campos.lista) || []; },
+    applyLocal: function (id, color) { setOnList(state.campos && state.campos.lista, id, color); },
+    refresh: function () {
+      if (window.CamposAnclaUI && typeof window.CamposAnclaUI.refrescar === 'function' && typeof camposBridge === 'function') {
+        window.CamposAnclaUI.refrescar(camposBridge());
+      }
+    }
+  });
+  window.ColorEntidad.registerKind('mongo', {
+    listItems: function () { return (state.mongo && state.mongo.lista) || []; },
+    applyLocal: function (id, color) { setOnList(state.mongo && state.mongo.lista, id, color); },
+    refresh: function () {
+      if (window.CamposMongoUI && typeof window.CamposMongoUI.refrescar === 'function' && typeof mongoBridge === 'function') {
+        window.CamposMongoUI.refrescar(mongoBridge());
+      }
+    }
+  });
+  window.ColorEntidad.registerKind('cluster', {
+    listItems: function () { return (state.clusters && state.clusters.lista) || []; },
+    applyLocal: function (id, color) { setOnList(state.clusters && state.clusters.lista, id, color); },
+    refresh: function () {
+      if (window.ClustersUI && typeof window.ClustersUI.refrescar === 'function') window.ClustersUI.refrescar(clustersBridge());
+      else if (typeof pintarClusters === 'function') pintarClusters();
+    }
+  });
+  window.ColorEntidad.registerKind('proyecto', {
+    listItems: function () { return (state.proyectos && state.proyectos.lista) || []; },
+    applyLocal: function (id, color) { setOnList(state.proyectos && state.proyectos.lista, id, color); },
+    refresh: function () {
+      if (window.ProyectosUI && typeof window.ProyectosUI.refrescar === 'function') window.ProyectosUI.refrescar(proyectosBridge());
+      else if (typeof pintarProyectos === 'function') pintarProyectos();
+    }
+  });
+  window.ColorEntidad.registerKind('system-prompt', {
+    listItems: function () { return (state.systemPrompts && state.systemPrompts.lista) || []; },
+    applyLocal: function (id, color) { setOnList(state.systemPrompts && state.systemPrompts.lista, id, color); },
+    refresh: function () {
+      if (window.SystemPromptsUI && typeof window.SystemPromptsUI.refrescar === 'function') {
+        window.SystemPromptsUI.refrescar();
+      }
+    }
+  });
+  window.ColorEntidad.registerKind('fundamento', {
+    listItems: function () { return (state.fundamentos && state.fundamentos.lista) || []; },
+    applyLocal: function (id, color) { setOnList(state.fundamentos && state.fundamentos.lista, id, color); },
+    refresh: function () {
+      if (window.FundamentosUI && typeof window.FundamentosUI.refrescar === 'function') {
+        window.FundamentosUI.refrescar();
+      }
+    }
+  });
+  window.ColorEntidad.registerKind('agente', {
+    listItems: function () { return (state.agentes && state.agentes.lista) || []; },
+    applyLocal: function (id, color) { setOnList(state.agentes && state.agentes.lista, id, color); },
+    refresh: function () { if (typeof pintarAgentes === 'function') pintarAgentes(); }
+  });
+  window.ColorEntidad.registerKind('flujo', {
+    listItems: function () {
+      var out = [];
+      var seen = {};
+      function push(x) {
+        if (!x || !x.id || seen[x.id]) return;
+        seen[x.id] = true;
+        out.push(x);
+      }
+      ((state.flujos && state.flujos.lista) || []).forEach(push);
+      var fc = window.FlujosCorridasUI && window.FlujosCorridasUI.state;
+      if (fc) {
+        (fc.flujos || []).forEach(push);
+        (fc.catalogFlujos || []).forEach(push);
+      }
+      return out;
+    },
+    applyLocal: function (id, color) {
+      setOnList(state.flujos && state.flujos.lista, id, color);
+      var fc = window.FlujosCorridasUI && window.FlujosCorridasUI.state;
+      if (fc) {
+        (fc.flujos || []).forEach(function (x) { if (x && x.id === id) x.color = color; });
+        (fc.catalogFlujos || []).forEach(function (x) { if (x && x.id === id) x.color = color; });
+      }
+    },
+    refresh: function () {
+      if (window.FlujosCorridasUI) {
+        if (typeof window.FlujosCorridasUI.refrescarListas === 'function') window.FlujosCorridasUI.refrescarListas();
+        else if (typeof window.FlujosCorridasUI.cargarCatalogo === 'function') window.FlujosCorridasUI.cargarCatalogo();
+      }
+    }
+  });
+  window.ColorEntidad.registerKind('coleccion', {
+    listItems: function () { return (state.colecciones && state.colecciones.lista) || []; },
+    itemId: function (x) { return x && (x.key != null ? x.key : x.id); },
+    applyLocal: function (id, color) {
+      ((state.colecciones && state.colecciones.lista) || []).forEach(function (x) {
+        if (x.key === id || x.id === id) x.color = color;
+      });
+      ((state.proyectos && state.proyectos.lista) || []).forEach(function (proy) {
+        (proy.colecciones || []).forEach(function (c) {
+          const key = (typeof claveColeccion === 'function')
+            ? claveColeccion(proy.id, c.id)
+            : (proy.id + '/' + c.id);
+          if (key === id || c.id === id) c.color = color;
+        });
+      });
+    },
+    refresh: function () {
+      if (window.ColeccionesUI && typeof window.ColeccionesUI.refrescar === 'function') {
+        window.ColeccionesUI.refrescar();
+      }
+    }
+  });
+}
 
 function asegurarClaveCatalogo() {
   const existing = claveCatalogoEscritura();
@@ -879,6 +793,9 @@ function copiaVersion(v) {
 }
 
 function attachEntityColor(out, item) {
+  if (window.ColorEntidad && typeof window.ColorEntidad.attachNormalized === 'function') {
+    return window.ColorEntidad.attachNormalized(out, item);
+  }
   if (!out || !item || typeof item !== 'object') return out;
   if (!Object.prototype.hasOwnProperty.call(item, 'color')) return out;
   const c = item.color;
@@ -887,9 +804,14 @@ function attachEntityColor(out, item) {
   return out;
 }
 
+/** Copia `color` en merges remoto/local (sin esto mergeProyectos perdía el tinte). */
+function copiarColorMeta(destino, fuente) {
+  return attachEntityColor(destino, fuente || {});
+}
+
 function conMetaSkill(destino, fuente) {
   if (fuente.descripcion) destino.descripcion = fuente.descripcion;
-  if (Object.prototype.hasOwnProperty.call(fuente, 'color')) destino.color = fuente.color;
+  copiarColorMeta(destino, fuente);
   if (fuente.entradas) destino.entradas = fuente.entradas.slice();
   if (fuente.salidas) destino.salidas = fuente.salidas.slice();
   if (fuente.anclas && fuente.anclas.length) destino.anclas = fuente.anclas.slice();
@@ -3010,6 +2932,7 @@ function renderReader() {
   if (window.SystemPromptsCatalog) {
     window.SystemPromptsCatalog.pintarSkillSystemPromptsTab(ins);
   }
+  openFichaPane(dlg);
   cablearColorFicha(dlg, {
     kind: 'skill',
     id: ins.id,
@@ -3017,7 +2940,6 @@ function renderReader() {
     getColor: function () { return ins.color; },
     onSaved: function (hex) { ins.color = hex; }
   });
-  openFichaPane(dlg);
   const nombre = document.getElementById('readerNombre');
   if (nombre) nombre.focus();
 }
@@ -4427,6 +4349,7 @@ function cargarTablas() {
 }
 
 function iniciar() {
+  registrarColorEntidadKinds();
   renderPestanasCatalogo();
   renderDocPestanas();
   const tabs = document.getElementById('catalogoTabs');
@@ -4848,6 +4771,7 @@ function conMetaProyecto(destino, fuente) {
     destino.clusterId = String(fuente.clusterId || fuente.cluster_id || '').trim() || null;
   }
   if (fuente.legacyNegocio != null) destino.legacyNegocio = !!fuente.legacyNegocio;
+  copiarColorMeta(destino, fuente);
   return destino;
 }
 
@@ -5255,6 +5179,7 @@ function renderProyectoReader() {
   seleccionarProyReaderTab('resumen');
   pintarVersionProyecto(v);
   renderHistorialProyecto(proy, v);
+  openFichaPane(dlg);
   cablearColorFicha(dlg, {
     kind: 'proyecto',
     id: proy.id,
@@ -5262,7 +5187,6 @@ function renderProyectoReader() {
     getColor: function () { return proy.color; },
     onSaved: function (hex) { proy.color = hex; }
   });
-  openFichaPane(dlg);
   const nombre = document.getElementById('proyReaderNombre');
   if (nombre) nombre.focus();
 }
@@ -6200,6 +6124,7 @@ function renderClusterReader() {
   }
   pintarClusterResumenConexion(cl);
   seleccionarClusterReaderTab(state.clusters.tab || 'resumen');
+  openFichaPane(dlg);
   cablearColorFicha(dlg, {
     kind: 'cluster',
     id: cl.id,
@@ -6207,7 +6132,6 @@ function renderClusterReader() {
     getColor: function () { return cl.color; },
     onSaved: function (hex) { cl.color = hex; }
   });
-  openFichaPane(dlg);
   if (nombre) nombre.focus();
 }
 
@@ -7577,6 +7501,7 @@ function abrirFichaColeccion(key, opts) {
   state.colecciones.tab = 'resumen';
   renderColeccionReader(col);
   const dlgCol = document.getElementById('dlgColeccion');
+  openFichaPane(dlgCol);
   cablearColorFicha(dlgCol, {
     kind: 'coleccion',
     id: col.key,
@@ -7585,7 +7510,6 @@ function abrirFichaColeccion(key, opts) {
     getUsados: function () { return coloresUsadosCatalogo('coleccion', col.key); },
     onSaved: function (hex) { col.color = hex; }
   });
-  openFichaPane(dlgCol);
   const focus = document.getElementById('colReaderNombre');
   if (focus) focus.focus();
   pintarColecciones();
@@ -9058,6 +8982,7 @@ function renderAgenteReader() {
   }
   iconizarPestanasFicha(dlg);
   seleccionarAgenteReaderTab('resumen');
+  openFichaPane(dlg);
   if (avatar && !ag.foto) {
     cablearColorFicha(avatar, {
       kind: 'agente',
@@ -9067,7 +8992,6 @@ function renderAgenteReader() {
       onSaved: function (hex) { ag.color = hex; }
     });
   }
-  openFichaPane(dlg);
   const nombre = document.getElementById('agenteReaderNombre');
   if (nombre) nombre.focus();
 }
@@ -9255,6 +9179,7 @@ function normalizeFundamentosLocales(list) {
 
 function conMetaFundamento(destino, fuente) {
   if (fuente.descripcion) destino.descripcion = fuente.descripcion;
+  copiarColorMeta(destino, fuente);
   return destino;
 }
 
@@ -9508,6 +9433,7 @@ function renderFundamentoReader() {
   seleccionarFundReaderTab('documento');
   renderHistorialFund(f, v);
   pintarVersionFundamento(v);
+  openFichaPane(dlg);
   cablearColorFicha(dlg, {
     kind: 'fundamento',
     id: f.id,
@@ -9515,7 +9441,6 @@ function renderFundamentoReader() {
     getColor: function () { return f.color; },
     onSaved: function (hex) { f.color = hex; }
   });
-  openFichaPane(dlg);
   const nombre = document.getElementById('fundReaderNombre');
   if (nombre) nombre.focus();
 }

@@ -147,6 +147,9 @@
           ? n.versiones
           : rem.versiones
       });
+      // Preservar color del remoto si el local no trae clave (merge no debe dropear tinte).
+      if (Object.prototype.hasOwnProperty.call(n, 'color')) merged.color = n.color;
+      else if (Object.prototype.hasOwnProperty.call(rem, 'color')) merged.color = rem.color;
       byId[n.id] = merged;
     });
     return Object.keys(byId).map(function (k) { return byId[k]; }).sort(function (a, b) {
@@ -414,6 +417,8 @@
         });
       }
     }
+    if (typeof openFichaPane === 'function') openFichaPane(dlg);
+    else if (dlg && !dlg.open) dlg.showModal();
     if (typeof window.cablearColorFicha === 'function') {
       window.cablearColorFicha(dlg, {
         kind: 'system-prompt',
@@ -423,8 +428,6 @@
         onSaved: function (hex) { item.color = hex; }
       });
     }
-    if (typeof openFichaPane === 'function') openFichaPane(dlg);
-    else if (dlg && !dlg.open) dlg.showModal();
     if (nombreEl) nombreEl.focus();
   }
 
