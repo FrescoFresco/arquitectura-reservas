@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Arquitectura de acoplamiento a reservas web</title>
-<meta name="description" content="Catálogos Clusters, Base de datos, Colecciones, Campos, Campos ancla, Skills y System prompts.">
+<meta name="description" content="Catálogos Clusters, Base de datos, Colecciones, Campos, Campos ancla, Skills, Flujos y System prompts.">
 <script>
 (function () {
   try {
@@ -452,6 +452,17 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div role="tabpanel" id="panel-skills" data-catalogo="skills" hidden>
 <div id="skills-root"></div>
 </div>
+<div role="tabpanel" id="panel-flujos" data-catalogo="flujos" hidden>
+<div class="catalogo-toolbar">
+<button type="button" class="btn primary btn-anadir" id="btnNuevoFlujoCatalogo" title="Crear flujo">
+<span class="btn-anadir-plus" aria-hidden="true">+</span>
+<span class="btn-anadir-svg-wrap" aria-hidden="true"><svg class="btn-anadir-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></span>
+<span>Añadir flujo</span>
+</button>
+</div>
+<p id="flujosEstado" class="estado" role="status" hidden>Cargando flujos…</p>
+<div id="flujos-root" class="catalogo-lista" role="list"></div>
+</div>
 <div role="tabpanel" id="panel-system-prompts" data-catalogo="system-prompts" hidden>
 <div id="system-prompts-root"></div>
 </div>
@@ -779,8 +790,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="flujoReaderTabs" role="tablist" aria-label="Secciones del flujo">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="flujoTabResumen" data-flujo-tab="resumen" aria-selected="true" aria-controls="flujoPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabBaseDatos" data-flujo-tab="base-datos" aria-selected="false" aria-controls="flujoPanelBaseDatos">Base de datos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabDocumento" data-flujo-tab="documento" aria-selected="false" aria-controls="flujoPanelDocumento">Documento</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabVersiones" data-flujo-tab="versiones" aria-selected="false" aria-controls="flujoPanelVersiones">Versiones</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabCorridas" data-flujo-tab="corridas" aria-selected="false" aria-controls="flujoPanelCorridas">Corridas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabInterno" data-flujo-tab="interno" aria-selected="false" aria-controls="flujoPanelInterno">Interno</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelResumen" role="tabpanel" aria-labelledby="flujoTabResumen">
@@ -790,6 +803,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Descripción</dt><dd id="flujoReaderDesc">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Nodos</dt><dd id="flujoReaderNodosCount">—</dd></div>
 </dl>
+<p class="ajustes-hint" style="margin-top:12px">Grafo (Mermaid) de la versión abierta:</p>
+<div class="proy-diagrama-render" id="flujoGrafoResumen"></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="flujoPanelBaseDatos" role="tabpanel" aria-labelledby="flujoTabBaseDatos" hidden>
+<p class="ajustes-hint">Base de datos (proyecto) a la que pertenece este flujo.</p>
+<div id="flujoBaseDatosLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelDocumento" role="tabpanel" aria-labelledby="flujoTabDocumento" hidden>
 <p class="ajustes-hint">Grafo del flujo (Mermaid) y lista de nodos/aristas. Editar abre el JSON.</p>
@@ -816,6 +835,11 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="reader-panel ancla-ficha-body" id="flujoPanelVersiones" role="tabpanel" aria-labelledby="flujoTabVersiones" hidden>
 <p class="ajustes-hint">Versiones pinneadas en D1 (<code>flujo_versions</code>). Las corridas guardan el número de versión al crearse.</p>
 <ul id="flujoVersionesLista" class="flujo-nodos-lista"></ul>
+</div>
+<div class="reader-panel ancla-ficha-body" id="flujoPanelCorridas" role="tabpanel" aria-labelledby="flujoTabCorridas" hidden>
+<p class="ajustes-hint">Corridas de este flujo (filtro <code>flujo_id</code>). Clic abre el detalle; el historial completo sigue en la ficha Base de datos → Corridas.</p>
+<p class="ancla-ficha-vacio" id="flujoCorridasEstado" hidden>Cargando…</p>
+<div id="flujoCorridasLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelInterno" role="tabpanel" aria-labelledby="flujoTabInterno" hidden>
 <dl class="ancla-ficha-dl">
@@ -871,7 +895,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <dialog id="dlgNuevoFlujo" aria-labelledby="dlgNuevoFlujoTitulo">
 <form class="dlg" id="formNuevoFlujo">
 <h3 id="dlgNuevoFlujoTitulo">Añadir flujo</h3>
-<p class="ajustes-hint">Se crea en la Base de datos abierta. Mínimo: nodos con Inicio y Fin + aristas.</p>
+<p class="ajustes-hint" id="nuevoFlujoHint">Se crea en la Base de datos abierta. Mínimo: nodos con Inicio y Fin + aristas.</p>
+<label id="nuevoFlujoProyectoWrap" hidden>Base de datos (proyecto)
+<select name="proyecto_id" id="nuevoFlujoProyecto" autocomplete="off">
+<option value="">— elegir —</option>
+</select>
+</label>
 <label>Id <input name="id" required pattern="[a-z0-9][a-z0-9-]{0,60}" placeholder="mi-flujo" autocomplete="off"></label>
 <label>Nombre <input name="nombre" required placeholder="Descubrir → Mapear" autocomplete="off"></label>
 <label>Descripción <input name="descripcion" placeholder="Opcional" autocomplete="off"></label>
@@ -1714,8 +1743,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="fundamentos-ui.js?v=20261020z"></script>
 <script src="system-prompts-ui.js?v=20261023picker1"></script>
 <script src="system-prompts-catalog.js?v=20261023picker1"></script>
-<script src="catalogo-ui.js?v=20261023flujos1"></script>
-<script src="flujos-corridas-ui.js?v=20261023flujos1"></script>
+<script src="catalogo-ui.js?v=20261023flujos2"></script>
+<script src="flujos-corridas-ui.js?v=20261023flujos2"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>

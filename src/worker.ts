@@ -3288,7 +3288,7 @@ async function hydrateFlujoListItem(db: D1Database, row: Record<string, unknown>
     )
     .bind(id)
     .first<{ numero: number }>();
-  return {
+  const item: Record<string, unknown> = {
     id,
     nombre: String(row.nombre || ''),
     descripcion: String(row.descripcion || ''),
@@ -3298,6 +3298,11 @@ async function hydrateFlujoListItem(db: D1Database, row: Record<string, unknown>
     createdAt: String(row.created_at || ''),
     updatedAt: String(row.updated_at || ''),
   };
+  // Hook color-por-entidad: si la columna existe y viene en el row, reenviar.
+  if (row.color != null && String(row.color).trim()) {
+    item.color = String(row.color).trim();
+  }
+  return item;
 }
 
 async function listFlujoVersions(db: D1Database, flujoId: string) {

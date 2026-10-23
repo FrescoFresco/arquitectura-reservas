@@ -7,6 +7,7 @@ const CATALOGOS = [
   { id: 'campos-mongodb', nombre: 'Campos', icono: 'mongo' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
+  { id: 'flujos', nombre: 'Flujos', icono: 'flujo' },
   { id: 'system-prompts', nombre: 'System prompts', icono: 'system-prompt' }
 ];
 const TABLAS = [];
@@ -37,7 +38,9 @@ const FICHA_PANE_IDS = [
   'dlgColeccion',
   'dlgAgenteFicha',
   'dlgFundamento',
-  'dlgSystemPrompt'
+  'dlgSystemPrompt',
+  'dlgFlujo',
+  'dlgCorrida'
 ];
 
 function syncFichaPaneClass() {
@@ -3268,6 +3271,9 @@ function seleccionarCatalogo(id) {
   renderPestanasCatalogo();
   // Re-fetch from live API on tab focus so agent writes appear without hard reload.
   if (id === 'skills') cargarSkills();
+  if (id === 'flujos' && window.FlujosCorridasUI && typeof window.FlujosCorridasUI.cargarCatalogo === 'function') {
+    window.FlujosCorridasUI.cargarCatalogo();
+  }
   if (id === 'system-prompts' && window.SystemPromptsCatalog) window.SystemPromptsCatalog.cargar();
   if (id === 'campos-ancla') cargarCampos();
   if (id === 'campos-mongodb') cargarMongo();
@@ -7814,6 +7820,12 @@ window.asegurarClaveCatalogo = asegurarClaveCatalogo;
 window.renderMermaidEn = renderMermaidEn;
 window.atrasDesdeFicha = atrasDesdeFicha;
 window.iconizarPestanasFicha = iconizarPestanasFicha;
+window.openFichaPane = openFichaPane;
+window.abrirProyecto = abrirProyecto;
+window.cargarProyectos = cargarProyectos;
+window.listaProyectosCatalogo = function () {
+  return (state.proyectos && state.proyectos.lista) || [];
+};
 
 const UI_PROD_BASE = 'https://campos-ancla.web-legal-es.workers.dev/';
 const API_PROD_BASE = 'https://campos-ancla-api.web-legal-es.workers.dev';

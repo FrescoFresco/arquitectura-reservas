@@ -1,10 +1,12 @@
 'use strict';
 
 /**
- * Flujos + Corridas UI (ficha BD → pestañas; fichas dlgFlujo / dlgCorrida).
+ * Flujos + Corridas UI.
+ * - Catálogos → Flujos (lista global + ficha)
+ * - Base de datos → Flujos / Corridas (filtrado por proyecto)
  * Depende de helpers globales de catalogo-ui: apiFetch, apiFetchAuth,
  * asegurarClaveCatalogo, showApiErrorRaw, renderMermaidEn, svgPestanaCatalogo,
- * iconizarPestanasFicha, atrasDesdeFicha, apiBaseUrl.
+ * iconizarPestanasFicha, atrasDesdeFicha, apiBaseUrl, openFichaPane, abrirProyecto.
  */
 (function () {
   var PAGE_SIZE = 25;
@@ -13,6 +15,9 @@
     proyectoId: null,
     flujos: [],
     flujosToken: 0,
+    catalogFlujos: [],
+    catalogToken: 0,
+    origenLista: 'proyecto', // 'proyecto' | 'catalogo'
     flujoAbierto: null,
     flujoVersion: null,
     flujoHistorial: false,
@@ -21,8 +26,31 @@
     corridasToken: 0,
     corridasPage: 0,
     corridasFiltros: { estado: '', negocio: '', flujo_id: '' },
-    corridaAbierta: null
+    corridaAbierta: null,
+    flujoCorridas: [],
+    flujoCorridasToken: 0
   };
+
+  /** Hook color-por-entidad: tinte del tile si la API ya envía `color` (PR paralelo). */
+  function aplicarColorTile(iconEl, color) {
+    if (!iconEl) return;
+    var c = String(color || '').trim();
+    if (!c) {
+      iconEl.style.removeProperty('--entity-color');
+      iconEl.style.removeProperty('background');
+      iconEl.style.removeProperty('color');
+      return;
+    }
+    iconEl.style.setProperty('--entity-color', c);
+    iconEl.style.background = 'color-mix(in srgb, ' + c + ' 18%, #fff)';
+    iconEl.style.color = c;
+  }
+
+  function apiBase() {
+    return typeof window.apiBaseUrl === 'function'
+      ? window.apiBaseUrl()
+      : 'https://campos-ancla-api.web-legal-es.workers.dev';
+  }
 
   function esc(s) {
     return String(s == null ? '' : s);
@@ -99,7 +127,8 @@
     return lines.join('\n');
   }
 
-  function filaFlujo(f, onAbrir) {
+  function filaFlujo(f, onAbrir, opts) {
+    var o = opts || {};
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'catalogo-fila';
@@ -122,6 +151,7 @@
         icon.append(svg);
       }
     }
+    aplicarColorTile(icon, f.color);
     var main = document.createElement('span');
     main.className = 'catalogo-fila-main';
     var tit = document.createElement('span');
@@ -129,7 +159,11 @@
     tit.textContent = f.nombre || f.id;
     var cod = document.createElement('span');
     cod.className = 'catalogo-fila-codigo';
-    cod.textContent = [f.id, formatVersionLabel(f.version, null)].filter(Boolean).join(' · ');
+    var partes = [f.id, formatVersionLabel(f.version, null)];
+    if (o.showProyecto && (f.proyectoId || f.proyecto_id)) {
+      partes.push(f.proyectoId || f.proyecto_id);
+    }
+    cod.textContent = partes.filter(Boolean).join(' · ');
     main.append(tit, cod);
 
     var enlace = document.createElement('span');
@@ -142,10 +176,25 @@
     return btn;
   }
 
+  function fetchFlujosJson(qs) {
+    var url = apiBase() + '/v1/flujos' + (qs ? '?' + qs : '');
+    return fetch(url, { cache: 'no-store' }).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok || (data && data.ok === false)) {
+          var err = new Error((data && data.error) || 'HTTP ' + res.status);
+          err.data = data;
+          throw err;
+        }
+        return data;
+      });
+    });
+  }
+
   function cargarFlujos(proy, opts) {
     var o = opts || {};
     if (!proy || !proy.id) return;
     st.proyectoId = proy.id;
+    st.origenLista = 'proyecto';
     var token = ++st.flujosToken;
     var estado = document.getElementById('proyFlujosEstado');
     var lista = document.getElementById('proyFlujosLista');
@@ -155,25 +204,11 @@
     }
     if (lista && !o.keep) lista.replaceChildren();
 
-    var base =
-      typeof window.apiBaseUrl === 'function'
-        ? window.apiBaseUrl()
-        : 'https://campos-ancla-api.web-legal-es.workers.dev';
-    fetch(base + '/v1/flujos?proyecto=' + encodeURIComponent(proy.id), { cache: 'no-store' })
-      .then(function (res) {
-        return res.json().then(function (data) {
-          if (!res.ok || (data && data.ok === false)) {
-            var err = new Error((data && data.error) || 'HTTP ' + res.status);
-            err.data = data;
-            throw err;
-          }
-          return data;
-        });
-      })
+    fetchFlujosJson('proyecto=' + encodeURIComponent(proy.id))
       .then(function (data) {
         if (token !== st.flujosToken) return;
         st.flujos = (data && data.flujos) || [];
-        pintarListaFlujos();
+        pintarListaFlujosProyecto();
       })
       .catch(function (err) {
         if (token !== st.flujosToken) return;
@@ -188,7 +223,7 @@
       });
   }
 
-  function pintarListaFlujos() {
+  function pintarListaFlujosProyecto() {
     var estado = document.getElementById('proyFlujosEstado');
     var lista = document.getElementById('proyFlujosLista');
     if (!lista) return;
@@ -202,16 +237,73 @@
     }
     if (estado) estado.hidden = true;
     st.flujos.forEach(function (f) {
-      lista.append(filaFlujo(f, abrirFlujo));
+      lista.append(filaFlujo(f, abrirFlujo, { showProyecto: false }));
     });
+  }
+
+  /** Catálogo top-level: todos los flujos de todas las BDs. */
+  function cargarCatalogo() {
+    st.origenLista = 'catalogo';
+    var token = ++st.catalogToken;
+    var estado = document.getElementById('flujosEstado');
+    var lista = document.getElementById('flujos-root');
+    if (estado) {
+      estado.hidden = false;
+      estado.textContent = 'Cargando flujos…';
+    }
+    if (lista) lista.replaceChildren();
+
+    fetchFlujosJson('')
+      .then(function (data) {
+        if (token !== st.catalogToken) return;
+        st.catalogFlujos = (data && data.flujos) || [];
+        pintarListaFlujosCatalogo();
+      })
+      .catch(function (err) {
+        if (token !== st.catalogToken) return;
+        if (estado) {
+          estado.hidden = false;
+          if (typeof window.showApiErrorRaw === 'function') {
+            window.showApiErrorRaw(estado, err, { kind: 'is-err', statusLabel: true });
+          } else {
+            estado.textContent = err.message || 'Error';
+          }
+        }
+      });
+  }
+
+  function pintarListaFlujosCatalogo() {
+    var estado = document.getElementById('flujosEstado');
+    var lista = document.getElementById('flujos-root');
+    if (!lista) return;
+    lista.replaceChildren();
+    if (!st.catalogFlujos.length) {
+      if (estado) {
+        estado.hidden = false;
+        estado.textContent = 'Sin flujos. Crea uno desde aquí o desde una Base de datos.';
+      }
+      return;
+    }
+    if (estado) estado.hidden = true;
+    st.catalogFlujos.forEach(function (f) {
+      lista.append(filaFlujo(f, abrirFlujo, { showProyecto: true }));
+    });
+  }
+
+  function refrescarListasTrasCambio() {
+    if (st.proyectoId) cargarFlujos({ id: st.proyectoId });
+    var panel = document.getElementById('panel-flujos');
+    if (panel && !panel.hidden) cargarCatalogo();
   }
 
   function seleccionarFlujoTab(id) {
     var tabs = document.querySelectorAll('#flujoReaderTabs [data-flujo-tab]');
     var panels = {
       resumen: document.getElementById('flujoPanelResumen'),
+      'base-datos': document.getElementById('flujoPanelBaseDatos'),
       documento: document.getElementById('flujoPanelDocumento'),
       versiones: document.getElementById('flujoPanelVersiones'),
+      corridas: document.getElementById('flujoPanelCorridas'),
       interno: document.getElementById('flujoPanelInterno')
     };
     tabs.forEach(function (btn) {
@@ -222,8 +314,11 @@
     Object.keys(panels).forEach(function (key) {
       if (panels[key]) panels[key].hidden = key !== id;
     });
+    if (id === 'resumen') pintarFlujoResumenGrafo();
+    if (id === 'base-datos') pintarFlujoBaseDatos();
     if (id === 'documento') pintarFlujoDocumento();
     if (id === 'versiones') pintarFlujoVersionesTab();
+    if (id === 'corridas') cargarFlujoCorridas();
   }
 
   function renderHistorialFlujo() {
@@ -261,6 +356,8 @@
     var ver = document.getElementById('flujoReaderVersion');
     if (nombre) nombre.textContent = f.nombre || f.id;
     if (ver) ver.textContent = formatVersionLabel(f.version, null);
+    var iconWrap = document.querySelector('#flujoReader .ficha-titulo-icon');
+    if (iconWrap) aplicarColorTile(iconWrap, f.color);
     var idEl = document.getElementById('flujoReaderId');
     var proyEl = document.getElementById('flujoReaderProyecto');
     var descEl = document.getElementById('flujoReaderDesc');
@@ -280,10 +377,32 @@
     var editWrap = document.getElementById('flujoEditWrap');
     if (editWrap) editWrap.hidden = !st.flujoEdit;
     if (st.flujoEdit) rellenarEditorFlujo();
+    var onRes = document.querySelector('#flujoReaderTabs [data-flujo-tab="resumen"].is-on');
+    if (onRes) pintarFlujoResumenGrafo();
+    var onBd = document.querySelector('#flujoReaderTabs [data-flujo-tab="base-datos"].is-on');
+    if (onBd) pintarFlujoBaseDatos();
     var onDoc = document.querySelector('#flujoReaderTabs [data-flujo-tab="documento"].is-on');
     if (onDoc) pintarFlujoDocumento();
     var onVer = document.querySelector('#flujoReaderTabs [data-flujo-tab="versiones"].is-on');
     if (onVer) pintarFlujoVersionesTab();
+    var onCor = document.querySelector('#flujoReaderTabs [data-flujo-tab="corridas"].is-on');
+    if (onCor) cargarFlujoCorridas();
+  }
+
+  function renderGrafoEn(el, src) {
+    if (!el) return;
+    if (typeof window.renderMermaidEn === 'function') {
+      window.renderMermaidEn(el, src);
+    } else {
+      el.textContent = src;
+    }
+  }
+
+  function pintarFlujoResumenGrafo() {
+    var f = st.flujoAbierto;
+    if (!f) return;
+    var src = f.mermaid || mermaidLocal(f.nodos, f.aristas);
+    renderGrafoEn(document.getElementById('flujoGrafoResumen'), src);
   }
 
   function pintarFlujoDocumento() {
@@ -293,11 +412,7 @@
     var ascii = document.getElementById('flujoGrafoAscii');
     var lista = document.getElementById('flujoNodosLista');
     var src = f.mermaid || mermaidLocal(f.nodos, f.aristas);
-    if (render && typeof window.renderMermaidEn === 'function') {
-      window.renderMermaidEn(render, src);
-    } else if (render) {
-      render.textContent = src;
-    }
+    renderGrafoEn(render, src);
     if (ascii) {
       ascii.hidden = false;
       ascii.textContent = asciiGrafo(f.nodos, f.aristas);
@@ -318,6 +433,170 @@
         lista.append(li);
       });
     }
+  }
+
+  function pintarFlujoBaseDatos() {
+    var mount = document.getElementById('flujoBaseDatosLista');
+    var f = st.flujoAbierto;
+    if (!mount || !f) return;
+    var pid = f.proyectoId || f.proyecto_id;
+    if (!window.ProyectosUI || typeof window.ProyectosUI.montarLista !== 'function') {
+      mount.textContent = pid || '—';
+      return;
+    }
+
+    function bridgeCon(proyectos, ready, indexError) {
+      return {
+        getSnapshot: function () {
+          return {
+            ready: ready,
+            indexError: !!indexError,
+            proyectos: proyectos || [],
+            abierta: null
+          };
+        },
+        añadirProyecto: function () {},
+        abrirProyecto: function (id) {
+          cerrarFlujo();
+          if (typeof window.abrirProyecto === 'function') window.abrirProyecto(id);
+        }
+      };
+    }
+
+    var lista =
+      (typeof window.listaProyectosCatalogo === 'function' && window.listaProyectosCatalogo()) ||
+      (window.state && window.state.proyectos && window.state.proyectos.lista) ||
+      [];
+    var proy = (lista || []).find(function (p) {
+      return p && p.id === pid;
+    });
+    if (proy) {
+      window.ProyectosUI.montarLista(mount, bridgeCon([proy], true, false), {
+        emptyMsg: 'Sin base de datos padre.'
+      });
+      return;
+    }
+    // Fallback: fila mínima si el índice aún no cargó el proyecto.
+    if (pid) {
+      window.ProyectosUI.montarLista(
+        mount,
+        bridgeCon(
+          [
+            {
+              id: pid,
+              nombre: pid,
+              descripcion: '',
+              versiones: [{ numero: 1, fecha: '' }],
+              skills: []
+            }
+          ],
+          true,
+          false
+        ),
+        { emptyMsg: 'Sin base de datos padre.' }
+      );
+    } else {
+      window.ProyectosUI.montarLista(mount, bridgeCon([], true, false), {
+        emptyMsg: 'No se encontró la base de datos padre.'
+      });
+    }
+  }
+
+  function cargarFlujoCorridas() {
+    var f = st.flujoAbierto;
+    var estado = document.getElementById('flujoCorridasEstado');
+    var lista = document.getElementById('flujoCorridasLista');
+    if (!f || !lista) return;
+    var token = ++st.flujoCorridasToken;
+    if (estado) {
+      estado.hidden = false;
+      estado.textContent = 'Cargando corridas…';
+    }
+    lista.replaceChildren();
+    var qs = new URLSearchParams();
+    qs.set('flujo_id', f.id);
+    if (f.proyectoId) qs.set('proyecto', f.proyectoId);
+    fetch(apiBase() + '/v1/corridas?' + qs.toString(), { cache: 'no-store' })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || (data && data.ok === false)) {
+            var err = new Error((data && data.error) || 'HTTP ' + res.status);
+            err.data = data;
+            throw err;
+          }
+          return data;
+        });
+      })
+      .then(function (data) {
+        if (token !== st.flujoCorridasToken) return;
+        st.flujoCorridas = (data && data.corridas) || [];
+        pintarFlujoCorridasLista();
+      })
+      .catch(function (err) {
+        if (token !== st.flujoCorridasToken) return;
+        if (estado) {
+          estado.hidden = false;
+          if (typeof window.showApiErrorRaw === 'function') {
+            window.showApiErrorRaw(estado, err, { kind: 'is-err', statusLabel: true });
+          } else {
+            estado.textContent = err.message || 'Error';
+          }
+        }
+      });
+  }
+
+  function pintarFlujoCorridasLista() {
+    var estado = document.getElementById('flujoCorridasEstado');
+    var lista = document.getElementById('flujoCorridasLista');
+    if (!lista) return;
+    lista.replaceChildren();
+    if (!st.flujoCorridas.length) {
+      if (estado) {
+        estado.hidden = false;
+        estado.textContent = 'Sin corridas de este flujo.';
+      }
+      return;
+    }
+    if (estado) estado.hidden = true;
+    st.flujoCorridas.forEach(function (c) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'catalogo-fila';
+      btn.setAttribute('role', 'listitem');
+      btn.setAttribute('aria-label', 'Abrir corrida ' + (c.id || ''));
+      var icon = document.createElement('span');
+      icon.className = 'catalogo-fila-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      if (typeof window.svgPestanaCatalogo === 'function') {
+        var svg = window.svgPestanaCatalogo('corrida');
+        if (svg) {
+          svg.classList.add('catalogo-fila-svg');
+          svg.classList.remove('pestana-svg');
+          icon.append(svg);
+        }
+      }
+      var main = document.createElement('span');
+      main.className = 'catalogo-fila-main';
+      var tit = document.createElement('span');
+      tit.className = 'catalogo-fila-titulo';
+      tit.textContent = c.negocio || c.id || '—';
+      var cod = document.createElement('span');
+      cod.className = 'catalogo-fila-codigo';
+      cod.textContent = [c.estado, c.id, formatCuando(c.actualizada || c.creada)]
+        .filter(Boolean)
+        .join(' · ');
+      main.append(tit, cod);
+      var enlace = document.createElement('span');
+      enlace.className = 'catalogo-fila-enlace';
+      enlace.setAttribute('aria-hidden', 'true');
+      enlace.innerHTML =
+        '<svg class="catalogo-fila-enlace-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+      btn.append(icon, main, enlace);
+      btn.addEventListener('click', function () {
+        abrirCorrida(c.id);
+      });
+      lista.append(btn);
+    });
   }
 
   function pintarFlujoVersionesTab() {
@@ -377,11 +656,7 @@
     st.flujoEdit = false;
     var dlg = document.getElementById('dlgFlujo');
     var qs = version != null ? '?version=' + encodeURIComponent(version) : '';
-    var base =
-      typeof window.apiBaseUrl === 'function'
-        ? window.apiBaseUrl()
-        : 'https://campos-ancla-api.web-legal-es.workers.dev';
-    fetch(base + '/v1/flujos/' + encodeURIComponent(id) + qs, { cache: 'no-store' })
+    fetch(apiBase() + '/v1/flujos/' + encodeURIComponent(id) + qs, { cache: 'no-store' })
       .then(function (res) {
         return res.json().then(function (data) {
           if (!res.ok || (data && data.ok === false)) {
@@ -395,12 +670,16 @@
       .then(function (data) {
         st.flujoAbierto = data.flujo;
         st.flujoVersion = data.flujo && data.flujo.version;
+        if (data.flujo && data.flujo.proyectoId) st.proyectoId = data.flujo.proyectoId;
         seleccionarFlujoTab('resumen');
         pintarFlujoFicha();
         if (typeof window.iconizarPestanasFicha === 'function') {
           window.iconizarPestanasFicha(document.getElementById('flujoReader'));
         }
-        if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+        if (dlg) {
+          if (typeof window.openFichaPane === 'function') window.openFichaPane(dlg);
+          else if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+        }
       })
       .catch(function (err) {
         console.error(err);
@@ -466,9 +745,7 @@
         st.flujoVersion = data.flujo && data.flujo.version;
         st.flujoEdit = false;
         pintarFlujoFicha();
-        if (st.proyectoId) {
-          cargarFlujos({ id: st.proyectoId });
-        }
+        refrescarListasTrasCambio();
         if (msg) {
           msg.classList.add('is-ok');
           msg.textContent = 'Versión ' + (data.flujo && data.flujo.version) + ' guardada.';
@@ -484,12 +761,54 @@
       });
   }
 
-  function abrirNuevoFlujo() {
+  function proyectosDisponibles() {
+    if (typeof window.listaProyectosCatalogo === 'function') {
+      return window.listaProyectosCatalogo() || [];
+    }
+    if (window.state && window.state.proyectos && Array.isArray(window.state.proyectos.lista)) {
+      return window.state.proyectos.lista;
+    }
+    return [];
+  }
+
+  function abrirNuevoFlujo(opts) {
+    var o = opts || {};
+    var fromCatalog = !!o.fromCatalog;
     var dlg = document.getElementById('dlgNuevoFlujo');
     var err = document.getElementById('nuevoFlujoError');
+    var wrap = document.getElementById('nuevoFlujoProyectoWrap');
+    var sel = document.getElementById('nuevoFlujoProyecto');
+    var hint = document.getElementById('nuevoFlujoHint');
     if (err) {
       err.hidden = true;
       err.textContent = '';
+    }
+    var needProy = fromCatalog || !st.proyectoId;
+    if (wrap) wrap.hidden = !needProy;
+    if (hint) {
+      hint.textContent = needProy
+        ? 'Elige la Base de datos (proyecto) y define nodos Inicio/Fin + aristas.'
+        : 'Se crea en la Base de datos abierta. Mínimo: nodos con Inicio y Fin + aristas.';
+    }
+    if (needProy && sel) {
+      sel.replaceChildren();
+      var opt0 = document.createElement('option');
+      opt0.value = '';
+      opt0.textContent = '— elegir —';
+      sel.append(opt0);
+      proyectosDisponibles().forEach(function (p) {
+        if (!p || !p.id) return;
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = (p.nombre || p.id) + ' (' + p.id + ')';
+        if (st.proyectoId && p.id === st.proyectoId) opt.selected = true;
+        sel.append(opt);
+      });
+      if (typeof window.cargarProyectos === 'function' && !proyectosDisponibles().length) {
+        try {
+          window.cargarProyectos();
+        } catch (e) {}
+      }
     }
     if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
   }
@@ -498,10 +817,16 @@
     e.preventDefault();
     var form = e.target;
     var errEl = document.getElementById('nuevoFlujoError');
-    if (!st.proyectoId) {
+    var sel = document.getElementById('nuevoFlujoProyecto');
+    var wrap = document.getElementById('nuevoFlujoProyectoWrap');
+    var proyectoId = st.proyectoId;
+    if (wrap && !wrap.hidden && sel) {
+      proyectoId = String(sel.value || '').trim();
+    }
+    if (!proyectoId) {
       if (errEl) {
         errEl.hidden = false;
-        errEl.textContent = 'Abre una Base de datos primero.';
+        errEl.textContent = 'Elige una Base de datos (proyecto).';
       }
       return;
     }
@@ -534,7 +859,7 @@
             id: id,
             nombre: nombre,
             descripcion: descripcion,
-            proyecto_id: st.proyectoId,
+            proyecto_id: proyectoId,
             nodos: nodos,
             aristas: aristas
           })
@@ -543,7 +868,8 @@
       .then(function (data) {
         if (!data || data.ok === false) throw Object.assign(new Error((data && data.error) || 'Error'), { data: data });
         document.getElementById('dlgNuevoFlujo').close();
-        cargarFlujos({ id: st.proyectoId });
+        st.proyectoId = proyectoId;
+        refrescarListasTrasCambio();
         if (data.flujo && data.flujo.id) abrirFlujo(data.flujo.id);
       })
       .catch(function (err) {
@@ -789,11 +1115,7 @@
 
   function abrirCorrida(id) {
     var dlg = document.getElementById('dlgCorrida');
-    var base =
-      typeof window.apiBaseUrl === 'function'
-        ? window.apiBaseUrl()
-        : 'https://campos-ancla-api.web-legal-es.workers.dev';
-    fetch(base + '/v1/corridas/' + encodeURIComponent(id), { cache: 'no-store' })
+    fetch(apiBase() + '/v1/corridas/' + encodeURIComponent(id), { cache: 'no-store' })
       .then(function (res) {
         return res.json().then(function (data) {
           if (!res.ok || (data && data.ok === false)) {
@@ -811,7 +1133,10 @@
         if (typeof window.iconizarPestanasFicha === 'function') {
           window.iconizarPestanasFicha(document.getElementById('corridaReader'));
         }
-        if (dlg && typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+        if (dlg) {
+          if (typeof window.openFichaPane === 'function') window.openFichaPane(dlg);
+          else if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+        }
       })
       .catch(function (err) {
         console.error(err);
@@ -909,7 +1234,13 @@
 
   function wire() {
     var btnNuevo = document.getElementById('btnNuevoFlujo');
-    if (btnNuevo) btnNuevo.addEventListener('click', abrirNuevoFlujo);
+    if (btnNuevo) btnNuevo.addEventListener('click', function () { abrirNuevoFlujo({ fromCatalog: false }); });
+    var btnNuevoCat = document.getElementById('btnNuevoFlujoCatalogo');
+    if (btnNuevoCat) {
+      btnNuevoCat.addEventListener('click', function () {
+        abrirNuevoFlujo({ fromCatalog: true });
+      });
+    }
     var btnNuevaCorrida = document.getElementById('btnNuevaCorrida');
     if (btnNuevaCorrida) btnNuevaCorrida.addEventListener('click', function () { abrirNuevaCorrida(); });
     var cancelCorrida = document.getElementById('nuevaCorridaCancelar');
@@ -998,6 +1329,12 @@
     if (btnCorridas) {
       btnCorridas.addEventListener('click', function () {
         if (!st.flujoAbierto) return;
+        // Preferir pestaña Corridas de la ficha flujo; si no, ir a BD → Corridas.
+        var tab = document.getElementById('flujoTabCorridas');
+        if (tab) {
+          seleccionarFlujoTab('corridas');
+          return;
+        }
         var fid = st.flujoAbierto.id;
         var pid = st.flujoAbierto.proyectoId || st.proyectoId;
         cerrarFlujo();
@@ -1082,9 +1419,11 @@
 
   window.FlujosCorridasUI = {
     cargarFlujos: cargarFlujos,
+    cargarCatalogo: cargarCatalogo,
     cargarCorridas: cargarCorridas,
     abrirFlujo: abrirFlujo,
     abrirCorrida: abrirCorrida,
+    abrirNuevoFlujo: abrirNuevoFlujo,
     wire: wire,
     state: st
   };
