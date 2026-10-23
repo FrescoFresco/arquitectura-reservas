@@ -8,6 +8,7 @@
  * Never log or return the URI.
  */
 import { MongoClient, type Db } from 'mongodb';
+import { sanitizeJsonSchemaForMongo } from './proyecto-schema';
 
 export const DEFAULT_MONGO_DB = 'software_reservas';
 
@@ -238,7 +239,7 @@ export async function createProjectDatabase(
         if (!existingNames.has(name)) {
           if (col.validator) {
             await db.createCollection(name, {
-              validator: { $jsonSchema: col.validator },
+              validator: { $jsonSchema: sanitizeJsonSchemaForMongo(col.validator) },
               validationLevel: 'moderate',
               validationAction: 'warn',
             });
@@ -250,7 +251,7 @@ export async function createProjectDatabase(
         } else if (col.validator) {
           await db.command({
             collMod: name,
-            validator: { $jsonSchema: col.validator },
+            validator: { $jsonSchema: sanitizeJsonSchemaForMongo(col.validator) },
             validationLevel: 'moderate',
             validationAction: 'warn',
           });

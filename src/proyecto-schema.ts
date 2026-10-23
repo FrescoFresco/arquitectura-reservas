@@ -347,11 +347,51 @@ export function buildJsonSchemaForCollection(
 
   const schema: Record<string, unknown> = {
     bsonType: 'object',
-    required: [...new Set(required)].filter(Boolean),
     properties,
     additionalProperties: true,
   };
-  return schema;
+  // MongoDB Rejects empty `required: []` (FailedToParse). Omit the key when none.
+  const requiredUnique = [...new Set(required)].filter(Boolean);
+  if (requiredUnique.length > 0) {
+    schema.required = requiredUnique;
+  }
+  return sanitizeJsonSchemaForMongo(schema);
+}
+
+/**
+ * MongoDB $jsonSchema rejects some empty arrays (notably `required: []`).
+ * Also strip empty `enum` / `allOf` / `anyOf` / `oneOf` if present.
+ * Walk nested properties/items recursively.
+ */
+export function sanitizeJsonSchemaForMongo(
+  schema: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...schema };
+
+  for (const key of ['required', 'enum', 'allOf', 'anyOf', 'oneOf'] as const) {
+    const v = out[key];
+    if (Array.isArray(v) && v.length === 0) {
+      delete out[key];
+    }
+  }
+
+  if (out.properties && typeof out.properties === 'object' && !Array.isArray(out.properties)) {
+    const props = out.properties as Record<string, unknown>;
+    const cleaned: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(props)) {
+      cleaned[k] =
+        v && typeof v === 'object' && !Array.isArray(v)
+          ? sanitizeJsonSchemaForMongo(v as Record<string, unknown>)
+          : v;
+    }
+    out.properties = cleaned;
+  }
+
+  if (out.items && typeof out.items === 'object' && !Array.isArray(out.items)) {
+    out.items = sanitizeJsonSchemaForMongo(out.items as Record<string, unknown>);
+  }
+
+  return out;
 }
 
 function bsonToAtlasBson(bson: string): string | string[] {
