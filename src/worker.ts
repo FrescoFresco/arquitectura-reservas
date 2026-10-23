@@ -93,6 +93,12 @@ import {
   publicCorrida,
   type CorridaDoc,
 } from './corridas';
+import {
+  extractAnclaIdsFromPipeline,
+  publicDisparador,
+  rowToDisparador,
+  validateDisparadorBody,
+} from './disparadores';
 
 export type Env = {
   DB: D1Database;
@@ -853,6 +859,180 @@ app.delete('/v1/flujos/:id', async (c) => {
   await c.env.DB.prepare('DELETE FROM corridas_index WHERE flujo_id = ?').bind(id).run();
   await c.env.DB.prepare('DELETE FROM flujos WHERE id = ?').bind(id).run();
   return c.json({ ok: true, deleted: id, corridasDeleted: corridaIds.length });
+});
+
+/* ——— Disparadores (Fase 1: CRUD D1; motor de disparo = Fase 2) ——— */
+
+app.get('/v1/flujos/:id/disparadores', async (c) => {
+  const flujoId = c.req.param('id');
+  const flujo = await c.env.DB.prepare('SELECT id FROM flujos WHERE id = ?').bind(flujoId).first();
+  if (!flujo) return jsonError(c, 404, 'Flujo no encontrado.');
+  const rows = await c.env.DB.prepare(
+    'SELECT * FROM disparadores WHERE flujo_id = ? ORDER BY creado'
+  )
+    .bind(flujoId)
+    .all();
+  const disparadores = ((rows.results || []) as Record<string, unknown>[]).map((r) =>
+    publicDisparador(rowToDisparador(r))
+  );
+  return c.json({ ok: true, flujo_id: flujoId, disparadores });
+});
+
+app.post('/v1/flujos/:id/disparadores', async (c) => {
+  const flujoId = c.req.param('id');
+  const flujo = await c.env.DB.prepare('SELECT id, proyecto_id FROM flujos WHERE id = ?')
+    .bind(flujoId)
+    .first<{ id: string; proyecto_id: string }>();
+  if (!flujo) return jsonError(c, 404, 'Flujo no encontrado.');
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const id = String(body.id || '').trim();
+  if (!id || !ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
+  const exists = await c.env.DB.prepare('SELECT id FROM disparadores WHERE id = ?').bind(id).first();
+  if (exists) return jsonError(c, 409, 'Ya existe un disparador con ese id.');
+
+  const validated = validateDisparadorBody(body);
+  if (!validated.ok) return jsonError(c, 400, validated.error);
+
+  const colErr = await ensureColeccionMongo(c.env, flujo.proyecto_id, validated.value.coleccion);
+  if (colErr) return jsonError(c, 400, colErr);
+
+  const avisos = await avisosAnclasPipeline(c.env.DB, validated.value.pipeline);
+  const ts = nowIso();
+  const v = validated.value;
+  await c.env.DB.prepare(
+    `INSERT INTO disparadores (
+      id, flujo_id, tipo, activo, cron, coleccion, operaciones_json, token, pipeline_json,
+      anti_bucle, agrupar_segundos, negocio, version, creado, actualizado, ultima_vez
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, NULL)`
+  )
+    .bind(
+      id,
+      flujoId,
+      v.tipo,
+      v.activo ? 1 : 0,
+      v.cron,
+      v.coleccion,
+      v.operaciones ? JSON.stringify(v.operaciones) : null,
+      v.tipo === 'webhook' ? v.token : null,
+      v.pipeline ? JSON.stringify(v.pipeline) : null,
+      v.anti_bucle ? 1 : 0,
+      v.agrupar_segundos,
+      v.negocio || '',
+      ts,
+      ts
+    )
+    .run();
+
+  const row = await c.env.DB.prepare('SELECT * FROM disparadores WHERE id = ?')
+    .bind(id)
+    .first<Record<string, unknown>>();
+  return c.json(
+    {
+      ok: true,
+      disparador: row ? publicDisparador(rowToDisparador(row)) : null,
+      avisos,
+    },
+    201
+  );
+});
+
+app.get('/v1/disparadores/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT * FROM disparadores WHERE id = ?')
+    .bind(id)
+    .first<Record<string, unknown>>();
+  if (!row) return jsonError(c, 404, 'Disparador no encontrado.');
+  return c.json({ ok: true, disparador: publicDisparador(rowToDisparador(row)) });
+});
+
+app.put('/v1/disparadores/:id', async (c) => {
+  const id = c.req.param('id');
+  const existing = await c.env.DB.prepare('SELECT * FROM disparadores WHERE id = ?')
+    .bind(id)
+    .first<Record<string, unknown>>();
+  if (!existing) return jsonError(c, 404, 'Disparador no encontrado.');
+  const prev = rowToDisparador(existing);
+  const flujo = await c.env.DB.prepare('SELECT id, proyecto_id FROM flujos WHERE id = ?')
+    .bind(prev.flujo_id)
+    .first<{ id: string; proyecto_id: string }>();
+  if (!flujo) return jsonError(c, 404, 'Flujo del disparador no encontrado.');
+
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  // Merge defaults from existing so partial PUTs keep tipo-required fields if omitted.
+  const merged: Record<string, unknown> = {
+    tipo: body.tipo != null ? body.tipo : prev.tipo,
+    activo: body.activo != null ? body.activo : prev.activo,
+    cron: body.cron != null ? body.cron : prev.cron,
+    coleccion: body.coleccion != null ? body.coleccion : prev.coleccion,
+    operaciones: body.operaciones != null ? body.operaciones : prev.operaciones,
+    pipeline: body.pipeline !== undefined ? body.pipeline : prev.pipeline,
+    anti_bucle: body.anti_bucle != null ? body.anti_bucle : prev.anti_bucle,
+    agrupar_segundos: body.agrupar_segundos != null ? body.agrupar_segundos : prev.agrupar_segundos,
+    negocio: body.negocio != null ? body.negocio : prev.negocio,
+    regenerar_token: body.regenerar_token ?? body.regenerarToken,
+  };
+
+  const validated = validateDisparadorBody(merged, {
+    existingTipo: prev.tipo,
+    existingToken: prev.token,
+  });
+  if (!validated.ok) return jsonError(c, 400, validated.error);
+
+  const colErr = await ensureColeccionMongo(c.env, flujo.proyecto_id, validated.value.coleccion);
+  if (colErr) return jsonError(c, 400, colErr);
+
+  const avisos = await avisosAnclasPipeline(c.env.DB, validated.value.pipeline);
+  const ts = nowIso();
+  const nextVersion = (prev.version || 1) + 1;
+  const v = validated.value;
+  await c.env.DB.prepare(
+    `UPDATE disparadores SET
+      tipo = ?, activo = ?, cron = ?, coleccion = ?, operaciones_json = ?, token = ?,
+      pipeline_json = ?, anti_bucle = ?, agrupar_segundos = ?, negocio = ?,
+      version = ?, actualizado = ?
+     WHERE id = ?`
+  )
+    .bind(
+      v.tipo,
+      v.activo ? 1 : 0,
+      v.cron,
+      v.coleccion,
+      v.operaciones ? JSON.stringify(v.operaciones) : null,
+      v.tipo === 'webhook' ? v.token : null,
+      v.pipeline ? JSON.stringify(v.pipeline) : null,
+      v.anti_bucle ? 1 : 0,
+      v.agrupar_segundos,
+      v.negocio || '',
+      nextVersion,
+      ts,
+      id
+    )
+    .run();
+
+  const row = await c.env.DB.prepare('SELECT * FROM disparadores WHERE id = ?')
+    .bind(id)
+    .first<Record<string, unknown>>();
+  return c.json({
+    ok: true,
+    disparador: row ? publicDisparador(rowToDisparador(row)) : null,
+    avisos,
+  });
+});
+
+app.delete('/v1/disparadores/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT id FROM disparadores WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'Disparador no encontrado.');
+  await c.env.DB.prepare('DELETE FROM disparadores WHERE id = ?').bind(id).run();
+  return c.json({ ok: true, deleted: id });
+});
+
+app.post('/v1/disparadores/:id/activar', async (c) => {
+  return setDisparadorActivo(c, true);
+});
+
+app.post('/v1/disparadores/:id/pausar', async (c) => {
+  return setDisparadorActivo(c, false);
 });
 
 /**
@@ -3708,6 +3888,79 @@ async function loadProyectoBaseDatos(db: D1Database, proyectoId: string): Promis
     .bind(proyectoId)
     .first<{ base_datos: string }>();
   return row?.base_datos ? String(row.base_datos) : null;
+}
+
+async function setDisparadorActivo(
+  c: { req: { param: (n: string) => string }; env: Env; json: (b: unknown, s?: number) => Response },
+  activo: boolean
+) {
+  const id = c.req.param('id');
+  const existing = await c.env.DB.prepare('SELECT * FROM disparadores WHERE id = ?')
+    .bind(id)
+    .first<Record<string, unknown>>();
+  if (!existing) return jsonError(c, 404, 'Disparador no encontrado.');
+  const prev = rowToDisparador(existing);
+  const ts = nowIso();
+  const nextVersion = (prev.version || 1) + 1;
+  await c.env.DB.prepare(
+    'UPDATE disparadores SET activo = ?, version = ?, actualizado = ? WHERE id = ?'
+  )
+    .bind(activo ? 1 : 0, nextVersion, ts, id)
+    .run();
+  const row = await c.env.DB.prepare('SELECT * FROM disparadores WHERE id = ?')
+    .bind(id)
+    .first<Record<string, unknown>>();
+  return c.json({
+    ok: true,
+    disparador: row ? publicDisparador(rowToDisparador(row)) : null,
+  });
+}
+
+/** coleccion debe existir en Mongo (BD del proyecto). null/vacío = ok (tipos sin colección). */
+async function ensureColeccionMongo(
+  env: Env,
+  proyectoId: string,
+  coleccion: string | null | undefined
+): Promise<string | null> {
+  const name = String(coleccion || '').trim();
+  if (!name) return null;
+  const mongo = await mongoForProyecto(env, proyectoId);
+  if (!mongo) {
+    return `No hay URI Mongo para el proyecto «${proyectoId}»; no se puede comprobar la colección «${name}».`;
+  }
+  try {
+    const names = await withMongoDb(
+      mongo.env,
+      async (db) => {
+        const cols = await db.listCollections({}, { nameOnly: true }).toArray();
+        return cols.map((c) => c.name);
+      },
+      mongo.dbName
+    );
+    if (!names.includes(name)) {
+      return `colección «${name}» no existe en Mongo (${mongo.dbName}).`;
+    }
+    return null;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return `No se pudo listar colecciones Mongo: ${msg}`;
+  }
+}
+
+/** Aviso (no error) si el pipeline cita anclas `_…_` que no están en el catálogo. */
+async function avisosAnclasPipeline(
+  db: D1Database,
+  pipeline: Record<string, unknown>[] | null | undefined
+): Promise<string[]> {
+  const ids = extractAnclaIdsFromPipeline(pipeline || null);
+  if (!ids.length) return [];
+  const missing: string[] = [];
+  for (const anclaId of ids) {
+    const row = await db.prepare('SELECT id FROM anclas WHERE id = ?').bind(anclaId).first();
+    if (!row) missing.push(anclaId);
+  }
+  if (!missing.length) return [];
+  return [`Campos del pipeline sin ancla en catálogo: ${missing.join(', ')}`];
 }
 
 async function hydrateFlujoListItem(db: D1Database, row: Record<string, unknown>) {

@@ -150,6 +150,50 @@ export const API_DOCS_INDEX = {
       summary: 'Borrar flujo (+ versiones + índice corridas; Mongo best-effort)',
     },
     {
+      method: 'GET',
+      path: '/v1/flujos/:id/disparadores',
+      auth: false,
+      summary: 'Listar disparadores del flujo (D1; motor de disparo = fase 2)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/flujos/:id/disparadores',
+      auth: true,
+      body: ['id', 'tipo', 'cron?', 'coleccion?', 'operaciones?', 'pipeline?', 'activo?', 'anti_bucle?', 'agrupar_segundos?', 'negocio?'],
+      summary:
+        'Crear disparador (manual|horario|cambio_datos|webhook); valida cron/colección Mongo/pipeline allowlist; avisos anclas',
+    },
+    {
+      method: 'GET',
+      path: '/v1/disparadores/:id',
+      auth: false,
+      summary: 'Ficha disparador',
+    },
+    {
+      method: 'PUT',
+      path: '/v1/disparadores/:id',
+      auth: true,
+      summary: 'Editar disparador (bump version; regenerar_token? en webhook)',
+    },
+    {
+      method: 'DELETE',
+      path: '/v1/disparadores/:id',
+      auth: true,
+      summary: 'Borrar disparador',
+    },
+    {
+      method: 'POST',
+      path: '/v1/disparadores/:id/activar',
+      auth: true,
+      summary: 'Activar disparador (bump version)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/disparadores/:id/pausar',
+      auth: true,
+      summary: 'Pausar disparador (bump version)',
+    },
+    {
       method: 'POST',
       path: '/v1/corridas',
       auth: true,
