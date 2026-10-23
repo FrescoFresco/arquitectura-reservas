@@ -30,5 +30,9 @@
       "preview_database_id": "local-campos-ancla-db",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  // Motor de disparadores horario (Atlantic/Canary se aplica en código al matchear cron).
+  "triggers": {
+    "crons": ["* * * * *"]
+  }
 }

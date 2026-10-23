@@ -153,7 +153,7 @@ export const API_DOCS_INDEX = {
       method: 'GET',
       path: '/v1/flujos/:id/disparadores',
       auth: false,
-      summary: 'Listar disparadores del flujo (D1; motor de disparo = fase 2)',
+      summary: 'Listar disparadores del flujo (D1)',
     },
     {
       method: 'POST',
@@ -195,9 +195,28 @@ export const API_DOCS_INDEX = {
     },
     {
       method: 'POST',
+      path: '/v1/interno/horario-tick',
+      auth: true,
+      summary: 'Ejecutar tick horario ahora (mismo código que Cron Trigger CF)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/disparar/:flujo/:token',
+      auth: false,
+      summary: 'Webhook disparador (404 si token/pausado; 202 evento_id+corridas)',
+    },
+    {
+      method: 'GET',
+      path: '/v1/eventos',
+      auth: false,
+      query: ['proyecto?', 'coleccion?', 'limit?'],
+      summary: 'Listar eventos recientes (Mongo; TTL 30d)',
+    },
+    {
+      method: 'POST',
       path: '/v1/corridas',
       auth: true,
-      body: ['flujo_id', 'negocio|negocio_id', 'datos_iniciales?'],
+      body: ['flujo_id', 'negocio|negocio_id', 'datos_iniciales?', 'disparador_id?'],
       summary: 'Crear corrida en Mongo corridas (BD del proyecto) en nodo Inicio → primer paso',
     },
     {
