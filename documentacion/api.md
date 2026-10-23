@@ -238,6 +238,7 @@ Ejemplos:
 | System prompts | `GET /v1/system-prompts` | `GET /v1/system-prompts/:id` | `POST` | `PUT` | `DELETE` |
 | Ejecutar | — | `GET /v1/ejecutar/:skillId` · `GET …/entradas?negocio=` | — | `POST …/salidas` (Bearer; +`corrida_id`?) | — |
 | Flujos | `GET /v1/flujos?proyecto=` | `GET /v1/flujos/:id` | `POST /v1/flujos` | `PUT /v1/flujos/:id` | `DELETE /v1/flujos/:id` |
+| Disparadores | `GET /v1/flujos/:id/disparadores` | `GET /v1/disparadores/:id` | `POST /v1/flujos/:id/disparadores` | `PUT` · `POST …/activar` · `…/pausar` | `DELETE /v1/disparadores/:id` |
 | Corridas | `GET /v1/corridas?…` | `GET /v1/corridas/:id` · `…/siguiente` | `POST /v1/corridas` | (avanza vía salidas) | `DELETE /v1/corridas/:id` |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST` | `PUT` · `POST …/observaciones` | `DELETE` |
 | Campos Mongo | `GET /v1/mongo?proyecto=` | `GET /v1/mongo/:id` | `POST` | `PUT` | `DELETE` |
@@ -286,7 +287,7 @@ Todas las entidades de catálogo con fila (`catalogo-fila`) admiten `color`: hex
 - Colecciones: `color` en cada ítem de `proyectos.colecciones[]`; PUT con solo `{ "colecciones": […] }` actualiza el JSON sin bump de versión.
 - Generar color (UI): max-min ΔE76 vs colores ya usados en el **mismo** catálogo; `null`/default no cuentan.
 
-Tablas D1: `skills`, `anclas`, `campos_mongo`, `proyectos`, `clusters`, `system_prompts`, `fundamentos`, `agentes`, `flujos`.
+Tablas D1: `skills`, `anclas`, `campos_mongo`, `proyectos`, `clusters`, `system_prompts`, `fundamentos`, `agentes`, `flujos`, `disparadores`.
 
 Al crear/editar skill puedes enviar `systemPromptId` (string o `null`) o `systemPrompts` (array de 0 o 1 id). Si el PUT solo lleva ese campo (sin markdown/I/O), **no** crea versión nueva de MD: solo actualiza el vínculo.
 
@@ -437,6 +438,30 @@ DELETE {API_BASE}/v1/flujos/:id   Authorization: Bearer inv_…
 ```
 
 UI: Catálogos → **Flujos** (todas las BDs; ficha Resumen | Asociados | Documento | Versiones | **Corridas** | Interno). Las corridas cuelgan del Flujo (tabla filtrada por `flujo_id` + «+ Corrida»). Base de datos → **Flujos** (lista filtrada; sin pestaña Corridas). Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
+
+**Disparadores** (D1, ligados a un flujo; Fase 1 = CRUD + validación. El motor que lanza corridas / eventos / cron / `POST /v1/disparar/…` es Fase 2):
+
+| tipo | Obligatorios | Notas |
+|------|--------------|--------|
+| `manual` | — | Arranque vía `POST /v1/corridas` (Fase 2 enlazará `disparador_id`) |
+| `horario` | `cron` (5 campos), `coleccion` | `coleccion` debe existir en Mongo de la BD del flujo |
+| `cambio_datos` | `coleccion`, `operaciones[]` | operaciones ∈ `crear`\|`actualizar`\|`borrar` |
+| `webhook` | — (API genera `token` 32 chars) | URL de disparo aún no activa (Fase 2) |
+
+`pipeline` opcional: solo etapas `$match`, `$lookup`, `$project`, `$group`, `$sort`, `$limit`, `$unwind`, `$addFields`. Rechaza `$out` / `$merge` / `$function` (y cualquier otra) nombrando la etapa. Si el pipeline cita anclas `_…_` que no están en el catálogo → `avisos[]` (no error). Cada guardado / activar / pausar sube `version`.
+
+```
+GET  {API_BASE}/v1/flujos/:id/disparadores
+POST {API_BASE}/v1/flujos/:id/disparadores   Authorization: Bearer inv_…
+     { id, tipo, cron?, coleccion?, operaciones?, pipeline?, activo?, anti_bucle?, agrupar_segundos?, negocio? }
+     → { ok, disparador, avisos[] }
+GET  {API_BASE}/v1/disparadores/:id
+PUT  {API_BASE}/v1/disparadores/:id   Authorization: Bearer inv_…
+     { …campos…, regenerar_token? }  → bump version
+POST {API_BASE}/v1/disparadores/:id/activar   Authorization: Bearer inv_…
+POST {API_BASE}/v1/disparadores/:id/pausar    Authorization: Bearer inv_…
+DELETE {API_BASE}/v1/disparadores/:id   Authorization: Bearer inv_…
+```
 
 **Corridas** (Mongo colección `corridas` en la BD del proyecto; índice liviano en D1):
 

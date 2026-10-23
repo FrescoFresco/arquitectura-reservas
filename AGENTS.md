@@ -22,7 +22,7 @@ Los JSON de `catalogo/` son semilla/fallback de la UI. **No uses `GITHUB_TOKEN` 
 
 ## Qué puedes modificar (vía API)
 
-Skills (I/O), system prompts, anclas, campos Mongo, clusters (+ URI), bases (`/v1/proyectos` · `/v1/esquemas`), colecciones (vía PUT BD o `GET /v1/colecciones`), flujos (CRUD incl. DELETE), corridas (crear/listar/siguiente/DELETE), fundamentos, Empujar (`…/crear-bd`), sync Mongo, color de entidades. Ejecutar salidas: Bearer + anclas ∈ `salidas` + URI en el Cluster.
+Skills (I/O), system prompts, anclas, campos Mongo, clusters (+ URI), bases (`/v1/proyectos` · `/v1/esquemas`), colecciones (vía PUT BD o `GET /v1/colecciones`), flujos (CRUD incl. DELETE), disparadores (CRUD bajo flujo + activar/pausar; motor de disparo aún no), corridas (crear/listar/siguiente/DELETE), fundamentos, Empujar (`…/crear-bd`), sync Mongo, color de entidades. Ejecutar salidas: Bearer + anclas ∈ `salidas` + URI en el Cluster.
 
 No hay cola de comentarios / Metricool todavía.
 
