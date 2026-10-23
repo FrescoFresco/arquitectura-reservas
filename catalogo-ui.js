@@ -8504,7 +8504,10 @@ function mergeFundamentos(remotas, locales, eliminados) {
     conMetaFundamento(prev, f);
     const nums = new Map();
     prev.versiones.forEach(function (v) { nums.set(v.numero, v); });
-    f.versiones.forEach(function (v) { nums.set(v.numero, copiaVersion(v)); });
+    // Remoto (índice/API) gana si ya hay ese numero; local solo rellena huecos.
+    f.versiones.forEach(function (v) {
+      if (!nums.has(v.numero)) nums.set(v.numero, copiaVersion(v));
+    });
     prev.versiones = Array.from(nums.values()).sort(function (a, b) { return a.numero - b.numero; });
   });
   return Array.from(map.values()).sort(function (a, b) {

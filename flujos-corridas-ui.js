@@ -1128,9 +1128,15 @@
         setDispGuardarEnabled(data.validacion && data.validacion.ok);
       })
       .catch(function (err) {
+        var msg = err && err.message ? String(err.message) : String(err);
+        if (err && err.status === 401) {
+          msg = '401: falta Bearer (Ajustes → Agentes / invite). POST /v1/redactor exige Authorization.';
+        } else if (err && err.status === 404) {
+          msg = '404: usa POST /v1/redactor (GET solo documenta el contrato).';
+        }
         pintarRedactorMeta('dispRedactorMeta', {
-          explicacion: err.message || String(err),
-          validacion: { ok: false, errores: [err.message || 'Error'], avisos: [] }
+          explicacion: msg,
+          validacion: { ok: false, errores: [msg], avisos: [] }
         });
         setDispGuardarEnabled(false);
       });
@@ -1189,9 +1195,15 @@
         setFlujoGuardarEnabled(data.validacion && data.validacion.ok);
       })
       .catch(function (err) {
+        var msg = err && err.message ? String(err.message) : String(err);
+        if (err && err.status === 401) {
+          msg = '401: falta Bearer (Ajustes → Agentes / invite). POST /v1/redactor exige Authorization.';
+        } else if (err && err.status === 404) {
+          msg = '404: usa POST /v1/redactor (GET solo documenta el contrato).';
+        }
         pintarRedactorMeta('flujoRedactorMeta', {
-          explicacion: err.message || String(err),
-          validacion: { ok: false, errores: [err.message || 'Error'], avisos: [] }
+          explicacion: msg,
+          validacion: { ok: false, errores: [msg], avisos: [] }
         });
         setFlujoGuardarEnabled(false);
       });
