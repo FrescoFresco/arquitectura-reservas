@@ -495,6 +495,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ancla-ficha-vacio" id="readerBasesVacio" hidden>Ninguna base de datos usa esta skill todavía.</p>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelSystemPrompts" role="tabpanel" aria-labelledby="readerTabSystemPrompts" hidden>
+<div class="editar-anclas-top" style="margin-bottom:0.75rem">
+<span class="historial-titulo">System prompt (máx. 1)</span>
+<button type="button" class="icon-btn" id="btnEditarSkillSystemPrompt" aria-label="Elegir system prompt" title="Elegir system prompt">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+</div>
+<p class="ajustes-hint" id="readerSystemPromptsHint">Una skill tiene como máximo un system prompt.</p>
 <div id="readerSystemPromptsLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="readerSystemPromptsVacio" hidden>Ningún system prompt asociado.</p>
 </div>
@@ -1273,6 +1280,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <textarea name="markdown" rows="10" placeholder="Documento del system prompt" required></textarea>
 </label>
 <p class="historial-titulo" style="margin:12px 0 6px">Skills (opcional)</p>
+<p class="nota" style="margin-top:0">Si una skill ya tiene otro prompt, se moverá a este.</p>
 <div id="nuevoSpSkillsPicker" class="proy-skills-picker"></div>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="nuevoSystemPromptCancelar">Cancelar</button>
@@ -1301,6 +1309,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </label>
 </div>
 <div id="editarSpPanelSkills" role="tabpanel" hidden>
+<p class="nota">Si una skill ya tiene otro prompt, se moverá a este.</p>
 <div id="editarSpSkillsPicker" class="proy-skills-picker"></div>
 </div>
 <div class="dlg-actions">
@@ -1312,10 +1321,23 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <dialog id="dlgEditarSystemPromptSkills" aria-labelledby="dlgEditarSystemPromptSkillsTitulo">
 <form class="dlg" id="formEditarSystemPromptSkills">
 <h3 id="dlgEditarSystemPromptSkillsTitulo">Skills del system prompt</h3>
+<p class="nota">Puedes asociar muchas skills. Si una skill ya tiene otro prompt, se <strong>moverá</strong> a este.</p>
 <p class="form-error" id="editarSystemPromptSkillsError" role="alert"></p>
 <div id="editarSystemPromptSkillsPicker" class="proy-skills-picker"></div>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="editarSystemPromptSkillsCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgEditarSkillSystemPrompt" aria-labelledby="dlgEditarSkillSystemPromptTitulo">
+<form class="dlg" id="formEditarSkillSystemPrompt">
+<h3 id="dlgEditarSkillSystemPromptTitulo">System prompt de la skill</h3>
+<p class="nota">Elige como máximo uno. Si ya tenía otro, se sustituye.</p>
+<p class="form-error" id="editarSkillSystemPromptError" role="alert"></p>
+<div id="editarSkillSystemPromptPicker" class="proy-skills-picker"></div>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarSkillSystemPromptCancelar">Cancelar</button>
 <button type="submit" class="btn primary">Guardar</button>
 </div>
 </form>
@@ -1417,9 +1439,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="system-prompts-ui.js?v=20261023sp1"></script>
-<script src="system-prompts-catalog.js?v=20261023sp1"></script>
-<script src="catalogo-ui.js?v=20261023sp3"></script>
+<script src="system-prompts-ui.js?v=20261023sp4"></script>
+<script src="system-prompts-catalog.js?v=20261023sp4"></script>
+<script src="catalogo-ui.js?v=20261023sp4"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>

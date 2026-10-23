@@ -692,7 +692,134 @@
     refrescar();
     return spState.lista.filter(function (p) {
       return Array.isArray(p.skills) && p.skills.indexOf(skillId) >= 0;
+    }).slice(0, 1);
+  }
+
+  function promptIdDeSkill(ins) {
+    if (!ins) return null;
+    var linked = promptsDeSkill(ins.id);
+    if (linked.length) return linked[0].id;
+    if (ins.systemPrompts && Array.isArray(ins.systemPrompts) && ins.systemPrompts[0]) {
+      return ins.systemPrompts[0].id || null;
+    }
+    return null;
+  }
+
+  function pintarSystemPromptPicker(containerId, selectedId) {
+    var box = document.getElementById(containerId);
+    if (!box) return;
+    box.replaceChildren();
+    refrescar();
+    var prompts = spState.lista.slice().sort(function (a, b) {
+      return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
     });
+    var none = document.createElement('label');
+    var noneInput = document.createElement('input');
+    noneInput.type = 'radio';
+    noneInput.name = 'systemPrompt';
+    noneInput.value = '';
+    noneInput.checked = !selectedId;
+    var noneMeta = document.createElement('span');
+    noneMeta.className = 'proy-skill-meta';
+    noneMeta.appendChild(document.createTextNode('Ninguno'));
+    none.appendChild(noneInput);
+    none.appendChild(noneMeta);
+    box.appendChild(none);
+    if (!prompts.length) {
+      var p = document.createElement('p');
+      p.className = 'ancla-ficha-vacio';
+      p.textContent = 'No hay system prompts en el catálogo.';
+      box.appendChild(p);
+      return;
+    }
+    prompts.forEach(function (item) {
+      var label = document.createElement('label');
+      var input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'systemPrompt';
+      input.value = item.id;
+      input.checked = selectedId === item.id;
+      var meta = document.createElement('span');
+      meta.className = 'proy-skill-meta';
+      meta.appendChild(document.createTextNode(item.nombre || item.id));
+      var idSpan = document.createElement('span');
+      idSpan.className = 'proy-skill-id';
+      idSpan.textContent = item.id;
+      meta.appendChild(idSpan);
+      label.appendChild(input);
+      label.appendChild(meta);
+      box.appendChild(label);
+    });
+  }
+
+  function systemPromptDesdePicker(containerId) {
+    var box = document.getElementById(containerId);
+    if (!box) return null;
+    var checked = box.querySelector('input[type="radio"][name="systemPrompt"]:checked');
+    if (!checked) return null;
+    var v = String(checked.value || '').trim();
+    return v || null;
+  }
+
+  function abrirDialogoEditarSkillSystemPrompt() {
+    var ins = typeof instruccionAbierta === 'function' ? instruccionAbierta() : null;
+    if (!ins || !ins.id) return;
+    var dlg = document.getElementById('dlgEditarSkillSystemPrompt');
+    var form = document.getElementById('formEditarSkillSystemPrompt');
+    if (!dlg || !form) return;
+    var err = document.getElementById('editarSkillSystemPromptError');
+    if (err) err.textContent = '';
+    form.dataset.skillId = ins.id;
+    pintarSystemPromptPicker('editarSkillSystemPromptPicker', promptIdDeSkill(ins));
+    dlg.showModal();
+  }
+
+  async function onSubmitEditarSkillSystemPrompt(e) {
+    e.preventDefault();
+    var form = e.currentTarget;
+    var error = document.getElementById('editarSkillSystemPromptError');
+    if (error) error.textContent = '';
+    var skillId = form.dataset.skillId;
+    if (!skillId) return;
+    var promptId = systemPromptDesdePicker('editarSkillSystemPromptPicker');
+    var submit = form.querySelector('[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      await asegurarClaveCatalogo();
+      var data = await apiFetchAuth('/v1/skills/' + encodeURIComponent(skillId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ systemPromptId: promptId })
+      });
+      if (data && data.ok === false) throw new Error(data.error || 'No se pudo guardar');
+      var skill = data && data.skill;
+      document.getElementById('dlgEditarSkillSystemPrompt').close();
+      await cargar();
+      if (typeof cargarSkills === 'function') cargarSkills();
+      if (skill && typeof state !== 'undefined' && Array.isArray(state.instrucciones)) {
+        var idx = state.instrucciones.findIndex(function (s) { return s.id === skillId; });
+        if (idx >= 0) {
+          state.instrucciones[idx] = Object.assign({}, state.instrucciones[idx], {
+            systemPrompts: skill.systemPrompts || []
+          });
+        }
+      }
+      var ins = typeof instruccionAbierta === 'function' ? instruccionAbierta() : null;
+      if (ins && ins.id === skillId && skill) {
+        ins.systemPrompts = skill.systemPrompts || [];
+      }
+      pintarSkillSystemPromptsTab(ins);
+    } catch (err) {
+      if (error) {
+        if (typeof showApiErrorRaw === 'function') {
+          showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
+        } else {
+          error.textContent = err && err.message ? err.message : String(err);
+        }
+      }
+    } finally {
+      if (submit) submit.disabled = false;
+    }
   }
 
   function pintarSkillSystemPromptsTab(ins) {
@@ -709,22 +836,24 @@
     }
     var linked = promptsDeSkill(ins.id);
     if (ins.systemPrompts && Array.isArray(ins.systemPrompts) && ins.systemPrompts.length && !linked.length) {
-      // API shape on skill without full versions — show ids via catalog merge
-      var ids = ins.systemPrompts.map(function (p) { return p && p.id; }).filter(Boolean);
+      var first = ins.systemPrompts[0];
+      var ids = first && first.id ? [first.id] : [];
       linked = spState.lista.filter(function (p) { return ids.indexOf(p.id) >= 0; });
-      if (!linked.length) {
-        linked = ins.systemPrompts.map(function (p) {
-          return normalizeSystemPrompt({
-            id: p.id,
-            nombre: p.nombre || p.id,
-            descripcion: p.descripcion || '',
-            hash: p.hash || '',
+      if (!linked.length && first) {
+        linked = [
+          normalizeSystemPrompt({
+            id: first.id,
+            nombre: first.nombre || first.id,
+            descripcion: first.descripcion || '',
+            hash: first.hash || '',
             skills: [ins.id],
-            versiones: [{ numero: 1, fecha: '', markdown: '', hash: p.hash || '' }]
-          });
-        }).filter(Boolean);
+            versiones: [{ numero: 1, fecha: '', markdown: '', hash: first.hash || '' }]
+          })
+        ].filter(Boolean);
       }
     }
+    // Máx. 1 en UI
+    linked = linked.slice(0, 1);
     if (!window.SystemPromptsUI || !window.SystemPromptsUI.montarLista) {
       mount.replaceChildren();
       if (vacio) {
@@ -833,6 +962,17 @@
     if (skillsCancelar) {
       skillsCancelar.addEventListener('click', function () {
         document.getElementById('dlgEditarSystemPromptSkills').close();
+      });
+    }
+
+    var btnSkillSp = document.getElementById('btnEditarSkillSystemPrompt');
+    if (btnSkillSp) btnSkillSp.addEventListener('click', abrirDialogoEditarSkillSystemPrompt);
+    var formSkillSp = document.getElementById('formEditarSkillSystemPrompt');
+    if (formSkillSp) formSkillSp.addEventListener('submit', onSubmitEditarSkillSystemPrompt);
+    var skillSpCancelar = document.getElementById('editarSkillSystemPromptCancelar');
+    if (skillSpCancelar) {
+      skillSpCancelar.addEventListener('click', function () {
+        document.getElementById('dlgEditarSkillSystemPrompt').close();
       });
     }
 

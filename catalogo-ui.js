@@ -530,6 +530,21 @@ function normalizeInstruccion(item, versionFn) {
   if (anclas.length) out.anclas = anclas;
   if (!out.entradas) out.entradas = [];
   if (!out.salidas) out.salidas = out.anclas ? out.anclas.slice() : [];
+  // Máx. 1 system prompt por skill (array 0..1 por compat API).
+  if (Array.isArray(item.systemPrompts)) {
+    out.systemPrompts = item.systemPrompts.slice(0, 1).map(function (p) {
+      if (!p || typeof p !== 'object') return null;
+      if (typeof p.id !== 'string' || !p.id.trim()) return null;
+      return {
+        id: p.id.trim(),
+        nombre: typeof p.nombre === 'string' ? p.nombre : p.id,
+        descripcion: typeof p.descripcion === 'string' ? p.descripcion : '',
+        hash: typeof p.hash === 'string' ? p.hash : ''
+      };
+    }).filter(Boolean);
+  } else {
+    out.systemPrompts = [];
+  }
   return out;
 }
 
