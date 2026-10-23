@@ -35,6 +35,48 @@ export function mongoNotConfiguredError() {
   };
 }
 
+/** Strip accidental URI/password fragments from driver messages. Never put URI in bodies. */
+export function scrubMongoSecrets(text: string): string {
+  return String(text || '')
+    .replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***')
+    .replace(/([?&](?:password|pwd|pass|secret|token)=)[^&\s'"]+/gi, '$1***');
+}
+
+export type MongoDriverErrorBody = {
+  message: string;
+  name?: string;
+  code?: string | number;
+  codeName?: string;
+};
+
+/**
+ * Structured Mongo/driver failure for JSON API bodies (no URI/password).
+ * Keep top-level `{ ok: false, error }` and attach `mongo` with driver fields when present.
+ */
+export function mongoDriverErrorBody(err: unknown): {
+  ok: false;
+  error: string;
+  mongo: MongoDriverErrorBody;
+} {
+  const rawMsg =
+    err instanceof Error
+      ? err.message
+      : err && typeof err === 'object' && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : String(err || 'MongoDB error');
+  const message = scrubMongoSecrets(rawMsg);
+  const mongo: MongoDriverErrorBody = { message };
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    if (typeof e.name === 'string' && e.name) mongo.name = e.name;
+    if (typeof e.code === 'string' || typeof e.code === 'number') mongo.code = e.code;
+    if (typeof e.codeName === 'string' && e.codeName) mongo.codeName = e.codeName;
+  } else if (err instanceof Error && err.name) {
+    mongo.name = err.name;
+  }
+  return { ok: false, error: message, mongo };
+}
+
 /** Short health label for /health — never probes the cluster. */
 export function mongoHealthLabel(env: MongoEnv): 'configured' | 'disconnected' {
   return mongoUriConfigured(env) ? 'configured' : 'disconnected';
@@ -45,6 +87,7 @@ export type MongoStatus = {
   connected: boolean | null;
   db: string;
   error?: string;
+  mongo?: MongoDriverErrorBody;
 };
 
 /**
@@ -67,10 +110,14 @@ export async function probeMongoStatus(env: MongoEnv, dbHint?: string): Promise<
     await client.db(db).command({ ping: 1 });
     return { configured: true, connected: true, db };
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'MongoDB unreachable';
-    // Strip accidental URI fragments from driver errors.
-    const scrubbed = message.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
-    return { configured: true, connected: false, db, error: scrubbed };
+    const body = mongoDriverErrorBody(err);
+    return {
+      configured: true,
+      connected: false,
+      db,
+      error: body.error,
+      mongo: body.mongo,
+    };
   } finally {
     if (client) {
       try {

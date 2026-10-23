@@ -146,18 +146,31 @@
         '/v1/anclas/' + encodeURIComponent(c.id) +
         '/valores?negocio_id=' + encodeURIComponent(negocioId);
       fetch(url, { headers: { Accept: 'application/json' } })
-        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (r) {
+          return r.text().then(function (rawBody) {
+            var j = null;
+            try { j = rawBody ? JSON.parse(rawBody) : {}; } catch (e) { j = null; }
+            return { ok: r.ok, j: j, rawBody: rawBody || '', status: r.status };
+          });
+        })
         .then(function (res) {
           if (cancelled) return;
-          if (!res.ok || res.j.ok === false) {
-            setPack({ loading: false, obs: [], valorActual: '', error: (res.j && res.j.error) || 'No se pudo cargar.' });
+          if (!res.ok || (res.j && res.j.ok === false)) {
+            var raw = (typeof window.formatApiErrorRaw === 'function')
+              ? window.formatApiErrorRaw({ data: res.j, rawBody: res.rawBody, status: res.status }, res.status)
+              : (res.rawBody || JSON.stringify(res.j || { ok: false, error: 'HTTP ' + res.status }, null, 2));
+            setPack({ loading: false, obs: [], valorActual: '', error: raw });
             return;
           }
           var obs = Array.isArray(res.j.observaciones) ? res.j.observaciones.slice().reverse() : [];
           setPack({ loading: false, obs: obs, valorActual: res.j.valorActual || '', error: '' });
         })
-        .catch(function () {
-          if (!cancelled) setPack({ loading: false, obs: [], valorActual: '', error: 'Error de red.' });
+        .catch(function (err) {
+          if (cancelled) return;
+          var raw = (typeof window.formatApiErrorRaw === 'function')
+            ? window.formatApiErrorRaw(err)
+            : JSON.stringify({ ok: false, error: (err && err.message) || 'network' }, null, 2);
+          setPack({ loading: false, obs: [], valorActual: '', error: raw });
         });
       return function () { cancelled = true; };
     }, [c.id, negocioId]);
@@ -168,7 +181,11 @@
       );
     }
     if (pack.error) {
-      return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-historial', role: 'tabpanel' }, pack.error);
+      return e('pre', {
+        className: 'ancla-ficha-vacio api-error-raw',
+        id: 'ancla-panel-historial',
+        role: 'tabpanel'
+      }, pack.error);
     }
     if (!pack.obs.length) {
       return e('p', { className: 'ancla-ficha-vacio', id: 'ancla-panel-historial', role: 'tabpanel' },

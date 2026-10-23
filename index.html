@@ -122,6 +122,10 @@ dialog::backdrop{background:#17212f66}
 .archivo-nombre{margin:6px 0 0;font-weight:400;color:#677488;font-size:12px}
 .dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
 .form-error{color:#9f1239;font-size:13px;min-height:1.2em;margin:0 0 8px}
+.api-error-raw,.form-error.api-error-raw,.ajustes-msg.api-error-raw,.proy-crear-bd-msg.api-error-raw{
+  white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12px;line-height:1.45;overflow:auto;max-height:40vh;text-align:left
+}
 @media(max-width:800px){.split.is-open{grid-template-columns:1fr}.reader{position:static}}
 @media(min-width:801px){.split.is-open .reader{position:sticky;top:12px}}
 .bloque{position:relative;padding:0}
