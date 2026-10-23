@@ -201,6 +201,18 @@ export const API_DOCS_INDEX = {
     },
     {
       method: 'POST',
+      path: '/v1/flujos/:id/disparadores/probar',
+      auth: true,
+      summary: 'Dry-run pipeline (no crea corridas); cambio_datos/webhook vs últimos 50 eventos',
+    },
+    {
+      method: 'POST',
+      path: '/v1/disparadores/:id/probar',
+      auth: true,
+      summary: 'Dry-run de un disparador existente (opcional override body)',
+    },
+    {
+      method: 'POST',
       path: '/v1/disparar/:flujo/:token',
       auth: false,
       summary: 'Webhook disparador (404 si token/pausado; 202 evento_id+corridas)',

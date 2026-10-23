@@ -95,9 +95,12 @@ import {
 } from './corridas';
 import {
   extractAnclaIdsFromPipeline,
+  isDisparadorTipo,
+  parsePipeline,
   publicDisparador,
   rowToDisparador,
   validateDisparadorBody,
+  validatePipelineStages,
 } from './disparadores';
 import {
   cloneDoc,
@@ -105,6 +108,7 @@ import {
   emitWebhook,
   ensureEventosIndexes,
   EVENTOS_COLLECTION,
+  probarDisparadorDryRun,
   publicEvento,
   runHorarioTick,
   SYSTEM_COLLECTIONS,
@@ -1078,6 +1082,42 @@ app.post('/v1/disparadores/:id/activar', async (c) => {
 
 app.post('/v1/disparadores/:id/pausar', async (c) => {
   return setDisparadorActivo(c, false);
+});
+
+/**
+ * Dry-run de pipeline (no crea corridas ni eventos).
+ * Body: { flujo_id, tipo, coleccion?, pipeline?, disparador_id? }
+ * También acepta id en path: POST /v1/disparadores/:id/probar (carga definición).
+ */
+app.post('/v1/flujos/:id/disparadores/probar', async (c) => {
+  const flujoId = c.req.param('id');
+  const flujo = await c.env.DB.prepare('SELECT id, proyecto_id FROM flujos WHERE id = ?')
+    .bind(flujoId)
+    .first<{ id: string; proyecto_id: string }>();
+  if (!flujo) return jsonError(c, 404, 'Flujo no encontrado.');
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  return responderProbarDisparador(c, flujo.proyecto_id, body);
+});
+
+app.post('/v1/disparadores/:id/probar', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT * FROM disparadores WHERE id = ?')
+    .bind(id)
+    .first<Record<string, unknown>>();
+  if (!row) return jsonError(c, 404, 'Disparador no encontrado.');
+  const d = rowToDisparador(row);
+  const flujo = await c.env.DB.prepare('SELECT proyecto_id FROM flujos WHERE id = ?')
+    .bind(d.flujo_id)
+    .first<{ proyecto_id: string }>();
+  if (!flujo) return jsonError(c, 404, 'Flujo del disparador no encontrado.');
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const merged = {
+    tipo: body.tipo != null ? body.tipo : d.tipo,
+    coleccion: body.coleccion !== undefined ? body.coleccion : d.coleccion,
+    pipeline: body.pipeline !== undefined ? body.pipeline : d.pipeline,
+    disparador_id: d.id,
+  };
+  return responderProbarDisparador(c, flujo.proyecto_id, merged);
 });
 
 /** Ops/smoke: ejecuta el tick horario ahora (mismo código que el Cron Trigger CF). */
@@ -4277,6 +4317,48 @@ function motorDeps(env: Env): MotorDeps {
     nowIso,
     startCorrida: (args) => startCorridaForDisparo(env, args),
   };
+}
+
+async function responderProbarDisparador(
+  c: { env: Env; json: (b: unknown, s?: number) => Response },
+  proyectoId: string,
+  body: Record<string, unknown>
+) {
+  const tipoRaw = String(body.tipo || '').trim();
+  if (!isDisparadorTipo(tipoRaw)) {
+    return jsonError(c, 400, 'tipo inválido (manual|horario|cambio_datos|webhook).');
+  }
+  const pipeParsed = parsePipeline(body.pipeline);
+  if (!pipeParsed.ok) return jsonError(c, 400, pipeParsed.error);
+  const stageErr = validatePipelineStages(pipeParsed.pipeline);
+  if (stageErr) return jsonError(c, 400, stageErr);
+
+  const mongo = await mongoForProyecto(c.env, proyectoId);
+  if (!mongo) return jsonError(c, 503, 'configure MONGODB_URI');
+
+  try {
+    const result = await withMongoDb(
+      mongo.env,
+      async (db) =>
+        probarDisparadorDryRun(db, {
+          tipo: tipoRaw,
+          coleccion: body.coleccion != null ? String(body.coleccion) : null,
+          pipeline: pipeParsed.pipeline,
+          disparador_id: body.disparador_id != null ? String(body.disparador_id) : null,
+        }),
+      mongo.dbName
+    );
+    return c.json({
+      ok: true,
+      habria_lanzado: result.habria_lanzado,
+      muestra: result.muestra,
+      eventos_probados: result.eventos_probados ?? null,
+      nota: result.nota || null,
+      error: result.error || null,
+    });
+  } catch (err) {
+    return jsonMongoError(c, 502, err);
+  }
 }
 
 /** Crea corrida + avance inicial (usado por POST /v1/corridas y motor de disparo). */

@@ -464,7 +464,14 @@ POST {API_BASE}/v1/disparar/:flujo/:token
      → 202 { ok, evento_id, corridas[] }  |  404 sin detalles
 
 GET  {API_BASE}/v1/eventos?proyecto=reservas&coleccion=&limit=20
+
+POST {API_BASE}/v1/flujos/:id/disparadores/probar   Authorization: Bearer inv_…
+     { tipo, coleccion?, pipeline?, disparador_id? }
+     → { ok, habria_lanzado, muestra[], eventos_probados?, nota?, error? }  (no crea corridas)
+POST {API_BASE}/v1/disparadores/:id/probar   Authorization: Bearer inv_…
 ```
+
+UI: ficha Flujo → pestaña **Disparadores** (entre Versiones y Corridas) + subpestaña **Eventos** dentro de Corridas.
 
 **Corridas** (Mongo colección `corridas` en la BD del proyecto; índice liviano en D1):
 
