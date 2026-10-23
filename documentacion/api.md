@@ -361,12 +361,15 @@ Condiciones seguras (sin `eval`): `{ "eq": ["_ancla_", valor] }`, `{ "neq": [...
 
 ```
 GET  {API_BASE}/v1/flujos?proyecto=reservas
-GET  {API_BASE}/v1/flujos/:id
+GET  {API_BASE}/v1/flujos/:id[?version=N]
+     → { ok, flujo: { …, nodos, aristas, mermaid, versiones:[{numero,fecha,hash}] } }
 POST {API_BASE}/v1/flujos   Authorization: Bearer inv_…
      { id, nombre, proyecto_id, nodos[], aristas[], descripcion? }
+PUT  {API_BASE}/v1/flujos/:id   Authorization: Bearer inv_…
+     { nodos[], aristas[], nombre?, descripcion? }  → nueva versión (bump)
 ```
 
-Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
+UI: ficha Base de datos → pestañas **Flujos** / **Corridas**. Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
 
 **Corridas** (Mongo colección `corridas` en la BD del proyecto; índice liviano en D1):
 

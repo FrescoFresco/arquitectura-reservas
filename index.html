@@ -374,6 +374,24 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .proy-historial-detalle{margin:12px 0 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#0f172a;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap;overflow:auto;max-height:min(50vh,420px)}
 .proy-historial-pager{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 0}
 .tabla-scroll{overflow:auto}
+.flujo-grafo-ascii{margin:12px 0 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow:auto;color:#17212f}
+.flujo-nodos-lista{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.flujo-nodos-lista li{padding:8px 10px;border:1px solid #e5eaf1;border-radius:10px;background:#fff;font-size:13px}
+.flujo-nodos-lista code{font-size:12px;color:#315eb6}
+.flujo-json-edit{width:100%;min-height:10rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;padding:10px;border:1px solid #d5dde8;border-radius:10px;background:#fff;resize:vertical}
+.corrida-timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.corrida-paso{padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff}
+.corrida-paso.is-hecho{border-color:#b7e4c7;background:#f3fbf6}
+.corrida-paso.is-error{border-color:#f0b8b2;background:#fff5f4}
+.corrida-paso.is-pendiente{border-color:#c9d5e8;background:#f8fbff}
+.corrida-paso-meta{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12px;color:#5f6f84;margin-top:4px}
+.corrida-paso-titulo{font-weight:700;font-size:14px;color:#17212f}
+.corrida-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:6px;background:#edf3ff;color:#1c63d5}
+.corrida-badge.is-terminada,.corrida-badge.is-hecho{background:#e6f6ed;color:#0f7a45}
+.corrida-badge.is-error{background:#fdeceb;color:#b42318}
+.corrida-badge.is-en_curso,.corrida-badge.is-pendiente{background:#edf3ff;color:#1c63d5}
+.corrida-badge.is-esperando{background:#fff6e5;color:#9a6700}
+.operativa-flujo-link{margin:10px 0 0}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
 /* Ficha a panel completo: hub fijo, detalle ocupa el main */
@@ -576,6 +594,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabOperativa" data-proy-tab="operativa" aria-selected="false" aria-controls="proyPanelOperativa">Operativa</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabFlujos" data-proy-tab="flujos" aria-selected="false" aria-controls="proyPanelFlujos">Flujos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCorridas" data-proy-tab="corridas" aria-selected="false" aria-controls="proyPanelCorridas">Corridas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabEmpujar" data-proy-tab="empujar" aria-selected="false" aria-controls="proyPanelEmpujar">Empujar</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabHistorial" data-proy-tab="historial" aria-selected="false" aria-controls="proyPanelHistorial">Historial</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabInterno" data-proy-tab="interno" aria-selected="false" aria-controls="proyPanelInterno">Interno</button>
@@ -622,10 +642,62 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div id="proySkillsTabLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelOperativa" role="tabpanel" aria-labelledby="proyTabOperativa" hidden>
-<p class="ajustes-hint">Cadena de skills: una salida de A que coincide con una entrada de B. En <span style="color:#b91c1c;font-weight:600">rojo</span> las entradas que ninguna skill escribe.</p>
+<p class="ajustes-hint">Cadena de skills: una salida de A que coincide con una entrada de B. En <span style="color:#b91c1c;font-weight:600">rojo</span> las entradas que ninguna skill escribe. La ejecución ordenada vive en <strong>Flujos</strong> / <strong>Corridas</strong>.</p>
 <p class="ancla-ficha-vacio" id="proyOperativaEstado">Cargando operativa…</p>
 <div class="proy-diagrama-render" id="proyOperativaRender" hidden></div>
 <ul class="operativa-huecos" id="proyOperativaHuecos" hidden></ul>
+<p class="operativa-flujo-link" id="proyOperativaFlujosLink" hidden>
+<button type="button" class="btn" id="btnOperativaIrFlujos">Ver Flujos →</button>
+<button type="button" class="btn ghost" id="btnOperativaIrCorridas">Corridas →</button>
+</p>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelFlujos" role="tabpanel" aria-labelledby="proyTabFlujos" hidden>
+<p class="ajustes-hint">Flujos de ejecución (nodos Inicio / Skill / Decisión / Espera / Subflujo / Fin). Ligados a esta base; las corridas los instancian por negocio.</p>
+<div class="editar-anclas-top" style="margin-bottom:0.75rem">
+<span class="historial-titulo">Flujos</span>
+<button type="button" class="btn" id="btnNuevoFlujo" title="Crear flujo">+ Flujo</button>
+</div>
+<p class="ancla-ficha-vacio" id="proyFlujosEstado" hidden>Cargando flujos…</p>
+<div id="proyFlujosLista" class="proy-tab-catalogo"></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="proyPanelCorridas" role="tabpanel" aria-labelledby="proyTabCorridas" hidden>
+<p class="ajustes-hint">Historial de ejecución (tipo C): instancias de un flujo para un negocio. Clic en una fila para ver pasos, datos y errores. «+ Corrida» arranca el bucle (n8n u otro agente sigue con /siguiente + salidas).</p>
+<div class="editar-anclas-top" style="margin-bottom:0.75rem">
+<span class="historial-titulo">Corridas</span>
+<button type="button" class="btn" id="btnNuevaCorrida" title="Crear corrida">+ Corrida</button>
+</div>
+<div class="proy-historial-filtros" id="proyCorridasFiltros">
+<label>Estado
+<select id="proyCorridasEstado" aria-label="Filtrar corridas por estado">
+<option value="">Todos</option>
+<option value="en_curso">en_curso</option>
+<option value="esperando">esperando</option>
+<option value="terminada">terminada</option>
+<option value="error">error</option>
+</select>
+</label>
+<label>Negocio
+<input type="text" id="proyCorridasNegocio" aria-label="Filtrar por negocio" placeholder="pelo-sur" autocomplete="off">
+</label>
+<label>Flujo
+<input type="text" id="proyCorridasFlujo" aria-label="Filtrar por flujo_id" placeholder="reservas-descubrir-mapear" autocomplete="off">
+</label>
+<button type="button" class="btn" id="btnProyCorridasFiltrar">Filtrar</button>
+</div>
+<p class="ancla-ficha-vacio" id="proyCorridasEstadoMsg" hidden>Cargando corridas…</p>
+<div class="tabla-scroll" id="proyCorridasTablaWrap" hidden>
+<table class="proy-historial-tabla" id="proyCorridasTabla">
+<thead>
+<tr><th>Negocio</th><th>Estado</th><th>Flujo</th><th>Creada</th><th>Paso</th></tr>
+</thead>
+<tbody id="proyCorridasBody"></tbody>
+</table>
+</div>
+<div class="proy-historial-pager" id="proyCorridasPager" hidden>
+<button type="button" class="btn" id="btnProyCorridasPrev" hidden>Anterior</button>
+<span id="proyCorridasPagerInfo" class="ajustes-hint" style="margin:0"></span>
+<button type="button" class="btn" id="btnProyCorridasNext" hidden>Siguiente</button>
+</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelEmpujar" role="tabpanel" aria-labelledby="proyTabEmpujar" hidden>
 <p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run). Usa el botón <strong>Empujar esquema</strong> arriba o el de esta pestaña.</p>
@@ -677,6 +749,160 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dl>
 </div>
 </article>
+</dialog>
+<dialog id="dlgFlujo" class="dlg-wide ficha-pane" aria-labelledby="flujoReaderNombre">
+<article class="reader dlg-reader" id="flujoReader">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasFlujo"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></span>
+<div>
+<h3 id="flujoReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="flujoReaderVersion" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<div class="historial-ancla">
+<button type="button" class="icon-btn" id="btnHistorialFlujo" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialFlujo">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+</button>
+<div class="historial" id="historialFlujo" hidden role="dialog" aria-label="Versiones">
+<p class="historial-titulo">Versiones</p>
+<ul id="historialFlujoLista"></ul>
+</div>
+</div>
+<button type="button" class="icon-btn" id="btnEditarFlujo" aria-label="Editar flujo" title="Editar nodos/aristas (nueva versión)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="btn ghost" id="btnFlujoVerCorridas" title="Ver corridas de este flujo">Corridas</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="flujoReaderTabs" role="tablist" aria-label="Secciones del flujo">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="flujoTabResumen" data-flujo-tab="resumen" aria-selected="true" aria-controls="flujoPanelResumen">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabDocumento" data-flujo-tab="documento" aria-selected="false" aria-controls="flujoPanelDocumento">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabVersiones" data-flujo-tab="versiones" aria-selected="false" aria-controls="flujoPanelVersiones">Versiones</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabInterno" data-flujo-tab="interno" aria-selected="false" aria-controls="flujoPanelInterno">Interno</button>
+</div>
+<div class="reader-panel ancla-ficha-body" id="flujoPanelResumen" role="tabpanel" aria-labelledby="flujoTabResumen">
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="flujoReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Proyecto</dt><dd><code id="flujoReaderProyecto">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Descripción</dt><dd id="flujoReaderDesc">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Nodos</dt><dd id="flujoReaderNodosCount">—</dd></div>
+</dl>
+</div>
+<div class="reader-panel ancla-ficha-body" id="flujoPanelDocumento" role="tabpanel" aria-labelledby="flujoTabDocumento" hidden>
+<p class="ajustes-hint">Grafo del flujo (Mermaid) y lista de nodos/aristas. Editar abre el JSON.</p>
+<div class="proy-diagrama-render" id="flujoGrafoRender"></div>
+<pre class="flujo-grafo-ascii" id="flujoGrafoAscii" hidden></pre>
+<ul class="flujo-nodos-lista" id="flujoNodosLista"></ul>
+<div id="flujoEditWrap" hidden>
+<p class="historial-titulo" style="margin-top:1rem">Editar (JSON → nueva versión)</p>
+<label class="ajustes-hint" for="flujoEditNombre">Nombre</label>
+<input type="text" id="flujoEditNombre" class="flujo-json-edit" style="min-height:auto;height:2.5rem" autocomplete="off">
+<label class="ajustes-hint" for="flujoEditDesc">Descripción</label>
+<input type="text" id="flujoEditDesc" class="flujo-json-edit" style="min-height:auto;height:2.5rem" autocomplete="off">
+<label class="ajustes-hint" for="flujoEditNodos">nodos[]</label>
+<textarea id="flujoEditNodos" class="flujo-json-edit" spellcheck="false"></textarea>
+<label class="ajustes-hint" for="flujoEditAristas">aristas[]</label>
+<textarea id="flujoEditAristas" class="flujo-json-edit" spellcheck="false"></textarea>
+<p class="proy-crear-bd-msg" id="flujoEditMsg" role="status" hidden></p>
+<div class="ajustes-actions" style="margin-top:8px">
+<button type="button" class="btn primary" id="btnGuardarFlujoVersion">Guardar versión</button>
+<button type="button" class="btn ghost" id="btnCancelarFlujoEdit">Cancelar</button>
+</div>
+</div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="flujoPanelVersiones" role="tabpanel" aria-labelledby="flujoTabVersiones" hidden>
+<p class="ajustes-hint">Versiones pinneadas en D1 (<code>flujo_versions</code>). Las corridas guardan el número de versión al crearse.</p>
+<ul id="flujoVersionesLista" class="flujo-nodos-lista"></ul>
+</div>
+<div class="reader-panel ancla-ficha-body" id="flujoPanelInterno" role="tabpanel" aria-labelledby="flujoTabInterno" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="flujoInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Hash</dt><dd><code id="flujoInternoHash">—</code></dd></div>
+</dl>
+</div>
+</article>
+</dialog>
+<dialog id="dlgCorrida" class="dlg-wide ficha-pane" aria-labelledby="corridaReaderNombre">
+<article class="reader dlg-reader" id="corridaReader">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasCorrida"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+<div>
+<h3 id="corridaReaderNombre" tabindex="-1">Corrida</h3>
+<p class="bloque-ver" id="corridaReaderSub" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<button type="button" class="btn ghost" id="btnCorridaIrFlujo" title="Abrir flujo">Flujo</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="corridaReaderTabs" role="tablist" aria-label="Secciones de la corrida">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" id="corridaTabPasos" data-corrida-tab="pasos" aria-selected="true" aria-controls="corridaPanelPasos">Pasos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="corridaTabDatos" data-corrida-tab="datos" aria-selected="false" aria-controls="corridaPanelDatos">Datos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="corridaTabErrores" data-corrida-tab="errores" aria-selected="false" aria-controls="corridaPanelErrores">Errores</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="corridaTabInterno" data-corrida-tab="interno" aria-selected="false" aria-controls="corridaPanelInterno">Interno</button>
+</div>
+<div class="reader-panel ancla-ficha-body" id="corridaPanelPasos" role="tabpanel" aria-labelledby="corridaTabPasos">
+<p class="ajustes-hint" id="corridaPasosHint">Timeline de <code>pasos[]</code>.</p>
+<ul class="corrida-timeline" id="corridaPasosLista"></ul>
+</div>
+<div class="reader-panel ancla-ficha-body" id="corridaPanelDatos" role="tabpanel" aria-labelledby="corridaTabDatos" hidden>
+<pre class="proy-historial-detalle" id="corridaDatosJson" style="max-height:min(70vh,560px)"></pre>
+</div>
+<div class="reader-panel ancla-ficha-body" id="corridaPanelErrores" role="tabpanel" aria-labelledby="corridaTabErrores" hidden>
+<pre class="proy-historial-detalle" id="corridaErroresJson" style="max-height:min(70vh,560px)"></pre>
+</div>
+<div class="reader-panel ancla-ficha-body" id="corridaPanelInterno" role="tabpanel" aria-labelledby="corridaTabInterno" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="corridaInternoId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Flujo</dt><dd><code id="corridaInternoFlujo">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión flujo</dt><dd id="corridaInternoFlujoVer">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Proyecto</dt><dd><code id="corridaInternoProyecto">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Creada</dt><dd id="corridaInternoCreada">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Actualizada</dt><dd id="corridaInternoActualizada">—</dd></div>
+</dl>
+</div>
+</article>
+</dialog>
+<dialog id="dlgNuevoFlujo" aria-labelledby="dlgNuevoFlujoTitulo">
+<form class="dlg" id="formNuevoFlujo">
+<h3 id="dlgNuevoFlujoTitulo">Añadir flujo</h3>
+<p class="ajustes-hint">Se crea en la Base de datos abierta. Mínimo: nodos con Inicio y Fin + aristas.</p>
+<label>Id <input name="id" required pattern="[a-z0-9][a-z0-9-]{0,60}" placeholder="mi-flujo" autocomplete="off"></label>
+<label>Nombre <input name="nombre" required placeholder="Descubrir → Mapear" autocomplete="off"></label>
+<label>Descripción <input name="descripcion" placeholder="Opcional" autocomplete="off"></label>
+<label>nodos[] (JSON)
+<textarea name="nodos" class="flujo-json-edit" spellcheck="false" required>[{"id":"inicio","tipo":"inicio"},{"id":"fin","tipo":"fin"}]</textarea>
+</label>
+<label>aristas[] (JSON)
+<textarea name="aristas" class="flujo-json-edit" spellcheck="false" required>[{"desde":"inicio","hacia":"fin"}]</textarea>
+</label>
+<p class="form-error" id="nuevoFlujoError" hidden></p>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevoFlujoCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Crear</button>
+</div>
+</form>
+</dialog>
+<dialog id="dlgNuevaCorrida" aria-labelledby="dlgNuevaCorridaTitulo">
+<form class="dlg" id="formNuevaCorrida">
+<h3 id="dlgNuevaCorridaTitulo">Nueva corrida</h3>
+<p class="ajustes-hint">Crea la instancia en Mongo <code>corridas</code> y avanza al primer paso. Luego n8n (u otro) hace <code>GET …/siguiente</code> y <code>POST …/salidas</code>.</p>
+<label>Flujo id <input name="flujo_id" id="nuevaCorridaFlujo" required placeholder="reservas-descubrir-mapear" autocomplete="off"></label>
+<label>Negocio <input name="negocio" required pattern="[a-z0-9][a-z0-9-]{0,60}" placeholder="pelo-sur" autocomplete="off"></label>
+<label>datos_iniciales (JSON opcional)
+<textarea name="datos_iniciales" class="flujo-json-edit" spellcheck="false" placeholder='{"_negocio.url_":"https://…"}'></textarea>
+</label>
+<p class="form-error" id="nuevaCorridaError" hidden></p>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevaCorridaCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Crear</button>
+</div>
+</form>
 </dialog>
 <dialog id="dlgCluster" class="dlg-wide ficha-pane" aria-labelledby="clusterReaderNombre">
 <article class="reader dlg-reader" id="clusterReader">
@@ -1488,7 +1714,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="fundamentos-ui.js?v=20261020z"></script>
 <script src="system-prompts-ui.js?v=20261023picker1"></script>
 <script src="system-prompts-catalog.js?v=20261023picker1"></script>
-<script src="catalogo-ui.js?v=20261023picker1"></script>
+<script src="catalogo-ui.js?v=20261023flujos1"></script>
+<script src="flujos-corridas-ui.js?v=20261023flujos1"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>

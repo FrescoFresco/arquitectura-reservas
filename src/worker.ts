@@ -74,6 +74,7 @@ import {
 import {
   avanzarDesde,
   findNodo,
+  flujoToMermaid,
   parseAristas,
   parseNodos,
   primerPasoEjecutable,
@@ -675,9 +676,23 @@ app.get('/v1/flujos', async (c) => {
 
 app.get('/v1/flujos/:id', async (c) => {
   const id = c.req.param('id');
-  const flujo = await loadFlujoVersion(c.env.DB, id);
+  const versionQ = String(c.req.query('version') || '').trim();
+  const versionNum = versionQ ? Number(versionQ) : undefined;
+  const flujo = await loadFlujoVersion(
+    c.env.DB,
+    id,
+    Number.isFinite(versionNum) && (versionNum as number) > 0 ? (versionNum as number) : undefined
+  );
   if (!flujo) return jsonError(c, 404, 'Flujo no encontrado.');
-  return c.json({ ok: true, flujo });
+  const versiones = await listFlujoVersions(c.env.DB, id);
+  return c.json({
+    ok: true,
+    flujo: {
+      ...flujo,
+      mermaid: flujoToMermaid(flujo.nodos, flujo.aristas),
+      versiones,
+    },
+  });
 });
 
 app.post('/v1/flujos', async (c) => {
@@ -718,7 +733,67 @@ app.post('/v1/flujos', async (c) => {
     .bind(id, todayIso(), JSON.stringify(nodos), JSON.stringify(aristas), hash)
     .run();
   const flujo = await loadFlujoVersion(c.env.DB, id);
-  return c.json({ ok: true, flujo }, 201);
+  const versiones = await listFlujoVersions(c.env.DB, id);
+  return c.json(
+    {
+      ok: true,
+      flujo: flujo
+        ? { ...flujo, mermaid: flujoToMermaid(flujo.nodos, flujo.aristas), versiones }
+        : null,
+    },
+    201
+  );
+});
+
+/** Nueva versión de un flujo (nodos/aristas). Body: { nombre?, descripcion?, nodos[], aristas[] } */
+app.put('/v1/flujos/:id', async (c) => {
+  const id = c.req.param('id');
+  const meta = await c.env.DB.prepare(
+    'SELECT id, nombre, descripcion, proyecto_id FROM flujos WHERE id = ?'
+  )
+    .bind(id)
+    .first<{ id: string; nombre: string; descripcion: string; proyecto_id: string }>();
+  if (!meta) return jsonError(c, 404, 'Flujo no encontrado.');
+  const body = (await c.req.json().catch(() => ({}))) as {
+    nombre?: string;
+    descripcion?: string;
+    nodos?: unknown;
+    aristas?: unknown;
+  };
+  const nodos = parseNodos(body.nodos);
+  const aristas = parseAristas(body.aristas);
+  if (!nodos.length) return jsonError(c, 400, 'Falta nodos[].');
+  const nombre = body.nombre != null ? String(body.nombre).trim() : meta.nombre;
+  const descripcion =
+    body.descripcion != null ? String(body.descripcion) : meta.descripcion || '';
+  if (!nombre) return jsonError(c, 400, 'Falta nombre.');
+  const max = await c.env.DB.prepare(
+    'SELECT COALESCE(MAX(numero), 0) AS m FROM flujo_versions WHERE flujo_id = ?'
+  )
+    .bind(id)
+    .first<{ m: number }>();
+  const numero = (max?.m || 0) + 1;
+  const ts = nowIso();
+  const hash = `flujo-${id}-v${numero}`;
+  await c.env.DB.prepare(
+    `UPDATE flujos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?`
+  )
+    .bind(nombre, descripcion, hash, ts, id)
+    .run();
+  await c.env.DB.prepare(
+    `INSERT INTO flujo_versions (flujo_id, numero, fecha, nodos_json, aristas_json, hash)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  )
+    .bind(id, numero, todayIso(), JSON.stringify(nodos), JSON.stringify(aristas), hash)
+    .run();
+  const flujo = await loadFlujoVersion(c.env.DB, id);
+  const versiones = await listFlujoVersions(c.env.DB, id);
+  return c.json({
+    ok: true,
+    flujo: flujo
+      ? { ...flujo, mermaid: flujoToMermaid(flujo.nodos, flujo.aristas), versiones }
+      : null,
+  });
 });
 
 /**
@@ -3223,6 +3298,23 @@ async function hydrateFlujoListItem(db: D1Database, row: Record<string, unknown>
     createdAt: String(row.created_at || ''),
     updatedAt: String(row.updated_at || ''),
   };
+}
+
+async function listFlujoVersions(db: D1Database, flujoId: string) {
+  const rows = await db
+    .prepare(
+      `SELECT numero, fecha, hash FROM flujo_versions WHERE flujo_id = ? ORDER BY numero`
+    )
+    .bind(flujoId)
+    .all();
+  return (rows.results || []).map((raw) => {
+    const r = raw as { numero: number; fecha: string; hash: string };
+    return {
+      numero: r.numero,
+      fecha: r.fecha || '',
+      hash: r.hash || '',
+    };
+  });
 }
 
 async function loadFlujoVersion(

@@ -1142,6 +1142,35 @@ function svgPestanaCatalogo(tipo) {
       svgPath('M12 12v9'),
       svgPath('m16 16-4-4-4 4')
     );
+  } else if (tipo === 'flujo' || tipo === 'flujos') {
+    // Lucide: git-branch
+    svg.append(
+      svgCircle('18', '18', '3'),
+      svgCircle('6', '6', '3'),
+      svgPath('M6 21V9a9 9 0 0 0 9 9')
+    );
+  } else if (tipo === 'corrida' || tipo === 'corridas' || tipo === 'pasos') {
+    // Lucide: activity
+    svg.append(svgPath('M22 12h-4l-3 9L9 3l-3 9H2'));
+  } else if (tipo === 'datos') {
+    // Lucide: braces / code
+    svg.append(
+      svgPath('m16 18 6-6-6-6'),
+      svgPath('m8 6-6 6 6 6')
+    );
+  } else if (tipo === 'errores') {
+    // Lucide: alert-triangle
+    svg.append(
+      svgPath('m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'),
+      svgLine('12', '9', '12', '13'),
+      svgLine('12', '17', '12.01', '17')
+    );
+  } else if (tipo === 'versiones') {
+    // Lucide: clock (mismo tono historial)
+    svg.append(
+      svgCircle('12', '12', '8'),
+      svgPath('M12 8v4l3 2')
+    );
   } else if (tipo === 'acl') {
     // Lucide: shield
     svg.append(
@@ -1175,6 +1204,14 @@ function iconoDePestanaFicha(tabId) {
     mongo: 'mongo',
     coleccion: 'coleccion',
     empujar: 'empujar',
+    flujos: 'flujo',
+    flujo: 'flujo',
+    corridas: 'corrida',
+    corrida: 'corrida',
+    pasos: 'pasos',
+    datos: 'datos',
+    errores: 'errores',
+    versiones: 'versiones',
     acl: 'acl',
     ancla: 'ancla',
     cluster: 'cluster'
@@ -1198,7 +1235,9 @@ function iconizarPestanasFicha(root) {
         || btn.getAttribute('data-editar-tab')
         || btn.getAttribute('data-editar-proy-tab')
         || btn.getAttribute('data-editar-sp-tab')
-        || btn.getAttribute('data-agente-tab');
+        || btn.getAttribute('data-agente-tab')
+        || btn.getAttribute('data-flujo-tab')
+        || btn.getAttribute('data-corrida-tab');
     }
     const tipo = iconoDePestanaFicha(tabId) || tabId;
     if (!tipo) return;
@@ -4567,6 +4606,8 @@ function seleccionarProyReaderTab(id) {
     campos: document.getElementById('proyPanelCampos'),
     skills: document.getElementById('proyPanelSkills'),
     operativa: document.getElementById('proyPanelOperativa'),
+    flujos: document.getElementById('proyPanelFlujos'),
+    corridas: document.getElementById('proyPanelCorridas'),
     empujar: document.getElementById('proyPanelEmpujar'),
     historial: document.getElementById('proyPanelHistorial'),
     interno: document.getElementById('proyPanelInterno')
@@ -4591,9 +4632,21 @@ function seleccionarProyReaderTab(id) {
   if (id === 'campos') pintarProyectoCampos(proy);
   if (id === 'skills') pintarProyectoSkillsTab(proy);
   if (id === 'operativa') cargarProyectoOperativa(proy);
+  if (id === 'flujos') {
+    if (window.FlujosCorridasUI && typeof window.FlujosCorridasUI.cargarFlujos === 'function') {
+      window.FlujosCorridasUI.cargarFlujos(proy);
+    }
+  }
+  if (id === 'corridas') {
+    if (window.FlujosCorridasUI && typeof window.FlujosCorridasUI.cargarCorridas === 'function') {
+      window.FlujosCorridasUI.cargarCorridas(proy, { resetPage: true });
+    }
+  }
   if (id === 'empujar') pintarProyectoEmpujarAuto(proy);
   if (id === 'historial') cargarProyectoHistorialEmpujes(proy, { reset: true });
 }
+
+window.seleccionarProyReaderTab = seleccionarProyReaderTab;
 
 function cargarProyectoOperativa(proy) {
   const estado = document.getElementById('proyOperativaEstado');
@@ -4633,6 +4686,8 @@ function cargarProyectoOperativa(proy) {
           huecosEl.hidden = true;
         }
       }
+      const linkEl = document.getElementById('proyOperativaFlujosLink');
+      if (linkEl) linkEl.hidden = false;
     })
     .catch(function (err) {
       if (estado) {
@@ -7752,6 +7807,13 @@ function apiFetch(path, opts) {
 
 window.formatApiErrorRaw = formatApiErrorRaw;
 window.showApiErrorRaw = showApiErrorRaw;
+window.apiBaseUrl = apiBaseUrl;
+window.apiFetch = apiFetch;
+window.apiFetchAuth = apiFetchAuth;
+window.asegurarClaveCatalogo = asegurarClaveCatalogo;
+window.renderMermaidEn = renderMermaidEn;
+window.atrasDesdeFicha = atrasDesdeFicha;
+window.iconizarPestanasFicha = iconizarPestanasFicha;
 
 const UI_PROD_BASE = 'https://campos-ancla.web-legal-es.workers.dev/';
 const API_PROD_BASE = 'https://campos-ancla-api.web-legal-es.workers.dev';

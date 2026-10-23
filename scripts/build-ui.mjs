@@ -23,6 +23,7 @@ const files = [
   'skills-ui.js',
   'system-prompts-ui.js',
   'system-prompts-catalog.js',
+  'flujos-corridas-ui.js',
 ];
 
 const dirs = ['catalogo', 'documentacion', 'mapa'];

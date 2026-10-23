@@ -242,6 +242,34 @@ export function avanzarDesde(
   return { kind: 'error', error: 'Demasiados saltos de decisión (posible ciclo).' };
 }
 
+/** Mermaid flowchart LR a partir de nodos/aristas (para UI). */
+export function flujoToMermaid(nodos: FlujoNodo[], aristas: FlujoArista[]): string {
+  const lines = ['flowchart LR'];
+  const safe = (id: string) => String(id || '').replace(/[^a-zA-Z0-9_]/g, '_');
+  for (const n of nodos) {
+    const sid = safe(n.id);
+    const label = (n.label || n.skill || n.flujo_id || n.tipo || n.id).replace(/"/g, "'");
+    if (n.tipo === 'inicio' || n.tipo === 'fin') {
+      lines.push(`  ${sid}((${label}))`);
+    } else if (n.tipo === 'decision') {
+      lines.push(`  ${sid}{${label}}`);
+    } else {
+      lines.push(`  ${sid}["${label}"]`);
+    }
+  }
+  for (const a of aristas) {
+    const d = safe(a.desde);
+    const h = safe(a.hacia);
+    if (typeof a.cuando === 'boolean') {
+      lines.push(`  ${d} -->|"${a.cuando ? 'sí' : 'no'}"| ${h}`);
+    } else {
+      lines.push(`  ${d} --> ${h}`);
+    }
+  }
+  if (nodos.length === 0) lines.push('  vacio["Sin nodos"]');
+  return lines.join('\n');
+}
+
 /** Primera posición ejecutable tras Inicio (o error). */
 export function primerPasoEjecutable(
   nodos: FlujoNodo[],

@@ -122,12 +122,24 @@ export const API_DOCS_INDEX = {
       query: ['proyecto?'],
       summary: 'Listar flujos de ejecución (nodos/aristas versionados en D1)',
     },
-    { method: 'GET', path: '/v1/flujos/:id', auth: false, summary: 'Ficha flujo + versión actual (nodos, aristas)' },
+    {
+      method: 'GET',
+      path: '/v1/flujos/:id',
+      auth: false,
+      query: ['version?'],
+      summary: 'Ficha flujo + nodos/aristas/mermaid + versiones[] (opcional pin version)',
+    },
     {
       method: 'POST',
       path: '/v1/flujos',
       auth: true,
       summary: 'Crear flujo (proyecto_id + nodos[] + aristas[])',
+    },
+    {
+      method: 'PUT',
+      path: '/v1/flujos/:id',
+      auth: true,
+      summary: 'Nueva versión de flujo (nodos[] + aristas[]; nombre/descripcion opcionales)',
     },
     {
       method: 'POST',
