@@ -338,6 +338,27 @@ app.get('/v1/docs.json', (c) =>
 );
 app.get('/docs', (c) => c.redirect('/v1/docs', 302));
 
+/** Writes require a valid non-revoked invite key. */
+app.use('/v1/*', async (c, next) => {
+  if (c.req.method === 'GET' || c.req.method === 'OPTIONS' || c.req.method === 'HEAD') {
+    return next();
+  }
+  // Public agent self-registration / heartbeat use body.clave instead.
+  const path = new URL(c.req.url).pathname;
+  if (path === '/v1/agentes/registro' || path === '/v1/agentes/latido' || path === '/v1/invites') {
+    return next();
+  }
+  const clave = extractClave(c);
+  if (!clave) return jsonError(c, 401, 'Falta AGENTE_CLAVE (Authorization: Bearer inv_… o X-Agente-Clave).');
+  const inv = await c.env.DB.prepare('SELECT clave, revocada, usada_por FROM invites WHERE clave = ?')
+    .bind(clave)
+    .first<{ clave: string; revocada: number; usada_por: string | null }>();
+  if (!inv || inv.revocada) return jsonError(c, 403, 'Invite inválida o revocada.');
+  c.set('inviteClave', clave);
+  if (inv.usada_por) c.set('agenteId', inv.usada_por);
+  return next();
+});
+
 /** Public catalog reads — no auth. */
 app.get('/v1/skills', async (c) => {
   const rows = await c.env.DB.prepare(
@@ -1014,26 +1035,7 @@ app.get('/v1/agentes', async (c) => {
   });
 });
 
-/** Writes require a valid non-revoked invite key. */
-app.use('/v1/*', async (c, next) => {
-  if (c.req.method === 'GET' || c.req.method === 'OPTIONS' || c.req.method === 'HEAD') {
-    return next();
-  }
-  // Public agent self-registration / heartbeat use body.clave instead.
-  const path = new URL(c.req.url).pathname;
-  if (path === '/v1/agentes/registro' || path === '/v1/agentes/latido' || path === '/v1/invites') {
-    return next();
-  }
-  const clave = extractClave(c);
-  if (!clave) return jsonError(c, 401, 'Falta AGENTE_CLAVE (Authorization: Bearer inv_… o X-Agente-Clave).');
-  const inv = await c.env.DB.prepare('SELECT clave, revocada, usada_por FROM invites WHERE clave = ?')
-    .bind(clave)
-    .first<{ clave: string; revocada: number; usada_por: string | null }>();
-  if (!inv || inv.revocada) return jsonError(c, 403, 'Invite inválida o revocada.');
-  c.set('inviteClave', clave);
-  if (inv.usada_por) c.set('agenteId', inv.usada_por);
-  return next();
-});
+
 
 app.post('/v1/invites', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { clave?: string };
