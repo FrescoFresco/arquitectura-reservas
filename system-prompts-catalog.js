@@ -65,7 +65,7 @@
     if (!versiones.length) {
       versiones = [{ numero: 1, fecha: '', markdown: '', hash: String(item.hash || '') }];
     }
-    return {
+    var out = {
       id: item.id.trim(),
       nombre: typeof item.nombre === 'string' ? item.nombre.trim() : item.id.trim(),
       descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim() : '',
@@ -73,6 +73,12 @@
       skills: normalizarSkills(item.skills),
       versiones: versiones
     };
+    if (Object.prototype.hasOwnProperty.call(item, 'color')) {
+      var c = item.color;
+      if (c == null || c === '') out.color = null;
+      else if (typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c.trim())) out.color = c.trim().toLowerCase();
+    }
+    return out;
   }
 
   function normalizeIndice(data) {

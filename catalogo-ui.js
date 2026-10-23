@@ -731,6 +731,11 @@ function normalizeInstruccion(item, versionFn) {
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
     out.descripcion = item.descripcion.trim().slice(0, 280);
   }
+  if (Object.prototype.hasOwnProperty.call(item, 'color')) {
+    const c = item.color;
+    if (c == null || c === '') out.color = null;
+    else if (typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c.trim())) out.color = c.trim().toLowerCase();
+  }
   const entradas = normalizarAnclas(item.entradas);
   const salidas = normalizarAnclas(item.salidas);
   let anclas = normalizarAnclas(item.anclas);
@@ -802,6 +807,15 @@ function copiaVersion(v) {
   if (v.nombreArchivo) o.nombreArchivo = v.nombreArchivo;
   if (v.hash) o.hash = v.hash;
   return o;
+}
+
+function attachEntityColor(out, item) {
+  if (!out || !item || typeof item !== 'object') return out;
+  if (!Object.prototype.hasOwnProperty.call(item, 'color')) return out;
+  const c = item.color;
+  if (c == null || c === '') out.color = null;
+  else if (typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c.trim())) out.color = c.trim().toLowerCase();
+  return out;
 }
 
 function conMetaSkill(destino, fuente) {
@@ -1540,6 +1554,7 @@ function normalizeCampo(item) {
   };
   const hash = normalizarHash(item.hash);
   out.hash = hash || hashFnvHex(payloadHashAncla(out));
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -1741,6 +1756,7 @@ function normalizeMongoCampo(item) {
   };
   const hash = normalizarHash(item.hash);
   out.hash = hash || hashFnvHex(payloadHashMongo(out));
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -4639,10 +4655,12 @@ function normalizarColeccionesProyecto(list) {
     const id = typeof c.id === 'string' ? c.id.trim() : '';
     if (!id || seen.has(id)) return;
     seen.add(id);
-    out.push({
+    const row = {
       id: id,
       descripcion: typeof c.descripcion === 'string' ? c.descripcion.trim() : ''
-    });
+    };
+    attachEntityColor(row, c);
+    out.push(row);
   });
   return out;
 }
@@ -4671,6 +4689,7 @@ function normalizeProyecto(item, versionFn) {
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
     out.descripcion = item.descripcion.trim().slice(0, 280);
   }
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -5798,7 +5817,7 @@ function normalizeCluster(item) {
   if (!item || typeof item !== 'object') return null;
   if (typeof item.id !== 'string' || !item.id.trim()) return null;
   if (typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
-  return {
+  const out = {
     id: item.id.trim(),
     nombre: item.nombre.trim(),
     descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim().slice(0, 280) : '',
@@ -5806,6 +5825,8 @@ function normalizeCluster(item) {
     proyectos: Array.isArray(item.proyectos) ? item.proyectos : [],
     nProyectos: Array.isArray(item.proyectos) ? item.proyectos.length : 0
   };
+  attachEntityColor(out, item);
+  return out;
 }
 
 function normalizeClustersIndice(data) {
@@ -7751,6 +7772,7 @@ function normalizeAgente(item) {
   }
   const hash = normalizarHash(item.hash);
   out.hash = hash || hashFnvHex(out.id + '|' + out.nombre + '|' + out.inviteUsada);
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -8988,6 +9010,7 @@ function normalizeFundamento(item, versionFn) {
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
     out.descripcion = item.descripcion.trim().slice(0, 280);
   }
+  attachEntityColor(out, item);
   return out;
 }
 
