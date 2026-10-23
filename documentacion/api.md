@@ -1,14 +1,16 @@
 # API — contrato para agentes (Campos ancla)
 
-Documento canónico. Todo lo que necesitas para conectarte y trabajar el catálogo está aquí.
+Documento canónico. Todo lo que necesitas para **entrar y operar** el hub está aquí (auth, catálogos, skills I/O, ejecutar, errores).
 
 **No uses** `localhost`, `127.0.0.1`, GitHub Pages ni `GITHUB_TOKEN`. La fuente viva es esta API + D1.
+
+**Agentes** = operadores ACL del hub (invite `inv_…` + Bearer), no bots del software de la BD. En la UI viven en **Ajustes → Agentes**.
 
 ## Credenciales
 
 ```
 API_BASE=https://campos-ancla-api.web-legal-es.workers.dev
-AGENTE_CLAVE=inv_…          # te la da un humano (Catálogos → Agentes → + Agente)
+AGENTE_CLAVE=inv_…          # te la da un humano (Ajustes → Agentes → + Agente)
 CATALOGO_UI=https://campos-ancla.web-legal-es.workers.dev/
 ```
 
@@ -16,7 +18,8 @@ Misma documentación en:
 
 - Markdown: `https://campos-ancla.web-legal-es.workers.dev/documentacion/api.md`
 - UI: `https://campos-ancla.web-legal-es.workers.dev/#documentacion/api`
-- API: `GET {API_BASE}/v1/docs` → `text/markdown`
+- API markdown: `GET {API_BASE}/v1/docs` → `text/markdown`
+- API índice JSON: `GET {API_BASE}/v1/docs.json` → lista de rutas + auth
 
 Worker: `campos-ancla-api`. D1: `campos-ancla-db`. Los JSON de `catalogo/` en la UI son semilla/fallback, no el estado vivo.
 
@@ -26,11 +29,15 @@ Worker: `campos-ancla-api`. D1: `campos-ancla-db`. Los JSON de `catalogo/` en la
 
 1. Guarda `API_BASE` y `AGENTE_CLAVE`.
 2. `GET {API_BASE}/health` — comprueba que la API responde.
-3. `POST {API_BASE}/v1/agentes/registro` — eliges nombre (e `id` opcional); guarda el `id` de la respuesta.
-4. Cada ~30 s: `POST {API_BASE}/v1/agentes/latido` con ese `id` + clave → aparece **En línea** en la UI.
-5. Lee catálogos con `GET` (público). Escribe con `Authorization: Bearer {AGENTE_CLAVE}`.
+3. `GET {API_BASE}/v1/docs` (o `/v1/docs.json`) — lee este contrato.
+4. `POST {API_BASE}/v1/agentes/registro` — eliges nombre (e `id` opcional); guarda el `id` de la respuesta.
+5. Cada ~30 s: `POST {API_BASE}/v1/agentes/latido` con ese `id` + clave → aparece **En línea** en la UI.
+6. Lee catálogos con `GET` (público). Escribe / ejecuta salidas con `Authorization: Bearer {AGENTE_CLAVE}`.
+7. Para una skill: `GET /v1/ejecutar/:skillId` → contrato I/O; luego entradas (GET) / salidas (POST).
 
 La clave **no caduca**. Solo deja de valer si un humano la revoca.
+
+**Límites:** no hay rate limit de producto en el Worker. No dispares latidos más de ~1/30 s ni bucles agresivos de escritura.
 
 ---
 
@@ -114,7 +121,7 @@ Los agentes normales no necesitan crear invites: ya tienen la suya.
 
 ---
 
-## 5. Autenticación en escrituras
+## 5. Autenticación y alcance del Bearer
 
 Cabecera (una de las dos):
 
@@ -123,7 +130,51 @@ Authorization: Bearer inv_…
 X-Agente-Clave: inv_…
 ```
 
-`GET` de catálogo son **públicos** (sin auth). `POST`/`PUT`/`PATCH`/`DELETE` de catálogo requieren invite válida.
+| Qué | Auth |
+|-----|------|
+| `GET` / `HEAD` / `OPTIONS` (catálogos, docs, ejecutar/entradas, operativa…) | Público |
+| `POST`/`PUT`/`PATCH`/`DELETE` bajo `/v1/*` | Invite válida no revocada |
+| `POST /v1/agentes/registro` y `/v1/agentes/latido` | `clave` en el **body** (no Bearer) |
+| `POST /v1/invites` | Abierto (UI/humanos crean invites) |
+
+Códigos auth:
+
+| HTTP | Cuándo |
+|------|--------|
+| `401` | Falta Bearer / `X-Agente-Clave` |
+| `403` | Invite inválida o revocada |
+
+Campos del agente `proyectos`, `lee`, `escribe` son **metadatos ACL del hub** (UI / ficha). Hoy **no** se aplican como filtro en `/v1/ejecutar` ni en CRUD de catálogo: basta una invite válida. La frontera operativa de escritura en ejecutar es la lista **`salidas`** de la skill.
+
+---
+
+## 5b. Forma de errores (JSON crudo)
+
+Todos los fallos de API responden body JSON (el panel lo muestra **crudo**, sin wrappers):
+
+```json
+{ "ok": false, "error": "mensaje legible", …camposExtra }
+```
+
+Ejemplos:
+
+```json
+{ "ok": false, "error": "Falta query negocio." }
+{ "ok": false, "error": "Ancla(s) no están en salidas de esta skill.", "invalidas": ["_foo_"], "salidas": ["_bar_"] }
+{ "ok": false, "error": "configure MONGODB_URI", "hint": "Configura la URI en Cluster → Conexión …" }
+{ "ok": false, "error": "…", "mongo": { "message": "…", "name": "MongoServerError", "code": 8000 } }
+```
+
+**Nunca** aparece la URI Mongo en el body. Los mensajes del driver se scrubbean (`mongodb://***`). No loguees URIs ni invites.
+
+---
+
+## 5c. Naming de anclas
+
+- Canónico en API/skills: `_segmento.campo_` (guiones bajos envolventes).
+- Si omites `_` al escribir en `valores`, el Worker las añade.
+- Aliases (sin `_`) en la ficha del ancla; resolución: `GET /v1/anclas/resolve?q=…`.
+- Un ancla ↔ 0..1 campo Mongo (`coleccion` + `claveMongo` + `baseDatos` vía proyecto).
 
 ---
 
@@ -132,6 +183,8 @@ X-Agente-Clave: inv_…
 | Recurso | Listar | Uno | Crear | Actualizar | Borrar |
 |---------|--------|-----|-------|------------|--------|
 | Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
+| Ejecutar | — | `GET /v1/ejecutar/:skillId` | — | `POST …/salidas` (Bearer) | — |
+| | | `GET …/entradas?negocio=` | | | |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
 | Mongo | `GET /v1/mongo` | `GET /v1/mongo/:id` | `POST /v1/mongo` | `PUT /v1/mongo/:id` | `DELETE /v1/mongo/:id` |
 | Clusters | `GET /v1/clusters` | `GET /v1/clusters/:id` | `POST /v1/clusters` | `PUT /v1/clusters/:id` | `DELETE /v1/clusters/:id` |
@@ -167,24 +220,75 @@ Si solo envías `anclas` (legado), se tratan como **salidas**.
 
 ### Ejecutar skill (entradas / salidas → Mongo)
 
-El agente lee las entradas y escribe las salidas vía Campo Mongo vinculado a cada ancla (`claveMongo` + `coleccion`).
+El agente lee las **entradas** y escribe las **salidas** vía Campo Mongo vinculado a cada ancla (`claveMongo` + `coleccion`). `negocio` = id del documento de negocio (p. ej. `pelo-sur`), **no** el id del software/`proyecto`.
+
+#### 0) Contrato I/O (sin Mongo)
 
 ```
-GET {API_BASE}/v1/ejecutar/:skillId/entradas?negocio=<id>
-→ { ok, skill, negocio, valores: { "_ancla_": valor }, mongo: { configured, db, source } }
+GET {API_BASE}/v1/ejecutar/:skillId
+→ { ok, skill, nombre, descripcion, entradas, salidas, anclas }
+```
+
+#### 1) Leer entradas (público)
+
+```bash
+curl -sS "{API_BASE}/v1/ejecutar/mapear-recorrido/entradas?negocio=pelo-sur"
 ```
 
 ```
-POST {API_BASE}/v1/ejecutar/:skillId/salidas
-Authorization: Bearer inv_…
-Content-Type: application/json
-
-{ "negocio": "<id>", "valores": { "_ancla_": valor } }
-→ { ok, skill, negocio, escritos: ["_ancla_", …] }
+→ {
+  "ok": true,
+  "skill": "mapear-recorrido",
+  "negocio": "pelo-sur",
+  "valores": { "_proceso.url_inicio_": "https://…", "_negocio.nombre_": null },
+  "mongo": { "configured": true|false, "db": "software_reservas", "source": "cluster"|"env"|"none" }
+}
 ```
 
-`400` si alguna clave de `valores` **no** está en `salidas` de esa skill (`invalidas` en el body).  
-Sin URI Atlas en el Cluster → `503` en escritura.
+Resolución por ancla: Campo Mongo → documento de la colección (por `negocio` / `negocio_id`) → `getByPath(claveMongo)`. Si Mongo no tiene valor → fallback `ancla_valores_negocio` en D1. Sin URI: valores quedan `null` (no 503 en lectura).
+
+#### 2) Escribir salidas (Bearer)
+
+```bash
+curl -sS -X POST "{API_BASE}/v1/ejecutar/mapear-recorrido/salidas" \
+  -H "Authorization: Bearer inv_…" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "negocio": "pelo-sur",
+    "valores": {
+      "_version.recorrido.campos_": [
+        { "nombre": "Teléfono", "selector": "#phone", "clase": "sensible" }
+      ]
+    }
+  }'
+```
+
+```
+→ { "ok": true, "skill": "mapear-recorrido", "negocio": "pelo-sur", "escritos": ["_version.recorrido.campos_"] }
+```
+
+`negocio_id` en el body es alias de `negocio`.
+
+#### Reglas de validación (salidas)
+
+| Regla | HTTP | Body |
+|-------|------|------|
+| Falta `negocio` / id inválido | `400` | `{ ok:false, error }` |
+| Falta `valores` | `400` | `{ ok:false, error }` |
+| Clave de `valores` **no** ∈ `salidas` de la skill | `400` | `{ ok:false, error, invalidas, salidas }` |
+| Skill inexistente | `404` | |
+| Sin URI en el Cluster del esquema | `503` | `{ ok:false, error:"configure MONGODB_URI", hint }` |
+| Fallo driver Mongo | `502` | `{ ok:false, error }` (URI scrubbeada) |
+| Invite ausente / revocada | `401` / `403` | |
+
+Solo se persisten anclas que tienen mapa Mongo (`coleccion`+`claveMongo`). Tras escribir Mongo, se espeja `valor_actual` en D1 cuando existe fila de ancla.
+
+#### Cómo se resuelve negocio → URI
+
+1. Anclas de la skill → filas Campos ancla → Campo Mongo (`baseDatos`, `coleccion`, `claveMongo`).
+2. `baseDatos` (p. ej. `software_reservas`) → proyecto/esquema (`reservas`) → `clusterId`.
+3. URI cifrada en `mongo_config_cluster` de ese Cluster (nunca en la respuesta).
+4. Documento: colección `negocios` → `_id = negocio`; otras colecciones suelen usar `negocio_id` o stubs `{_id, negocio_id}`.
 
 ### Operativa (cadena de skills de una Base de datos)
 
@@ -195,7 +299,7 @@ GET {API_BASE}/v1/esquemas/:id/operativa
   ?format=mermaid → text/plain
 ```
 
-Une **salidas** de skill A con **entradas** de skill B (mismo id de ancla). `huecos` = entradas que **ninguna** skill escribe (en el Mermaid van en rojo).
+Une **salidas** de skill A con **entradas** de skill B (mismo id de ancla). `huecos` = entradas que **ninguna** skill escribe (en el Mermaid van en rojo). UI: ficha Base de datos → pestaña **Operativa**.
 
 ### Clusters (URI Atlas)
 
@@ -441,10 +545,44 @@ Sin URI de cluster (ni ops env): sync → **503** `{ "error": "configure MONGODB
 
 ---
 
-## 7. CORS / UI
+## 7. Seguridad (obligatorio)
+
+- **Nunca** loguees, pegues en chat ni commits: URI Atlas, passwords, `ENCRYPTION_KEY`, invites `inv_…`.
+- La API **no** reexpone la URI en ningún GET; errores scrubbean `mongodb://…`.
+- Lecturas de catálogo son públicas: no guardes secretos en markdown de skills/fundamentos.
+- Agentes del hub ≠ agentes de telefonía/n8n del software: esta API es el catálogo Campos ancla.
+
+---
+
+## 8. CORS / UI
 
 Origen de producción del panel: `https://campos-ancla.web-legal-es.workers.dev`.  
-Los agentes hablan con la API por HTTP desde su runtime; no necesitan la UI salvo para leer este contrato.
+Los agentes hablan con la API por HTTP desde su runtime; no necesitan la UI salvo para leer este contrato (Documentación → API) o registrarse vía invite en Ajustes → Agentes.
+
+---
+
+## 9. Checklist mínimo del agente
+
+```bash
+# 1 salud
+curl -sS "$API_BASE/health"
+# 2 contrato
+curl -sS "$API_BASE/v1/docs.json" | head
+# 3 registro (una vez)
+curl -sS -X POST "$API_BASE/v1/agentes/registro" -H 'Content-Type: application/json' \
+  -d "{\"clave\":\"$AGENTE_CLAVE\",\"nombre\":\"Eco Mesa\",\"id\":\"eco-mesa\"}"
+# 4 latido
+curl -sS -X POST "$API_BASE/v1/agentes/latido" -H 'Content-Type: application/json' \
+  -d "{\"id\":\"eco-mesa\",\"clave\":\"$AGENTE_CLAVE\"}"
+# 5 skills + I/O
+curl -sS "$API_BASE/v1/skills/mapear-recorrido"
+curl -sS "$API_BASE/v1/ejecutar/mapear-recorrido"
+curl -sS "$API_BASE/v1/ejecutar/mapear-recorrido/entradas?negocio=pelo-sur"
+# 6 escritura (Bearer)
+curl -sS -X POST "$API_BASE/v1/ejecutar/mapear-recorrido/salidas" \
+  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+  -d '{"negocio":"pelo-sur","valores":{"_version.recorrido.campos_":[]}}'
+```
 
 ---
 
@@ -452,4 +590,5 @@ Los agentes hablan con la API por HTTP desde su runtime; no necesitan la UI salv
 
 Desplegar Worker/UI: ver `CLOUDFLARE.md` en el repo.  
 Espejo estático opcional a GitHub (`scripts/subir.js`): **no** sustituye D1; los agentes no lo usan.  
-Cola Metricool / comentarios: fuera de alcance.
+Cola Metricool / comentarios: fuera de alcance.  
+URI Atlas: ficha **Cluster → Conexión** (no Ajustes → Conexiones; no por Base de datos).

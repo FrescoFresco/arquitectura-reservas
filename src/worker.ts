@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 // Bundled via wrangler rules (Text) — same canonical contract as Documentación → API.
 import apiDocsMd from '../documentacion/api.md';
+import { API_DOCS_INDEX } from './docs-index';
 import {
   appendObservacion,
   canonicalFromAncla,
@@ -329,6 +330,12 @@ app.get('/v1/docs', (c) =>
     'Cache-Control': 'public, max-age=60',
   })
 );
+/** Machine-readable index of agent-facing routes (sibling of /v1/docs). */
+app.get('/v1/docs.json', (c) =>
+  c.json(API_DOCS_INDEX, 200, {
+    'Cache-Control': 'public, max-age=60',
+  })
+);
 app.get('/docs', (c) => c.redirect('/v1/docs', 302));
 
 /** Public catalog reads — no auth. */
@@ -548,6 +555,29 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
   }
 
   return c.json({ ok: true, skill: skillId, negocio, escritos });
+});
+
+/**
+ * Contrato I/O de una skill (sin tocar Mongo). GET público.
+ * → { ok, skill, entradas, salidas, anclas }
+ */
+app.get('/v1/ejecutar/:skillId', async (c) => {
+  const skillId = c.req.param('skillId');
+  const row = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(skillId).first();
+  if (!row) return jsonError(c, 404, 'Skill no encontrada.');
+  const skill = await hydrateSkill(c.env.DB, row as Record<string, unknown>);
+  const entradas = (skill.entradas as string[]) || [];
+  const salidas = (skill.salidas as string[]) || [];
+  const anclas = (skill.anclas as string[]) || [];
+  return c.json({
+    ok: true,
+    skill: skillId,
+    nombre: skill.nombre,
+    descripcion: skill.descripcion,
+    entradas,
+    salidas,
+    anclas,
+  });
 });
 
 app.get('/v1/anclas', async (c) => {
