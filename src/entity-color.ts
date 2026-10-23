@@ -58,20 +58,6 @@ export function isColorOnlyBody(body: Record<string, unknown>): boolean {
   return keys.length === 1 && keys[0] === 'color';
 }
 
-/**
- * Asegura que una lista de columnas SQL incluye `color`
- * (evita SELECT parciales que omiten el tinte en listados anidados).
- */
-export function sqlColsWithColor(cols: string): string {
-  const parts = cols
-    .split(',')
-    .map((c) => c.trim())
-    .filter(Boolean);
-  const has = parts.some((c) => c === 'color' || c.endsWith('.color'));
-  if (has) return parts.join(', ');
-  return parts.concat('color').join(', ');
-}
-
 /** UPDATE color + updated_at en cualquier tabla del catálogo. */
 export async function updateEntityColorOnly(
   db: D1Database,
@@ -106,13 +92,4 @@ export async function tryColorOnlyUpdate(
   if (!parsed.ok) return { error: parsed.error };
   await updateEntityColorOnly(db, table, id, parsed.color, updatedAt);
   return { color: parsed.color };
-}
-
-/** Mezcla color de body en un valor previo (PUT completo). */
-export function mergeBodyColor(
-  prev: string | null,
-  body: Record<string, unknown>
-): { ok: true; color: string | null } | { ok: false; error: string } {
-  if (!bodyHasColor(body)) return { ok: true, color: prev };
-  return parseEntityColor(body.color);
 }

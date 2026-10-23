@@ -2022,6 +2022,8 @@ app.delete('/v1/skills/:id', async (c) => {
   await c.env.DB.batch([
     c.env.DB.prepare('DELETE FROM proyecto_skills WHERE skill_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM ancla_skills WHERE skill_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM skill_anclas WHERE skill_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM skill_versions WHERE skill_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM system_prompt_skills WHERE skill_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM skills WHERE id = ?').bind(id),
   ]);
@@ -2232,15 +2234,15 @@ app.post('/v1/helpers/proyeccion-array', async (c) => {
 });
 
 /**
- * Deprecated: global Ajustes → Conexiones URI. Use per-schema
- * POST /v1/proyectos/:id/mongo-config (ficha Base de datos → Conexión).
+ * Deprecated: URI global. Canónico: POST /v1/clusters/:id/mongo-config
+ * (ficha Cluster → Conexión).
  */
 app.post('/v1/mongo/config', async (c) => {
   return c.json(
     {
       ok: false,
       error: 'deprecated',
-      hint: 'La URI global ya no forma parte del producto. Usa POST /v1/proyectos/:id/mongo-config (pestaña Conexión de la Base de datos).',
+      hint: 'La URI global ya no forma parte del producto. Usa POST /v1/clusters/:id/mongo-config (ficha Cluster → Conexión).',
     },
     410
   );
@@ -2252,7 +2254,7 @@ app.delete('/v1/mongo/config', async (c) => {
     {
       ok: false,
       error: 'deprecated',
-      hint: 'La URI global ya no forma parte del producto. Usa DELETE /v1/proyectos/:id/mongo-config.',
+      hint: 'La URI global ya no forma parte del producto. Usa DELETE /v1/clusters/:id/mongo-config.',
     },
     410
   );
@@ -3349,8 +3351,34 @@ async function sha256Hex(texto: string) {
     .join('');
 }
 
-async function replaceSkillAnclas(db: D1Database, skillId: string, anclas: string[]) {
-  await replaceSkillIo(db, skillId, [], anclas);
+/** Resuelve token skill_anclas (`_x_` / bare) → id de fila `anclas`. */
+async function resolveAnclaIdFromToken(db: D1Database, token: string): Promise<string | null> {
+  const raw = String(token || '').trim();
+  if (!raw) return null;
+  const bare = canonicalFromAncla(raw);
+  const underscored = bare ? `_${bare}_` : '';
+  const row = await db
+    .prepare(
+      'SELECT id FROM anclas WHERE id = ? OR ancla = ? OR id = ? OR ancla = ? LIMIT 1'
+    )
+    .bind(raw, raw, bare, underscored || raw)
+    .first<{ id: string }>();
+  return row?.id || null;
+}
+
+/** Proyecta skill_anclas → ancla_skills para una skill (misma N:M). */
+async function syncAnclaSkillsFromSkillIo(db: D1Database, skillId: string, anclas: string[]) {
+  await db.prepare('DELETE FROM ancla_skills WHERE skill_id = ?').bind(skillId).run();
+  const seen = new Set<string>();
+  for (const token of anclas) {
+    const aid = await resolveAnclaIdFromToken(db, token);
+    if (!aid || seen.has(aid)) continue;
+    seen.add(aid);
+    await db
+      .prepare('INSERT OR IGNORE INTO ancla_skills (ancla_id, skill_id) VALUES (?, ?)')
+      .bind(aid, skillId)
+      .run();
+  }
 }
 
 async function replaceSkillIo(
@@ -3372,12 +3400,60 @@ async function replaceSkillIo(
       .bind(skillId, a, 'salida')
       .run();
   }
+  await syncAnclaSkillsFromSkillIo(db, skillId, unionAnclas(entradas, salidas));
 }
 
+/**
+ * Ficha ancla → skills: escribe ancla_skills y mantiene skill_anclas alineado.
+ * Altas nuevas van como `salida` si aún no hay fila I/O; bajas borran I/O de esa ancla.
+ */
 async function replaceAnclaSkills(db: D1Database, anclaId: string, skills: string[]) {
+  const anclaRow = await db
+    .prepare('SELECT ancla FROM anclas WHERE id = ?')
+    .bind(anclaId)
+    .first<{ ancla: string }>();
+  const anclaToken = String(anclaRow?.ancla || '').trim() || anclaId;
+  const prevRows = await db
+    .prepare('SELECT skill_id FROM ancla_skills WHERE ancla_id = ?')
+    .bind(anclaId)
+    .all();
+  const prev = new Set(
+    (prevRows.results || []).map((r) => String((r as { skill_id: string }).skill_id))
+  );
+  const next = new Set((skills || []).map((s) => String(s || '').trim()).filter(Boolean));
+
   await db.prepare('DELETE FROM ancla_skills WHERE ancla_id = ?').bind(anclaId).run();
-  for (const s of skills) {
-    await db.prepare('INSERT OR IGNORE INTO ancla_skills (ancla_id, skill_id) VALUES (?, ?)').bind(anclaId, s).run();
+  for (const s of next) {
+    await db
+      .prepare('INSERT OR IGNORE INTO ancla_skills (ancla_id, skill_id) VALUES (?, ?)')
+      .bind(anclaId, s)
+      .run();
+  }
+
+  for (const sid of prev) {
+    if (next.has(sid)) continue;
+    await db
+      .prepare('DELETE FROM skill_anclas WHERE skill_id = ? AND ancla = ?')
+      .bind(sid, anclaToken)
+      .run();
+    if (anclaToken !== anclaId) {
+      await db
+        .prepare('DELETE FROM skill_anclas WHERE skill_id = ? AND ancla = ?')
+        .bind(sid, anclaId)
+        .run();
+    }
+  }
+  for (const sid of next) {
+    if (prev.has(sid)) continue;
+    const exists = await db
+      .prepare('SELECT 1 AS ok FROM skill_anclas WHERE skill_id = ? AND ancla = ? LIMIT 1')
+      .bind(sid, anclaToken)
+      .first();
+    if (exists) continue;
+    await db
+      .prepare('INSERT OR IGNORE INTO skill_anclas (skill_id, ancla, direccion) VALUES (?, ?, ?)')
+      .bind(sid, anclaToken, 'salida')
+      .run();
   }
 }
 

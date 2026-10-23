@@ -351,20 +351,6 @@ export function appendObservacion(
   return { observaciones, valorActual: valor, piiRedactado, e164Normalizado };
 }
 
-/** Clases de campo de formulario (X3). No son booleans. */
-export const CLASES_CAMPO = [
-  'normal',
-  'texto_libre',
-  'identificador',
-  'sensible',
-  'consentimiento',
-] as const;
-export type ClaseCampo = (typeof CLASES_CAMPO)[number];
-
-export function isClaseCampo(v: unknown): v is ClaseCampo {
-  return typeof v === 'string' && (CLASES_CAMPO as readonly string[]).includes(v);
-}
-
 /**
  * Coerce JSON-ish scalars: `"true"`/`"false"` → boolean real (X3).
  * Leave class enum strings and other text untouched.
