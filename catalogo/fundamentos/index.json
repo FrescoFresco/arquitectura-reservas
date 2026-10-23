@@ -29,6 +29,20 @@
           "hash": "c4c94075ab3b1505172fb396c86122a5c4fa44111045a510d4cfd479b1ad8f30"
         }
       ]
+    },
+    {
+      "id": "motor-flujos",
+      "nombre": "Motor de flujos",
+      "descripcion": "Nueve piezas para construir cualquier operativa: ancla, skill, ejecutor, pipeline, flujo, disparador, evento, corrida y redactor.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-23",
+          "ruta": "catalogo/fundamentos/motor-flujos/v1.md",
+          "nombreArchivo": "motor-flujos.md",
+          "hash": "afca1d06693dd11641b01c2e503ddbdd9d3d3e28fd28a4b879e968691198fe7a"
+        }
+      ]
     }
   ]
 }
