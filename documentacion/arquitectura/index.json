@@ -1,0 +1,19 @@
+{
+  "pestana": "Arquitectura",
+  "subpestanas": [
+    {
+      "id": "relaciones",
+      "titulo": "Relaciones",
+      "orden": 1,
+      "archivo": "01-relaciones.md",
+      "icono": "arquitectura"
+    },
+    {
+      "id": "entradas-salidas",
+      "titulo": "Entradas y salidas",
+      "orden": 2,
+      "archivo": "02-entradas-salidas.md",
+      "icono": "entradas-salidas"
+    }
+  ]
+}

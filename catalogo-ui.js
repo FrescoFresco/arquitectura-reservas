@@ -279,6 +279,14 @@ const state = {
     reabrirTrasSkill: null
   },
   apiDoc: { loaded: false, loading: false, error: false },
+  arqDoc: {
+    index: null,
+    subId: null,
+    cache: {},
+    indexError: false,
+    loading: false,
+    fetchToken: 0
+  },
   mongoDoc: {
     index: null,
     subId: null,
@@ -727,6 +735,8 @@ function renderMarkdown(src) {
   while (i < lines.length) {
     const line = lines[i];
     if (/^```/.test(line)) {
+      const langMatch = /^```(\w*)/.exec(line);
+      const lang = langMatch && langMatch[1] ? langMatch[1].toLowerCase() : '';
       const buf = [];
       i += 1;
       while (i < lines.length && !/^```/.test(lines[i])) {
@@ -734,7 +744,13 @@ function renderMarkdown(src) {
         i += 1;
       }
       if (i < lines.length) i += 1;
-      html += '<pre><code>' + escapeHtml(buf.join('\n')) + '</code></pre>';
+      const body = buf.join('\n');
+      if (lang === 'mermaid') {
+        html += '<div class="doc-mermaid" role="img" aria-label="Diagrama"><pre class="doc-mermaid-src">' +
+          escapeHtml(body) + '</pre></div>';
+      } else {
+        html += '<pre><code>' + escapeHtml(body) + '</code></pre>';
+      }
       continue;
     }
     const heading = /^(#{1,6})\s+(.+)$/.exec(line);
@@ -1018,6 +1034,14 @@ function svgPestanaCatalogo(tipo) {
       svgCircle('18', '6', '3'),
       svgPath('M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9'),
       svgPath('M12 12v3')
+    );
+  } else if (tipo === 'entradas-salidas') {
+    // Lucide: arrow-left-right
+    svg.append(
+      svgPath('M8 3 4 7l4 4'),
+      svgPath('M4 7h16'),
+      svgPath('M16 21l4-4-4-4'),
+      svgPath('M20 17H4')
     );
   } else if (tipo === 'api') {
     // Lucide: code
@@ -3176,7 +3200,10 @@ function seleccionarDoc(id, opts) {
     cargarFundamentos();
   }
   if (id === 'api') cargarDocumentoApi();
-  if (id === 'mongodb') {
+  if (id === 'arquitectura') {
+    const subId = opts && opts.subId ? opts.subId : null;
+    cargarDocumentoArquitectura(subId, { skipHash: !!(opts && opts.skipHash) });
+  } else if (id === 'mongodb') {
     const subId = opts && opts.subId ? opts.subId : null;
     refrescarMongoConnStatus();
     cargarDocumentoMongodb(subId, { skipHash: !!(opts && opts.skipHash) });
@@ -3962,6 +3989,17 @@ function iniciar() {
     });
     docTabs.addEventListener('keydown', function (e) {
       teclasPestana(e, '#docTabs [role="tab"]', 'doc', seleccionarDoc);
+    });
+  }
+  const arqDocTabs = document.getElementById('arqDocTabs');
+  if (arqDocTabs) {
+    arqDocTabs.addEventListener('click', function (e) {
+      const tab = e.target.closest('[data-arq-doc]');
+      if (!tab) return;
+      seleccionarArqSub(tab.dataset.arqDoc);
+    });
+    arqDocTabs.addEventListener('keydown', function (e) {
+      teclasPestana(e, '#arqDocTabs [role="tab"]', 'arqDoc', seleccionarArqSub);
     });
   }
   const mongoDocTabs = document.getElementById('mongoDocTabs');
@@ -7397,7 +7435,7 @@ function cargarDocumentoApi() {
     });
 }
 
-function normalizarMongoSubpestanas(data) {
+function normalizarDocSubpestanas(data) {
   const list = data && Array.isArray(data.subpestanas) ? data.subpestanas : [];
   const out = [];
   const seen = new Set();
@@ -7410,15 +7448,160 @@ function normalizarMongoSubpestanas(data) {
     if (seen.has(id)) return;
     seen.add(id);
     const orden = Number(item.orden);
+    const icono = typeof item.icono === 'string' && item.icono.trim() ? item.icono.trim() : null;
     out.push({
       id: id,
       titulo: item.titulo.trim(),
       orden: Number.isFinite(orden) ? orden : out.length + 1,
-      archivo: item.archivo.trim()
+      archivo: item.archivo.trim(),
+      icono: icono
     });
   });
   out.sort(function (a, b) { return a.orden - b.orden; });
   return out;
+}
+
+function normalizarMongoSubpestanas(data) {
+  return normalizarDocSubpestanas(data);
+}
+
+function hidratarMermaidEnDocs(root) {
+  if (!root) return;
+  const nodes = root.querySelectorAll('.doc-mermaid');
+  if (!nodes.length) return;
+  Array.prototype.forEach.call(nodes, function (node) {
+    const pre = node.querySelector('.doc-mermaid-src');
+    const fuente = pre ? pre.textContent : '';
+    if (!fuente.trim()) return;
+    renderMermaidEn(node, fuente);
+  });
+}
+
+function arqSubpestanas() {
+  return state.arqDoc.index || [];
+}
+
+function arqSubPorId(id) {
+  return arqSubpestanas().find(function (s) { return s.id === id; }) || null;
+}
+
+function renderArqDocPestanas() {
+  const lista = document.getElementById('arqDocTabs');
+  if (!lista) return;
+  const items = arqSubpestanas();
+  const actual = state.arqDoc.subId;
+  lista.replaceChildren();
+  items.forEach(function (item) {
+    const btn = el('button', 'pestana');
+    btn.type = 'button';
+    btn.id = 'arq-tab-' + item.id;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-controls', 'arqDocMount');
+    btn.dataset.arqDoc = item.id;
+    if (item.icono) btn.append(svgPestanaCatalogo(item.icono));
+    const label = document.createElement('span');
+    label.textContent = item.titulo;
+    btn.append(label);
+    const on = item.id === actual;
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    btn.tabIndex = on ? 0 : -1;
+    lista.append(btn);
+  });
+}
+
+function pintarArqDocMount(markdown) {
+  const mount = document.getElementById('arqDocMount');
+  if (!mount) return;
+  mount.replaceChildren();
+  const body = document.createElement('div');
+  body.className = 'arq-doc-md';
+  body.innerHTML = htmlDeMarkdown(markdown);
+  // ASCII diagramas sin lenguaje → mismo marco que el diagrama histórico
+  body.querySelectorAll('pre > code').forEach(function (code) {
+    const pre = code.parentElement;
+    if (!pre || pre.closest('.doc-mermaid')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'diagrama';
+    wrap.setAttribute('aria-label', 'Diagrama');
+    pre.replaceWith(wrap);
+    const next = document.createElement('pre');
+    next.textContent = code.textContent;
+    wrap.append(next);
+  });
+  mount.append(body);
+  hidratarMermaidEnDocs(mount);
+}
+
+function seleccionarArqSub(id, opts) {
+  const items = arqSubpestanas();
+  if (!items.length) return;
+  const sub = arqSubPorId(id) || items[0];
+  state.arqDoc.subId = sub.id;
+  const token = ++state.arqDoc.fetchToken;
+  renderArqDocPestanas();
+  if (!(opts && opts.skipHash) && typeof history !== 'undefined' && history.replaceState) {
+    const next = '#documentacion/arquitectura/' + sub.id;
+    if (location.hash !== next) history.replaceState(null, '', next);
+  }
+  const mount = document.getElementById('arqDocMount');
+  if (!mount) return;
+  const cached = state.arqDoc.cache[sub.id];
+  if (cached) {
+    pintarArqDocMount(cached);
+    return;
+  }
+  mount.innerHTML = '<p class="estado">Cargando…</p>';
+  fetch('documentacion/arquitectura/' + sub.archivo, { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.text();
+    })
+    .then(function (text) {
+      if (token !== state.arqDoc.fetchToken || state.arqDoc.subId !== sub.id) return;
+      state.arqDoc.cache[sub.id] = text;
+      pintarArqDocMount(text);
+    })
+    .catch(function () {
+      if (token !== state.arqDoc.fetchToken || state.arqDoc.subId !== sub.id) return;
+      mount.innerHTML = '<p class="estado">No se pudo cargar <code>documentacion/arquitectura/' +
+        escapeHtml(sub.archivo) + '</code>.</p>';
+    });
+}
+
+function cargarDocumentoArquitectura(subIdPreferido, opts) {
+  const mount = document.getElementById('arqDocMount');
+  if (!mount) return;
+  if (state.arqDoc.index) {
+    seleccionarArqSub(subIdPreferido || state.arqDoc.subId || state.arqDoc.index[0].id, opts);
+    return;
+  }
+  if (state.arqDoc.loading) return;
+  state.arqDoc.loading = true;
+  state.arqDoc.indexError = false;
+  mount.innerHTML = '<p class="estado">Cargando índice de arquitectura…</p>';
+  fetch('documentacion/arquitectura/index.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('http');
+      return res.json();
+    })
+    .then(function (data) {
+      state.arqDoc.loading = false;
+      state.arqDoc.index = normalizarDocSubpestanas(data);
+      if (!state.arqDoc.index.length) {
+        state.arqDoc.indexError = true;
+        mount.innerHTML = '<p class="estado">El índice de arquitectura no tiene subpestañas.</p>';
+        return;
+      }
+      const preferida = subIdPreferido && arqSubPorId(subIdPreferido)
+        ? subIdPreferido
+        : state.arqDoc.index[0].id;
+      seleccionarArqSub(preferida, opts);
+    })
+    .catch(function () {
+      state.arqDoc.loading = false;
+      state.arqDoc.indexError = true;
+      mount.innerHTML = '<p class="estado">No se pudo cargar <code>documentacion/arquitectura/index.json</code>.</p>';
+    });
 }
 
 function mongoSubpestanas() {
