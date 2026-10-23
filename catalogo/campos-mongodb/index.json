@@ -142,15 +142,15 @@
       "clave": "recorrido.campos",
       "bsonType": "array",
       "obligatorio": false,
-      "descripcion": "Lista canónica de campos del formulario en la versión del recorrido. Proyección: version.recorrido.campos.N.* → [{nombre, selector, clase}, …]. clase ∈ normal|texto_libre|identificador|sensible|consentimiento. Booleanos en la proyección son true/false reales, no texto. No usar formularios.campos.",
-      "ancla": "_version.recorrido.campos.N_",
+      "descripcion": "Lista canónica de campos del formulario en la versión del recorrido (array). Elementos {nombre, selector, clase}.",
+      "ancla": "_version.recorrido.campos_",
       "proyeccionMongo": "array",
       "proyeccionElemento": {
-        "nombre": "version.recorrido.campos.N.nombre",
-        "selector": "version.recorrido.campos.N.selector",
-        "clase": "version.recorrido.campos.N.clase"
+        "nombre": "nombre",
+        "selector": "selector",
+        "clase": "clase"
       },
-      "hash": "audit-x3-versiones-recorrido-campos",
+      "hash": "skill-io-versiones-recorrido-campos",
       "proyecto": "reservas",
       "hijos": []
     },
@@ -307,7 +307,7 @@
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Nombre del cliente.",
-      "ancla": "",
+      "ancla": "_cliente.nombre_",
       "hash": "llamadas-clientes-nombre-v1",
       "proyecto": "llamadas",
       "hijos": []
@@ -321,7 +321,7 @@
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Teléfono E.164 del cliente.",
-      "ancla": "",
+      "ancla": "_cliente.telefono_",
       "hash": "llamadas-clientes-telefono-v1",
       "proyecto": "llamadas",
       "hijos": []
@@ -335,7 +335,7 @@
       "bsonType": "date",
       "obligatorio": true,
       "descripcion": "Momento de la llamada (BSON date / ISO-8601).",
-      "ancla": "",
+      "ancla": "_llamada.fecha_",
       "hash": "llamadas-fecha-v1",
       "proyecto": "llamadas",
       "hijos": []
@@ -348,13 +348,13 @@
       "clave": "resultado",
       "bsonType": "string",
       "obligatorio": true,
-      "descripcion": "Resultado de la llamada.",
+      "descripcion": "Resultado: contesto | no_contesto | cita.",
       "enum": [
         "contesto",
         "no_contesto",
         "cita"
       ],
-      "ancla": "",
+      "ancla": "_llamada.resultado_",
       "hash": "llamadas-resultado-v1",
       "proyecto": "llamadas",
       "hijos": []
@@ -368,7 +368,7 @@
       "bsonType": "string",
       "obligatorio": true,
       "descripcion": "Referencia al cliente (clientes._id).",
-      "ancla": "",
+      "ancla": "_llamada.cliente_id_",
       "hash": "llamadas-cliente_id-v1",
       "proyecto": "llamadas",
       "hijos": [],
