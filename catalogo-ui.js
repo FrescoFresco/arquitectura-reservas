@@ -1699,7 +1699,7 @@ function onSubmitMongo(e) {
       try {
         finalizarLocal();
       } catch (e2) {
-        if (error) error.textContent = (err && err.message) || 'No se pudo guardar.';
+        if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
       }
     });
 }
@@ -1873,7 +1873,7 @@ function onSubmitCampo(e) {
       try {
         finalizarLocal();
       } catch (e2) {
-        if (error) error.textContent = (err && err.message) || 'No se pudo guardar.';
+        if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
       }
     });
 }
@@ -2172,7 +2172,7 @@ async function onSubmitEditar(e) {
     state.pendingFocus = id;
     abrirInstruccion(id, creada.numero);
   } catch (err) {
-    if (error) error.textContent = err.message;
+    if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   } finally {
     submit.disabled = false;
   }
@@ -2861,7 +2861,7 @@ async function onSubmitNueva(e) {
     state.pendingFocus = ins.id;
     abrirInstruccion(ins.id, 1);
   } catch (err) {
-    error.textContent = err.message;
+    showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   } finally {
     submit.disabled = false;
   }
@@ -2886,7 +2886,7 @@ async function onSubmitEliminar(e) {
     else throw new Error('Tipo desconocido.');
     document.getElementById('dlgEliminar').close();
   } catch (err) {
-    if (error) error.textContent = err.message;
+    if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   }
 }
 
@@ -2905,7 +2905,7 @@ async function onSubmitVersion(e) {
     state.pendingFocus = id;
     abrirInstruccion(id, creada.numero);
   } catch (err) {
-    error.textContent = err.message;
+    showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   } finally {
     submit.disabled = false;
   }
@@ -4881,7 +4881,7 @@ async function onCrearBaseDatosProyecto() {
   }
   if (msg) {
     msg.hidden = false;
-    msg.classList.remove('is-err');
+    msg.classList.remove('is-err', 'api-error-raw', 'is-ok');
     msg.textContent = 'Empujando esquema…';
   }
   if (btn) btn.disabled = true;
@@ -4897,8 +4897,8 @@ async function onCrearBaseDatosProyecto() {
     pintarPlanEmpujarEsquema(data, proy);
   } catch (err) {
     if (msg) {
-      msg.classList.add('is-err');
-      msg.textContent = err && err.message ? err.message : 'No se pudo empujar el esquema.';
+      msg.classList.remove('is-ok');
+      showApiErrorRaw(msg, err, { kind: 'is-err', statusLabel: true });
     }
   } finally {
     if (btn) btn.disabled = false;
@@ -5228,7 +5228,7 @@ function onSubmitNuevoCluster(e) {
       });
     })
     .catch(function (err) {
-      if (error) error.textContent = err && err.message ? err.message : 'Error al crear';
+      if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
     })
     .then(function () {
       if (submit) submit.disabled = false;
@@ -5284,7 +5284,7 @@ function onSubmitEditarCluster(e) {
       });
     })
     .catch(function (err) {
-      if (error) error.textContent = err && err.message ? err.message : 'Error al guardar';
+      if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
     })
     .then(function () {
       if (submit) submit.disabled = false;
@@ -5317,9 +5317,15 @@ function clusterConexionSetBusy(busy) {
 function clusterConexionSetMsg(text, kind) {
   const n = document.getElementById('clusterConexionMsg');
   if (!n) return;
+  n.classList.remove('api-error-raw');
   n.textContent = text || '';
   n.classList.remove('is-ok', 'is-err', 'is-info');
   if (kind) n.classList.add(kind);
+}
+
+function clusterConexionSetApiError(err) {
+  const n = document.getElementById('clusterConexionMsg');
+  showApiErrorRaw(n, err, { kind: 'is-err', statusLabel: true });
 }
 
 function pintarClusterConexionStatus(data, cl) {
@@ -5384,11 +5390,14 @@ function cargarClusterConexion(cl) {
     badge.classList.remove('is-yes', 'is-no', 'is-err');
   }
   fetch(apiBaseUrl() + '/v1/clusters/' + encodeURIComponent(cl.id) + '/mongo-config', {
-    cache: 'no-store'
+    cache: 'no-store',
+    headers: { Accept: 'application/json' }
   })
     .then(function (res) {
-      return res.json().then(function (data) {
-        return { res: res, data: data || {} };
+      return res.text().then(function (rawBody) {
+        var data = null;
+        try { data = rawBody ? JSON.parse(rawBody) : {}; } catch (e) { data = null; }
+        return { res: res, data: data, rawBody: rawBody || '' };
       });
     })
     .then(function (pack) {
@@ -5396,17 +5405,23 @@ function cargarClusterConexion(cl) {
       if (!abierta || abierta.id !== cl.id) return;
       const tabOn = document.querySelector('#clusterReaderTabs [data-cluster-tab="conexion"].is-on');
       if (!tabOn) return;
-      if (!pack.res.ok) throw new Error((pack.data && pack.data.error) || 'error');
+      if (!pack.res.ok || (pack.data && pack.data.ok === false)) {
+        var err = new Error((pack.data && pack.data.error) || ('HTTP ' + pack.res.status));
+        err.status = pack.res.status;
+        err.data = pack.data;
+        err.rawBody = pack.rawBody;
+        throw err;
+      }
       if (pack.data && Object.prototype.hasOwnProperty.call(pack.data, 'uri')) {
         delete pack.data.uri;
       }
       pintarClusterConexionStatus(pack.data, cl);
     })
-    .catch(function () {
+    .catch(function (err) {
       const abierta = clusterAbierto();
       if (!abierta || abierta.id !== cl.id) return;
       pintarClusterConexionStatus({ configured: false, connected: false, source: 'none', own: false }, cl);
-      clusterConexionSetMsg('No se pudo consultar el estado de conexión.', 'is-err');
+      clusterConexionSetApiError(err || { ok: false, error: 'No se pudo consultar el estado de conexión.' });
     });
 }
 
@@ -5450,7 +5465,7 @@ function onGuardarClusterConexion(e) {
       );
     })
     .catch(function (err) {
-      clusterConexionSetMsg(err && err.message ? err.message : 'Error al guardar', 'is-err');
+      clusterConexionSetApiError(err);
     })
     .then(function () {
       clusterConexionSetBusy(false);
@@ -5482,14 +5497,13 @@ function onProbarClusterConexion(e) {
       if (data.connected) {
         clusterConexionSetMsg('Conexión OK (no se ha guardado).', 'is-ok');
       } else {
-        clusterConexionSetMsg(
-          'No alcanza el cluster: ' + ((data && data.error) || 'sin detalle'),
-          'is-err'
-        );
+        clusterConexionSetApiError(data && (data.error || data.mongo)
+          ? data
+          : { ok: false, error: 'No alcanza el cluster', connected: false });
       }
     })
     .catch(function (err) {
-      clusterConexionSetMsg(err && err.message ? err.message : 'Error al probar', 'is-err');
+      clusterConexionSetApiError(err);
     })
     .then(function () {
       clusterConexionSetBusy(false);
@@ -5520,7 +5534,7 @@ function onBorrarClusterConexion(e) {
       clusterConexionSetMsg('URI del cluster borrada.', 'is-ok');
     })
     .catch(function (err) {
-      clusterConexionSetMsg(err && err.message ? err.message : 'Error al borrar', 'is-err');
+      clusterConexionSetApiError(err);
     })
     .then(function () {
       clusterConexionSetBusy(false);
@@ -5563,7 +5577,7 @@ function onToggleClusterAutoSync(e) {
     })
     .catch(function (err) {
       toggle.checked = !next;
-      clusterConexionSetMsg(err && err.message ? err.message : 'Error al guardar el interruptor', 'is-err');
+      clusterConexionSetApiError(err);
     })
     .then(function () {
       toggle.disabled = false;
@@ -5703,7 +5717,7 @@ async function onSubmitNuevoProyecto(e) {
     pintarProyectos();
     abrirProyecto(id, 1);
   } catch (err) {
-    if (error) error.textContent = err.message;
+    if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   } finally {
     submit.disabled = false;
   }
@@ -5805,7 +5819,7 @@ async function onSubmitEditarProyecto(e) {
     pintarProyectos();
     abrirProyecto(id, creada.numero);
   } catch (err) {
-    if (error) error.textContent = err.message;
+    if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   } finally {
     submit.disabled = false;
   }
@@ -5862,7 +5876,7 @@ function onSubmitEditarProyectoSkills(e) {
       if (abierto) pintarProyectoSkillsTab(abierto);
     }
   } catch (err) {
-    if (error) error.textContent = err.message;
+    if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   }
 }
 
@@ -6675,7 +6689,7 @@ function onSubmitEditarAgente(e) {
       if (state.agentes.abiertoId === id) renderAgenteReader();
     }
   } catch (err) {
-    if (error) error.textContent = err.message;
+    if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   }
 }
 
@@ -6943,22 +6957,111 @@ function apiBaseUrl() {
   return 'https://campos-ancla-api.web-legal-es.workers.dev';
 }
 
+/**
+ * Formatea el body de error de API tal cual llega: JSON pretty si parsea; si no, texto crudo.
+ * Sin wrappers tipo "Error: failed to…". Preferencia 2026-10-23.
+ */
+function formatApiErrorRaw(errOrBody, statusHint) {
+  let status = statusHint;
+  let rawBody = '';
+  let data = null;
+
+  if (errOrBody && typeof errOrBody === 'object' && !(errOrBody instanceof Error) &&
+      !Object.prototype.hasOwnProperty.call(errOrBody, 'rawBody') &&
+      !Object.prototype.hasOwnProperty.call(errOrBody, 'status') &&
+      (Object.prototype.hasOwnProperty.call(errOrBody, 'error') ||
+        Object.prototype.hasOwnProperty.call(errOrBody, 'ok'))) {
+    data = errOrBody;
+  } else if (errOrBody instanceof Error || (errOrBody && typeof errOrBody === 'object')) {
+    const err = errOrBody;
+    if (typeof err.status === 'number') status = err.status;
+    if (typeof err.rawBody === 'string') rawBody = err.rawBody;
+    if (err.data != null && typeof err.data === 'object') data = err.data;
+    else if (typeof err.data === 'string') rawBody = rawBody || err.data;
+  } else if (typeof errOrBody === 'string') {
+    rawBody = errOrBody;
+  }
+
+  if (data && typeof data === 'object') {
+    try {
+      return JSON.stringify(data, null, 2);
+    } catch (e) {
+      /* fall through */
+    }
+  }
+
+  const text = String(rawBody || '').trim();
+  if (text) {
+    try {
+      return JSON.stringify(JSON.parse(text), null, 2);
+    } catch (e) {
+      return text;
+    }
+  }
+
+  if (typeof status === 'number' && status > 0) {
+    return JSON.stringify({ ok: false, error: 'HTTP ' + status, status: status }, null, 2);
+  }
+  return JSON.stringify({ ok: false, error: 'unknown' }, null, 2);
+}
+
+/**
+ * Pinta el body crudo en un elemento de estado (msg / form-error / proy-crear-bd-msg).
+ * kind: clase is-err / is-ok / is-info (opcional). statusLabel: true → línea mínima "HTTP N" encima.
+ */
+function showApiErrorRaw(el, errOrBody, opts) {
+  if (!el) return '';
+  const o = opts || {};
+  const status = typeof o.status === 'number'
+    ? o.status
+    : (errOrBody && typeof errOrBody.status === 'number' ? errOrBody.status : undefined);
+  const raw = formatApiErrorRaw(errOrBody, status);
+  const withStatus = o.statusLabel && status
+    ? ('HTTP ' + status + '\n' + raw)
+    : raw;
+  el.hidden = false;
+  el.textContent = withStatus;
+  el.classList.add('api-error-raw');
+  if (typeof el.classList.remove === 'function') {
+    el.classList.remove('is-ok', 'is-err', 'is-info');
+  }
+  if (o.kind) el.classList.add(o.kind);
+  else el.classList.add('is-err');
+  return withStatus;
+}
+
 function apiFetch(path, opts) {
   const base = apiBaseUrl();
   const init = Object.assign({ cache: 'no-store' }, opts || {});
   init.headers = Object.assign({ Accept: 'application/json' }, init.headers || {});
   return fetch(base + path, init).then(function (res) {
-    return res.json().catch(function () { return {}; }).then(function (data) {
-      if (!res.ok || (data && data.ok === false)) {
-        const err = new Error((data && data.error) || ('API HTTP ' + res.status));
+    return res.text().then(function (rawBody) {
+      var data = null;
+      var text = rawBody == null ? '' : String(rawBody);
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          data = null;
+        }
+      } else {
+        data = {};
+      }
+      if (!res.ok || (data && typeof data === 'object' && data.ok === false)) {
+        var summary = (data && data.error) || (text && text.slice(0, 200)) || ('HTTP ' + res.status);
+        var err = new Error(typeof summary === 'string' ? summary : 'API error');
         err.status = res.status;
         err.data = data;
+        err.rawBody = text;
         throw err;
       }
       return data;
     });
   });
 }
+
+window.formatApiErrorRaw = formatApiErrorRaw;
+window.showApiErrorRaw = showApiErrorRaw;
 
 const UI_PROD_BASE = 'https://campos-ancla.web-legal-es.workers.dev/';
 const API_PROD_BASE = 'https://campos-ancla-api.web-legal-es.workers.dev';
@@ -8095,7 +8198,7 @@ async function onSubmitNuevoFundamento(e) {
     pintarFundamentos();
     abrirFundamento(id, 1);
   } catch (err) {
-    if (error) error.textContent = err.message;
+    if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   } finally {
     submit.disabled = false;
   }
@@ -8186,7 +8289,7 @@ async function onSubmitEditarFundamento(e) {
     pintarFundamentos();
     abrirFundamento(id, creada.numero);
   } catch (err) {
-    if (error) error.textContent = err.message;
+    if (error) showApiErrorRaw(error, err, { kind: 'is-err', statusLabel: true });
   } finally {
     submit.disabled = false;
   }

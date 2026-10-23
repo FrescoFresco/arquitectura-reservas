@@ -22,6 +22,7 @@ import {
 import {
   buildNegocioDoc,
   createProjectDatabase,
+  mongoDriverErrorBody,
   mongoHealthLabel,
   mongoNotConfiguredError,
   mongoUriConfigured,
@@ -254,8 +255,23 @@ function todayIso() {
   return nowIso().slice(0, 10);
 }
 
-function jsonError(c: { json: (b: unknown, s?: number) => Response }, status: number, error: string) {
-  return c.json({ ok: false, error }, status);
+function jsonError(
+  c: { json: (b: unknown, s?: number) => Response },
+  status: number,
+  error: string,
+  extra?: Record<string, unknown>
+) {
+  // Keep `{ ok: false, error, … }` — no log-string wrappers. Caller must not put URI/password in body.
+  return c.json({ ok: false, error, ...(extra || {}) }, status);
+}
+
+/** Mongo/driver failure → structured JSON body (scrubbed; never URI). */
+function jsonMongoError(
+  c: { json: (b: unknown, s?: number) => Response },
+  status: number,
+  err: unknown
+) {
+  return c.json(mongoDriverErrorBody(err), status);
 }
 
 function extractClave(c: { req: { header: (n: string) => string | undefined } }) {
@@ -492,6 +508,7 @@ app.get('/v1/mongo/status', async (c) => {
     source: resolved.meta.source,
     ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
     ...(status.error ? { error: status.error } : {}),
+    ...(status.mongo ? { mongo: status.mongo } : {}),
   });
 });
 
@@ -596,10 +613,12 @@ app.get('/v1/proyectos/:id/mongo-config', async (c) => {
   const resolved = await resolveRuntimeMongo(c.env, baseDatos || undefined, id);
   let connected = false;
   let probeError: string | undefined;
+  let probeMongo: ReturnType<typeof mongoDriverErrorBody>['mongo'] | undefined;
   if (resolved.meta.configured && mongoUriConfigured(resolved.env)) {
     const status = await probeMongoStatus(resolved.env, resolved.meta.db);
     connected = status.connected ? true : false;
     if (status.error) probeError = status.error;
+    if (status.mongo) probeMongo = status.mongo;
   }
   return c.json({
     ok: true,
@@ -614,6 +633,7 @@ app.get('/v1/proyectos/:id/mongo-config', async (c) => {
     ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
     ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
     ...(probeError ? { error: probeError } : {}),
+    ...(probeMongo ? { mongo: probeMongo } : {}),
     updatedAt: clusterMeta?.updatedAt || undefined,
     deprecatedWrite:
       'La URI se guarda en el Cluster. Usa GET|POST|DELETE /v1/clusters/:clusterId/mongo-config.',
@@ -646,10 +666,12 @@ app.get('/v1/clusters/:id/mongo-config', async (c) => {
   const resolved = await resolveRuntimeMongo(c.env, undefined, undefined, id);
   let connected = false;
   let probeError: string | undefined;
+  let probeMongo: ReturnType<typeof mongoDriverErrorBody>['mongo'] | undefined;
   if (resolved.meta.configured && mongoUriConfigured(resolved.env)) {
     const status = await probeMongoStatus(resolved.env, resolved.meta.db);
     connected = status.connected ? true : false;
     if (status.error) probeError = status.error;
+    if (status.mongo) probeMongo = status.mongo;
   }
   const lastSync = parseLastSyncRow(row);
   return c.json({
@@ -665,6 +687,7 @@ app.get('/v1/clusters/:id/mongo-config', async (c) => {
     ...(resolved.meta.hint ? { hint: resolved.meta.hint } : {}),
     ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
     ...(probeError ? { error: probeError } : {}),
+    ...(probeMongo ? { mongo: probeMongo } : {}),
     updatedAt: clusterMeta?.updatedAt || undefined,
   });
 });
@@ -1229,8 +1252,7 @@ app.post('/v1/mongo/sync/negocio', async (c) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'sync falló';
     if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
-    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
-    return jsonError(c, 502, scrubbed);
+    return jsonMongoError(c, 502, err);
   }
 });
 
@@ -1285,8 +1307,7 @@ app.post('/v1/mongo/sync/proyecto', async (c) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'sync falló';
     if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
-    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
-    return jsonError(c, 502, scrubbed);
+    return jsonMongoError(c, 502, err);
   }
 });
 
@@ -1516,6 +1537,7 @@ app.post('/v1/clusters/:id/mongo-config', async (c) => {
       connected: status.connected,
       db: status.db,
       ...(status.error ? { error: status.error } : {}),
+      ...(status.mongo ? { mongo: status.mongo } : {}),
     });
   }
   const saved = await saveClusterStoredUri(c.env.DB, key, id, uri, dbName || undefined);
@@ -1530,6 +1552,7 @@ app.post('/v1/clusters/:id/mongo-config', async (c) => {
     hint: saved.hint,
     updatedAt: saved.updatedAt,
     ...(status.error ? { error: status.error } : {}),
+    ...(status.mongo ? { mongo: status.mongo } : {}),
   });
 });
 
@@ -1797,8 +1820,7 @@ app.post('/v1/proyectos/:id/crear-bd', async (c) => {
     auto: false,
   });
   if (!outcome.ok) {
-    if (outcome.status === 503) return c.json(mongoNotConfiguredError(), 503);
-    return jsonError(c, outcome.status, outcome.error);
+    return c.json(outcome.body, outcome.status);
   }
   return c.json(outcome.body);
 });
@@ -2254,7 +2276,7 @@ function mapClusterRow(row: Record<string, unknown>, proyectos: unknown[]) {
 
 type CrearBdOutcome =
   | { ok: true; body: Record<string, unknown> }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; body: Record<string, unknown> };
 
 async function ejecutarCrearBd(
   env: Env,
@@ -2263,11 +2285,15 @@ async function ejecutarCrearBd(
 ): Promise<CrearBdOutcome> {
   const id = String(proyectoId || '').trim();
   const row = await env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
-  if (!row) return { ok: false, status: 404, error: 'Proyecto no encontrado.' };
+  if (!row) {
+    return { ok: false, status: 404, body: { ok: false, error: 'Proyecto no encontrado.' } };
+  }
   const proy = await hydrateProyecto(env.DB, row as Record<string, unknown>);
-  if (!proy.baseDatos) return { ok: false, status: 400, error: 'El proyecto no tiene baseDatos.' };
+  if (!proy.baseDatos) {
+    return { ok: false, status: 400, body: { ok: false, error: 'El proyecto no tiene baseDatos.' } };
+  }
   if (!proy.colecciones.length) {
-    return { ok: false, status: 400, error: 'El proyecto no tiene colecciones.' };
+    return { ok: false, status: 400, body: { ok: false, error: 'El proyecto no tiene colecciones.' } };
   }
 
   const camposRows = await env.DB.prepare('SELECT * FROM campos_mongo WHERE proyecto = ?').bind(id).all();
@@ -2383,17 +2409,17 @@ async function ejecutarCrearBd(
         auto: !!opts.auto,
         error: 'Sin URI Mongo configurada en el Cluster.',
       });
-      return { ok: false, status: 503, error: msg };
+      return { ok: false, status: 503, body: mongoNotConfiguredError() };
     }
-    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
+    const body = mongoDriverErrorBody(err);
     await record({
       at,
       ok: false,
       proyecto: id,
       auto: !!opts.auto,
-      error: scrubbed,
+      error: body.error,
     });
-    return { ok: false, status: 502, error: scrubbed };
+    return { ok: false, status: 502, body };
   }
 }
 
