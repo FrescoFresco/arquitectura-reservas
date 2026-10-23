@@ -33,7 +33,8 @@ Worker: `campos-ancla-api`. D1: `campos-ancla-db`. Los JSON de `catalogo/` en la
 4. `POST {API_BASE}/v1/agentes/registro` — eliges nombre (e `id` opcional); guarda el `id` de la respuesta.
 5. Cada ~30 s: `POST {API_BASE}/v1/agentes/latido` con ese `id` + clave → aparece **En línea** en la UI.
 6. Lee catálogos con `GET` (público). Escribe / ejecuta salidas con `Authorization: Bearer {AGENTE_CLAVE}`.
-7. Para una skill: `GET /v1/ejecutar/:skillId` → contrato I/O + `systemPrompts` (array 0..1 con MD del prompt, si hay); luego entradas (GET) / salidas (POST).
+7. Para una skill suelta: `GET /v1/ejecutar/:skillId` → contrato I/O + `systemPrompts`; luego entradas (GET) / salidas (POST).
+8. Para una **cadena** (n8n solo orquesta): `POST /v1/corridas` → repetir `GET /v1/corridas/:id/siguiente` → IA con `systemPrompt`+skill+`entradas` → `POST …/salidas` con `corrida_id`+`nodo_id` → hasta `tipo: "fin"`.
 
 La clave **no caduca**. Solo deja de valer si un humano la revoca.
 
@@ -184,7 +185,9 @@ Ejemplos:
 |---------|--------|-----|-------|------------|--------|
 | Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
 | System prompts | `GET /v1/system-prompts` | `GET /v1/system-prompts/:id` | `POST /v1/system-prompts` | `PUT /v1/system-prompts/:id` | `DELETE /v1/system-prompts/:id` |
-| Ejecutar | — | `GET /v1/ejecutar/:skillId` | — | `POST …/salidas` (Bearer) | — |
+| Ejecutar | — | `GET /v1/ejecutar/:skillId` | — | `POST …/salidas` (Bearer; +`corrida_id`?) | — |
+| Flujos | `POST /v1/flujos` | `GET /v1/flujos[/:id]` | — | — | — |
+| Corridas | `POST /v1/corridas` | `GET /v1/corridas[/:id[/siguiente]]` | — | — | — |
 | | | `GET …/entradas?negocio=` | | | |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
 | Mongo | `GET /v1/mongo` | `GET /v1/mongo/:id` | `POST /v1/mongo` | `PUT /v1/mongo/:id` | `DELETE /v1/mongo/:id` |
@@ -303,6 +306,8 @@ curl -sS -X POST "{API_BASE}/v1/ejecutar/mapear-recorrido/salidas" \
 
 `negocio_id` en el body es alias de `negocio`.
 
+Opcional (bucle de corrida): añade `corrida_id` + `nodo_id` → escribe igual + copia `valores` a `corrida.datos`, marca el paso `hecho` y avanza el flujo. Sin esos campos el comportamiento no cambia.
+
 #### Reglas de validación (salidas)
 
 | Regla | HTTP | Body |
@@ -334,6 +339,68 @@ GET {API_BASE}/v1/esquemas/:id/operativa
 ```
 
 Une **salidas** de skill A con **entradas** de skill B (mismo id de ancla). `huecos` = entradas que **ninguna** skill escribe (en el Mermaid van en rojo). UI: ficha Base de datos → pestaña **Operativa**.
+
+La operativa es el **grafo derivado** (diseño). La **ejecución ordenada** con decisiones / espera / subflujo es un **flujo** + **corridas** (abajo).
+
+### Flujos y corridas (bucle n8n)
+
+n8n **solo orquesta**; la lógica vive aquí.
+
+**Flujos** (D1, versionados, ligados a un `proyecto` / Base de datos):
+
+| Tipo de nodo | Comportamiento |
+|--------------|----------------|
+| `inicio` | Arranque; se salta al avanzar |
+| `skill` | Paso IA: `GET /siguiente` devuelve skill + systemPrompt + entradas |
+| `decision` | Evalúa `condicion` sobre `datos` y elige arista `cuando: true\|false` |
+| `espera` | `estado=esperando` hasta reanudación (aprobación humana) |
+| `subflujo` | Crea corrida hija (`flujo_id`); padre `esperando` hasta hija `terminada` |
+| `fin` | `estado=terminada` |
+
+Condiciones seguras (sin `eval`): `{ "eq": ["_ancla_", valor] }`, `{ "neq": [...] }`, `{ "exists": "_ancla_" }`, `{ "truthy": "_ancla_" }`. Paths = claves de ancla en `corrida.datos`.
+
+```
+GET  {API_BASE}/v1/flujos?proyecto=reservas
+GET  {API_BASE}/v1/flujos/:id
+POST {API_BASE}/v1/flujos   Authorization: Bearer inv_…
+     { id, nombre, proyecto_id, nodos[], aristas[], descripcion? }
+```
+
+Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
+
+**Corridas** (Mongo colección `corridas` en la BD del proyecto; índice liviano en D1):
+
+```
+POST {API_BASE}/v1/corridas
+Authorization: Bearer inv_…
+{ "flujo_id": "reservas-descubrir-mapear", "negocio": "pelo-sur", "datos_iniciales": { "_negocio.url_": "https://…" } }
+→ { ok, corrida: { id, flujo_id, flujo_version, estado, paso_actual, pasos, datos, … } }
+
+GET  {API_BASE}/v1/corridas?flujo_id=&negocio=&estado=&proyecto=
+GET  {API_BASE}/v1/corridas/:id
+GET  {API_BASE}/v1/corridas/:id/siguiente
+→ skill: { corrida_id, nodo_id, tipo:"skill", skill, systemPrompt, entradas, negocio }
+→ fin:   { tipo:"fin" }
+→ espera:{ tipo:"espera", motivo:"aprobacion"|"subflujo", hijo_id? }
+```
+
+`entradas` en `/siguiente`: primero `corrida.datos`; si falta, Mongo por `negocio` (mismo mapa ancla→campo que ejecutar).
+
+**Bucle n8n de referencia:**
+
+```
+POST /v1/corridas
+loop:
+  GET  /v1/corridas/:id/siguiente
+  if tipo == "fin": break
+  if tipo == "espera": poll / wait approval
+  if tipo == "skill":
+    call AI(systemPrompt + skill markdown + entradas)
+    POST /v1/ejecutar/:skill/salidas
+         { negocio, valores, corrida_id, nodo_id }
+```
+
+Estados de corrida: `en_curso` | `esperando` | `terminada` | `error`. Pasos: `pendiente` | `hecho` | `error`.
 
 ### Clusters (URI Atlas)
 
