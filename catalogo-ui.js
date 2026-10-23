@@ -5,8 +5,8 @@ const CATALOGOS = [
   { id: 'proyectos', nombre: 'Base de datos', icono: 'proyecto' },
   { id: 'colecciones', nombre: 'Colecciones', icono: 'coleccion' },
   { id: 'campos-mongodb', nombre: 'Campos', icono: 'mongo' },
-  { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'system-prompts', nombre: 'System prompts', icono: 'system-prompt' },
+  { id: 'skills', nombre: 'Skills', icono: 'skills' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' }
 ];
 const TABLAS = [];
