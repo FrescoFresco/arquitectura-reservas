@@ -782,6 +782,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabAsociados" data-flujo-tab="asociados" aria-selected="false" aria-controls="flujoPanelAsociados">Asociados</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabDocumento" data-flujo-tab="documento" aria-selected="false" aria-controls="flujoPanelDocumento">Documento</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabVersiones" data-flujo-tab="versiones" aria-selected="false" aria-controls="flujoPanelVersiones">Versiones</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabDisparadores" data-flujo-tab="disparadores" aria-selected="false" aria-controls="flujoPanelDisparadores">Disparadores</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabCorridas" data-flujo-tab="corridas" aria-selected="false" aria-controls="flujoPanelCorridas">Corridas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabInterno" data-flujo-tab="interno" aria-selected="false" aria-controls="flujoPanelInterno">Interno</button>
 </div>
@@ -837,8 +838,79 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ajustes-hint">Versiones pinneadas en D1 (<code>flujo_versions</code>). Las corridas guardan el número de versión al crearse.</p>
 <ul id="flujoVersionesLista" class="flujo-nodos-lista"></ul>
 </div>
+<div class="reader-panel ancla-ficha-body" id="flujoPanelDisparadores" role="tabpanel" aria-labelledby="flujoTabDisparadores" hidden>
+<p class="ajustes-hint">Cuándo arranca este flujo. Varios disparadores = «o». Probar no crea corridas; Guardar escribe en D1.</p>
+<div class="editar-anclas-top" style="margin-bottom:0.75rem">
+<span class="historial-titulo">Disparadores</span>
+<button type="button" class="btn" id="btnFlujoLanzarManual" title="Crear corrida (disparador manual)">▶ Lanzar</button>
+<button type="button" class="btn" id="btnFlujoAddDisparador" title="Añadir disparador">+ Añadir disparador</button>
+</div>
+<p class="ancla-ficha-vacio" id="flujoDisparadoresEstado" hidden>Cargando…</p>
+<div class="tabla-scroll" id="flujoDisparadoresTablaWrap" hidden>
+<table class="proy-historial-tabla" id="flujoDisparadoresTabla">
+<thead>
+<tr><th>Tipo</th><th>Resumen</th><th>Estado</th><th>Última vez</th><th></th></tr>
+</thead>
+<tbody id="flujoDisparadoresBody"></tbody>
+</table>
+</div>
+<div id="flujoDisparadorFormWrap" hidden style="margin-top:1rem">
+<p class="historial-titulo" id="flujoDisparadorFormTitulo">Nuevo disparador</p>
+<label class="ajustes-hint" for="flujoDispId">Id</label>
+<input type="text" id="flujoDispId" class="flujo-json-edit" style="min-height:auto;height:2.5rem" autocomplete="off" placeholder="d-07">
+<label class="ajustes-hint" for="flujoDispTipo">Tipo</label>
+<select id="flujoDispTipo" aria-label="Tipo de disparador" style="display:block;margin:4px 0 10px;padding:8px;font:inherit">
+<option value="manual">a mano (manual)</option>
+<option value="horario">horario</option>
+<option value="cambio_datos">cambio datos</option>
+<option value="webhook">webhook</option>
+</select>
+<div id="flujoDispCamposHorario" hidden>
+<label class="ajustes-hint" for="flujoDispCron">Cron (5 campos)</label>
+<input type="text" id="flujoDispCron" class="flujo-json-edit" style="min-height:auto;height:2.5rem" placeholder="0 * * * *">
+<label class="ajustes-hint" for="flujoDispColeccionH">Colección</label>
+<input type="text" id="flujoDispColeccionH" class="flujo-json-edit" style="min-height:auto;height:2.5rem" placeholder="reservas">
+</div>
+<div id="flujoDispCamposCambio" hidden>
+<label class="ajustes-hint" for="flujoDispColeccionC">Colección</label>
+<input type="text" id="flujoDispColeccionC" class="flujo-json-edit" style="min-height:auto;height:2.5rem" placeholder="negocios">
+<label class="ajustes-hint" for="flujoDispOps">Operaciones (JSON)</label>
+<input type="text" id="flujoDispOps" class="flujo-json-edit" style="min-height:auto;height:2.5rem" value='["crear","actualizar"]'>
+</div>
+<div id="flujoDispCamposWebhook" hidden>
+<p class="ajustes-hint" id="flujoDispWebhookUrlHint">URL (tras guardar):</p>
+<div class="editar-anclas-top" style="gap:8px;align-items:center">
+<code id="flujoDispWebhookUrl" style="flex:1;word-break:break-all">—</code>
+<button type="button" class="btn ghost" id="btnFlujoDispCopiarUrl" hidden>Copiar</button>
+</div>
+</div>
+<label class="ajustes-hint" for="flujoDispNegocio">Negocio (vacío = todos)</label>
+<input type="text" id="flujoDispNegocio" class="flujo-json-edit" style="min-height:auto;height:2.5rem" autocomplete="off">
+<label class="ajustes-hint" for="flujoDispAnti">Anti-bucle</label>
+<select id="flujoDispAnti" style="display:block;margin:4px 0 10px;padding:8px;font:inherit">
+<option value="true">sí</option>
+<option value="false">no</option>
+</select>
+<label class="ajustes-hint" for="flujoDispAgrupar">Agrupar (segundos)</label>
+<input type="number" id="flujoDispAgrupar" class="flujo-json-edit" style="min-height:auto;height:2.5rem" value="0" min="0" step="1">
+<label class="ajustes-hint" for="flujoDispPipeline">Definición JSON (pipeline + extras)</label>
+<textarea id="flujoDispPipeline" class="flujo-json-edit" spellcheck="false" placeholder='[]'></textarea>
+<p class="proy-crear-bd-msg" id="flujoDispFormMsg" role="status" hidden></p>
+<pre class="flujo-grafo-ascii" id="flujoDispProbarOut" hidden style="max-height:12rem;overflow:auto"></pre>
+<div class="ajustes-actions" style="margin-top:8px;flex-wrap:wrap;gap:8px">
+<button type="button" class="btn" id="btnFlujoDispProbar">Probar</button>
+<button type="button" class="btn primary" id="btnFlujoDispGuardar">Guardar</button>
+<button type="button" class="btn ghost" id="btnFlujoDispCancelar">Cancelar</button>
+</div>
+</div>
+</div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelCorridas" role="tabpanel" aria-labelledby="flujoTabCorridas" hidden>
 <p class="ajustes-hint">Una ejecución de este flujo (por negocio). Clic en una fila para pasos, datos y errores. «+ Corrida» arranca el bucle; n8n u otro agente solo orquesta (/siguiente + salidas).</p>
+<div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="flujoCorridasSubtabs" role="tablist" aria-label="Corridas y eventos" style="margin-bottom:0.75rem">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-flujo-corr-sub="corridas" aria-selected="true">Corridas</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-flujo-corr-sub="eventos" aria-selected="false">Eventos</button>
+</div>
+<div id="flujoCorridasSubpaneCorridas" data-flujo-corr-pane="corridas">
 <div class="editar-anclas-top" style="margin-bottom:0.75rem">
 <span class="historial-titulo">Corridas</span>
 <button type="button" class="btn" id="btnFlujoNuevaCorrida" title="Crear corrida de este flujo">+ Corrida</button>
@@ -871,6 +943,19 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="btn" id="btnFlujoCorridasPrev" hidden>Anterior</button>
 <span id="flujoCorridasPagerInfo" class="ajustes-hint" style="margin:0"></span>
 <button type="button" class="btn" id="btnFlujoCorridasNext" hidden>Siguiente</button>
+</div>
+</div>
+<div id="flujoCorridasSubpaneEventos" data-flujo-corr-pane="eventos" hidden>
+<p class="ajustes-hint">Eventos Mongo evaluados por disparadores de este flujo (TTL 30 días).</p>
+<p class="ancla-ficha-vacio" id="flujoEventosEstado" hidden>Cargando eventos…</p>
+<div class="tabla-scroll" id="flujoEventosTablaWrap" hidden>
+<table class="proy-historial-tabla" id="flujoEventosTabla">
+<thead>
+<tr><th>Fecha</th><th>Tipo</th><th>Colección / doc</th><th>Resultado</th></tr>
+</thead>
+<tbody id="flujoEventosBody"></tbody>
+</table>
+</div>
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelInterno" role="tabpanel" aria-labelledby="flujoTabInterno" hidden>
@@ -1791,8 +1876,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="fundamentos-ui.js?v=20261023deadClean1"></script>
 <script src="system-prompts-ui.js?v=20261023deadClean1"></script>
 <script src="system-prompts-catalog.js?v=20261023deadClean1"></script>
-<script src="catalogo-ui.js?v=20261023deadClean1"></script>
-<script src="flujos-corridas-ui.js?v=20261023deadClean1"></script>
+<script src="catalogo-ui.js?v=20261023fase3disp1"></script>
+<script src="flujos-corridas-ui.js?v=20261023fase3disp1"></script>
 <script src="ajustes-ui.js?v=20261023deadClean1"></script>
 
 </body>

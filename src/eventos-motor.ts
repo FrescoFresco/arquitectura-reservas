@@ -167,7 +167,7 @@ async function bloqueadoAgrupar(
   return !!found;
 }
 
-async function runPipeline(
+export async function runPipeline(
   db: Db,
   collection: string,
   pipeline: Record<string, unknown>[]
@@ -428,6 +428,116 @@ export type WithProyectoDb = <T>(
   proyectoId: string,
   fn: (db: Db) => Promise<T>
 ) => Promise<T | null>;
+
+export type ProbarDisparadorArgs = {
+  tipo: 'manual' | 'horario' | 'cambio_datos' | 'webhook';
+  coleccion?: string | null;
+  pipeline?: Record<string, unknown>[] | null;
+  disparador_id?: string | null;
+};
+
+/**
+ * Dry-run: no crea corridas ni eventos.
+ * - cambio_datos/webhook: últimos 50 eventos (colección o disparador) × pipeline con $match _id
+ * - horario: pipeline sobre la colección (sin pipeline → 1 hipotética)
+ * - manual: 0 (usa POST /v1/corridas)
+ */
+export async function probarDisparadorDryRun(
+  db: Db,
+  args: ProbarDisparadorArgs
+): Promise<{
+  habria_lanzado: number;
+  muestra: Record<string, unknown>[];
+  eventos_probados?: number;
+  nota?: string;
+  error?: string;
+}> {
+  const tipo = args.tipo;
+  const userPipe = args.pipeline && args.pipeline.length ? args.pipeline : [];
+  const muestra: Record<string, unknown>[] = [];
+
+  if (tipo === 'manual') {
+    return {
+      habria_lanzado: 0,
+      muestra: [],
+      nota: 'Tipo manual: usa «Lanzar» / POST /v1/corridas (no hay pipeline que probar).',
+    };
+  }
+
+  if (tipo === 'horario') {
+    const col = String(args.coleccion || '').trim();
+    if (!col) return { habria_lanzado: 0, muestra: [], error: 'Falta coleccion para horario.' };
+    if (!userPipe.length) {
+      return {
+        habria_lanzado: 1,
+        muestra: [{ _nota: 'Sin pipeline → habría creado 1 corrida' }],
+        nota: 'Sin pipeline: una corrida.',
+      };
+    }
+    const ran = await runPipeline(db, col, userPipe);
+    if (!ran.ok) return { habria_lanzado: 0, muestra: [], error: ran.error };
+    for (const d of ran.docs.slice(0, 20)) {
+      muestra.push(publicSampleDoc(d));
+    }
+    return { habria_lanzado: ran.docs.length, muestra };
+  }
+
+  // cambio_datos | webhook → eventos
+  await ensureEventosIndexes(db);
+  const q: Record<string, unknown> = {};
+  if (tipo === 'cambio_datos' && args.coleccion) q.coleccion = String(args.coleccion);
+  if (tipo === 'webhook' && args.disparador_id) q.disparador_id = String(args.disparador_id);
+  if (tipo === 'cambio_datos') q.tipo = 'cambio_datos';
+  if (tipo === 'webhook') q.tipo = 'webhook';
+
+  const eventos = (await db
+    .collection(EVENTOS_COLLECTION)
+    .find(q)
+    .sort({ creado: -1 })
+    .limit(50)
+    .toArray()) as Array<{ _id: string }>;
+
+  if (!eventos.length) {
+    return {
+      habria_lanzado: 0,
+      muestra: [],
+      eventos_probados: 0,
+      nota: 'No hay eventos recientes que coincidan para probar.',
+    };
+  }
+
+  let total = 0;
+  for (const ev of eventos) {
+    const pipe = [{ $match: { _id: ev._id } }, ...userPipe];
+    const ran = await runPipeline(db, EVENTOS_COLLECTION, pipe);
+    if (!ran.ok) {
+      return {
+        habria_lanzado: 0,
+        muestra: [],
+        eventos_probados: eventos.length,
+        error: ran.error,
+      };
+    }
+    total += ran.docs.length;
+    for (const d of ran.docs) {
+      if (muestra.length < 20) muestra.push(publicSampleDoc(d));
+    }
+  }
+  return { habria_lanzado: total, muestra, eventos_probados: eventos.length };
+}
+
+function publicSampleDoc(doc: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  try {
+    const raw = JSON.parse(JSON.stringify(doc)) as Record<string, unknown>;
+    const keys = Object.keys(raw).slice(0, 12);
+    for (const k of keys) out[k] = raw[k];
+    if (Object.keys(raw).length > 12) out._truncado = true;
+  } catch {
+    out._id = doc._id != null ? String(doc._id) : null;
+  }
+  return out;
+}
 
 /**
  * Cron minuto: dispara horario activos cuyo cron coincide (Atlantic/Canary).

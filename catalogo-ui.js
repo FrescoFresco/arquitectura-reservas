@@ -1398,6 +1398,18 @@ function svgPestanaCatalogo(tipo) {
       svgCircle('12', '12', '8'),
       svgPath('M12 8v4l3 2')
     );
+  } else if (tipo === 'disparadores' || tipo === 'disparador' || tipo === 'zap') {
+    // Lucide: zap
+    svg.append(svgPath('M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z'));
+  } else if (tipo === 'eventos' || tipo === 'evento') {
+    // Lucide: radio
+    svg.append(
+      svgPath('M4.9 19.1C1 15.2 1 8.8 4.9 4.9'),
+      svgPath('M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5'),
+      svgCircle('12', '12', '2'),
+      svgPath('M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5'),
+      svgPath('M19.1 4.9C23 8.8 23 15.1 19.1 19')
+    );
   } else if (tipo === 'acl') {
     // Lucide: shield
     svg.append(
@@ -1437,6 +1449,10 @@ function iconoDePestanaFicha(tabId) {
     flujo: 'flujo',
     corridas: 'corrida',
     corrida: 'corrida',
+    disparadores: 'disparadores',
+    disparador: 'disparadores',
+    eventos: 'eventos',
+    evento: 'eventos',
     pasos: 'pasos',
     datos: 'datos',
     errores: 'errores',

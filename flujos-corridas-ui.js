@@ -28,7 +28,14 @@
     flujoCorridas: [],
     flujoCorridasToken: 0,
     flujoCorridasPage: 0,
-    flujoCorridasFiltros: { estado: '', negocio: '' }
+    flujoCorridasFiltros: { estado: '', negocio: '' },
+    flujoDisparadores: [],
+    flujoDisparadoresToken: 0,
+    flujoDispEditId: null,
+    flujoDispFormOpen: false,
+    flujoEventos: [],
+    flujoEventosToken: 0,
+    flujoCorrSub: 'corridas'
   };
 
   function apiBase() {
@@ -355,6 +362,22 @@
     if (id === 'skills') pintarFlujoSkillsGrafo(f);
   }
 
+  function seleccionarFlujoCorrSub(id) {
+    if (id !== 'corridas' && id !== 'eventos') id = 'corridas';
+    st.flujoCorrSub = id;
+    var tabs = document.querySelectorAll('#flujoCorridasSubtabs [data-flujo-corr-sub]');
+    tabs.forEach(function (btn) {
+      var on = btn.getAttribute('data-flujo-corr-sub') === id;
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('#flujoPanelCorridas [data-flujo-corr-pane]').forEach(function (pane) {
+      pane.hidden = pane.getAttribute('data-flujo-corr-pane') !== id;
+    });
+    if (id === 'corridas') cargarFlujoCorridas();
+    if (id === 'eventos') cargarFlujoEventos();
+  }
+
   function seleccionarFlujoTab(id) {
     if (id === 'base-datos' || id === 'skills') {
       flujoAsocSub = id === 'skills' ? 'skills' : 'base-datos';
@@ -366,6 +389,7 @@
       asociados: document.getElementById('flujoPanelAsociados'),
       documento: document.getElementById('flujoPanelDocumento'),
       versiones: document.getElementById('flujoPanelVersiones'),
+      disparadores: document.getElementById('flujoPanelDisparadores'),
       corridas: document.getElementById('flujoPanelCorridas'),
       interno: document.getElementById('flujoPanelInterno')
     };
@@ -381,7 +405,8 @@
     if (id === 'asociados') seleccionarFlujoAsocSub(flujoAsocSub || 'base-datos');
     if (id === 'documento') pintarFlujoDocumento();
     if (id === 'versiones') pintarFlujoVersionesTab();
-    if (id === 'corridas') cargarFlujoCorridas();
+    if (id === 'disparadores') cargarFlujoDisparadores();
+    if (id === 'corridas') seleccionarFlujoCorrSub(st.flujoCorrSub || 'corridas');
   }
 
   function renderHistorialFlujo() {
@@ -446,8 +471,10 @@
     if (onDoc) pintarFlujoDocumento();
     var onVer = document.querySelector('#flujoReaderTabs [data-flujo-tab="versiones"].is-on');
     if (onVer) pintarFlujoVersionesTab();
+    var onDisp = document.querySelector('#flujoReaderTabs [data-flujo-tab="disparadores"].is-on');
+    if (onDisp) cargarFlujoDisparadores();
     var onCor = document.querySelector('#flujoReaderTabs [data-flujo-tab="corridas"].is-on');
-    if (onCor) cargarFlujoCorridas();
+    if (onCor) seleccionarFlujoCorrSub(st.flujoCorrSub || 'corridas');
     var dlg = document.getElementById('dlgFlujo');
     if (dlg && typeof window.cablearColorFicha === 'function') {
       window.cablearColorFicha(dlg, {
@@ -770,11 +797,573 @@
     if (arEl) arEl.value = JSON.stringify(f.aristas || [], null, 2);
   }
 
+  function labelTipoDisp(tipo) {
+    if (tipo === 'manual') return 'a mano';
+    if (tipo === 'horario') return 'horario';
+    if (tipo === 'cambio_datos') return 'cambio datos';
+    if (tipo === 'webhook') return 'webhook';
+    return tipo || '—';
+  }
+
+  function resumenDisp(d) {
+    if (!d) return '—';
+    if (d.tipo === 'manual') return 'botón Lanzar';
+    if (d.tipo === 'horario') {
+      return (d.cron || '—') + (d.coleccion ? ' · ' + d.coleccion : '');
+    }
+    if (d.tipo === 'cambio_datos') {
+      var ops = Array.isArray(d.operaciones) ? d.operaciones.join(',') : '';
+      return (d.coleccion || '—') + (ops ? ' · ' + ops : '');
+    }
+    if (d.tipo === 'webhook') {
+      return d.token ? 'token …' + String(d.token).slice(-6) : 'sin token';
+    }
+    return d.id || '—';
+  }
+
+  function webhookUrlPublica(flujoId, token) {
+    return apiBase() + '/v1/disparar/' + encodeURIComponent(flujoId) + '/' + encodeURIComponent(token || '');
+  }
+
+  function formatHoraCorta(ts) {
+    var s = String(ts || '').trim();
+    if (!s) return '—';
+    var d = new Date(s);
+    if (Number.isNaN(d.getTime())) return s;
+    try {
+      return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return s;
+    }
+  }
+
+  function cargarFlujoDisparadores() {
+    var f = st.flujoAbierto;
+    var estado = document.getElementById('flujoDisparadoresEstado');
+    var wrap = document.getElementById('flujoDisparadoresTablaWrap');
+    if (!f) return;
+    var token = ++st.flujoDisparadoresToken;
+    if (estado) {
+      estado.hidden = false;
+      estado.textContent = 'Cargando…';
+    }
+    if (wrap) wrap.hidden = true;
+    fetch(apiBase() + '/v1/flujos/' + encodeURIComponent(f.id) + '/disparadores', { cache: 'no-store' })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || (data && data.ok === false)) {
+            throw new Error((data && data.error) || 'HTTP ' + res.status);
+          }
+          return data;
+        });
+      })
+      .then(function (data) {
+        if (token !== st.flujoDisparadoresToken) return;
+        st.flujoDisparadores = (data && data.disparadores) || [];
+        pintarTablaDisparadores();
+      })
+      .catch(function (err) {
+        if (token !== st.flujoDisparadoresToken) return;
+        if (estado) {
+          estado.hidden = false;
+          estado.textContent = err.message || 'Error al cargar';
+        }
+      });
+  }
+
+  function pintarTablaDisparadores() {
+    var estado = document.getElementById('flujoDisparadoresEstado');
+    var wrap = document.getElementById('flujoDisparadoresTablaWrap');
+    var body = document.getElementById('flujoDisparadoresBody');
+    if (!body) return;
+    body.replaceChildren();
+    var list = st.flujoDisparadores || [];
+    if (!list.length) {
+      if (estado) {
+        estado.hidden = false;
+        estado.textContent = 'Sin disparadores. Usa «+ Añadir disparador».';
+      }
+      if (wrap) wrap.hidden = true;
+      return;
+    }
+    if (estado) estado.hidden = true;
+    if (wrap) wrap.hidden = false;
+    list.forEach(function (d) {
+      var tr = document.createElement('tr');
+      tr.dataset.dispId = d.id;
+      tr.style.cursor = 'pointer';
+      function td(text) {
+        var c = document.createElement('td');
+        c.textContent = text;
+        return c;
+      }
+      tr.append(td(labelTipoDisp(d.tipo)));
+      var tdRes = document.createElement('td');
+      tdRes.textContent = resumenDisp(d);
+      if (d.tipo === 'webhook' && d.token && st.flujoAbierto) {
+        var url = webhookUrlPublica(st.flujoAbierto.id, d.token);
+        var small = document.createElement('div');
+        small.className = 'ajustes-hint';
+        small.style.margin = '4px 0 0';
+        small.style.wordBreak = 'break-all';
+        small.textContent = url;
+        var copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'btn ghost';
+        copy.textContent = 'Copiar URL';
+        copy.style.marginTop = '4px';
+        copy.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(
+              function () { copy.textContent = 'Copiado'; },
+              function () { window.prompt('Copia la URL', url); }
+            );
+          } else {
+            window.prompt('Copia la URL', url);
+          }
+        });
+        tdRes.append(document.createElement('br'), small, copy);
+      }
+      tr.append(tdRes);
+      tr.append(td(d.activo ? 'Activo' : 'Pausado'));
+      tr.append(td(formatHoraCorta(d.ultima_vez)));
+      var tdAcc = document.createElement('td');
+      tdAcc.style.whiteSpace = 'nowrap';
+      var tog = document.createElement('button');
+      tog.type = 'button';
+      tog.className = 'btn ghost';
+      tog.textContent = d.activo ? 'Pausar' : 'Activar';
+      tog.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleDisparadorActivo(d);
+      });
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'btn ghost';
+      del.textContent = 'Borrar';
+      del.addEventListener('click', function (e) {
+        e.stopPropagation();
+        borrarDisparador(d);
+      });
+      tdAcc.append(tog, del);
+      tr.append(tdAcc);
+      tr.addEventListener('click', function () {
+        abrirFormDisparador(d);
+      });
+      body.append(tr);
+    });
+  }
+
+  function syncDispCamposPorTipo() {
+    var tipo = (document.getElementById('flujoDispTipo') || {}).value || 'manual';
+    var h = document.getElementById('flujoDispCamposHorario');
+    var c = document.getElementById('flujoDispCamposCambio');
+    var w = document.getElementById('flujoDispCamposWebhook');
+    if (h) h.hidden = tipo !== 'horario';
+    if (c) c.hidden = tipo !== 'cambio_datos';
+    if (w) w.hidden = tipo !== 'webhook';
+  }
+
+  function leerFormDisparador() {
+    var tipo = (document.getElementById('flujoDispTipo') || {}).value || 'manual';
+    var id = String((document.getElementById('flujoDispId') || {}).value || '').trim();
+    var negocio = String((document.getElementById('flujoDispNegocio') || {}).value || '').trim();
+    var anti = (document.getElementById('flujoDispAnti') || {}).value !== 'false';
+    var agrupar = Number((document.getElementById('flujoDispAgrupar') || {}).value || 0) || 0;
+    var pipeRaw = (document.getElementById('flujoDispPipeline') || {}).value || '[]';
+    var pipeline;
+    try {
+      pipeline = JSON.parse(pipeRaw);
+    } catch (e) {
+      throw new Error('Pipeline JSON inválido: ' + (e.message || e));
+    }
+    var body = {
+      id: id,
+      tipo: tipo,
+      negocio: negocio,
+      anti_bucle: anti,
+      agrupar_segundos: agrupar,
+      pipeline: pipeline,
+      activo: true
+    };
+    if (tipo === 'horario') {
+      body.cron = String((document.getElementById('flujoDispCron') || {}).value || '').trim();
+      body.coleccion = String((document.getElementById('flujoDispColeccionH') || {}).value || '').trim();
+    }
+    if (tipo === 'cambio_datos') {
+      body.coleccion = String((document.getElementById('flujoDispColeccionC') || {}).value || '').trim();
+      var opsRaw = (document.getElementById('flujoDispOps') || {}).value || '[]';
+      try {
+        body.operaciones = JSON.parse(opsRaw);
+      } catch (e2) {
+        throw new Error('Operaciones JSON inválido');
+      }
+    }
+    return body;
+  }
+
+  function abrirFormDisparador(d) {
+    st.flujoDispFormOpen = true;
+    st.flujoDispEditId = d && d.id ? d.id : null;
+    var wrap = document.getElementById('flujoDisparadorFormWrap');
+    var tit = document.getElementById('flujoDisparadorFormTitulo');
+    if (wrap) wrap.hidden = false;
+    if (tit) tit.textContent = d ? 'Editar ' + d.id : 'Nuevo disparador';
+    var idEl = document.getElementById('flujoDispId');
+    if (idEl) {
+      idEl.value = d ? d.id : 'd-' + Math.random().toString(36).slice(2, 6);
+      idEl.disabled = !!d;
+    }
+    var tipoEl = document.getElementById('flujoDispTipo');
+    if (tipoEl) tipoEl.value = (d && d.tipo) || 'manual';
+    syncDispCamposPorTipo();
+    var cron = document.getElementById('flujoDispCron');
+    if (cron) cron.value = (d && d.cron) || '0 * * * *';
+    var colH = document.getElementById('flujoDispColeccionH');
+    if (colH) colH.value = (d && d.coleccion) || 'reservas';
+    var colC = document.getElementById('flujoDispColeccionC');
+    if (colC) colC.value = (d && d.coleccion) || 'negocios';
+    var ops = document.getElementById('flujoDispOps');
+    if (ops) ops.value = JSON.stringify((d && d.operaciones) || ['crear', 'actualizar']);
+    var neg = document.getElementById('flujoDispNegocio');
+    if (neg) neg.value = (d && d.negocio) || '';
+    var anti = document.getElementById('flujoDispAnti');
+    if (anti) anti.value = d && d.anti_bucle === false ? 'false' : 'true';
+    var agr = document.getElementById('flujoDispAgrupar');
+    if (agr) agr.value = String((d && d.agrupar_segundos) || 0);
+    var pipe = document.getElementById('flujoDispPipeline');
+    if (pipe) pipe.value = JSON.stringify((d && d.pipeline) || [], null, 2);
+    var urlEl = document.getElementById('flujoDispWebhookUrl');
+    var btnCopy = document.getElementById('btnFlujoDispCopiarUrl');
+    if (d && d.tipo === 'webhook' && d.token && st.flujoAbierto) {
+      var url = webhookUrlPublica(st.flujoAbierto.id, d.token);
+      if (urlEl) urlEl.textContent = url;
+      if (btnCopy) btnCopy.hidden = false;
+    } else {
+      if (urlEl) urlEl.textContent = d ? '(guarda para ver URL)' : '(tras guardar)';
+      if (btnCopy) btnCopy.hidden = true;
+    }
+    var msg = document.getElementById('flujoDispFormMsg');
+    if (msg) msg.hidden = true;
+    var out = document.getElementById('flujoDispProbarOut');
+    if (out) {
+      out.hidden = true;
+      out.textContent = '';
+    }
+  }
+
+  function cerrarFormDisparador() {
+    st.flujoDispFormOpen = false;
+    st.flujoDispEditId = null;
+    var wrap = document.getElementById('flujoDisparadorFormWrap');
+    if (wrap) wrap.hidden = true;
+  }
+
+  function setDispMsg(text, isErr) {
+    var msg = document.getElementById('flujoDispFormMsg');
+    if (!msg) return;
+    msg.hidden = false;
+    msg.classList.toggle('is-err', !!isErr);
+    msg.classList.toggle('is-ok', !isErr);
+    msg.textContent = text;
+  }
+
+  function guardarDisparadorForm() {
+    var f = st.flujoAbierto;
+    if (!f) return;
+    var body;
+    try {
+      body = leerFormDisparador();
+    } catch (e) {
+      setDispMsg(e.message || String(e), true);
+      return;
+    }
+    if (!body.id) {
+      setDispMsg('Falta id', true);
+      return;
+    }
+    setDispMsg('Guardando…', false);
+    var editId = st.flujoDispEditId;
+    var path = editId
+      ? '/v1/disparadores/' + encodeURIComponent(editId)
+      : '/v1/flujos/' + encodeURIComponent(f.id) + '/disparadores';
+    var method = editId ? 'PUT' : 'POST';
+    var payload = Object.assign({}, body);
+    if (editId) delete payload.id;
+    Promise.resolve()
+      .then(function () {
+        return typeof window.asegurarClaveCatalogo === 'function'
+          ? window.asegurarClaveCatalogo()
+          : null;
+      })
+      .then(function () {
+        return window.apiFetchAuth(path, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      })
+      .then(function (data) {
+        var avisos = (data && data.avisos) || [];
+        setDispMsg(
+          'Guardado' + (avisos.length ? ' · ' + avisos.join('; ') : ''),
+          false
+        );
+        cerrarFormDisparador();
+        cargarFlujoDisparadores();
+      })
+      .catch(function (err) {
+        var raw = err && err.data ? err.data : null;
+        setDispMsg((raw && raw.error) || err.message || 'Error al guardar', true);
+        if (typeof window.showApiErrorRaw === 'function' && raw) window.showApiErrorRaw(raw);
+      });
+  }
+
+  function probarDisparadorForm() {
+    var f = st.flujoAbierto;
+    if (!f) return;
+    var body;
+    try {
+      body = leerFormDisparador();
+    } catch (e) {
+      setDispMsg(e.message || String(e), true);
+      return;
+    }
+    var out = document.getElementById('flujoDispProbarOut');
+    setDispMsg('Probando…', false);
+    if (out) {
+      out.hidden = false;
+      out.textContent = '…';
+    }
+    var path = st.flujoDispEditId
+      ? '/v1/disparadores/' + encodeURIComponent(st.flujoDispEditId) + '/probar'
+      : '/v1/flujos/' + encodeURIComponent(f.id) + '/disparadores/probar';
+    var payload = {
+      tipo: body.tipo,
+      coleccion: body.coleccion || null,
+      pipeline: body.pipeline || [],
+      disparador_id: st.flujoDispEditId || null
+    };
+    Promise.resolve()
+      .then(function () {
+        return typeof window.asegurarClaveCatalogo === 'function'
+          ? window.asegurarClaveCatalogo()
+          : null;
+      })
+      .then(function () {
+        return window.apiFetchAuth(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      })
+      .then(function (data) {
+        var n = data && data.habria_lanzado != null ? data.habria_lanzado : 0;
+        var lines = ['Habría lanzado ' + n + ' corridas.'];
+        if (data && data.nota) lines.push(String(data.nota));
+        if (data && data.error) lines.push('Error: ' + data.error);
+        if (data && data.eventos_probados != null) {
+          lines.push('Eventos probados: ' + data.eventos_probados);
+        }
+        if (data && data.muestra && data.muestra.length) {
+          lines.push('Muestra:');
+          lines.push(JSON.stringify(data.muestra, null, 2));
+        }
+        if (out) {
+          out.hidden = false;
+          out.textContent = lines.join('\n');
+        }
+        setDispMsg('Prueba lista (no se creó nada)', false);
+      })
+      .catch(function (err) {
+        var raw = err && err.data ? err.data : null;
+        setDispMsg((raw && raw.error) || err.message || 'Error al probar', true);
+        if (out) {
+          out.hidden = false;
+          out.textContent = JSON.stringify(raw || { error: err.message }, null, 2);
+        }
+      });
+  }
+
+  function toggleDisparadorActivo(d) {
+    if (!d || !d.id) return;
+    var path = d.activo
+      ? '/v1/disparadores/' + encodeURIComponent(d.id) + '/pausar'
+      : '/v1/disparadores/' + encodeURIComponent(d.id) + '/activar';
+    Promise.resolve()
+      .then(function () {
+        return typeof window.asegurarClaveCatalogo === 'function'
+          ? window.asegurarClaveCatalogo()
+          : null;
+      })
+      .then(function () {
+        return window.apiFetchAuth(path, { method: 'POST' });
+      })
+      .then(function () {
+        cargarFlujoDisparadores();
+      })
+      .catch(function (err) {
+        alert((err && err.message) || 'No se pudo cambiar el estado');
+      });
+  }
+
+  function borrarDisparador(d) {
+    if (!d || !d.id) return;
+    if (!window.confirm('¿Borrar disparador «' + d.id + '»?')) return;
+    Promise.resolve()
+      .then(function () {
+        return typeof window.asegurarClaveCatalogo === 'function'
+          ? window.asegurarClaveCatalogo()
+          : null;
+      })
+      .then(function () {
+        return window.apiFetchAuth('/v1/disparadores/' + encodeURIComponent(d.id), {
+          method: 'DELETE'
+        });
+      })
+      .then(function () {
+        if (st.flujoDispEditId === d.id) cerrarFormDisparador();
+        cargarFlujoDisparadores();
+      })
+      .catch(function (err) {
+        alert((err && err.message) || 'No se pudo borrar');
+      });
+  }
+
+  function lanzarManualDesdePanel() {
+    var f = st.flujoAbierto;
+    if (!f) return;
+    var manuals = (st.flujoDisparadores || []).filter(function (d) {
+      return d.tipo === 'manual' && d.activo;
+    });
+    var dispId = manuals.length ? manuals[0].id : '';
+    var negocio = window.prompt('Negocio para la corrida', 'pelo-sur');
+    if (!negocio) return;
+    negocio = String(negocio).trim();
+    if (!negocio) return;
+    var body = { flujo_id: f.id, negocio: negocio, datos_iniciales: {} };
+    if (dispId) body.disparador_id = dispId;
+    Promise.resolve()
+      .then(function () {
+        return typeof window.asegurarClaveCatalogo === 'function'
+          ? window.asegurarClaveCatalogo()
+          : null;
+      })
+      .then(function () {
+        return window.apiFetchAuth('/v1/corridas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      })
+      .then(function (data) {
+        var cid = data && data.corrida && data.corrida.id;
+        alert(cid ? 'Corrida creada: ' + cid : 'Corrida creada');
+        seleccionarFlujoTab('corridas');
+      })
+      .catch(function (err) {
+        var raw = err && err.data ? err.data : null;
+        alert((raw && raw.error) || err.message || 'No se pudo lanzar');
+      });
+  }
+
+  function cargarFlujoEventos() {
+    var f = st.flujoAbierto;
+    var estado = document.getElementById('flujoEventosEstado');
+    var wrap = document.getElementById('flujoEventosTablaWrap');
+    if (!f) return;
+    var token = ++st.flujoEventosToken;
+    if (estado) {
+      estado.hidden = false;
+      estado.textContent = 'Cargando eventos…';
+    }
+    if (wrap) wrap.hidden = true;
+    var proy = f.proyectoId || st.proyectoId || 'reservas';
+    fetch(
+      apiBase() + '/v1/eventos?proyecto=' + encodeURIComponent(proy) + '&limit=40',
+      { cache: 'no-store' }
+    )
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || (data && data.ok === false)) {
+            throw new Error((data && data.error) || 'HTTP ' + res.status);
+          }
+          return data;
+        });
+      })
+      .then(function (data) {
+        if (token !== st.flujoEventosToken) return;
+        var all = (data && data.eventos) || [];
+        var flujoId = f.id;
+        st.flujoEventos = all.filter(function (ev) {
+          if (ev.flujo_id && ev.flujo_id === flujoId) return true;
+          var resu = ev.resultado || [];
+          return resu.some(function (r) {
+            return (st.flujoDisparadores || []).some(function (d) {
+              return d.id === r.disparador_id;
+            });
+          });
+        });
+        // Si aún no hay lista de disparadores, mostrar todos del proyecto (mejor que vacío)
+        if (!st.flujoDisparadores.length && !st.flujoEventos.length) {
+          st.flujoEventos = all.slice(0, 40);
+        }
+        pintarTablaEventos();
+      })
+      .catch(function (err) {
+        if (token !== st.flujoEventosToken) return;
+        if (estado) {
+          estado.hidden = false;
+          estado.textContent = err.message || 'Error al cargar eventos';
+        }
+      });
+  }
+
+  function pintarTablaEventos() {
+    var estado = document.getElementById('flujoEventosEstado');
+    var wrap = document.getElementById('flujoEventosTablaWrap');
+    var body = document.getElementById('flujoEventosBody');
+    if (!body) return;
+    body.replaceChildren();
+    var list = st.flujoEventos || [];
+    if (!list.length) {
+      if (estado) {
+        estado.hidden = false;
+        estado.textContent = 'Sin eventos recientes.';
+      }
+      if (wrap) wrap.hidden = true;
+      return;
+    }
+    if (estado) estado.hidden = true;
+    if (wrap) wrap.hidden = false;
+    list.forEach(function (ev) {
+      var tr = document.createElement('tr');
+      function td(t) {
+        var c = document.createElement('td');
+        c.textContent = t;
+        return c;
+      }
+      tr.append(td(formatCuando(ev.creado)));
+      tr.append(td(ev.tipo || '—'));
+      var colDoc = (ev.coleccion || '—') + (ev.documento_id ? ' / ' + ev.documento_id : '');
+      tr.append(td(colDoc));
+      var resBits = (ev.resultado || []).map(function (r) {
+        if (r.lanzo) return r.disparador_id + ' → ' + (r.corrida_id || 'ok');
+        return r.disparador_id + ' · ' + (r.motivo || 'no');
+      });
+      tr.append(td(resBits.join('; ') || '—'));
+      body.append(tr);
+    });
+  }
+
   function abrirFlujo(id, version, opts) {
     var o = opts || {};
     var tabInicial = o.tab || 'resumen';
     st.flujoHistorial = false;
     st.flujoEdit = false;
+    st.flujoDispFormOpen = false;
+    st.flujoCorrSub = 'corridas';
     var dlg = document.getElementById('dlgFlujo');
     var qs = version != null ? '?version=' + encodeURIComponent(version) : '';
     fetch(apiBase() + '/v1/flujos/' + encodeURIComponent(id) + qs, { cache: 'no-store' })
@@ -1369,6 +1958,50 @@
       btnCorridas.addEventListener('click', function () {
         if (!st.flujoAbierto) return;
         seleccionarFlujoTab('corridas');
+      });
+    }
+
+    var corrSub = document.getElementById('flujoCorridasSubtabs');
+    if (corrSub) {
+      corrSub.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-flujo-corr-sub]');
+        if (!btn) return;
+        seleccionarFlujoCorrSub(btn.getAttribute('data-flujo-corr-sub'));
+      });
+    }
+    var btnAddDisp = document.getElementById('btnFlujoAddDisparador');
+    if (btnAddDisp) {
+      btnAddDisp.addEventListener('click', function () {
+        abrirFormDisparador(null);
+      });
+    }
+    var btnLanzar = document.getElementById('btnFlujoLanzarManual');
+    if (btnLanzar) {
+      btnLanzar.addEventListener('click', function () {
+        lanzarManualDesdePanel();
+      });
+    }
+    var tipoSel = document.getElementById('flujoDispTipo');
+    if (tipoSel) {
+      tipoSel.addEventListener('change', syncDispCamposPorTipo);
+    }
+    var btnDispGuardar = document.getElementById('btnFlujoDispGuardar');
+    if (btnDispGuardar) btnDispGuardar.addEventListener('click', guardarDisparadorForm);
+    var btnDispCancel = document.getElementById('btnFlujoDispCancelar');
+    if (btnDispCancel) btnDispCancel.addEventListener('click', cerrarFormDisparador);
+    var btnDispProbar = document.getElementById('btnFlujoDispProbar');
+    if (btnDispProbar) btnDispProbar.addEventListener('click', probarDisparadorForm);
+    var btnCopyUrl = document.getElementById('btnFlujoDispCopiarUrl');
+    if (btnCopyUrl) {
+      btnCopyUrl.addEventListener('click', function () {
+        var urlEl = document.getElementById('flujoDispWebhookUrl');
+        var url = urlEl ? urlEl.textContent : '';
+        if (!url || url === '—') return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url);
+        } else {
+          window.prompt('Copia la URL', url);
+        }
       });
     }
 
