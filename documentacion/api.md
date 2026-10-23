@@ -473,6 +473,19 @@ POST {API_BASE}/v1/disparadores/:id/probar   Authorization: Bearer inv_…
 
 UI: ficha Flujo → pestaña **Disparadores** (entre Versiones y Corridas) + subpestaña **Eventos** dentro de Corridas.
 
+**Redactor** (skill `generar-definicion`, ejecutor modelo desde la API):
+
+```
+POST {API_BASE}/v1/redactor   Authorization: Bearer inv_…
+     { intencion, tipo_definicion: "disparador"|"flujo"|"pipeline", definicion_actual?, origen? }
+     → { ok, definicion, explicacion, validacion: { ok, errores[], avisos[] }, modo: "openai"|"mock", ejecucion_id }
+GET  {API_BASE}/v1/skills/generar-definicion/ejecuciones?limit=20
+```
+
+Sin secret `OPENAI_API_KEY` responde **mock** heurístico + validación (no bloquea). Con clave: OpenAI (`OPENAI_MODEL`, default `gpt-4o-mini`). La IA **nunca guarda sola**: Generar → Probar → Guardar (UI desactiva Guardar si `validacion.errores` no está vacío). Cada uso se registra en D1 `skill_ejecuciones`.
+
+UI: bloque Redactor en el formulario de disparador y en el editor de flujo (lápiz).
+
 **Corridas** (Mongo colección `corridas` en la BD del proyecto; índice liviano en D1):
 
 ```

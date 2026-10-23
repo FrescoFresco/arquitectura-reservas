@@ -213,6 +213,21 @@ export const API_DOCS_INDEX = {
     },
     {
       method: 'POST',
+      path: '/v1/redactor',
+      auth: true,
+      body: ['intencion', 'tipo_definicion', 'definicion_actual?', 'origen?'],
+      summary:
+        'Redactor: intención → definición (skill generar-definicion); mock si no hay OPENAI_API_KEY',
+    },
+    {
+      method: 'GET',
+      path: '/v1/skills/:id/ejecuciones',
+      auth: false,
+      query: ['limit?'],
+      summary: 'Historial de ejecuciones hub (D1 skill_ejecuciones; p. ej. generar-definicion)',
+    },
+    {
+      method: 'POST',
       path: '/v1/disparar/:flujo/:token',
       auth: false,
       summary: 'Webhook disparador (404 si token/pausado; 202 evento_id+corridas)',

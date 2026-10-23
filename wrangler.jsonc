@@ -13,8 +13,11 @@
   //   ENCRYPTION_KEY — AES key material for Cluster Mongo URI in D1 (Cluster → Conexión)
   //   MONGODB_URI    — ops-only; not a product Ajustes / global fallback
   //   MONGODB_DB     — optional default software_reservas
+  //   OPENAI_API_KEY — Redactor / skill generar-definicion (optional; mock if absent)
+  //   OPENAI_MODEL   — optional (default gpt-4o-mini)
   //   npx wrangler secret put ENCRYPTION_KEY
   //   npx wrangler secret put MONGODB_URI
+  //   npx wrangler secret put OPENAI_API_KEY
   "vars": {
     "PUBLIC_UI_ORIGIN": "https://campos-ancla.web-legal-es.workers.dev",
     "CORS_ORIGINS": "https://frescofresco.github.io"
