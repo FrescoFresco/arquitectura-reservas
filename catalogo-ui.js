@@ -201,6 +201,214 @@ function apiFetchAuth(path, opts) {
   return apiFetch(path, init);
 }
 
+/** Rutas PUT color-only por tipo de entidad de catálogo. */
+var COLOR_ENTIDAD_PATHS = {
+  skill: '/v1/skills/',
+  ancla: '/v1/anclas/',
+  mongo: '/v1/mongo/',
+  cluster: '/v1/clusters/',
+  proyecto: '/v1/proyectos/',
+  'system-prompt': '/v1/system-prompts/',
+  fundamento: '/v1/fundamentos/',
+  agente: '/v1/agentes/',
+  flujo: '/v1/flujos/'
+};
+
+function coloresUsadosCatalogo(kind, excludeId) {
+  const out = [];
+  function push(c) {
+    if (c && typeof c === 'string') out.push(c);
+  }
+  if (kind === 'skill') {
+    (state.instrucciones || []).forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'ancla') {
+    ((state.campos && state.campos.lista) || []).forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'mongo') {
+    ((state.mongo && state.mongo.lista) || []).forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'cluster') {
+    ((state.clusters && state.clusters.lista) || []).forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'proyecto') {
+    ((state.proyectos && state.proyectos.lista) || []).forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'system-prompt') {
+    ((state.systemPrompts && state.systemPrompts.lista) || []).forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'fundamento') {
+    ((state.fundamentos && state.fundamentos.lista) || []).forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'agente') {
+    ((state.agentes && state.agentes.lista) || []).forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'flujo') {
+    var flujosLista =
+      (state.flujos && state.flujos.lista) ||
+      (window.FlujosCorridasUI && window.FlujosCorridasUI.flujos) ||
+      (window.FlujosCorridasUI && window.FlujosCorridasUI.state && window.FlujosCorridasUI.state.flujos) ||
+      [];
+    flujosLista.forEach(function (x) {
+      if (x.id !== excludeId) push(x.color);
+    });
+  } else if (kind === 'coleccion') {
+    ((state.colecciones && state.colecciones.lista) || []).forEach(function (x) {
+      if (x.key !== excludeId && x.id !== excludeId) push(x.color);
+    });
+  }
+  return out;
+}
+
+function aplicarColorLocal(kind, id, color) {
+  function setOn(list, key) {
+    if (!list) return;
+    list.forEach(function (x) {
+      if (x[key] === id) x.color = color;
+    });
+  }
+  if (kind === 'skill') setOn(state.instrucciones, 'id');
+  else if (kind === 'ancla') setOn(state.campos && state.campos.lista, 'id');
+  else if (kind === 'mongo') setOn(state.mongo && state.mongo.lista, 'id');
+  else if (kind === 'cluster') setOn(state.clusters && state.clusters.lista, 'id');
+  else if (kind === 'proyecto') setOn(state.proyectos && state.proyectos.lista, 'id');
+  else if (kind === 'system-prompt') setOn(state.systemPrompts && state.systemPrompts.lista, 'id');
+  else if (kind === 'fundamento') setOn(state.fundamentos && state.fundamentos.lista, 'id');
+  else if (kind === 'agente') setOn(state.agentes && state.agentes.lista, 'id');
+  else if (kind === 'flujo') setOn(state.flujos && state.flujos.lista, 'id');
+  else if (kind === 'coleccion') {
+    ((state.colecciones && state.colecciones.lista) || []).forEach(function (x) {
+      if (x.key === id || x.id === id) x.color = color;
+    });
+    ((state.proyectos && state.proyectos.lista) || []).forEach(function (proy) {
+      (proy.colecciones || []).forEach(function (c) {
+        const key = (typeof claveColeccion === 'function')
+          ? claveColeccion(proy.id, c.id)
+          : (proy.id + '/' + c.id);
+        if (key === id || c.id === id) c.color = color;
+      });
+    });
+  }
+}
+
+function guardarColorEntidad(kind, id, color) {
+  if (kind === 'coleccion') {
+    // Persist in proyecto.colecciones JSON (id = "proyectoId/coleccionId" o key).
+    const parts = String(id).split('/');
+    const proyId = parts[0];
+    const colId = parts.slice(1).join('/') || parts[1];
+    const proy = ((state.proyectos && state.proyectos.lista) || []).find(function (p) {
+      return p.id === proyId;
+    });
+    if (!proy) return Promise.reject(new Error('Base de datos no encontrada.'));
+    const cols = (proy.colecciones || []).map(function (c) {
+      const o = { id: c.id, descripcion: c.descripcion || '' };
+      if (c.id === colId) o.color = color;
+      else if (Object.prototype.hasOwnProperty.call(c, 'color')) o.color = c.color;
+      return o;
+    });
+    return asegurarClaveCatalogo().then(function () {
+      return apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proyId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ colecciones: cols })
+      });
+    }).then(function (data) {
+      aplicarColorLocal(kind, id, color);
+      if (data && data.proyecto) {
+        const idx = (state.proyectos.lista || []).findIndex(function (p) { return p.id === proyId; });
+        if (idx >= 0) state.proyectos.lista[idx] = Object.assign({}, state.proyectos.lista[idx], data.proyecto);
+      }
+      return data;
+    });
+  }
+  const base = COLOR_ENTIDAD_PATHS[kind];
+  if (!base) return Promise.reject(new Error('Tipo de color desconocido.'));
+  return asegurarClaveCatalogo().then(function () {
+    return apiFetchAuth(base + encodeURIComponent(id), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ color: color })
+    });
+  }).then(function (data) {
+    aplicarColorLocal(kind, id, color);
+    return data;
+  });
+}
+
+/**
+ * Cablea el tile del header de ficha como picker de color.
+ * iconSel: selector CSS dentro de dlg, o elemento.
+ */
+function cablearColorFicha(dlgOrEl, opts) {
+  opts = opts || {};
+  if (!window.ColorEntidad) return;
+  let icon = null;
+  if (typeof dlgOrEl === 'string') icon = document.querySelector(dlgOrEl);
+  else if (dlgOrEl && dlgOrEl.querySelector) {
+    icon = dlgOrEl.querySelector('.ficha-titulo-icon') || dlgOrEl;
+  } else {
+    icon = dlgOrEl;
+  }
+  if (!icon) return;
+  const kind = opts.kind;
+  const id = opts.id;
+  window.ColorEntidad.bindFichaIcon(icon, {
+    iconKind: opts.iconKind || kind || 'skill',
+    getColor: function () {
+      if (typeof opts.getColor === 'function') return opts.getColor();
+      return opts.color || null;
+    },
+    getUsados: function () {
+      if (typeof opts.getUsados === 'function') return opts.getUsados();
+      return coloresUsadosCatalogo(kind, id);
+    },
+    onSave: function (hex) {
+      opts.color = hex;
+      guardarColorEntidad(kind, id, hex).then(function () {
+        if (typeof opts.onSaved === 'function') opts.onSaved(hex);
+        // Refrescar listados React / DOM
+        try {
+          if (kind === 'skill' && typeof pintarSkills === 'function') pintarSkills();
+          else if (kind === 'ancla' && window.CamposAnclaUI && typeof window.CamposAnclaUI.refrescar === 'function' && typeof camposBridge === 'function') {
+            window.CamposAnclaUI.refrescar(camposBridge());
+          } else if (kind === 'mongo' && window.CamposMongoUI && typeof window.CamposMongoUI.refrescar === 'function' && typeof mongoBridge === 'function') {
+            window.CamposMongoUI.refrescar(mongoBridge());
+          } else if (kind === 'agente' && typeof pintarAgentes === 'function') pintarAgentes();
+          else if (kind === 'cluster' && window.ClustersUI && typeof window.ClustersUI.refrescar === 'function') {
+            window.ClustersUI.refrescar();
+          } else if (kind === 'proyecto' && window.ProyectosUI && typeof window.ProyectosUI.refrescar === 'function') {
+            window.ProyectosUI.refrescar();
+          } else if (kind === 'coleccion' && window.ColeccionesUI && typeof window.ColeccionesUI.refrescar === 'function') {
+            window.ColeccionesUI.refrescar();
+          } else if (kind === 'fundamento' && window.FundamentosUI && typeof window.FundamentosUI.refrescar === 'function') {
+            window.FundamentosUI.refrescar();
+          } else if (kind === 'system-prompt' && window.SystemPromptsUI && typeof window.SystemPromptsUI.refrescar === 'function') {
+            window.SystemPromptsUI.refrescar();
+          } else if (kind === 'flujo' && typeof pintarFlujosProyecto === 'function') {
+            pintarFlujosProyecto();
+          }
+        } catch (e) {}
+      }).catch(function (err) {
+        console.error(err);
+        alert((err && err.message) || 'No se pudo guardar el color.');
+      });
+    }
+  });
+}
+
+window.guardarColorEntidad = guardarColorEntidad;
+window.coloresUsadosCatalogo = coloresUsadosCatalogo;
+window.cablearColorFicha = cablearColorFicha;
+
 function asegurarClaveCatalogo() {
   const existing = claveCatalogoEscritura();
   if (existing) return Promise.resolve(existing);
@@ -523,6 +731,11 @@ function normalizeInstruccion(item, versionFn) {
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
     out.descripcion = item.descripcion.trim().slice(0, 280);
   }
+  if (Object.prototype.hasOwnProperty.call(item, 'color')) {
+    const c = item.color;
+    if (c == null || c === '') out.color = null;
+    else if (typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c.trim())) out.color = c.trim().toLowerCase();
+  }
   const entradas = normalizarAnclas(item.entradas);
   const salidas = normalizarAnclas(item.salidas);
   let anclas = normalizarAnclas(item.anclas);
@@ -596,8 +809,18 @@ function copiaVersion(v) {
   return o;
 }
 
+function attachEntityColor(out, item) {
+  if (!out || !item || typeof item !== 'object') return out;
+  if (!Object.prototype.hasOwnProperty.call(item, 'color')) return out;
+  const c = item.color;
+  if (c == null || c === '') out.color = null;
+  else if (typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c.trim())) out.color = c.trim().toLowerCase();
+  return out;
+}
+
 function conMetaSkill(destino, fuente) {
   if (fuente.descripcion) destino.descripcion = fuente.descripcion;
+  if (Object.prototype.hasOwnProperty.call(fuente, 'color')) destino.color = fuente.color;
   if (fuente.entradas) destino.entradas = fuente.entradas.slice();
   if (fuente.salidas) destino.salidas = fuente.salidas.slice();
   if (fuente.anclas && fuente.anclas.length) destino.anclas = fuente.anclas.slice();
@@ -642,6 +865,7 @@ function filaCatalogoAnclaDom(campo, onAbrir) {
   btn.setAttribute('aria-label', 'Abrir ' + titulo);
   const icon = el('span', 'catalogo-fila-icon', null);
   icon.setAttribute('aria-hidden', 'true');
+  if (window.ColorEntidad) window.ColorEntidad.applyToEl(icon, campo.color);
   if (typeof window.svgPestanaCatalogo === 'function') {
     const svg = window.svgPestanaCatalogo('ancla');
     svg.setAttribute('class', 'catalogo-fila-svg');
@@ -1330,6 +1554,7 @@ function normalizeCampo(item) {
   };
   const hash = normalizarHash(item.hash);
   out.hash = hash || hashFnvHex(payloadHashAncla(out));
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -1531,6 +1756,7 @@ function normalizeMongoCampo(item) {
   };
   const hash = normalizarHash(item.hash);
   out.hash = hash || hashFnvHex(payloadHashMongo(out));
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -1668,6 +1894,20 @@ function extrasFichaMongo(campo) {
         id: campo.id,
         titulo: '¿Estás seguro de eliminar el campo MongoDB?',
         aviso: 'Se elimina del catálogo en la API (D1). Esta acción no se puede deshacer desde el panel.'
+      });
+    };
+    extras.getUsadosColor = function () { return coloresUsadosCatalogo('mongo', campo.id); };
+    extras.onColor = function (hex) {
+      guardarColorEntidad('mongo', campo.id, hex).then(function () {
+        campo.color = hex;
+        if (window.CamposMongoUI && typeof window.CamposMongoUI.refrescar === 'function') {
+          window.CamposMongoUI.refrescar(mongoBridge());
+        }
+        if (window.CamposMongoUI && typeof window.CamposMongoUI.mostrarFicha === 'function') {
+          window.CamposMongoUI.mostrarFicha(campo, cerrarFichaMongo, null, extrasFichaMongo(campo));
+        }
+      }).catch(function (err) {
+        alert((err && err.message) || 'No se pudo guardar el color.');
       });
     };
   }
@@ -2195,6 +2435,20 @@ function extrasFichaAncla(campo) {
         aviso: 'Se elimina del catálogo en la API (D1). Esta acción no se puede deshacer desde el panel.'
       });
     };
+    extras.getUsadosColor = function () { return coloresUsadosCatalogo('ancla', campo.id); };
+    extras.onColor = function (hex) {
+      guardarColorEntidad('ancla', campo.id, hex).then(function () {
+        campo.color = hex;
+        if (window.CamposAnclaUI && typeof window.CamposAnclaUI.refrescar === 'function') {
+          window.CamposAnclaUI.refrescar(camposBridge());
+        }
+        if (window.CamposAnclaUI && typeof window.CamposAnclaUI.mostrarFicha === 'function') {
+          window.CamposAnclaUI.mostrarFicha(campo, cerrarFichaCampo, null, extrasFichaAncla(campo));
+        }
+      }).catch(function (err) {
+        alert((err && err.message) || 'No se pudo guardar el color.');
+      });
+    };
   }
   return extras;
 }
@@ -2671,6 +2925,13 @@ function renderReader() {
   if (window.SystemPromptsCatalog) {
     window.SystemPromptsCatalog.pintarSkillSystemPromptsTab(ins);
   }
+  cablearColorFicha(dlg, {
+    kind: 'skill',
+    id: ins.id,
+    iconKind: 'skill',
+    getColor: function () { return ins.color; },
+    onSaved: function (hex) { ins.color = hex; }
+  });
   openFichaPane(dlg);
   const nombre = document.getElementById('readerNombre');
   if (nombre) nombre.focus();
@@ -4394,10 +4655,12 @@ function normalizarColeccionesProyecto(list) {
     const id = typeof c.id === 'string' ? c.id.trim() : '';
     if (!id || seen.has(id)) return;
     seen.add(id);
-    out.push({
+    const row = {
       id: id,
       descripcion: typeof c.descripcion === 'string' ? c.descripcion.trim() : ''
-    });
+    };
+    attachEntityColor(row, c);
+    out.push(row);
   });
   return out;
 }
@@ -4426,6 +4689,7 @@ function normalizeProyecto(item, versionFn) {
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
     out.descripcion = item.descripcion.trim().slice(0, 280);
   }
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -4845,6 +5109,13 @@ function renderProyectoReader() {
   seleccionarProyReaderTab('resumen');
   pintarVersionProyecto(v);
   renderHistorialProyecto(proy, v);
+  cablearColorFicha(dlg, {
+    kind: 'proyecto',
+    id: proy.id,
+    iconKind: 'proyecto',
+    getColor: function () { return proy.color; },
+    onSaved: function (hex) { proy.color = hex; }
+  });
   openFichaPane(dlg);
   const nombre = document.getElementById('proyReaderNombre');
   if (nombre) nombre.focus();
@@ -5546,7 +5817,7 @@ function normalizeCluster(item) {
   if (!item || typeof item !== 'object') return null;
   if (typeof item.id !== 'string' || !item.id.trim()) return null;
   if (typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
-  return {
+  const out = {
     id: item.id.trim(),
     nombre: item.nombre.trim(),
     descripcion: typeof item.descripcion === 'string' ? item.descripcion.trim().slice(0, 280) : '',
@@ -5554,6 +5825,8 @@ function normalizeCluster(item) {
     proyectos: Array.isArray(item.proyectos) ? item.proyectos : [],
     nProyectos: Array.isArray(item.proyectos) ? item.proyectos.length : 0
   };
+  attachEntityColor(out, item);
+  return out;
 }
 
 function normalizeClustersIndice(data) {
@@ -5761,6 +6034,13 @@ function renderClusterReader() {
   }
   pintarClusterResumenConexion(cl);
   seleccionarClusterReaderTab(state.clusters.tab || 'resumen');
+  cablearColorFicha(dlg, {
+    kind: 'cluster',
+    id: cl.id,
+    iconKind: 'cluster',
+    getColor: function () { return cl.color; },
+    onSaved: function (hex) { cl.color = hex; }
+  });
   openFichaPane(dlg);
   if (nombre) nombre.focus();
 }
@@ -6221,6 +6501,7 @@ function filaSeleccionCatalogo(opts) {
 
   const icon = el('span', 'catalogo-fila-icon', null);
   icon.setAttribute('aria-hidden', 'true');
+  if (window.ColorEntidad && opts.color) window.ColorEntidad.applyToEl(icon, opts.color);
   if (opts.icono && typeof svgPestanaCatalogo === 'function') {
     const svg = svgPestanaCatalogo(opts.icono);
     svg.setAttribute('class', 'catalogo-fila-svg');
@@ -7111,7 +7392,16 @@ function abrirFichaColeccion(key, opts) {
   state.colecciones.volverA = volverA;
   state.colecciones.tab = 'resumen';
   renderColeccionReader(col);
-  openFichaPane(document.getElementById('dlgColeccion'));
+  const dlgCol = document.getElementById('dlgColeccion');
+  cablearColorFicha(dlgCol, {
+    kind: 'coleccion',
+    id: col.key,
+    iconKind: 'coleccion',
+    getColor: function () { return col.color; },
+    getUsados: function () { return coloresUsadosCatalogo('coleccion', col.key); },
+    onSaved: function (hex) { col.color = hex; }
+  });
+  openFichaPane(dlgCol);
   const focus = document.getElementById('colReaderNombre');
   if (focus) focus.focus();
   pintarColecciones();
@@ -7482,6 +7772,7 @@ function normalizeAgente(item) {
   }
   const hash = normalizarHash(item.hash);
   out.hash = hash || hashFnvHex(out.id + '|' + out.nombre + '|' + out.inviteUsada);
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -8551,10 +8842,20 @@ function renderAgenteReader() {
       avatar.append(img);
     } else {
       avatar.textContent = String(ag.nombre).trim().charAt(0).toUpperCase() || '?';
+      if (window.ColorEntidad) window.ColorEntidad.applyToEl(avatar, ag.color);
     }
   }
   iconizarPestanasFicha(dlg);
   seleccionarAgenteReaderTab('resumen');
+  if (avatar && !ag.foto) {
+    cablearColorFicha(avatar, {
+      kind: 'agente',
+      id: ag.id,
+      iconKind: 'agente',
+      getColor: function () { return ag.color; },
+      onSaved: function (hex) { ag.color = hex; }
+    });
+  }
   openFichaPane(dlg);
   const nombre = document.getElementById('agenteReaderNombre');
   if (nombre) nombre.focus();
@@ -8709,6 +9010,7 @@ function normalizeFundamento(item, versionFn) {
   if (typeof item.descripcion === 'string' && item.descripcion.trim()) {
     out.descripcion = item.descripcion.trim().slice(0, 280);
   }
+  attachEntityColor(out, item);
   return out;
 }
 
@@ -8995,6 +9297,13 @@ function renderFundamentoReader() {
   seleccionarFundReaderTab('documento');
   renderHistorialFund(f, v);
   pintarVersionFundamento(v);
+  cablearColorFicha(dlg, {
+    kind: 'fundamento',
+    id: f.id,
+    iconKind: 'fundamento',
+    getColor: function () { return f.color; },
+    onSaved: function (hex) { f.color = hex; }
+  });
   openFichaPane(dlg);
   const nombre = document.getElementById('fundReaderNombre');
   if (nombre) nombre.focus();

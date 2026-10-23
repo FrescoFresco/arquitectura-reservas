@@ -449,7 +449,27 @@
     var skills = Array.isArray(c.skills) ? c.skills : [];
     return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo ancla' },
       e('div', { className: 'ancla-ficha-header' },
-        e('span', { className: 'ficha-titulo-icon', 'aria-hidden': 'true' }, e(IconoAncla)),
+        e('button', {
+          type: 'button',
+          className: 'ficha-titulo-icon ficha-titulo-icon-color',
+          'aria-label': 'Color',
+          title: 'Color',
+          style: (typeof window !== 'undefined' && window.ColorEntidad)
+            ? window.ColorEntidad.reactStyle(c.color)
+            : undefined,
+          onClick: function (ev) {
+            if (!window.ColorEntidad) return;
+            window.ColorEntidad.openPicker({
+              anchor: ev.currentTarget,
+              color: c.color,
+              usados: typeof props.getUsadosColor === 'function' ? props.getUsadosColor() : [],
+              iconKind: 'ancla',
+              onChange: function (hex) {
+                if (typeof props.onColor === 'function') props.onColor(hex);
+              }
+            });
+          }
+        }, e(IconoAncla)),
         e('div', { className: 'ancla-ficha-header-text' },
           e('h3', { className: 'ancla-ficha-titulo' }, c.etiqueta || 'Campo ancla'),
           e('code', { className: 'ancla-ficha-codigo' }, c.ancla)
@@ -531,7 +551,13 @@
       'aria-label': 'Abrir ' + titulo,
       onClick: function () { props.onAbrir(c.id); }
     },
-      e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoAncla)),
+      e('span', {
+        className: 'catalogo-fila-icon',
+        'aria-hidden': 'true',
+        style: (typeof window !== 'undefined' && window.ColorEntidad)
+          ? window.ColorEntidad.reactStyle(c.color)
+          : undefined
+      }, e(IconoAncla)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, titulo),
         e('code', { className: 'catalogo-fila-codigo' }, c.ancla)
@@ -614,6 +640,8 @@
       onCerrar: onCerrar,
       onEditar: opts.onEditar || null,
       onEliminar: opts.onEliminar || null,
+      onColor: opts.onColor || null,
+      getUsadosColor: opts.getUsadosColor || null,
       mongo: opts.mongo || null,
       onAbrirCampo: opts.onAbrirCampo || null,
       nombresSkill: opts.nombresSkill || {},

@@ -114,6 +114,7 @@
     var icon = document.createElement('span');
     icon.className = 'catalogo-fila-icon';
     icon.setAttribute('aria-hidden', 'true');
+    if (window.ColorEntidad) window.ColorEntidad.applyToEl(icon, f.color);
     if (typeof window.svgPestanaCatalogo === 'function') {
       var svg = window.svgPestanaCatalogo('flujo');
       if (svg) {
@@ -284,6 +285,25 @@
     if (onDoc) pintarFlujoDocumento();
     var onVer = document.querySelector('#flujoReaderTabs [data-flujo-tab="versiones"].is-on');
     if (onVer) pintarFlujoVersionesTab();
+    var dlg = document.getElementById('dlgFlujo');
+    if (dlg && typeof window.cablearColorFicha === 'function') {
+      window.cablearColorFicha(dlg, {
+        kind: 'flujo',
+        id: f.id,
+        iconKind: 'flujo',
+        getColor: function () { return f.color; },
+        getUsados: function () {
+          return typeof window.coloresUsadosCatalogo === 'function'
+            ? window.coloresUsadosCatalogo('flujo', f.id)
+            : [];
+        },
+        onSaved: function (hex) {
+          f.color = hex;
+          if (st.flujoAbierto) st.flujoAbierto.color = hex;
+          pintarListaFlujos();
+        }
+      });
+    }
   }
 
   function pintarFlujoDocumento() {
@@ -1086,7 +1106,8 @@
     abrirFlujo: abrirFlujo,
     abrirCorrida: abrirCorrida,
     wire: wire,
-    state: st
+    state: st,
+    get flujos() { return st.flujos || []; }
   };
 
   if (document.readyState === 'loading') {

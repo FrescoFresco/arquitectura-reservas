@@ -42,6 +42,12 @@ import {
   type MongoConfigMeta,
 } from './mongo-config';
 import {
+  bodyHasColor,
+  colorFromRow,
+  isColorOnlyBody,
+  parseEntityColor,
+} from './entity-color';
+import {
   buildDiagrama,
   buildJsonSchemaForCollection,
   parseColecciones,
@@ -381,7 +387,7 @@ app.use('/v1/*', async (c, next) => {
 /** Public catalog reads — no auth. */
 app.get('/v1/skills', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM skills ORDER BY nombre'
+    'SELECT id, nombre, descripcion, hash, color, created_at, updated_at FROM skills ORDER BY nombre'
   ).all();
   const out = [];
   for (const row of rows.results || []) {
@@ -393,7 +399,7 @@ app.get('/v1/skills', async (c) => {
 app.get('/v1/skills/:id', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM skills WHERE id = ?'
+    'SELECT id, nombre, descripcion, hash, color, created_at, updated_at FROM skills WHERE id = ?'
   )
     .bind(id)
     .first();
@@ -657,7 +663,7 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
 /** Flujos versionados (D1). */
 app.get('/v1/flujos', async (c) => {
   const proyecto = String(c.req.query('proyecto') || c.req.query('proyecto_id') || '').trim();
-  let sql = 'SELECT id, nombre, descripcion, proyecto_id, hash, created_at, updated_at FROM flujos';
+  let sql = 'SELECT id, nombre, descripcion, proyecto_id, hash, color, created_at, updated_at FROM flujos';
   const binds: string[] = [];
   if (proyecto) {
     sql += ' WHERE proyecto_id = ?';
@@ -749,17 +755,28 @@ app.post('/v1/flujos', async (c) => {
 app.put('/v1/flujos/:id', async (c) => {
   const id = c.req.param('id');
   const meta = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, proyecto_id FROM flujos WHERE id = ?'
+    'SELECT id, nombre, descripcion, proyecto_id, color FROM flujos WHERE id = ?'
   )
     .bind(id)
-    .first<{ id: string; nombre: string; descripcion: string; proyecto_id: string }>();
+    .first<{ id: string; nombre: string; descripcion: string; proyecto_id: string; color: string | null }>();
   if (!meta) return jsonError(c, 404, 'Flujo no encontrado.');
-  const body = (await c.req.json().catch(() => ({}))) as {
-    nombre?: string;
-    descripcion?: string;
-    nodos?: unknown;
-    aristas?: unknown;
-  };
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE flujos SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    const flujo = await loadFlujoVersion(c.env.DB, id);
+    const versiones = await listFlujoVersions(c.env.DB, id);
+    return c.json({
+      ok: true,
+      flujo: flujo
+        ? { ...flujo, mermaid: flujoToMermaid(flujo.nodos, flujo.aristas), versiones }
+        : null,
+    });
+  }
   const nodos = parseNodos(body.nodos);
   const aristas = parseAristas(body.aristas);
   if (!nodos.length) return jsonError(c, 400, 'Falta nodos[].');
@@ -775,10 +792,16 @@ app.put('/v1/flujos/:id', async (c) => {
   const numero = (max?.m || 0) + 1;
   const ts = nowIso();
   const hash = `flujo-${id}-v${numero}`;
+  let colorVal: string | null = meta.color || null;
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
   await c.env.DB.prepare(
-    `UPDATE flujos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?`
+    `UPDATE flujos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?, color = ? WHERE id = ?`
   )
-    .bind(nombre, descripcion, hash, ts, id)
+    .bind(nombre, descripcion, hash, ts, colorVal, id)
     .run();
   await c.env.DB.prepare(
     `INSERT INTO flujo_versions (flujo_id, numero, fecha, nodos_json, aristas_json, hash)
@@ -1260,7 +1283,7 @@ app.get('/v1/mongo/:id', async (c) => {
 app.get('/v1/proyectos', async (c) => {
   // Batch hydrate versions + skills to keep list GETs under D1 statement pressure.
   const rows = await c.env.DB.prepare(
-    `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+    `SELECT id, nombre, descripcion, hash, color, created_at, updated_at,
             base_datos, colecciones, relaciones, agentes_json, legacy_negocio, cluster_id
      FROM proyectos ORDER BY nombre`
   ).all();
@@ -1410,7 +1433,7 @@ app.get('/v1/proyectos/:id/mongo-config', async (c) => {
 
 app.get('/v1/clusters', async (c) => {
   const rows = await c.env.DB.prepare(
-    `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+    `SELECT id, nombre, descripcion, hash, color, created_at, updated_at,
       auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
      FROM clusters ORDER BY nombre`
   ).all();
@@ -1462,7 +1485,7 @@ app.get('/v1/clusters/:id/mongo-config', async (c) => {
 
 app.get('/v1/clusters/:id', async (c) => {
   const row = await c.env.DB.prepare(
-    `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+    `SELECT id, nombre, descripcion, hash, color, created_at, updated_at,
       auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
      FROM clusters WHERE id = ?`
   )
@@ -1482,7 +1505,7 @@ app.get('/v1/proyectos/:id', async (c) => {
 
 app.get('/v1/system-prompts', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM system_prompts ORDER BY nombre'
+    'SELECT id, nombre, descripcion, hash, color, created_at, updated_at FROM system_prompts ORDER BY nombre'
   ).all();
   const out = [];
   for (const row of rows.results || []) {
@@ -1493,7 +1516,7 @@ app.get('/v1/system-prompts', async (c) => {
 
 app.get('/v1/system-prompts/:id', async (c) => {
   const row = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM system_prompts WHERE id = ?'
+    'SELECT id, nombre, descripcion, hash, color, created_at, updated_at FROM system_prompts WHERE id = ?'
   )
     .bind(c.req.param('id'))
     .first();
@@ -1506,7 +1529,7 @@ app.get('/v1/system-prompts/:id', async (c) => {
 
 app.get('/v1/fundamentos', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM fundamentos ORDER BY nombre'
+    'SELECT id, nombre, descripcion, hash, color, created_at, updated_at FROM fundamentos ORDER BY nombre'
   ).all();
   const out = [];
   for (const row of rows.results || []) {
@@ -1517,7 +1540,7 @@ app.get('/v1/fundamentos', async (c) => {
 
 app.get('/v1/fundamentos/:id', async (c) => {
   const row = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM fundamentos WHERE id = ?'
+    'SELECT id, nombre, descripcion, hash, color, created_at, updated_at FROM fundamentos WHERE id = ?'
   )
     .bind(c.req.param('id'))
     .first();
@@ -1527,7 +1550,7 @@ app.get('/v1/fundamentos/:id', async (c) => {
 
 app.get('/v1/agentes', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, nombre, foto, descripcion, invite_usada, last_seen, hash, proyectos, lee, escribe FROM agentes ORDER BY nombre'
+    'SELECT id, nombre, foto, descripcion, invite_usada, last_seen, hash, color, proyectos, lee, escribe FROM agentes ORDER BY nombre'
   ).all();
   return c.json({
     ok: true,
@@ -1637,16 +1660,19 @@ app.delete('/v1/agentes/:id', async (c) => {
 
 app.put('/v1/agentes/:id', async (c) => {
   const id = c.req.param('id');
-  const body = (await c.req.json().catch(() => ({}))) as {
-    nombre?: string;
-    foto?: string;
-    descripcion?: string;
-    proyectos?: string[];
-    lee?: string[];
-    escribe?: string[];
-  };
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
   const ag = await c.env.DB.prepare('SELECT * FROM agentes WHERE id = ?').bind(id).first();
   if (!ag) return jsonError(c, 404, 'Agente no encontrado.');
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE agentes SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    const row = await c.env.DB.prepare('SELECT * FROM agentes WHERE id = ?').bind(id).first();
+    return c.json({ ok: true, agente: mapAgente(row as Record<string, unknown>) });
+  }
   const nombre = String(body.nombre ?? (ag as { nombre: string }).nombre).trim();
   const foto = String(body.foto ?? ((ag as { foto: string }).foto || '')).trim();
   const descripcion = String(body.descripcion ?? ((ag as { descripcion: string }).descripcion || ''))
@@ -1661,11 +1687,17 @@ app.put('/v1/agentes/:id', async (c) => {
     body.escribe != null
       ? parseStringList(body.escribe)
       : parseStringList((ag as { escribe?: string }).escribe);
+  let colorVal: string | null = colorFromRow(ag as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
   const ts = nowIso();
   const hash = await sha256Hex(id + '|' + nombre + '|' + ((ag as { invite_usada: string }).invite_usada || ''));
   await c.env.DB.prepare(
     `UPDATE agentes SET nombre = ?, foto = ?, descripcion = ?, hash = ?, updated_at = ?,
-     proyectos = ?, lee = ?, escribe = ? WHERE id = ?`
+     proyectos = ?, lee = ?, escribe = ?, color = ? WHERE id = ?`
   )
     .bind(
       nombre,
@@ -1676,6 +1708,7 @@ app.put('/v1/agentes/:id', async (c) => {
       JSON.stringify(proyectos),
       JSON.stringify(lee),
       JSON.stringify(escribe),
+      colorVal,
       id
     )
     .run();
@@ -1684,6 +1717,7 @@ app.put('/v1/agentes/:id', async (c) => {
     id,
     nombre,
     foto,
+    color: colorVal,
     proyectos,
     lee,
     escribe,
@@ -1713,11 +1747,17 @@ app.post('/v1/skills', async (c) => {
   if (promptLink.error) return jsonError(c, 400, promptLink.error);
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
+  let colorVal: string | null = null;
+  if (bodyHasColor(body as Record<string, unknown>)) {
+    const parsed = parseEntityColor((body as Record<string, unknown>).color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
   try {
     await c.env.DB.prepare(
-      'INSERT INTO skills (id, nombre, descripcion, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO skills (id, nombre, descripcion, hash, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     )
-      .bind(id, nombre, descripcion, hash, ts, ts)
+      .bind(id, nombre, descripcion, hash, colorVal, ts, ts)
       .run();
   } catch {
     return jsonError(c, 409, 'Ya existe esa skill.');
@@ -1744,18 +1784,25 @@ app.post('/v1/skills', async (c) => {
 
 app.put('/v1/skills/:id', async (c) => {
   const id = c.req.param('id');
-  const body = (await c.req.json().catch(() => ({}))) as {
-    nombre?: string;
-    descripcion?: string;
-    markdown?: string;
-    anclas?: string[];
-    entradas?: string[];
-    salidas?: string[];
-    systemPromptId?: string | null;
-    systemPrompts?: unknown;
-  };
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
   const row = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'Skill no encontrada.');
+
+  // Solo color: sin bump de versión MD.
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE skills SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    const skill = await hydrateSkill(
+      c.env.DB,
+      (await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first()) as Record<string, unknown>
+    );
+    return c.json({ ok: true, skill });
+  }
+
   const promptLink = resolveSkillSystemPromptId(body);
   if (promptLink.error) return jsonError(c, 400, promptLink.error);
 
@@ -1808,8 +1855,14 @@ app.put('/v1/skills/:id', async (c) => {
         )?.markdown || '';
   const hash = await sha256Hex(markdown || id + '|' + numero);
   const ts = nowIso();
-  await c.env.DB.prepare('UPDATE skills SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?')
-    .bind(nombre, descripcion, hash, ts, id)
+  let colorVal: string | null = colorFromRow(row as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
+  await c.env.DB.prepare('UPDATE skills SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?, color = ? WHERE id = ?')
+    .bind(nombre, descripcion, hash, ts, colorVal, id)
     .run();
   await c.env.DB.prepare(
     'INSERT INTO skill_versions (skill_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -1854,9 +1907,15 @@ app.post('/v1/anclas', async (c) => {
   const campo = prepared.campo;
   const ts = nowIso();
   try {
+    let colorVal: string | null = null;
+    if (bodyHasColor(body)) {
+      const parsedC = parseEntityColor(body.color);
+      if (!parsedC.ok) return jsonError(c, 400, parsedC.error);
+      colorVal = parsedC.color;
+    }
     await c.env.DB.prepare(
-      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO anclas (id, ancla, etiqueta, clave_mongo, coleccion, base_datos, tipo, obligatorio, formato, descripcion, ejemplo, hash, aliases, observaciones, valor_actual, sensible, color, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         campo.id,
@@ -1875,6 +1934,7 @@ app.post('/v1/anclas', async (c) => {
         '[]',
         '',
         campo.sensible ? 1 : 0,
+        colorVal,
         ts,
         ts
       )
@@ -1899,15 +1959,34 @@ app.put('/v1/anclas/:id', async (c) => {
   const prev = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
   if (!prev) return jsonError(c, 404, 'Ancla no encontrada.');
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE anclas SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    const row = await c.env.DB.prepare('SELECT * FROM anclas WHERE id = ?').bind(id).first();
+    return c.json({
+      ok: true,
+      campo: await hydrateAncla(c.env.DB, row as Record<string, unknown>, { reveal: true }),
+    });
+  }
   const prevMapped = mapAnclaRow(prev as Record<string, unknown>);
   const prepared = await prepareAnclaPersistAsync(c.env.DB, { ...prevMapped, ...body, id }, id);
   if ('error' in prepared) return jsonError(c, 400, prepared.error);
   const merged = prepared.campo;
   const ts = nowIso();
+  let colorVal: string | null = colorFromRow(prev as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsedC = parseEntityColor(body.color);
+    if (!parsedC.ok) return jsonError(c, 400, parsedC.error);
+    colorVal = parsedC.color;
+  }
   await c.env.DB.prepare(
     `UPDATE anclas SET ancla = ?, etiqueta = ?, clave_mongo = ?, coleccion = ?, base_datos = ?, tipo = ?,
      obligatorio = ?, formato = ?, descripcion = ?, ejemplo = ?, hash = ?, aliases = ?, observaciones = ?,
-     valor_actual = ?, sensible = ?, updated_at = ? WHERE id = ?`
+     valor_actual = ?, sensible = ?, color = ?, updated_at = ? WHERE id = ?`
   )
     .bind(
       merged.ancla,
@@ -1925,6 +2004,7 @@ app.put('/v1/anclas/:id', async (c) => {
       '[]',
       '',
       merged.sensible ? 1 : 0,
+      colorVal,
       ts,
       id
     )
@@ -2153,9 +2233,15 @@ app.post('/v1/mongo', async (c) => {
   const campo = prepared.campo;
   const ts = nowIso();
   try {
+    let colorVal: string | null = null;
+    if (bodyHasColor(body)) {
+      const parsedC = parseEntityColor(body.color);
+      if (!parsedC.ok) return jsonError(c, 400, parsedC.error);
+      colorVal = parsedC.color;
+    }
     await c.env.DB.prepare(
-      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, proyecto, hijos, enum_json, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO campos_mongo (id, campo, base_datos, coleccion, clave, bson_type, obligatorio, descripcion, ancla, hash, proyeccion_mongo, proyeccion_elemento, indices, proyecto, hijos, enum_json, color, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         campo.id,
@@ -2174,6 +2260,7 @@ app.post('/v1/mongo', async (c) => {
         campo.proyecto,
         JSON.stringify(campo.hijos || []),
         JSON.stringify(Array.isArray((campo as { enum?: string[] }).enum) ? (campo as { enum?: string[] }).enum : []),
+        colorVal,
         ts,
         ts
       )
@@ -2190,6 +2277,16 @@ app.put('/v1/mongo/:id', async (c) => {
   const prev = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE id = ?').bind(id).first();
   if (!prev) return jsonError(c, 404, 'Campo Mongo no encontrado.');
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE campos_mongo SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    const row = await c.env.DB.prepare('SELECT * FROM campos_mongo WHERE id = ?').bind(id).first();
+    return c.json({ ok: true, campo: mapMongo(row as Record<string, unknown>) });
+  }
   const prepared = await prepareMongoPersist(c.env.DB, {
     ...mapMongo(prev as Record<string, unknown>),
     ...body,
@@ -2198,10 +2295,16 @@ app.put('/v1/mongo/:id', async (c) => {
   if ('error' in prepared) return jsonError(c, 400, prepared.error);
   const merged = prepared.campo;
   const ts = nowIso();
+  let colorVal: string | null = colorFromRow(prev as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsedC = parseEntityColor(body.color);
+    if (!parsedC.ok) return jsonError(c, 400, parsedC.error);
+    colorVal = parsedC.color;
+  }
   await c.env.DB.prepare(
     `UPDATE campos_mongo SET campo = ?, base_datos = ?, coleccion = ?, clave = ?, bson_type = ?,
      obligatorio = ?, descripcion = ?, ancla = ?, hash = ?, proyeccion_mongo = ?, proyeccion_elemento = ?, indices = ?,
-     proyecto = ?, hijos = ?, enum_json = ?, updated_at = ? WHERE id = ?`
+     proyecto = ?, hijos = ?, enum_json = ?, color = ?, updated_at = ? WHERE id = ?`
   )
     .bind(
       merged.campo,
@@ -2219,6 +2322,7 @@ app.put('/v1/mongo/:id', async (c) => {
       merged.proyecto,
       JSON.stringify(merged.hijos || []),
       JSON.stringify(Array.isArray((merged as { enum?: string[] }).enum) ? (merged as { enum?: string[] }).enum : []),
+      colorVal,
       ts,
       id
     )
@@ -2254,11 +2358,17 @@ app.post('/v1/clusters', async (c) => {
   const descripcion = String(body.descripcion || '').trim().slice(0, 280);
   const ts = nowIso();
   const hash = await sha256Hex(id + '|' + nombre + '|' + descripcion);
+  let colorVal: string | null = null;
+  if (bodyHasColor(body as Record<string, unknown>)) {
+    const parsed = parseEntityColor((body as Record<string, unknown>).color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
   try {
     await c.env.DB.prepare(
-      'INSERT INTO clusters (id, nombre, descripcion, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO clusters (id, nombre, descripcion, hash, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     )
-      .bind(id, nombre, descripcion, hash, ts, ts)
+      .bind(id, nombre, descripcion, hash, colorVal, ts, ts)
       .run();
   } catch {
     return jsonError(c, 409, 'Ya existe ese cluster.');
@@ -2269,7 +2379,7 @@ app.post('/v1/clusters', async (c) => {
       cluster: await hydrateCluster(
         c.env.DB,
         (await c.env.DB.prepare(
-          `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+          `SELECT id, nombre, descripcion, hash, color, created_at, updated_at,
             auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
            FROM clusters WHERE id = ?`
         )
@@ -2284,17 +2394,33 @@ app.post('/v1/clusters', async (c) => {
 app.put('/v1/clusters/:id', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, auto_sync FROM clusters WHERE id = ?'
+    'SELECT id, nombre, descripcion, auto_sync, color FROM clusters WHERE id = ?'
   )
     .bind(id)
-    .first<{ id: string; nombre: string; descripcion: string; auto_sync: number }>();
+    .first<{ id: string; nombre: string; descripcion: string; auto_sync: number; color: string | null }>();
   if (!row) return jsonError(c, 404, 'Cluster no encontrado.');
-  const body = (await c.req.json().catch(() => ({}))) as {
-    nombre?: string;
-    descripcion?: string;
-    autoSync?: boolean;
-    auto_sync?: boolean;
-  };
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE clusters SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    return c.json({
+      ok: true,
+      cluster: await hydrateCluster(
+        c.env.DB,
+        (await c.env.DB.prepare(
+          `SELECT id, nombre, descripcion, hash, color, created_at, updated_at,
+            auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
+           FROM clusters WHERE id = ?`
+        )
+          .bind(id)
+          .first()) as Record<string, unknown>
+      ),
+    });
+  }
   const nombre = String(body.nombre != null ? body.nombre : row.nombre).trim();
   if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
   const descripcion = String(
@@ -2306,19 +2432,25 @@ app.put('/v1/clusters/:id', async (c) => {
   if (body.autoSync != null || body.auto_sync != null) {
     autoSync = !!(body.autoSync ?? body.auto_sync);
   }
+  let colorVal: string | null = colorFromRow(row as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
   const ts = nowIso();
   const hash = await sha256Hex(id + '|' + nombre + '|' + descripcion + '|' + (autoSync ? '1' : '0'));
   await c.env.DB.prepare(
-    'UPDATE clusters SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?, auto_sync = ? WHERE id = ?'
+    'UPDATE clusters SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?, auto_sync = ?, color = ? WHERE id = ?'
   )
-    .bind(nombre, descripcion, hash, ts, autoSync ? 1 : 0, id)
+    .bind(nombre, descripcion, hash, ts, autoSync ? 1 : 0, colorVal, id)
     .run();
   return c.json({
     ok: true,
     cluster: await hydrateCluster(
       c.env.DB,
       (await c.env.DB.prepare(
-        `SELECT id, nombre, descripcion, hash, created_at, updated_at,
+        `SELECT id, nombre, descripcion, hash, color, created_at, updated_at,
           auto_sync, last_sync_at, last_sync_ok, last_sync_proyecto, last_sync_summary
          FROM clusters WHERE id = ?`
       )
@@ -2457,16 +2589,23 @@ app.post('/v1/proyectos', async (c) => {
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
   try {
+    let colorVal: string | null = null;
+    if (bodyHasColor(body)) {
+      const parsed = parseEntityColor(body.color);
+      if (!parsed.ok) return jsonError(c, 400, parsed.error);
+      colorVal = parsed.color;
+    }
     await c.env.DB.prepare(
-      `INSERT INTO proyectos (id, nombre, descripcion, hash, created_at, updated_at,
+      `INSERT INTO proyectos (id, nombre, descripcion, hash, color, created_at, updated_at,
         base_datos, colecciones, relaciones, agentes_json, legacy_negocio, cluster_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         id,
         shape.nombre,
         shape.descripcion,
         hash,
+        colorVal,
         ts,
         ts,
         shape.baseDatos,
@@ -2503,6 +2642,43 @@ app.put('/v1/proyectos/:id', async (c) => {
   const row = await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE proyectos SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    return c.json({
+      ok: true,
+      proyecto: await hydrateProyecto(
+        c.env.DB,
+        (await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first()) as Record<
+          string,
+          unknown
+        >
+      ),
+    });
+  }
+  // Solo colecciones (p. ej. color por ítem): actualiza JSON sin bump de versión MD.
+  const bodyKeys = Object.keys(body).filter((k) => body[k] !== undefined);
+  if (bodyKeys.length === 1 && bodyKeys[0] === 'colecciones') {
+    const cols = parseColecciones(body.colecciones);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE proyectos SET colecciones = ?, updated_at = ? WHERE id = ?')
+      .bind(JSON.stringify(cols), tsOnly, id)
+      .run();
+    return c.json({
+      ok: true,
+      proyecto: await hydrateProyecto(
+        c.env.DB,
+        (await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first()) as Record<
+          string,
+          unknown
+        >
+      ),
+    });
+  }
   const prev = mapProyectoRow(row as Record<string, unknown>, [], []);
   const shape = normalizeProyectoSoftwareBody(
     {
@@ -2561,8 +2737,14 @@ app.put('/v1/proyectos/:id', async (c) => {
     }) || id + '|' + numero
   );
   const ts = nowIso();
+  let colorVal: string | null = colorFromRow(row as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
   await c.env.DB.prepare(
-    `UPDATE proyectos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?,
+    `UPDATE proyectos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?, color = ?,
      base_datos = ?, colecciones = ?, relaciones = ?, agentes_json = ?, legacy_negocio = ?,
      cluster_id = ? WHERE id = ?`
   )
@@ -2571,6 +2753,7 @@ app.put('/v1/proyectos/:id', async (c) => {
       shape.descripcion,
       hash,
       ts,
+      colorVal,
       shape.baseDatos,
       JSON.stringify(shape.colecciones),
       JSON.stringify(shape.relaciones),
@@ -2751,10 +2934,16 @@ app.post('/v1/system-prompts', async (c) => {
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
   try {
+    let colorVal: string | null = null;
+    if (bodyHasColor(body as Record<string, unknown>)) {
+      const parsed = parseEntityColor((body as Record<string, unknown>).color);
+      if (!parsed.ok) return jsonError(c, 400, parsed.error);
+      colorVal = parsed.color;
+    }
     await c.env.DB.prepare(
-      'INSERT INTO system_prompts (id, nombre, descripcion, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO system_prompts (id, nombre, descripcion, hash, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     )
-      .bind(id, nombre, descripcion, hash, ts, ts)
+      .bind(id, nombre, descripcion, hash, colorVal, ts, ts)
       .run();
   } catch {
     return jsonError(c, 409, 'Ya existe ese system prompt.');
@@ -2786,12 +2975,25 @@ app.put('/v1/system-prompts/:id', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare('SELECT * FROM system_prompts WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'System prompt no encontrado.');
-  const body = (await c.req.json().catch(() => ({}))) as {
-    nombre?: string;
-    descripcion?: string;
-    markdown?: string;
-    skills?: string[];
-  };
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE system_prompts SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    return c.json({
+      ok: true,
+      systemPrompt: await hydrateSystemPrompt(
+        c.env.DB,
+        (await c.env.DB.prepare('SELECT * FROM system_prompts WHERE id = ?').bind(id).first()) as Record<
+          string,
+          unknown
+        >
+      ),
+    });
+  }
   const nombre = String(body.nombre ?? (row as { nombre: string }).nombre).trim();
   const descripcion = String(body.descripcion ?? ((row as { descripcion: string }).descripcion || ''))
     .trim()
@@ -2814,10 +3016,16 @@ app.put('/v1/system-prompts/:id', async (c) => {
         )?.markdown || '';
   const hash = await sha256Hex(markdown || id + '|' + numero);
   const ts = nowIso();
+  let colorVal: string | null = colorFromRow(row as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
   await c.env.DB.prepare(
-    'UPDATE system_prompts SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?'
+    'UPDATE system_prompts SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?, color = ? WHERE id = ?'
   )
-    .bind(nombre, descripcion, hash, ts, id)
+    .bind(nombre, descripcion, hash, ts, colorVal, id)
     .run();
   await c.env.DB.prepare(
     'INSERT INTO system_prompt_versions (system_prompt_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -2863,11 +3071,17 @@ app.post('/v1/fundamentos', async (c) => {
   const descripcion = String(body.descripcion || '').trim().slice(0, 280);
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
+  let colorVal: string | null = null;
+  if (bodyHasColor(body as Record<string, unknown>)) {
+    const parsed = parseEntityColor((body as Record<string, unknown>).color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
   try {
     await c.env.DB.prepare(
-      'INSERT INTO fundamentos (id, nombre, descripcion, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO fundamentos (id, nombre, descripcion, hash, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     )
-      .bind(id, nombre, descripcion, hash, ts, ts)
+      .bind(id, nombre, descripcion, hash, colorVal, ts, ts)
       .run();
   } catch {
     return jsonError(c, 409, 'Ya existe ese fundamento.');
@@ -2890,11 +3104,25 @@ app.put('/v1/fundamentos/:id', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare('SELECT * FROM fundamentos WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'Fundamento no encontrado.');
-  const body = (await c.req.json().catch(() => ({}))) as {
-    nombre?: string;
-    descripcion?: string;
-    markdown?: string;
-  };
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  if (isColorOnlyBody(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    const tsOnly = nowIso();
+    await c.env.DB.prepare('UPDATE fundamentos SET color = ?, updated_at = ? WHERE id = ?')
+      .bind(parsed.color, tsOnly, id)
+      .run();
+    return c.json({
+      ok: true,
+      fundamento: await hydrateFundamento(
+        c.env.DB,
+        (await c.env.DB.prepare('SELECT * FROM fundamentos WHERE id = ?').bind(id).first()) as Record<
+          string,
+          unknown
+        >
+      ),
+    });
+  }
   const nombre = String(body.nombre ?? (row as { nombre: string }).nombre).trim();
   const descripcion = String(body.descripcion ?? ((row as { descripcion: string }).descripcion || ''))
     .trim()
@@ -2917,8 +3145,16 @@ app.put('/v1/fundamentos/:id', async (c) => {
         )?.markdown || '';
   const hash = await sha256Hex(markdown || id + '|' + numero);
   const ts = nowIso();
-  await c.env.DB.prepare('UPDATE fundamentos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?')
-    .bind(nombre, descripcion, hash, ts, id)
+  let colorVal: string | null = colorFromRow(row as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
+  await c.env.DB.prepare(
+    'UPDATE fundamentos SET nombre = ?, descripcion = ?, hash = ?, updated_at = ?, color = ? WHERE id = ?'
+  )
+    .bind(nombre, descripcion, hash, ts, colorVal, id)
     .run();
   await c.env.DB.prepare(
     'INSERT INTO fundamento_versions (fundamento_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -3065,6 +3301,7 @@ async function hydrateSkill(db: D1Database, row: Record<string, unknown>) {
     nombre: row.nombre,
     descripcion: row.descripcion || '',
     hash: row.hash || '',
+    color: colorFromRow(row),
     entradas,
     salidas,
     anclas,
@@ -3211,6 +3448,7 @@ async function hydrateSystemPrompt(db: D1Database, row: Record<string, unknown>)
     nombre: row.nombre,
     descripcion: row.descripcion || '',
     hash: row.hash || '',
+    color: colorFromRow(row),
     skills,
     versiones: versiones.results || [],
   };
@@ -3294,6 +3532,7 @@ async function hydrateFlujoListItem(db: D1Database, row: Record<string, unknown>
     descripcion: String(row.descripcion || ''),
     proyectoId: String(row.proyecto_id || ''),
     hash: String(row.hash || ''),
+    color: colorFromRow(row),
     version: ver?.numero || 1,
     createdAt: String(row.created_at || ''),
     updatedAt: String(row.updated_at || ''),
@@ -3323,7 +3562,7 @@ async function loadFlujoVersion(
   version?: number
 ): Promise<FlujoVersionDoc | null> {
   const meta = await db
-    .prepare('SELECT id, nombre, descripcion, proyecto_id, hash FROM flujos WHERE id = ?')
+    .prepare('SELECT id, nombre, descripcion, proyecto_id, hash, color FROM flujos WHERE id = ?')
     .bind(flujoId)
     .first<{
       id: string;
@@ -3331,6 +3570,7 @@ async function loadFlujoVersion(
       descripcion: string;
       proyecto_id: string;
       hash: string;
+      color: string | null;
     }>();
   if (!meta) return null;
   const ver = version
@@ -3358,6 +3598,7 @@ async function loadFlujoVersion(
     nodos: parseNodos(ver.nodos_json),
     aristas: parseAristas(ver.aristas_json),
     hash: ver.hash || meta.hash || '',
+    color: colorFromRow(meta as unknown as Record<string, unknown>),
   };
 }
 
@@ -3834,6 +4075,7 @@ function mapAnclaRow(row: Record<string, unknown>) {
     descripcion: String(row.descripcion || ''),
     ejemplo: String(row.ejemplo || ''),
     hash: String(row.hash || ''),
+    color: colorFromRow(row),
     aliases,
     // N2: ficha = definición. Valores por negocio en ancla_valores_negocio.
     observaciones: [] as Observacion[],
@@ -3866,6 +4108,7 @@ function mapMongo(row: Record<string, unknown>) {
     descripcion: String(row.descripcion || ''),
     ancla: String(row.ancla || ''),
     hash: String(row.hash || ''),
+    color: colorFromRow(row),
     proyeccionMongo: String(row.proyeccion_mongo ?? row.proyeccionMongo ?? '').trim(),
     proyeccionElemento: parseJsonObject(row.proyeccion_elemento ?? row.proyeccionElemento),
     indices: parseJsonArray(row.indices),
@@ -3884,6 +4127,7 @@ function mapAgente(row: Record<string, unknown>) {
     inviteUsada: String(row.invite_usada ?? row.inviteUsada ?? ''),
     lastSeen: String(row.last_seen ?? row.lastSeen ?? ''),
     hash: String(row.hash || ''),
+    color: colorFromRow(row),
     proyectos: parseStringList(row.proyectos),
     lee: parseStringList(row.lee),
     escribe: parseStringList(row.escribe),
@@ -3904,6 +4148,7 @@ function mapProyectoRow(
     nombre: row.nombre,
     descripcion: row.descripcion || '',
     hash: row.hash || '',
+    color: colorFromRow(row),
     baseDatos: String(row.base_datos ?? row.baseDatos ?? '').trim(),
     clusterId: clusterId || null,
     colecciones,
@@ -3922,6 +4167,7 @@ function mapClusterRow(row: Record<string, unknown>, proyectos: unknown[]) {
     nombre: String(row.nombre || ''),
     descripcion: String(row.descripcion || ''),
     hash: String(row.hash || ''),
+    color: colorFromRow(row),
     createdAt: String(row.created_at || row.createdAt || ''),
     updatedAt: String(row.updated_at || row.updatedAt || ''),
     autoSync: !!(row.auto_sync === 1 || row.auto_sync === true || row.auto_sync === '1'),
@@ -4287,6 +4533,7 @@ async function hydrateFundamento(db: D1Database, row: Record<string, unknown>) {
     nombre: row.nombre,
     descripcion: row.descripcion || '',
     hash: row.hash || '',
+    color: colorFromRow(row),
     versiones: versiones.results || [],
   };
 }

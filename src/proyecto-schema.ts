@@ -3,7 +3,7 @@
  * diagrama Mermaid y $jsonSchema desde campos Mongo del catálogo.
  */
 
-export type ColeccionDef = { id: string; descripcion?: string };
+export type ColeccionDef = { id: string; descripcion?: string; color?: string | null };
 export type RelacionDef = { desde: string; hacia: string; tipo?: string };
 
 export type ProyectoSoftwareShape = {
@@ -35,6 +35,8 @@ export type MongoCampoShape = {
 
 const COL_ID_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
+const COLOR_HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+
 export function parseColecciones(raw: unknown): ColeccionDef[] {
   const arr = coerceArray(raw);
   const out: ColeccionDef[] = [];
@@ -43,7 +45,15 @@ export function parseColecciones(raw: unknown): ColeccionDef[] {
     const o = item as Record<string, unknown>;
     const id = String(o.id || '').trim();
     if (!id || !COL_ID_RE.test(id)) continue;
-    out.push({ id, descripcion: String(o.descripcion || '').trim() });
+    const col: ColeccionDef = { id, descripcion: String(o.descripcion || '').trim() };
+    if (Object.prototype.hasOwnProperty.call(o, 'color')) {
+      if (o.color == null || o.color === '') col.color = null;
+      else {
+        const c = String(o.color).trim();
+        if (COLOR_HEX_RE.test(c)) col.color = c.toLowerCase();
+      }
+    }
+    out.push(col);
   }
   return out;
 }

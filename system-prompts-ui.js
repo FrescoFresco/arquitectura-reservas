@@ -72,7 +72,13 @@
       'aria-label': 'Ver system prompt ' + item.nombre,
       onClick: function () { props.onAbrir(item.id); }
     },
-      e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoSystemPrompt)),
+      e('span', {
+        className: 'catalogo-fila-icon',
+        'aria-hidden': 'true',
+        style: (typeof window !== 'undefined' && window.ColorEntidad)
+          ? window.ColorEntidad.reactStyle(item.color)
+          : undefined
+      }, e(IconoSystemPrompt)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, item.nombre),
         e('span', { className: 'catalogo-fila-codigo' }, secundario)
