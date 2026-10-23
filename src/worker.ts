@@ -345,6 +345,8 @@ app.get('/health', async (c) => {
     ok: true,
     service: 'campos-ancla-api',
     mongo: mongoHealthLabel(resolved.env),
+    /** Drift check: UI color picker needs GET/PUT `color` on catalog entities. */
+    entityColor: true,
   });
 });
 

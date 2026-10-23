@@ -306,6 +306,59 @@ function aplicarColorLocal(kind, id, color) {
   }
 }
 
+/** Extrae el objeto entidad de una respuesta PUT (skill|ancla|…|proyecto). */
+function entidadDeRespuestaColor(data) {
+  if (!data || typeof data !== 'object') return null;
+  return (
+    data.skill ||
+    data.ancla ||
+    data.campo ||
+    data.cluster ||
+    data.proyecto ||
+    data.systemPrompt ||
+    data.fundamento ||
+    data.agente ||
+    data.flujo ||
+    null
+  );
+}
+
+/**
+ * Comprueba que la API echoó `color` (evita el fallo: Worker viejo sin color-only
+ * que hace bump de versión MD y no persiste el tile).
+ */
+function assertColorPersistido(data, color, kind, coleccionId) {
+  const want = color == null || color === '' ? null : String(color).toLowerCase();
+  if (kind === 'coleccion') {
+    const proy = data && data.proyecto;
+    const cols = proy && Array.isArray(proy.colecciones) ? proy.colecciones : null;
+    if (!cols) {
+      throw new Error('La API no devolvió colecciones con color. ¿Worker desactualizado?');
+    }
+    if (coleccionId) {
+      const hit = cols.find(function (c) { return c && c.id === coleccionId; });
+      if (!hit || !Object.prototype.hasOwnProperty.call(hit, 'color')) {
+        throw new Error('La colección no devolvió color tras guardar.');
+      }
+      const gotCol = hit.color == null || hit.color === '' ? null : String(hit.color).toLowerCase();
+      if (gotCol !== want) {
+        throw new Error('El color de colección no coincidió tras guardar.');
+      }
+    }
+    return;
+  }
+  const ent = entidadDeRespuestaColor(data);
+  if (!ent || !Object.prototype.hasOwnProperty.call(ent, 'color')) {
+    throw new Error(
+      'La API no devolvió el campo color (Worker desactualizado). No se guardó el tinte.'
+    );
+  }
+  const got = ent.color == null || ent.color === '' ? null : String(ent.color).toLowerCase();
+  if (got !== want) {
+    throw new Error('El color no coincidió tras guardar (API: ' + got + ', pedido: ' + want + ').');
+  }
+}
+
 function guardarColorEntidad(kind, id, color) {
   if (kind === 'coleccion') {
     // Persist in proyecto.colecciones JSON (id = "proyectoId/coleccionId" o key).
@@ -329,6 +382,7 @@ function guardarColorEntidad(kind, id, color) {
         body: JSON.stringify({ colecciones: cols })
       });
     }).then(function (data) {
+      assertColorPersistido(data, color, kind, colId);
       aplicarColorLocal(kind, id, color);
       if (data && data.proyecto) {
         const idx = (state.proyectos.lista || []).findIndex(function (p) { return p.id === proyId; });
@@ -346,6 +400,7 @@ function guardarColorEntidad(kind, id, color) {
       body: JSON.stringify({ color: color })
     });
   }).then(function (data) {
+    assertColorPersistido(data, color, kind);
     aplicarColorLocal(kind, id, color);
     return data;
   });
