@@ -219,7 +219,11 @@ function guardarColorEntidad(kind, id, color) {
   if (!window.ColorEntidad || typeof window.ColorEntidad.guardar !== 'function') {
     return Promise.reject(new Error('ColorEntidad no cargado.'));
   }
-  return window.ColorEntidad.guardar(kind, id, color, {
+  return window.ColorEntidad.guardar(kind, id, color, optsColeccionColor());
+}
+
+function optsColeccionColor() {
+  return {
     getProyecto: function (proyId) {
       return ((state.proyectos && state.proyectos.lista) || []).find(function (p) {
         return p.id === proyId;
@@ -228,29 +232,31 @@ function guardarColorEntidad(kind, id, color) {
     onProyectoUpdated: function (proyId, data) {
       if (data && data.proyecto) {
         const idx = (state.proyectos.lista || []).findIndex(function (p) { return p.id === proyId; });
-        if (idx >= 0) state.proyectos.lista[idx] = Object.assign({}, state.proyectos.lista[idx], data.proyecto);
+        if (idx >= 0) {
+          const merged = Object.assign({}, state.proyectos.lista[idx], data.proyecto);
+          if (Array.isArray(data.proyecto.colecciones)) {
+            merged.colecciones = fusionarColeccionesMeta(
+              state.proyectos.lista[idx].colecciones,
+              data.proyecto.colecciones
+            );
+          }
+          state.proyectos.lista[idx] = merged;
+        }
+        const ridx = (state.proyectos.remotos || []).findIndex(function (p) { return p.id === proyId; });
+        if (ridx >= 0 && data.proyecto) {
+          state.proyectos.remotos[ridx] = Object.assign({}, state.proyectos.remotos[ridx], data.proyecto);
+        }
       }
+      if (typeof refrescarListaColecciones === 'function') refrescarListaColecciones();
     }
-  });
+  };
 }
 
 function cablearColorFicha(dlgOrEl, opts) {
   opts = opts || {};
   if (!window.ColorEntidad || typeof window.ColorEntidad.bindCatalogFicha !== 'function') return;
   window.ColorEntidad.bindCatalogFicha(dlgOrEl, Object.assign({}, opts, {
-    coleccionOpts: {
-      getProyecto: function (proyId) {
-        return ((state.proyectos && state.proyectos.lista) || []).find(function (p) {
-          return p.id === proyId;
-        }) || null;
-      },
-      onProyectoUpdated: function (proyId, data) {
-        if (data && data.proyecto) {
-          const idx = (state.proyectos.lista || []).findIndex(function (p) { return p.id === proyId; });
-          if (idx >= 0) state.proyectos.lista[idx] = Object.assign({}, state.proyectos.lista[idx], data.proyecto);
-        }
-      }
-    }
+    coleccionOpts: optsColeccionColor()
   }));
 }
 
@@ -380,10 +386,22 @@ function registrarColorEntidadKinds() {
           if (key === id || c.id === id) c.color = color;
         });
       });
+      // Remotos: mismo JSON que alimenta construirListaColecciones tras reload/merge.
+      ((state.proyectos && state.proyectos.remotos) || []).forEach(function (proy) {
+        (proy.colecciones || []).forEach(function (c) {
+          const key = (typeof claveColeccion === 'function')
+            ? claveColeccion(proy.id, c.id)
+            : (proy.id + '/' + c.id);
+          if (key === id || c.id === id) c.color = color;
+        });
+      });
     },
     refresh: function () {
-      if (window.ColeccionesUI && typeof window.ColeccionesUI.refrescar === 'function') {
-        window.ColeccionesUI.refrescar();
+      if (typeof refrescarListaColecciones === 'function') refrescarListaColecciones();
+      if (typeof pintarColecciones === 'function') pintarColecciones();
+      if (state.proyectos && state.proyectos.abiertoId && typeof pintarProyectoColecciones === 'function') {
+        const proy = typeof proyectoAbierto === 'function' ? proyectoAbierto() : null;
+        if (proy) pintarProyectoColecciones(proy);
       }
     }
   });
@@ -4760,11 +4778,35 @@ function normalizeProyectosLocales(list) {
   return out;
 }
 
+/** Fusiona colecciones del merge sin dropear `color` si la fuente lo omite. */
+function fusionarColeccionesMeta(prevCols, nextCols) {
+  const prevMap = new Map();
+  (prevCols || []).forEach(function (c) {
+    if (c && c.id) prevMap.set(c.id, c);
+  });
+  return (nextCols || []).map(function (c) {
+    if (!c || !c.id) return c;
+    const row = {
+      id: c.id,
+      descripcion: typeof c.descripcion === 'string' ? c.descripcion : ''
+    };
+    if (Object.prototype.hasOwnProperty.call(c, 'color')) {
+      attachEntityColor(row, c);
+    } else {
+      const prev = prevMap.get(c.id);
+      if (prev) attachEntityColor(row, prev);
+    }
+    return row;
+  });
+}
+
 function conMetaProyecto(destino, fuente) {
   if (fuente.descripcion) destino.descripcion = fuente.descripcion;
   destino.skills = Array.isArray(fuente.skills) ? fuente.skills.slice() : [];
   if (typeof fuente.baseDatos === 'string') destino.baseDatos = fuente.baseDatos;
-  if (Array.isArray(fuente.colecciones)) destino.colecciones = fuente.colecciones.slice();
+  if (Array.isArray(fuente.colecciones)) {
+    destino.colecciones = fusionarColeccionesMeta(destino.colecciones, fuente.colecciones);
+  }
   if (Array.isArray(fuente.relaciones)) destino.relaciones = fuente.relaciones.slice();
   if (Array.isArray(fuente.agentes)) destino.agentes = fuente.agentes.slice();
   if (fuente.clusterId != null || fuente.cluster_id != null) {
@@ -7048,7 +7090,7 @@ function construirListaColecciones(proyectos, conteo) {
     (p.colecciones || []).forEach(function (c) {
       if (!c || !c.id) return;
       const key = claveColeccion(p.id, c.id);
-      out.push({
+      const row = {
         key: key,
         id: c.id,
         descripcion: c.descripcion || '',
@@ -7056,7 +7098,11 @@ function construirListaColecciones(proyectos, conteo) {
         proyectoNombre: p.nombre || p.id,
         baseDatos: p.baseDatos || '',
         nCampos: conteo && conteo[key] != null ? conteo[key] : null
-      });
+      };
+      // Mismo attach que normalizarColeccionesProyecto — sin esto el catálogo
+      // top-level Colecciones pierde el tinte (BD→Colecciones sí lo tenía).
+      attachEntityColor(row, c);
+      out.push(row);
     });
   });
   out.sort(function (a, b) {
@@ -7065,6 +7111,25 @@ function construirListaColecciones(proyectos, conteo) {
     return (a.id || '').localeCompare(b.id || '', 'es');
   });
   return out;
+}
+
+/** Color vivo de una colección (lista catálogo o JSON del proyecto). */
+function colorColeccionPorKey(key) {
+  if (!key) return null;
+  const fromLista = ((state.colecciones && state.colecciones.lista) || []).find(function (c) {
+    return c.key === key;
+  });
+  if (fromLista && Object.prototype.hasOwnProperty.call(fromLista, 'color')) {
+    return fromLista.color;
+  }
+  const parts = String(key).split('/');
+  const proyId = parts[0];
+  const colId = parts.slice(1).join('/');
+  const proy = ((state.proyectos && state.proyectos.lista) || []).find(function (p) {
+    return p.id === proyId;
+  });
+  const c = ((proy && proy.colecciones) || []).find(function (x) { return x.id === colId; });
+  return c && Object.prototype.hasOwnProperty.call(c, 'color') ? c.color : null;
 }
 
 function refrescarListaColecciones() {
@@ -7502,13 +7567,20 @@ function abrirFichaColeccion(key, opts) {
   renderColeccionReader(col);
   const dlgCol = document.getElementById('dlgColeccion');
   openFichaPane(dlgCol);
+  const colKey = col.key;
   cablearColorFicha(dlgCol, {
     kind: 'coleccion',
-    id: col.key,
+    id: colKey,
     iconKind: 'coleccion',
-    getColor: function () { return col.color; },
-    getUsados: function () { return coloresUsadosCatalogo('coleccion', col.key); },
-    onSaved: function (hex) { col.color = hex; }
+    getColor: function () { return colorColeccionPorKey(colKey); },
+    getUsados: function () { return coloresUsadosCatalogo('coleccion', colKey); },
+    onSaved: function (hex) {
+      col.color = hex;
+      const cur = ((state.colecciones && state.colecciones.lista) || []).find(function (c) {
+        return c.key === colKey;
+      });
+      if (cur) cur.color = hex;
+    }
   });
   const focus = document.getElementById('colReaderNombre');
   if (focus) focus.focus();

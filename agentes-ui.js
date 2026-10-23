@@ -47,19 +47,20 @@
     var nombre = props.nombre || '?';
     var foto = props.foto;
     var inicial = String(nombre).trim().charAt(0).toUpperCase() || '?';
-    var style = (typeof window !== 'undefined' && window.ColorEntidad && !foto)
-      ? window.ColorEntidad.reactStyle(props.color)
-      : undefined;
+    var colorProps = (typeof window !== 'undefined' && window.ColorEntidad && !foto && window.ColorEntidad.reactProps)
+      ? window.ColorEntidad.reactProps(props.color)
+      : (typeof window !== 'undefined' && window.ColorEntidad && !foto)
+        ? { style: window.ColorEntidad.reactStyle(props.color) }
+        : {};
     if (foto) {
       return e('span', { className: 'agente-avatar', 'aria-hidden': 'true' },
         e('img', { src: foto, alt: '', className: 'agente-avatar-img' })
       );
     }
-    return e('span', {
+    return e('span', Object.assign({
       className: 'agente-avatar agente-avatar-inicial',
-      'aria-hidden': 'true',
-      style: style
-    }, inicial);
+      'aria-hidden': 'true'
+    }, colorProps), inicial);
   }
 
   function AgenteFila(props) {

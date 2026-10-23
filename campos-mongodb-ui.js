@@ -456,13 +456,12 @@
       'aria-label': 'Abrir ' + titulo,
       onClick: function () { props.onAbrir(c.id); }
     },
-      e('span', {
+      e('span', Object.assign({
         className: 'catalogo-fila-icon',
-        'aria-hidden': 'true',
-        style: (typeof window !== 'undefined' && window.ColorEntidad)
-          ? window.ColorEntidad.reactStyle(c.color)
-          : undefined
-      }, e(IconoMongo)),
+        'aria-hidden': 'true'
+      }, (typeof window !== 'undefined' && window.ColorEntidad && window.ColorEntidad.reactProps)
+        ? window.ColorEntidad.reactProps(c.color)
+        : {}), e(IconoMongo)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, titulo),
         e('code', { className: 'catalogo-fila-codigo' }, codigo)

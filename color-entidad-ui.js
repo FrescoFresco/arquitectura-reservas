@@ -91,7 +91,9 @@
   function tileCss(color) {
     return {
       background: tintOf(color),
-      color: inkOf(color)
+      color: inkOf(color),
+      /* Evita que el tint “pinte” vecinos (stacking / overflow en grid). */
+      isolation: 'isolate'
     };
   }
 
@@ -100,6 +102,7 @@
     var css = tileCss(color);
     el.style.background = css.background;
     el.style.color = css.color;
+    el.style.isolation = css.isolation;
     var n = normalizeHex(color);
     if (n) el.setAttribute('data-color', n);
     else el.removeAttribute('data-color');
@@ -237,8 +240,12 @@
     });
 
     markSelected();
+    /* Siempre en body + fixed: dialog.ficha-pane tiene overflow:auto y recortaría
+       un pop absolute; z-index alto evita solape bajo hub/ficha. */
     document.body.append(pop);
     popoverEl = pop;
+    pop.style.position = 'fixed';
+    pop.style.zIndex = '120';
 
     var rect = anchor.getBoundingClientRect();
     var pad = 8;
@@ -326,6 +333,14 @@
   /** Estilo React para el span del icono de fila. */
   function reactStyle(color) {
     return tileCss(color);
+  }
+
+  /** Props React del tile: style + data-color (aislado de la fila). */
+  function reactProps(color) {
+    var n = normalizeHex(color);
+    var props = { style: tileCss(color) };
+    if (n) props['data-color'] = n;
+    return props;
   }
 
   /* ─── Capa catálogo (persistencia + cableado único) ─────────────────
@@ -570,6 +585,7 @@
     closePopover: closePopover,
     bindFichaIcon: bindFichaIcon,
     reactStyle: reactStyle,
+    reactProps: reactProps,
     /* catálogo */
     configure: configureCatalog,
     registerKind: registerKind,
