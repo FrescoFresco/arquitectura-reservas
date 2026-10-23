@@ -1,34 +1,23 @@
-## Arquitectura de relaciones
+## Relaciones
 
-Cómo se enlazan los catálogos entre sí. Los agentes no usan esta pantalla para trabajar: entran por API con una clave de invite.
-
-```
-┌─────────────┐         N:M          ┌─────────────┐
-│  Proyecto   │◄───────────────────►│    Skill    │
-└─────────────┘                      └──────┬──────┘
-                                            │ 1:N
-                                            ▼
-                                     ┌─────────────┐
-                                     │ Campo ancla │
-                                     └──────┬──────┘
-                                            │ 0..1  (enlace opcional)
-                                            ▼
-                                     ┌─────────────┐
-                                     │ Campo Mongo │
-                                     └─────────────┘
-
-┌─────────────┐
-│   Agente    │   (acceso / latido; trabaja vía API)
-└─────────────┘
-
-┌─────────────┐
-│ Fundamento  │   (pieza base; vive en Documentación)
-└─────────────┘
+```mermaid
+flowchart TD
+  C[Cluster] --> B[Base de datos]
+  B --> COL[Colección]
+  COL --> CM[Campo Mongo]
+  B <--> S[Skill]
+  S --> A[Campo ancla]
+  A -.-> CM
+  SP[System prompt] --> S
 ```
 
-- **Proyecto ↔ Skill (N:M)** — un proyecto contiene una o más skills; una skill puede estar en uno o más proyectos.
-- **Skill → Campo ancla (1:N)** — una skill declara uno o más campos ancla.
-- **Ancla → Campo Mongo (0..1)** — un campo ancla puede enlazar a un campo Mongo (opcional). Con `proyeccionMongo: array` agrupa `version.recorrido.campos.N.*` en un array BSON (lista canónica del recorrido).
-- **Sin anclas huérfanas** — todo hecho de un negocio (p. ej. Pelo Sur) entra como skill del proyecto; no persistir anclas sueltas fuera del catálogo.
-- **Agente** — invite + registro + latido; trabaja vía API, no con la UI.
-- **Fundamento** — bloque conceptual en Documentación con el que se describe el sistema.
+| Relación | Cómo es | Ejemplo |
+|---|---|---|
+| Cluster → Base de datos | Un cluster tiene varias bases. | `atlas-principal` tiene `software_reservas`. |
+| Base de datos → Colección → Campo Mongo | Es dónde se guarda cada dato. | La colección `negocios` tiene el campo `url`. |
+| Base de datos ↔ Skill | Una base usa varias skills, y una skill puede estar en varias bases. | Reservas usa descubrir-negocio. |
+| Skill → Campo ancla | La skill lee unas anclas (entradas) y escribe otras (salidas). | descubrir-negocio lee `_negocio.url_`. |
+| Campo ancla → Campo Mongo | El ancla es el nombre del dato y el campo Mongo es dónde se guarda. | `_negocio.url_` se guarda en `negocios.url`. |
+| System prompt → Skill | Un system prompt sirve a varias skills, pero cada skill tiene solo uno. | `agente-base` lo usa descubrir-negocio. |
+
+Los **agentes** solo entran a trabajar por la API. No forman parte de este esquema.
