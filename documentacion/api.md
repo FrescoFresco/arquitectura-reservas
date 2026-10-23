@@ -33,7 +33,7 @@ Worker: `campos-ancla-api`. D1: `campos-ancla-db`. Los JSON de `catalogo/` en la
 4. `POST {API_BASE}/v1/agentes/registro` — eliges nombre (e `id` opcional); guarda el `id` de la respuesta.
 5. Cada ~30 s: `POST {API_BASE}/v1/agentes/latido` con ese `id` + clave → aparece **En línea** en la UI.
 6. Lee catálogos con `GET` (público). Escribe / ejecuta salidas con `Authorization: Bearer {AGENTE_CLAVE}`.
-7. Para una skill: `GET /v1/ejecutar/:skillId` → contrato I/O; luego entradas (GET) / salidas (POST).
+7. Para una skill: `GET /v1/ejecutar/:skillId` → contrato I/O + `systemPrompts` (MD de cada prompt vinculado); luego entradas (GET) / salidas (POST).
 
 La clave **no caduca**. Solo deja de valer si un humano la revoca.
 
@@ -183,6 +183,7 @@ Ejemplos:
 | Recurso | Listar | Uno | Crear | Actualizar | Borrar |
 |---------|--------|-----|-------|------------|--------|
 | Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
+| System prompts | `GET /v1/system-prompts` | `GET /v1/system-prompts/:id` | `POST /v1/system-prompts` | `PUT /v1/system-prompts/:id` | `DELETE /v1/system-prompts/:id` |
 | Ejecutar | — | `GET /v1/ejecutar/:skillId` | — | `POST …/salidas` (Bearer) | — |
 | | | `GET …/entradas?negocio=` | | | |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
@@ -216,7 +217,29 @@ Respuesta de listado/ficha incluye `entradas`, `salidas` y `anclas` (unión).
 Si solo envías `anclas` (legado), se tratan como **salidas**.
 
 `PUT /v1/skills/:id` crea **versión nueva** (no pisa el markdown anterior).  
-`DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`).
+`DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`, `system_prompt_skills`).
+
+Ficha / listado de skill incluyen `systemPrompts`: array de prompts vinculados (id, nombre, descripcion, hash), orden por nombre. Vacío si no hay.
+
+### System prompts
+
+MD versionado (comportamiento estable del agente) con relación N:M a skills (`system_prompt_skills`).
+
+```
+POST {API_BASE}/v1/system-prompts
+Authorization: Bearer inv_…
+Content-Type: application/json
+
+{
+  "nombre": "Agente reservas",
+  "descripcion": "Tono y límites",
+  "markdown": "# Rol\n\n…",
+  "skills": ["mapear-recorrido"]
+}
+```
+
+`PUT` crea **versión nueva** del markdown; si envías `skills`, sustituye la asociación N:M.  
+UI: Catálogos → **System prompts** (Documento | Skills | Interno).
 
 ### Ejecutar skill (entradas / salidas → Mongo)
 
@@ -226,8 +249,15 @@ El agente lee las **entradas** y escribe las **salidas** vía Campo Mongo vincul
 
 ```
 GET {API_BASE}/v1/ejecutar/:skillId
-→ { ok, skill, nombre, descripcion, entradas, salidas, anclas }
+→ {
+  ok, skill, nombre, descripcion, entradas, salidas, anclas,
+  systemPrompts: [
+    { id, nombre, descripcion, hash, markdown, version: { numero, fecha, hash } }
+  ]
+}
 ```
+
+`systemPrompts`: **todos** los prompts vinculados a esa skill, ordenados por nombre. Si no hay ninguno → `[]`. El agente carga el MD de sistema + el MD de la skill.
 
 #### 1) Leer entradas (público)
 

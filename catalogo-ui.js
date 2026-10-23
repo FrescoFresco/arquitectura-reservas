@@ -6,6 +6,7 @@ const CATALOGOS = [
   { id: 'colecciones', nombre: 'Colecciones', icono: 'coleccion' },
   { id: 'campos-mongodb', nombre: 'Campos', icono: 'mongo' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
+  { id: 'system-prompts', nombre: 'System prompts', icono: 'system-prompt' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' }
 ];
 const TABLAS = [];
@@ -35,7 +36,8 @@ const FICHA_PANE_IDS = [
   'dlgProyecto',
   'dlgColeccion',
   'dlgAgenteFicha',
-  'dlgFundamento'
+  'dlgFundamento',
+  'dlgSystemPrompt'
 ];
 
 function syncFichaPaneClass() {
@@ -1026,6 +1028,9 @@ function svgPestanaCatalogo(tipo) {
       svgPath('M12 7v14'),
       svgPath('M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z')
     );
+  } else if (tipo === 'system-prompt') {
+    // Lucide: message-square
+    svg.append(svgPath('M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'));
   } else if (tipo === 'arquitectura') {
     // Lucide: git-fork / network-ish
     svg.append(
@@ -1135,6 +1140,8 @@ function iconoDePestanaFicha(tabId) {
     operativa: 'diagrama',
     campos: 'mongo',
     skills: 'skills',
+    'system-prompts': 'system-prompt',
+    'system-prompt': 'system-prompt',
     conexion: 'conexion',
     bases: 'proyecto',
     'base-datos': 'proyecto',
@@ -1162,8 +1169,10 @@ function iconizarPestanasFicha(root) {
         || btn.getAttribute('data-col-tab')
         || btn.getAttribute('data-cluster-tab')
         || btn.getAttribute('data-fund-tab')
+        || btn.getAttribute('data-sp-tab')
         || btn.getAttribute('data-editar-tab')
         || btn.getAttribute('data-editar-proy-tab')
+        || btn.getAttribute('data-editar-sp-tab')
         || btn.getAttribute('data-agente-tab');
     }
     const tipo = iconoDePestanaFicha(tabId) || tabId;
@@ -2595,6 +2604,9 @@ function renderReader() {
   pintarVersion(v);
   pintarReaderAnclas(ins);
   pintarSkillBases(ins);
+  if (window.SystemPromptsCatalog) {
+    window.SystemPromptsCatalog.pintarSkillSystemPromptsTab(ins);
+  }
   openFichaPane(dlg);
   const nombre = document.getElementById('readerNombre');
   if (nombre) nombre.focus();
@@ -2606,6 +2618,7 @@ function seleccionarReaderTab(id) {
   const panelAnclas = document.getElementById('readerPanelAnclas');
   const panelConexion = document.getElementById('readerPanelConexion');
   const panelBases = document.getElementById('readerPanelBases');
+  const panelSystemPrompts = document.getElementById('readerPanelSystemPrompts');
   const panelInterno = document.getElementById('readerPanelInterno');
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-reader-tab') === id;
@@ -2616,12 +2629,16 @@ function seleccionarReaderTab(id) {
   if (panelAnclas) panelAnclas.hidden = id !== 'anclas';
   if (panelConexion) panelConexion.hidden = id !== 'conexion';
   if (panelBases) panelBases.hidden = id !== 'bases';
+  if (panelSystemPrompts) panelSystemPrompts.hidden = id !== 'system-prompts';
   if (panelInterno) panelInterno.hidden = id !== 'interno';
   if (id === 'anclas') {
     seleccionarReaderIoSub(readerIoSubActual());
   }
   if (id === 'conexion') pintarSkillConexion(instruccionAbierta());
   if (id === 'bases') pintarSkillBases(instruccionAbierta());
+  if (id === 'system-prompts' && window.SystemPromptsCatalog) {
+    window.SystemPromptsCatalog.pintarSkillSystemPromptsTab(instruccionAbierta());
+  }
 }
 
 function pintarSkillBases(ins) {
@@ -2877,6 +2894,12 @@ function abrirDialogoEliminar(opts) {
     if (!f) return;
     if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el fundamento?';
   }
+  if (opts.tipo === 'system-prompt') {
+    const list = (window.SystemPromptsCatalog && window.SystemPromptsCatalog.state.lista) || [];
+    const f = list.find(function (x) { return x.id === opts.id; });
+    if (!f) return;
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el system prompt?';
+  }
   const dlg = document.getElementById('dlgEliminar');
   const form = document.getElementById('formEliminar');
   if (!dlg || !form) return;
@@ -3110,6 +3133,7 @@ async function onSubmitEliminar(e) {
     else if (tipo === 'proyecto') eliminarProyecto(id);
     else if (tipo === 'agente') eliminarAgente(id);
     else if (tipo === 'fundamento') eliminarFundamento(id);
+    else if (tipo === 'system-prompt' && window.SystemPromptsCatalog) window.SystemPromptsCatalog.eliminar(id);
     else throw new Error('Tipo desconocido.');
     document.getElementById('dlgEliminar').close();
   } catch (err) {
@@ -3180,6 +3204,7 @@ function seleccionarCatalogo(id) {
   renderPestanasCatalogo();
   // Re-fetch from live API on tab focus so agent writes appear without hard reload.
   if (id === 'skills') cargarSkills();
+  if (id === 'system-prompts' && window.SystemPromptsCatalog) window.SystemPromptsCatalog.cargar();
   if (id === 'campos-ancla') cargarCampos();
   if (id === 'campos-mongodb') cargarMongo();
   if (id === 'clusters') cargarClusters();
@@ -4244,6 +4269,10 @@ function iniciar() {
   wireAgentesUi();
   cargarFundamentos();
   wireFundamentosUi();
+  if (window.SystemPromptsCatalog) {
+    window.SystemPromptsCatalog.wire();
+    window.SystemPromptsCatalog.cargar();
+  }
 }
 
 function cargarSkillsDesdeSeed() {
