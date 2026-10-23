@@ -382,7 +382,7 @@ PUT  {API_BASE}/v1/flujos/:id   Authorization: Bearer inv_…
      { nodos[], aristas[], nombre?, descripcion? }  → nueva versión (bump)
 ```
 
-UI: Catálogos → **Flujos** (todas las BDs; ficha Resumen | Base de datos | Documento | Versiones | Corridas | Interno). También ficha Base de datos → pestañas **Flujos** / **Corridas** (filtrado). Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
+UI: Catálogos → **Flujos** (todas las BDs; ficha Resumen | Asociados | Documento | Versiones | **Corridas** | Interno). Las corridas cuelgan del Flujo (tabla filtrada por `flujo_id` + «+ Corrida»). Base de datos → **Flujos** (lista filtrada; sin pestaña Corridas). Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
 
 **Corridas** (Mongo colección `corridas` en la BD del proyecto; índice liviano en D1):
 

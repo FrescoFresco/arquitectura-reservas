@@ -4936,7 +4936,6 @@ function seleccionarProyReaderTab(id) {
     diagrama: document.getElementById('proyPanelDiagrama'),
     operativa: document.getElementById('proyPanelOperativa'),
     flujos: document.getElementById('proyPanelFlujos'),
-    corridas: document.getElementById('proyPanelCorridas'),
     empujar: document.getElementById('proyPanelEmpujar'),
     historial: document.getElementById('proyPanelHistorial'),
     interno: document.getElementById('proyPanelInterno')
@@ -4944,6 +4943,14 @@ function seleccionarProyReaderTab(id) {
   // Compat: vínculos movidos a Asociados; agentes/conexión ya no son pestaña de BD
   if (id === 'conexion' || id === 'agentes') id = 'resumen';
   if (id === 'sync') id = 'empujar';
+  // Corridas cuelgan del Flujo (no pestaña top-level de BD)
+  if (id === 'corridas') {
+    if (window.FlujosCorridasUI && typeof window.FlujosCorridasUI.irACorridasDesdeOperativa === 'function') {
+      window.FlujosCorridasUI.irACorridasDesdeOperativa();
+      return;
+    }
+    id = 'flujos';
+  }
   if (id === 'cluster' || id === 'colecciones' || id === 'campos' || id === 'skills') {
     state.proyectos.asocSub = id;
     id = 'asociados';
@@ -4967,16 +4974,12 @@ function seleccionarProyReaderTab(id) {
       window.FlujosCorridasUI.cargarFlujos(proy);
     }
   }
-  if (id === 'corridas') {
-    if (window.FlujosCorridasUI && typeof window.FlujosCorridasUI.cargarCorridas === 'function') {
-      window.FlujosCorridasUI.cargarCorridas(proy, { resetPage: true });
-    }
-  }
   if (id === 'empujar') pintarProyectoEmpujarAuto(proy);
   if (id === 'historial') cargarProyectoHistorialEmpujes(proy, { reset: true });
 }
 
 window.seleccionarProyReaderTab = seleccionarProyReaderTab;
+window.seleccionarCatalogo = seleccionarCatalogo;
 window.abrirProyecto = abrirProyecto;
 
 function cargarProyectoOperativa(proy) {
@@ -8232,6 +8235,7 @@ window.atrasDesdeFicha = atrasDesdeFicha;
 window.iconizarPestanasFicha = iconizarPestanasFicha;
 window.openFichaPane = openFichaPane;
 window.abrirProyecto = abrirProyecto;
+window.proyectoAbierto = proyectoAbierto;
 window.cargarProyectos = cargarProyectos;
 window.listaProyectosCatalogo = function () {
   return (state.proyectos && state.proyectos.lista) || [];

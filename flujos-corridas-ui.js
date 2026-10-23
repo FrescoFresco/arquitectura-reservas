@@ -3,10 +3,12 @@
 /**
  * Flujos + Corridas UI.
  * - Catálogos → Flujos (lista global + ficha)
- * - Base de datos → Flujos / Corridas (filtrado por proyecto)
+ * - Base de datos → Flujos (filtrado por proyecto)
+ * - Corridas: canónicas en ficha Flujo → pestaña Corridas (filtro flujo_id)
  * Depende de helpers globales de catalogo-ui: apiFetch, apiFetchAuth,
  * asegurarClaveCatalogo, showApiErrorRaw, renderMermaidEn, svgPestanaCatalogo,
- * iconizarPestanasFicha, atrasDesdeFicha, apiBaseUrl, openFichaPane, abrirProyecto.
+ * iconizarPestanasFicha, atrasDesdeFicha, apiBaseUrl, openFichaPane, abrirProyecto,
+ * seleccionarCatalogo.
  */
 (function () {
   var PAGE_SIZE = 25;
@@ -22,13 +24,11 @@
     flujoVersion: null,
     flujoHistorial: false,
     flujoEdit: false,
-    corridas: [],
-    corridasToken: 0,
-    corridasPage: 0,
-    corridasFiltros: { estado: '', negocio: '', flujo_id: '' },
     corridaAbierta: null,
     flujoCorridas: [],
-    flujoCorridasToken: 0
+    flujoCorridasToken: 0,
+    flujoCorridasPage: 0,
+    flujoCorridasFiltros: { estado: '', negocio: '' }
   };
 
   function apiBase() {
@@ -595,26 +595,48 @@
     }
   }
 
-  function cargarFlujoCorridas() {
+  function cargarFlujoCorridas(opts) {
+    var o = opts || {};
     var f = st.flujoAbierto;
     var estado = document.getElementById('flujoCorridasEstado');
-    var lista = document.getElementById('flujoCorridasLista');
-    if (!f || !lista) return;
+    var wrap = document.getElementById('flujoCorridasTablaWrap');
+    var pager = document.getElementById('flujoCorridasPager');
+    if (!f) return;
+    if (o.resetPage !== false) st.flujoCorridasPage = 0;
+    if (o.readFilters !== false) {
+      var est = document.getElementById('flujoCorridasEstadoFiltro');
+      var neg = document.getElementById('flujoCorridasNegocio');
+      st.flujoCorridasFiltros = {
+        estado: est ? String(est.value || '').trim() : '',
+        negocio: neg ? String(neg.value || '').trim() : ''
+      };
+    }
     var token = ++st.flujoCorridasToken;
     if (estado) {
       estado.hidden = false;
       estado.textContent = 'Cargando corridas…';
     }
-    lista.replaceChildren();
+    if (wrap) wrap.hidden = true;
+    if (pager) pager.hidden = true;
     var qs = new URLSearchParams();
     qs.set('flujo_id', f.id);
-    if (f.proyectoId) qs.set('proyecto', f.proyectoId);
+    if (f.proyectoId || f.proyecto_id) qs.set('proyecto', f.proyectoId || f.proyecto_id);
+    if (st.flujoCorridasFiltros.estado) qs.set('estado', st.flujoCorridasFiltros.estado);
+    if (st.flujoCorridasFiltros.negocio) qs.set('negocio', st.flujoCorridasFiltros.negocio);
     fetch(apiBase() + '/v1/corridas?' + qs.toString(), { cache: 'no-store' })
       .then(function (res) {
-        return res.json().then(function (data) {
+        return res.text().then(function (raw) {
+          var data = null;
+          try {
+            data = raw ? JSON.parse(raw) : {};
+          } catch (e) {
+            data = null;
+          }
           if (!res.ok || (data && data.ok === false)) {
             var err = new Error((data && data.error) || 'HTTP ' + res.status);
+            err.status = res.status;
             err.data = data;
+            err.rawBody = raw;
             throw err;
           }
           return data;
@@ -623,73 +645,77 @@
       .then(function (data) {
         if (token !== st.flujoCorridasToken) return;
         st.flujoCorridas = (data && data.corridas) || [];
-        pintarFlujoCorridasLista();
+        pintarTablaFlujoCorridas();
       })
       .catch(function (err) {
         if (token !== st.flujoCorridasToken) return;
-        if (estado) {
+        if (estado && typeof window.showApiErrorRaw === 'function') {
           estado.hidden = false;
-          if (typeof window.showApiErrorRaw === 'function') {
-            window.showApiErrorRaw(estado, err, { kind: 'is-err', statusLabel: true });
-          } else {
-            estado.textContent = err.message || 'Error';
-          }
+          window.showApiErrorRaw(estado, err, { kind: 'is-err', statusLabel: true });
+        } else if (estado) {
+          estado.hidden = false;
+          estado.textContent = err.message || 'Error';
         }
       });
   }
 
-  function pintarFlujoCorridasLista() {
-    var estado = document.getElementById('flujoCorridasEstado');
-    var lista = document.getElementById('flujoCorridasLista');
-    if (!lista) return;
-    lista.replaceChildren();
-    if (!st.flujoCorridas.length) {
-      if (estado) {
-        estado.hidden = false;
-        estado.textContent = 'Sin corridas de este flujo.';
+  function pintarTablaFlujoCorridas() {
+    var body = document.getElementById('flujoCorridasBody');
+    var wrap = document.getElementById('flujoCorridasTablaWrap');
+    var vacio = document.getElementById('flujoCorridasEstado');
+    var pager = document.getElementById('flujoCorridasPager');
+    var btnPrev = document.getElementById('btnFlujoCorridasPrev');
+    var btnNext = document.getElementById('btnFlujoCorridasNext');
+    var info = document.getElementById('flujoCorridasPagerInfo');
+    if (!body) return;
+    body.replaceChildren();
+    var all = st.flujoCorridas || [];
+    if (!all.length) {
+      if (wrap) wrap.hidden = true;
+      if (pager) pager.hidden = true;
+      if (vacio) {
+        vacio.hidden = false;
+        vacio.textContent = 'Sin corridas de este flujo.';
       }
       return;
     }
-    if (estado) estado.hidden = true;
-    st.flujoCorridas.forEach(function (c) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'catalogo-fila';
-      btn.setAttribute('role', 'listitem');
-      btn.setAttribute('aria-label', 'Abrir corrida ' + (c.id || ''));
-      var icon = document.createElement('span');
-      icon.className = 'catalogo-fila-icon';
-      icon.setAttribute('aria-hidden', 'true');
-      if (typeof window.svgPestanaCatalogo === 'function') {
-        var svg = window.svgPestanaCatalogo('corrida');
-        if (svg) {
-          svg.classList.add('catalogo-fila-svg');
-          svg.classList.remove('pestana-svg');
-          icon.append(svg);
-        }
-      }
-      var main = document.createElement('span');
-      main.className = 'catalogo-fila-main';
-      var tit = document.createElement('span');
-      tit.className = 'catalogo-fila-titulo';
-      tit.textContent = c.negocio || c.id || '—';
-      var cod = document.createElement('span');
-      cod.className = 'catalogo-fila-codigo';
-      cod.textContent = [c.estado, c.id, formatCuando(c.actualizada || c.creada)]
-        .filter(Boolean)
-        .join(' · ');
-      main.append(tit, cod);
-      var enlace = document.createElement('span');
-      enlace.className = 'catalogo-fila-enlace';
-      enlace.setAttribute('aria-hidden', 'true');
-      enlace.innerHTML =
-        '<svg class="catalogo-fila-enlace-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
-      btn.append(icon, main, enlace);
-      btn.addEventListener('click', function () {
-        abrirCorrida(c.id);
-      });
-      lista.append(btn);
+    if (vacio) vacio.hidden = true;
+    if (wrap) wrap.hidden = false;
+    var totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+    if (st.flujoCorridasPage >= totalPages) st.flujoCorridasPage = totalPages - 1;
+    if (st.flujoCorridasPage < 0) st.flujoCorridasPage = 0;
+    var start = st.flujoCorridasPage * PAGE_SIZE;
+    var slice = all.slice(start, start + PAGE_SIZE);
+    slice.forEach(function (c) {
+      var tr = document.createElement('tr');
+      tr.dataset.corridaId = c.id;
+      var tdNeg = document.createElement('td');
+      tdNeg.textContent = c.negocio || '—';
+      var tdEst = document.createElement('td');
+      var badge = document.createElement('span');
+      badge.className = 'corrida-badge is-' + (c.estado || '');
+      badge.textContent = c.estado || '—';
+      tdEst.append(badge);
+      var tdCre = document.createElement('td');
+      tdCre.textContent = formatCuando(c.creada || c.actualizada);
+      var tdPaso = document.createElement('td');
+      tdPaso.textContent = c.paso_actual || '—';
+      tr.append(tdNeg, tdEst, tdCre, tdPaso);
+      body.append(tr);
     });
+    if (pager) pager.hidden = all.length <= PAGE_SIZE;
+    if (info) {
+      info.textContent =
+        'Pág. ' + (st.flujoCorridasPage + 1) + ' / ' + totalPages + ' · ' + all.length + ' corridas';
+    }
+    if (btnPrev) {
+      btnPrev.hidden = st.flujoCorridasPage <= 0;
+      btnPrev.disabled = st.flujoCorridasPage <= 0;
+    }
+    if (btnNext) {
+      btnNext.hidden = st.flujoCorridasPage >= totalPages - 1;
+      btnNext.disabled = st.flujoCorridasPage >= totalPages - 1;
+    }
   }
 
   function pintarFlujoVersionesTab() {
@@ -744,7 +770,9 @@
     if (arEl) arEl.value = JSON.stringify(f.aristas || [], null, 2);
   }
 
-  function abrirFlujo(id, version) {
+  function abrirFlujo(id, version, opts) {
+    var o = opts || {};
+    var tabInicial = o.tab || 'resumen';
     st.flujoHistorial = false;
     st.flujoEdit = false;
     var dlg = document.getElementById('dlgFlujo');
@@ -764,7 +792,15 @@
         st.flujoAbierto = data.flujo;
         st.flujoVersion = data.flujo && data.flujo.version;
         if (data.flujo && data.flujo.proyectoId) st.proyectoId = data.flujo.proyectoId;
+<<<<<<< HEAD
         seleccionarFlujoTab('resumen');
+=======
+        seleccionarFlujoTab(tabInicial);
+        pintarFlujoFicha();
+        if (typeof window.iconizarPestanasFicha === 'function') {
+          window.iconizarPestanasFicha(document.getElementById('flujoReader'));
+        }
+>>>>>>> origin/main
         if (dlg) {
           if (typeof window.openFichaPane === 'function') window.openFichaPane(dlg);
           else if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
@@ -976,139 +1012,17 @@
       });
   }
 
-  /* ——— Corridas ——— */
+  /* ——— Corridas (canónicas en ficha Flujo) ——— */
 
+  /** Compat: ya no hay pestaña BD→Corridas; abre el flujo (o catálogo). */
   function cargarCorridas(proy, opts) {
     var o = opts || {};
-    if (!proy || !proy.id) return;
-    st.proyectoId = proy.id;
-    if (o.resetPage !== false) st.corridasPage = 0;
-    if (o.readFilters !== false) {
-      var est = document.getElementById('proyCorridasEstado');
-      var neg = document.getElementById('proyCorridasNegocio');
-      var flu = document.getElementById('proyCorridasFlujo');
-      st.corridasFiltros = {
-        estado: est ? String(est.value || '').trim() : '',
-        negocio: neg ? String(neg.value || '').trim() : '',
-        flujo_id: flu ? String(flu.value || '').trim() : ''
-      };
-    }
-    if (o.flujo_id != null) {
-      st.corridasFiltros.flujo_id = String(o.flujo_id || '');
-      var fluEl = document.getElementById('proyCorridasFlujo');
-      if (fluEl) fluEl.value = st.corridasFiltros.flujo_id;
-    }
-    var token = ++st.corridasToken;
-    var vacio = document.getElementById('proyCorridasEstadoMsg');
-    if (vacio) {
-      vacio.hidden = false;
-      vacio.textContent = 'Cargando corridas…';
-    }
-    var qs = new URLSearchParams();
-    qs.set('proyecto', proy.id);
-    if (st.corridasFiltros.estado) qs.set('estado', st.corridasFiltros.estado);
-    if (st.corridasFiltros.negocio) qs.set('negocio', st.corridasFiltros.negocio);
-    if (st.corridasFiltros.flujo_id) qs.set('flujo_id', st.corridasFiltros.flujo_id);
-
-    var base =
-      typeof window.apiBaseUrl === 'function'
-        ? window.apiBaseUrl()
-        : 'https://campos-ancla-api.web-legal-es.workers.dev';
-    fetch(base + '/v1/corridas?' + qs.toString(), { cache: 'no-store' })
-      .then(function (res) {
-        return res.text().then(function (raw) {
-          var data = null;
-          try {
-            data = raw ? JSON.parse(raw) : {};
-          } catch (e) {
-            data = null;
-          }
-          if (!res.ok || (data && data.ok === false)) {
-            var err = new Error((data && data.error) || 'HTTP ' + res.status);
-            err.status = res.status;
-            err.data = data;
-            err.rawBody = raw;
-            throw err;
-          }
-          return data;
-        });
-      })
-      .then(function (data) {
-        if (token !== st.corridasToken) return;
-        st.corridas = (data && data.corridas) || [];
-        pintarTablaCorridas();
-      })
-      .catch(function (err) {
-        if (token !== st.corridasToken) return;
-        if (vacio && typeof window.showApiErrorRaw === 'function') {
-          vacio.hidden = false;
-          window.showApiErrorRaw(vacio, err, { kind: 'is-err', statusLabel: true });
-        } else if (vacio) {
-          vacio.hidden = false;
-          vacio.textContent = err.message || 'Error';
-        }
-      });
-  }
-
-  function pintarTablaCorridas() {
-    var body = document.getElementById('proyCorridasBody');
-    var wrap = document.getElementById('proyCorridasTablaWrap');
-    var vacio = document.getElementById('proyCorridasEstadoMsg');
-    var pager = document.getElementById('proyCorridasPager');
-    var btnPrev = document.getElementById('btnProyCorridasPrev');
-    var btnNext = document.getElementById('btnProyCorridasNext');
-    var info = document.getElementById('proyCorridasPagerInfo');
-    if (!body) return;
-    body.replaceChildren();
-    var all = st.corridas || [];
-    if (!all.length) {
-      if (wrap) wrap.hidden = true;
-      if (pager) pager.hidden = true;
-      if (vacio) {
-        vacio.hidden = false;
-        vacio.textContent = 'Sin corridas para estos filtros.';
-      }
+    if (proy && proy.id) st.proyectoId = proy.id;
+    if (o.flujo_id) {
+      irACorridasDeFlujo(o.flujo_id);
       return;
     }
-    if (vacio) vacio.hidden = true;
-    if (wrap) wrap.hidden = false;
-    var totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
-    if (st.corridasPage >= totalPages) st.corridasPage = totalPages - 1;
-    if (st.corridasPage < 0) st.corridasPage = 0;
-    var start = st.corridasPage * PAGE_SIZE;
-    var slice = all.slice(start, start + PAGE_SIZE);
-    slice.forEach(function (c) {
-      var tr = document.createElement('tr');
-      tr.dataset.corridaId = c.id;
-      var tdNeg = document.createElement('td');
-      tdNeg.textContent = c.negocio || '—';
-      var tdEst = document.createElement('td');
-      var badge = document.createElement('span');
-      badge.className = 'corrida-badge is-' + (c.estado || '');
-      badge.textContent = c.estado || '—';
-      tdEst.append(badge);
-      var tdFlu = document.createElement('td');
-      tdFlu.textContent = c.flujo_id || '—';
-      var tdCre = document.createElement('td');
-      tdCre.textContent = formatCuando(c.creada || c.actualizada);
-      var tdPaso = document.createElement('td');
-      tdPaso.textContent = c.paso_actual || '—';
-      tr.append(tdNeg, tdEst, tdFlu, tdCre, tdPaso);
-      body.append(tr);
-    });
-    if (pager) pager.hidden = all.length <= PAGE_SIZE;
-    if (info) {
-      info.textContent =
-        'Pág. ' + (st.corridasPage + 1) + ' / ' + totalPages + ' · ' + all.length + ' corridas';
-    }
-    if (btnPrev) {
-      btnPrev.hidden = st.corridasPage <= 0;
-      btnPrev.disabled = st.corridasPage <= 0;
-    }
-    if (btnNext) {
-      btnNext.hidden = st.corridasPage >= totalPages - 1;
-      btnNext.disabled = st.corridasPage >= totalPages - 1;
-    }
+    irACorridasDesdeOperativa();
   }
 
   function seleccionarCorridaTab(id) {
@@ -1243,15 +1157,39 @@
     st.corridaAbierta = null;
   }
 
-  function irACorridasDeFlujo(flujoId) {
-    cerrarFlujo();
-    if (typeof window.seleccionarProyReaderTab === 'function') {
-      window.seleccionarProyReaderTab('corridas');
+  function irACorridasDeFlujo(flujoId, version) {
+    if (!flujoId) {
+      irACatalogoFlujos();
+      return;
     }
-    var proy = { id: st.proyectoId };
-    if (st.flujoAbierto && st.flujoAbierto.proyectoId) proy.id = st.flujoAbierto.proyectoId;
-    // st.flujoAbierto may already be null after cerrar — use arg
-    cargarCorridas(proy, { flujo_id: flujoId, resetPage: true });
+    if (st.flujoAbierto && st.flujoAbierto.id === flujoId) {
+      seleccionarFlujoTab('corridas');
+      return;
+    }
+    abrirFlujo(flujoId, version, { tab: 'corridas' });
+  }
+
+  function irACatalogoFlujos() {
+    if (typeof window.seleccionarCatalogo === 'function') {
+      window.seleccionarCatalogo('flujos');
+    } else {
+      var tab = document.querySelector('#catalogoTabs [data-catalogo="flujos"]');
+      if (tab) tab.click();
+    }
+  }
+
+  /** Operativa / botones: un flujo conocido → su Corridas; si no → catálogo Flujos. */
+  function irACorridasDesdeOperativa() {
+    var lista = st.flujos || [];
+    if (lista.length === 1 && lista[0] && lista[0].id) {
+      irACorridasDeFlujo(lista[0].id);
+      return;
+    }
+    if (st.flujoAbierto && st.flujoAbierto.id) {
+      seleccionarFlujoTab('corridas');
+      return;
+    }
+    irACatalogoFlujos();
   }
 
   function abrirNuevaCorrida(prefillFlujo) {
@@ -1265,7 +1203,7 @@
     if (flu) {
       flu.value =
         prefillFlujo ||
-        st.corridasFiltros.flujo_id ||
+        (st.flujoAbierto && st.flujoAbierto.id) ||
         (st.flujos[0] && st.flujos[0].id) ||
         'reservas-descubrir-mapear';
     }
@@ -1311,7 +1249,11 @@
           throw Object.assign(new Error((data && data.error) || 'Error'), { data: data });
         }
         document.getElementById('dlgNuevaCorrida').close();
-        cargarCorridas({ id: st.proyectoId }, { resetPage: true, readFilters: true });
+        if (st.flujoAbierto && st.flujoAbierto.id === flujo_id) {
+          cargarFlujoCorridas({ resetPage: true, readFilters: true });
+        } else if (flujo_id) {
+          irACorridasDeFlujo(flujo_id);
+        }
         if (data.corrida && data.corrida.id) abrirCorrida(data.corrida.id);
       })
       .catch(function (err) {
@@ -1334,8 +1276,12 @@
         abrirNuevoFlujo({ fromCatalog: true });
       });
     }
-    var btnNuevaCorrida = document.getElementById('btnNuevaCorrida');
-    if (btnNuevaCorrida) btnNuevaCorrida.addEventListener('click', function () { abrirNuevaCorrida(); });
+    var btnNuevaCorrida = document.getElementById('btnFlujoNuevaCorrida');
+    if (btnNuevaCorrida) {
+      btnNuevaCorrida.addEventListener('click', function () {
+        abrirNuevaCorrida(st.flujoAbierto && st.flujoAbierto.id);
+      });
+    }
     var cancelCorrida = document.getElementById('nuevaCorridaCancelar');
     if (cancelCorrida) {
       cancelCorrida.addEventListener('click', function () {
@@ -1430,43 +1376,31 @@
     if (btnCorridas) {
       btnCorridas.addEventListener('click', function () {
         if (!st.flujoAbierto) return;
-        // Preferir pestaña Corridas de la ficha flujo; si no, ir a BD → Corridas.
-        var tab = document.getElementById('flujoTabCorridas');
-        if (tab) {
-          seleccionarFlujoTab('corridas');
-          return;
-        }
-        var fid = st.flujoAbierto.id;
-        var pid = st.flujoAbierto.proyectoId || st.proyectoId;
-        cerrarFlujo();
-        if (typeof window.seleccionarProyReaderTab === 'function') {
-          window.seleccionarProyReaderTab('corridas');
-        }
-        cargarCorridas({ id: pid }, { flujo_id: fid, resetPage: true });
+        seleccionarFlujoTab('corridas');
       });
     }
 
-    var btnFiltrar = document.getElementById('btnProyCorridasFiltrar');
+    var btnFiltrar = document.getElementById('btnFlujoCorridasFiltrar');
     if (btnFiltrar) {
       btnFiltrar.addEventListener('click', function () {
-        cargarCorridas({ id: st.proyectoId }, { resetPage: true });
+        cargarFlujoCorridas({ resetPage: true });
       });
     }
-    var btnPrev = document.getElementById('btnProyCorridasPrev');
+    var btnPrev = document.getElementById('btnFlujoCorridasPrev');
     if (btnPrev) {
       btnPrev.addEventListener('click', function () {
-        st.corridasPage -= 1;
-        pintarTablaCorridas();
+        st.flujoCorridasPage -= 1;
+        pintarTablaFlujoCorridas();
       });
     }
-    var btnNext = document.getElementById('btnProyCorridasNext');
+    var btnNext = document.getElementById('btnFlujoCorridasNext');
     if (btnNext) {
       btnNext.addEventListener('click', function () {
-        st.corridasPage += 1;
-        pintarTablaCorridas();
+        st.flujoCorridasPage += 1;
+        pintarTablaFlujoCorridas();
       });
     }
-    var body = document.getElementById('proyCorridasBody');
+    var body = document.getElementById('flujoCorridasBody');
     if (body) {
       body.addEventListener('click', function (e) {
         var tr = e.target.closest('tr[data-corrida-id]');
@@ -1511,9 +1445,46 @@
     var btnOpCorridas = document.getElementById('btnOperativaIrCorridas');
     if (btnOpCorridas) {
       btnOpCorridas.addEventListener('click', function () {
-        if (typeof window.seleccionarProyReaderTab === 'function') {
-          window.seleccionarProyReaderTab('corridas');
+        var proyId = st.proyectoId;
+        if (!proyId && typeof window.proyectoAbierto === 'function') {
+          var p = window.proyectoAbierto();
+          if (p && p.id) proyId = p.id;
         }
+        if (!proyId && window.state && window.state.proyectos && window.state.proyectos.abiertoId) {
+          proyId = window.state.proyectos.abiertoId;
+        }
+        if (proyId) st.proyectoId = proyId;
+        function decide() {
+          irACorridasDesdeOperativa();
+        }
+        if (proyId) {
+          var needLoad =
+            !st.flujos.length ||
+            st.flujos.some(function (f) {
+              return f && f.proyectoId && f.proyectoId !== proyId;
+            });
+          if (needLoad) {
+            var startToken = st.flujosToken;
+            cargarFlujos({ id: proyId });
+            var tries = 0;
+            function waitFlujos() {
+              tries += 1;
+              // cargarFlujos ++token al inicio; al terminar token ya cambió y st.flujos está listo
+              if (st.flujosToken !== startToken && tries > 1) {
+                decide();
+                return;
+              }
+              if (tries > 40) {
+                decide();
+                return;
+              }
+              setTimeout(waitFlujos, 80);
+            }
+            waitFlujos();
+            return;
+          }
+        }
+        decide();
       });
     }
   }
@@ -1522,6 +1493,9 @@
     cargarFlujos: cargarFlujos,
     cargarCatalogo: cargarCatalogo,
     cargarCorridas: cargarCorridas,
+    cargarFlujoCorridas: cargarFlujoCorridas,
+    irACorridasDeFlujo: irACorridasDeFlujo,
+    irACorridasDesdeOperativa: irACorridasDesdeOperativa,
     abrirFlujo: abrirFlujo,
     abrirCorrida: abrirCorrida,
     abrirNuevoFlujo: abrirNuevoFlujo,
