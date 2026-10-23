@@ -1,44 +1,95 @@
 # API — contrato para agentes (Campos ancla)
 
-Documento canónico. Todo lo que necesitas para **entrar y operar** el hub está aquí (auth, catálogos, skills I/O, ejecutar, errores).
+Documento canónico. Un agente con invite Bearer puede **conectar y modificar todo el hub** (catálogos, ejecutar, corridas, Empujar/sync). Auth simple ahora; ACL fino después.
 
-**No uses** `localhost`, `127.0.0.1`, GitHub Pages ni `GITHUB_TOKEN`. La fuente viva es esta API + D1.
+**No uses** `localhost`, `127.0.0.1`, GitHub Pages ni `GITHUB_TOKEN`. Fuente viva: esta API + D1.
 
-**Agentes** = operadores ACL del hub (invite `inv_…` + Bearer), no bots del software de la BD. En la UI viven en **Ajustes → Agentes**.
+**Agentes** = operadores del hub (invite `inv_…` + Bearer), no bots del software de la BD. UI: **Ajustes → Agentes**.
 
 ## Credenciales
 
 ```
 API_BASE=https://campos-ancla-api.web-legal-es.workers.dev
-AGENTE_CLAVE=inv_…          # te la da un humano (Ajustes → Agentes → + Agente)
+AGENTE_CLAVE=inv_…          # humano: Ajustes → Agentes → + Agente (o POST /v1/invites)
 CATALOGO_UI=https://campos-ancla.web-legal-es.workers.dev/
 ```
 
-Misma documentación en:
+- Markdown UI: `https://campos-ancla.web-legal-es.workers.dev/documentacion/api.md`
+- Panel: `https://campos-ancla.web-legal-es.workers.dev/#documentacion/api`
+- API: `GET {API_BASE}/v1/docs` · `GET {API_BASE}/v1/docs.json`
 
-- Markdown: `https://campos-ancla.web-legal-es.workers.dev/documentacion/api.md`
-- UI: `https://campos-ancla.web-legal-es.workers.dev/#documentacion/api`
-- API markdown: `GET {API_BASE}/v1/docs` → `text/markdown`
-- API índice JSON: `GET {API_BASE}/v1/docs.json` → lista de rutas + auth
-
-Worker: `campos-ancla-api`. D1: `campos-ancla-db`. Los JSON de `catalogo/` en la UI son semilla/fallback, no el estado vivo.
+Worker `campos-ancla-api` · D1 `campos-ancla-db`. JSON de `catalogo/` = semilla/fallback.
 
 ---
 
-## Flujo (haz esto en orden)
+## Agente: cómo conectar y modificar todo
 
-1. Guarda `API_BASE` y `AGENTE_CLAVE`.
-2. `GET {API_BASE}/health` — comprueba que la API responde.
-3. `GET {API_BASE}/v1/docs` (o `/v1/docs.json`) — lee este contrato.
-4. `POST {API_BASE}/v1/agentes/registro` — eliges nombre (e `id` opcional); guarda el `id` de la respuesta.
-5. Cada ~30 s: `POST {API_BASE}/v1/agentes/latido` con ese `id` + clave → aparece **En línea** en la UI.
-6. Lee catálogos con `GET` (público). Escribe / ejecuta salidas con `Authorization: Bearer {AGENTE_CLAVE}`.
-7. Para una skill suelta: `GET /v1/ejecutar/:skillId` → contrato I/O + `systemPrompts`; luego entradas (GET) / salidas (POST).
-8. Para una **cadena** (n8n solo orquesta): `POST /v1/corridas` → repetir `GET /v1/corridas/:id/siguiente` → IA con `systemPrompt`+skill+`entradas` → `POST …/salidas` con `corrida_id`+`nodo_id` → hasta `tipo: "fin"`.
+```bash
+API_BASE=https://campos-ancla-api.web-legal-es.workers.dev
+AGENTE_CLAVE=inv_…   # pegada del invite
 
-La clave **no caduca**. Solo deja de valer si un humano la revoca.
+# 1) Salud + contrato
+curl -sS "$API_BASE/health"
+curl -sS "$API_BASE/v1/docs.json" | head
 
-**Límites:** no hay rate limit de producto en el Worker. No dispares latidos más de ~1/30 s ni bucles agresivos de escritura.
+# 2) Registro (clave en body; una vez)
+curl -sS -X POST "$API_BASE/v1/agentes/registro" \
+  -H 'Content-Type: application/json' \
+  -d "{\"clave\":\"$AGENTE_CLAVE\",\"nombre\":\"Eco Mesa\",\"id\":\"eco-mesa\"}"
+# → { ok, id, lastSeen, lee:["*"], escribe:["*"] }
+
+# 3) Latido ~30s (en línea en UI)
+curl -sS -X POST "$API_BASE/v1/agentes/latido" \
+  -H 'Content-Type: application/json' \
+  -d "{\"id\":\"eco-mesa\",\"clave\":\"$AGENTE_CLAVE\"}"
+
+# 4) Leer (público)
+curl -sS "$API_BASE/v1/skills"
+curl -sS "$API_BASE/v1/anclas"
+curl -sS "$API_BASE/v1/proyectos"
+curl -sS "$API_BASE/v1/colecciones"
+curl -sS "$API_BASE/v1/flujos"
+curl -sS "$API_BASE/v1/clusters"
+
+# 5) Mutar (Bearer = acceso completo al hub)
+curl -sS -X POST "$API_BASE/v1/skills" \
+  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+  -d '{"id":"mi-skill","nombre":"Mi skill","markdown":"# Hi\n","entradas":[],"salidas":[]}'
+curl -sS -X PUT "$API_BASE/v1/anclas/negocio.nombre" \
+  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+  -d '{"descripcion":"Nombre del local"}'
+curl -sS -X POST "$API_BASE/v1/proyectos/reservas/crear-bd" \
+  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' -d '{}'
+
+# 6) Ejecutar skill suelta
+curl -sS "$API_BASE/v1/ejecutar/mapear-recorrido"
+curl -sS "$API_BASE/v1/ejecutar/mapear-recorrido/entradas?negocio=pelo-sur"
+curl -sS -X POST "$API_BASE/v1/ejecutar/mapear-recorrido/salidas" \
+  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+  -d '{"negocio":"pelo-sur","valores":{"_version.recorrido.campos_":[]}}'
+
+# 7) Bucle corrida (n8n solo orquesta)
+curl -sS -X POST "$API_BASE/v1/corridas" \
+  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+  -d '{"flujo_id":"reservas-descubrir-mapear","negocio":"pelo-sur"}'
+# → guarda CORRIDA_ID
+curl -sS "$API_BASE/v1/corridas/$CORRIDA_ID/siguiente"
+# si tipo=skill → IA → POST …/salidas con corrida_id + nodo_id; repetir hasta tipo=fin
+```
+
+La clave **no caduca** (solo revocación humana). Sin rate limit de producto: latidos ≤1/30 s; no spamees escrituras.
+
+---
+
+## Flujo (orden mínimo)
+
+1. Guarda `API_BASE` + `AGENTE_CLAVE`.
+2. `GET /health` → `GET /v1/docs` o `/v1/docs.json`.
+3. `POST /v1/agentes/registro` → guarda `id`.
+4. Latido ~30 s: `POST /v1/agentes/latido`.
+5. `GET` catálogos (público). `POST`/`PUT`/`DELETE` + salidas con Bearer.
+6. Skill suelta: `GET /v1/ejecutar/:skillId` → entradas / salidas.
+7. Cadena: `POST /v1/corridas` → `GET …/siguiente` → salidas con `corrida_id`+`nodo_id` → `fin`.
 
 ---
 
@@ -145,7 +196,7 @@ Códigos auth:
 | `401` | Falta Bearer / `X-Agente-Clave` |
 | `403` | Invite inválida o revocada |
 
-Campos del agente `proyectos`, `lee`, `escribe` son **metadatos ACL del hub** (UI / ficha). Hoy **no** se aplican como filtro en `/v1/ejecutar` ni en CRUD de catálogo: basta una invite válida. La frontera operativa de escritura en ejecutar es la lista **`salidas`** de la skill.
+**Acceso completo (ahora):** una invite válida Bearer autoriza **todas** las escrituras del hub (CRUD catálogos, Empujar, sync, corridas, salidas). Campos `proyectos` / `lee` / `escribe` son **metadatos UI**; **no** filtran rutas. Al registrarse, `lee` y `escribe` quedan `["*"]` (señal de full-access). Endurecer ACL = después. Frontera operativa en ejecutar: solo anclas ∈ **`salidas`** de esa skill.
 
 ---
 
@@ -179,23 +230,24 @@ Ejemplos:
 
 ---
 
-## 6. Catálogos (CRUD)
+## 6. Catálogos (CRUD) — Bearer escribe todo
 
 | Recurso | Listar | Uno | Crear | Actualizar | Borrar |
 |---------|--------|-----|-------|------------|--------|
 | Skills | `GET /v1/skills` | `GET /v1/skills/:id` | `POST /v1/skills` | `PUT /v1/skills/:id` | `DELETE /v1/skills/:id` |
-| System prompts | `GET /v1/system-prompts` | `GET /v1/system-prompts/:id` | `POST /v1/system-prompts` | `PUT /v1/system-prompts/:id` | `DELETE /v1/system-prompts/:id` |
-| Ejecutar | — | `GET /v1/ejecutar/:skillId` | — | `POST …/salidas` (Bearer; +`corrida_id`?) | — |
-| Flujos | `POST /v1/flujos` | `GET /v1/flujos[/:id]` | — | — | — |
-| Corridas | `POST /v1/corridas` | `GET /v1/corridas[/:id[/siguiente]]` | — | — | — |
-| | | `GET …/entradas?negocio=` | | | |
-| Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST /v1/anclas` | `PUT /v1/anclas/:id` | `DELETE /v1/anclas/:id` |
-| Mongo | `GET /v1/mongo` | `GET /v1/mongo/:id` | `POST /v1/mongo` | `PUT /v1/mongo/:id` | `DELETE /v1/mongo/:id` |
-| Clusters | `GET /v1/clusters` | `GET /v1/clusters/:id` | `POST /v1/clusters` | `PUT /v1/clusters/:id` | `DELETE /v1/clusters/:id` |
-| Base de datos (API: proyectos / alias esquemas) | `GET /v1/proyectos` · `GET /v1/esquemas` | `GET /v1/proyectos/:id` · `/v1/esquemas/:id` | `POST` igual | `PUT` igual | `DELETE` igual |
-| Fundamentos | `GET /v1/fundamentos` | `GET /v1/fundamentos/:id` | `POST /v1/fundamentos` | `PUT /v1/fundamentos/:id` | `DELETE /v1/fundamentos/:id` |
+| System prompts | `GET /v1/system-prompts` | `GET /v1/system-prompts/:id` | `POST` | `PUT` | `DELETE` |
+| Ejecutar | — | `GET /v1/ejecutar/:skillId` · `GET …/entradas?negocio=` | — | `POST …/salidas` (Bearer; +`corrida_id`?) | — |
+| Flujos | `GET /v1/flujos?proyecto=` | `GET /v1/flujos/:id` | `POST /v1/flujos` | `PUT /v1/flujos/:id` | `DELETE /v1/flujos/:id` |
+| Corridas | `GET /v1/corridas?…` | `GET /v1/corridas/:id` · `…/siguiente` | `POST /v1/corridas` | (avanza vía salidas) | `DELETE /v1/corridas/:id` |
+| Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST` | `PUT` · `POST …/observaciones` | `DELETE` |
+| Campos Mongo | `GET /v1/mongo?proyecto=` | `GET /v1/mongo/:id` | `POST` | `PUT` | `DELETE` |
+| Clusters | `GET /v1/clusters` | `GET /v1/clusters/:id` | `POST` | `PUT` · mongo-config | `DELETE` |
+| Base de datos | `GET /v1/proyectos` · `/v1/esquemas` | `GET …/:id` | `POST` | `PUT` · `POST …/crear-bd` | `DELETE` |
+| Colecciones | `GET /v1/colecciones?proyecto=` | (vía BD padre) | vía `PUT` BD `{ colecciones }` | igual | quitar del array en `PUT` BD |
+| Fundamentos | `GET /v1/fundamentos` | `GET …/:id` | `POST` | `PUT` | `DELETE` |
+| Agentes | `GET /v1/agentes` | — | invite + registro | `PUT` | `DELETE` |
 
-Prefijo completo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
+Prefijo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
 
 ### Skill (ejemplo de escritura)
 
@@ -380,6 +432,8 @@ POST {API_BASE}/v1/flujos   Authorization: Bearer inv_…
      { id, nombre, proyecto_id, nodos[], aristas[], descripcion? }
 PUT  {API_BASE}/v1/flujos/:id   Authorization: Bearer inv_…
      { nodos[], aristas[], nombre?, descripcion? }  → nueva versión (bump)
+DELETE {API_BASE}/v1/flujos/:id   Authorization: Bearer inv_…
+     → borra flujo + versiones + índice corridas (Mongo best-effort)
 ```
 
 UI: Catálogos → **Flujos** (todas las BDs; ficha Resumen | Asociados | Documento | Versiones | **Corridas** | Interno). Las corridas cuelgan del Flujo (tabla filtrada por `flujo_id` + «+ Corrida»). Base de datos → **Flujos** (lista filtrada; sin pestaña Corridas). Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
@@ -398,6 +452,7 @@ GET  {API_BASE}/v1/corridas/:id/siguiente
 → skill: { corrida_id, nodo_id, tipo:"skill", skill, systemPrompt, entradas, negocio }
 → fin:   { tipo:"fin" }
 → espera:{ tipo:"espera", motivo:"aprobacion"|"subflujo", hijo_id? }
+DELETE {API_BASE}/v1/corridas/:id   Authorization: Bearer inv_…
 ```
 
 `entradas` en `/siguiente`: primero `corrida.datos`; si falta, Mongo por `negocio` (mismo mapa ancla→campo que ejecutar).
@@ -441,7 +496,25 @@ GET|POST|DELETE     {API_BASE}/v1/clusters/:id/mongo-config
 
 ### Base de datos (= softwares; rutas `/v1/proyectos` y alias `/v1/esquemas`)
 
-En la UI el panel se llama **Base de datos**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico (no se renombran las rutas). Cada entrada es un software (`reservas`, `llamadas`, …), no un negocio. Campo `clusterId` (cluster padre). La ficha tiene pestañas Resumen → **Colecciones** → Diagrama → Campos → Agentes (`colecciones[]` con `id` + `descripcion`). Además hay un catálogo top-level **Colecciones** (todas las colecciones de todas las bases; ficha con Campos Mongo filtrados). No hay ruta `/v1/colecciones`: la UI las ensambla desde proyectos + mongo. Campos:
+En la UI el panel se llama **Base de datos**. En API el recurso canónico sigue en `/v1/proyectos`; `/v1/esquemas` es alias idéntico. Cada entrada es un software (`reservas`, `llamadas`, …), no un negocio. Campo `clusterId` (cluster padre). Colecciones viven en `proyectos.colecciones[]` (`id`, `descripcion`, `color?`).
+
+**Listar colecciones (catálogo top-level):**
+
+```
+GET {API_BASE}/v1/colecciones
+GET {API_BASE}/v1/colecciones?proyecto=reservas
+→ { ok, colecciones: [{ key, id, descripcion, color, proyectoId, proyectoNombre, baseDatos, nCampos }] }
+```
+
+**Mutar colecciones:** no hay `POST/DELETE /v1/colecciones`. Edita el array en la BD:
+
+```
+PUT {API_BASE}/v1/proyectos/reservas
+Authorization: Bearer inv_…
+{ "colecciones": [{ "id": "negocios", "descripcion": "…" }, { "id": "lo_conseguimos", "descripcion": "…" }] }
+```
+
+(PUT solo `{ "colecciones": […] }` actualiza JSON sin bump de versión MD.) Campos:
 
 ```json
 {
@@ -493,13 +566,13 @@ GET {API_BASE}/v1/mongo?proyecto=reservas
 GET {API_BASE}/v1/mongo?proyecto=llamadas
 ```
 
-### Agentes — permisos por base de datos
+### Agentes — permisos (metadatos; ACL no aplicado aún)
 
 ```json
-{ "proyectos": ["reservas"], "lee": ["_negocio.telefono_"], "escribe": ["_ejecucion.respuesta.estado_"] }
+{ "proyectos": ["reservas"], "lee": ["*"], "escribe": ["*"] }
 ```
 
-`PUT /v1/agentes/:id` acepta `proyectos`, `lee`, `escribe`.
+`PUT /v1/agentes/:id` acepta `proyectos`, `lee`, `escribe`. Hoy **no** restringen rutas: Bearer = full hub. Registro deja `lee`/`escribe` en `["*"]`.
 
 ### Base de datos ↔ skills (N:M)
 
@@ -689,32 +762,42 @@ Los agentes hablan con la API por HTTP desde su runtime; no necesitan la UI salv
 
 ## 9. Checklist mínimo del agente
 
+Ver sección **Agente: cómo conectar y modificar todo** (arriba). Resumen:
+
 ```bash
-# 1 salud
 curl -sS "$API_BASE/health"
-# 2 contrato
 curl -sS "$API_BASE/v1/docs.json" | head
-# 3 registro (una vez)
 curl -sS -X POST "$API_BASE/v1/agentes/registro" -H 'Content-Type: application/json' \
   -d "{\"clave\":\"$AGENTE_CLAVE\",\"nombre\":\"Eco Mesa\",\"id\":\"eco-mesa\"}"
-# 4 latido
 curl -sS -X POST "$API_BASE/v1/agentes/latido" -H 'Content-Type: application/json' \
   -d "{\"id\":\"eco-mesa\",\"clave\":\"$AGENTE_CLAVE\"}"
-# 5 skills + I/O
-curl -sS "$API_BASE/v1/skills/mapear-recorrido"
-curl -sS "$API_BASE/v1/ejecutar/mapear-recorrido"
 curl -sS "$API_BASE/v1/ejecutar/mapear-recorrido/entradas?negocio=pelo-sur"
-# 6 escritura (Bearer)
 curl -sS -X POST "$API_BASE/v1/ejecutar/mapear-recorrido/salidas" \
   -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
   -d '{"negocio":"pelo-sur","valores":{"_version.recorrido.campos_":[]}}'
+curl -sS -X POST "$API_BASE/v1/corridas" \
+  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+  -d '{"flujo_id":"reservas-descubrir-mapear","negocio":"pelo-sur"}'
 ```
+
+---
+
+## 10. Límites intencionales (no son bugs)
+
+| Límite | Por qué |
+|--------|---------|
+| `lee`/`escribe` no filtran rutas | Mecanismo primero; ACL después |
+| Sin `POST/DELETE /v1/colecciones` | Colecciones = JSON de la BD (`PUT /v1/proyectos/:id`) |
+| URI Mongo nunca en respuestas | Seguridad; configurar en Cluster → Conexión |
+| `POST /v1/invites` abierto | UI/humanos crean invites sin Bearer |
+| Sin rate limit de producto | Añadir después si hace falta |
+| n8n no lleva reglas | Solo orquesta el bucle HTTP de corridas |
 
 ---
 
 ## Apéndice — solo humanos (no agentes)
 
 Desplegar Worker/UI: ver `CLOUDFLARE.md` en el repo.  
-Espejo estático opcional a GitHub (`scripts/subir.js`): **no** sustituye D1; los agentes no lo usan.  
+Espejo estático opcional a GitHub (`scripts/subir.js`): **no** sustituye D1.  
 Cola Metricool / comentarios: fuera de alcance.  
-URI Atlas: ficha **Cluster → Conexión** (no Ajustes → Conexiones; no por Base de datos).
+URI Atlas: ficha **Cluster → Conexión**.

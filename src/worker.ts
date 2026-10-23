@@ -819,6 +819,42 @@ app.put('/v1/flujos/:id', async (c) => {
   });
 });
 
+/** Borrar flujo (+ versiones CASCADE). Índice D1 de corridas; Mongo best-effort. */
+app.delete('/v1/flujos/:id', async (c) => {
+  const id = c.req.param('id');
+  const meta = await c.env.DB.prepare('SELECT id, proyecto_id FROM flujos WHERE id = ?')
+    .bind(id)
+    .first<{ id: string; proyecto_id: string }>();
+  if (!meta) return jsonError(c, 404, 'Flujo no encontrado.');
+
+  const idx = await c.env.DB.prepare('SELECT id FROM corridas_index WHERE flujo_id = ?')
+    .bind(id)
+    .all();
+  const corridaIds = ((idx.results || []) as Array<{ id: string }>).map((r) => r.id);
+
+  // Best-effort: borrar docs Mongo de esas corridas.
+  if (corridaIds.length) {
+    try {
+      const mongo = await mongoForProyecto(c.env, meta.proyecto_id);
+      if (mongo) {
+        await withMongoDb(
+          mongo.env,
+          async (db) => {
+            await db.collection('corridas').deleteMany({ _id: { $in: corridaIds } });
+          },
+          mongo.dbName
+        );
+      }
+    } catch {
+      /* índice + flujo se limpian igual */
+    }
+  }
+
+  await c.env.DB.prepare('DELETE FROM corridas_index WHERE flujo_id = ?').bind(id).run();
+  await c.env.DB.prepare('DELETE FROM flujos WHERE id = ?').bind(id).run();
+  return c.json({ ok: true, deleted: id, corridasDeleted: corridaIds.length });
+});
+
 /**
  * Crea una corrida en Mongo `corridas` de la BD del proyecto del flujo.
  * Body: { flujo_id, negocio, datos_iniciales? }
@@ -963,6 +999,38 @@ app.get('/v1/corridas/:id', async (c) => {
   const loaded = await loadCorridaWithFlujo(c.env, id);
   if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
   return c.json({ ok: true, corrida: publicCorrida(loaded.doc), flujo: loaded.flujo });
+});
+
+/** Borrar corrida (Mongo + índice D1). */
+app.delete('/v1/corridas/:id', async (c) => {
+  const id = c.req.param('id');
+  const idx = await c.env.DB.prepare(
+    'SELECT id, proyecto_id FROM corridas_index WHERE id = ?'
+  )
+    .bind(id)
+    .first<{ id: string; proyecto_id: string }>();
+  if (!idx) return jsonError(c, 404, 'Corrida no encontrada.');
+
+  let mongoDeleted = false;
+  try {
+    const mongo = await mongoForProyecto(c.env, idx.proyecto_id);
+    if (mongo) {
+      await withMongoDb(
+        mongo.env,
+        async (db) => {
+          const r = await db.collection('corridas').deleteOne({ _id: id });
+          mongoDeleted = (r.deletedCount || 0) > 0;
+        },
+        mongo.dbName
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'borrado corrida falló';
+    return jsonError(c, 502, msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***'));
+  }
+
+  await c.env.DB.prepare('DELETE FROM corridas_index WHERE id = ?').bind(id).run();
+  return c.json({ ok: true, deleted: id, mongoDeleted });
 });
 
 /**
@@ -1320,6 +1388,63 @@ app.get('/v1/proyectos', async (c) => {
   return c.json({ ok: true, id: 'proyectos', nombre: 'Base de datos', proyectos: out, alias: 'esquemas' });
 });
 
+/**
+ * Catálogo top-level Colecciones (como la UI): aplanado de proyectos.colecciones[].
+ * Mutar: PUT /v1/proyectos/:id con colecciones[] (no hay POST/DELETE sueltos).
+ */
+app.get('/v1/colecciones', async (c) => {
+  const proyectoQ = String(c.req.query('proyecto') || c.req.query('proyecto_id') || '').trim();
+  let sql = `SELECT id, nombre, base_datos, colecciones, legacy_negocio FROM proyectos`;
+  const binds: string[] = [];
+  if (proyectoQ) {
+    sql += ' WHERE id = ?';
+    binds.push(proyectoQ);
+  }
+  sql += ' ORDER BY nombre';
+  const rows = binds.length
+    ? await c.env.DB.prepare(sql).bind(...binds).all()
+    : await c.env.DB.prepare(sql).all();
+
+  const campos = await c.env.DB.prepare(
+    'SELECT proyecto, coleccion, COUNT(*) AS n FROM campos_mongo GROUP BY proyecto, coleccion'
+  ).all();
+  const conteo = new Map<string, number>();
+  for (const r of campos.results || []) {
+    const row = r as { proyecto: string; coleccion: string; n: number };
+    conteo.set(`${row.proyecto}::${row.coleccion}`, Number(row.n) || 0);
+  }
+
+  const colecciones: Array<Record<string, unknown>> = [];
+  for (const raw of rows.results || []) {
+    const row = raw as Record<string, unknown>;
+    const legacy = !!(row.legacy_negocio === 1 || row.legacy_negocio === true);
+    if (legacy) continue;
+    const proyectoId = String(row.id);
+    const proyectoNombre = String(row.nombre || proyectoId);
+    const baseDatos = String(row.base_datos || '').trim();
+    for (const col of parseColecciones(row.colecciones)) {
+      if (!col.id) continue;
+      const key = `${proyectoId}::${col.id}`;
+      colecciones.push({
+        key,
+        id: col.id,
+        descripcion: col.descripcion || '',
+        color: col.color ?? null,
+        proyectoId,
+        proyectoNombre,
+        baseDatos,
+        nCampos: conteo.has(key) ? conteo.get(key)! : 0,
+      });
+    }
+  }
+  colecciones.sort((a, b) => {
+    const pa = String(a.proyectoId).localeCompare(String(b.proyectoId), 'es');
+    if (pa !== 0) return pa;
+    return String(a.id).localeCompare(String(b.id), 'es');
+  });
+  return c.json({ ok: true, id: 'colecciones', nombre: 'Colecciones', colecciones });
+});
+
 app.get('/v1/proyectos/:id/diagrama', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare('SELECT * FROM proyectos WHERE id = ?').bind(id).first();
@@ -1615,22 +1740,26 @@ app.post('/v1/agentes/registro', async (c) => {
   const descripcion = String(body.descripcion || '').trim().slice(0, 280);
   const hash = await sha256Hex(id + '|' + nombre + '|' + clave);
 
+  // lee/escribe = metadatos UI; hoy no filtran rutas. Default ["*"] = acceso completo al hub.
+  const fullAcl = JSON.stringify(['*']);
   const prev = await c.env.DB.prepare('SELECT id FROM agentes WHERE id = ?').bind(id).first();
   if (prev) {
     await c.env.DB.prepare(
-      'UPDATE agentes SET nombre = ?, foto = ?, descripcion = ?, invite_usada = ?, last_seen = ?, hash = ?, updated_at = ? WHERE id = ?'
+      `UPDATE agentes SET nombre = ?, foto = ?, descripcion = ?, invite_usada = ?, last_seen = ?, hash = ?,
+       updated_at = ?, lee = ?, escribe = ? WHERE id = ?`
     )
-      .bind(nombre, foto, descripcion, clave, ts, hash, ts, id)
+      .bind(nombre, foto, descripcion, clave, ts, hash, ts, fullAcl, fullAcl, id)
       .run();
   } else {
     await c.env.DB.prepare(
-      'INSERT INTO agentes (id, nombre, foto, descripcion, invite_usada, last_seen, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      `INSERT INTO agentes (id, nombre, foto, descripcion, invite_usada, last_seen, hash, created_at, updated_at, lee, escribe)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(id, nombre, foto, descripcion, clave, ts, hash, ts, ts)
+      .bind(id, nombre, foto, descripcion, clave, ts, hash, ts, ts, fullAcl, fullAcl)
       .run();
   }
   await c.env.DB.prepare('UPDATE invites SET usada_por = ? WHERE clave = ?').bind(id, clave).run();
-  return c.json({ ok: true, id, lastSeen: ts }, prev ? 200 : 201);
+  return c.json({ ok: true, id, lastSeen: ts, lee: ['*'], escribe: ['*'] }, prev ? 200 : 201);
 });
 
 app.post('/v1/agentes/latido', async (c) => {

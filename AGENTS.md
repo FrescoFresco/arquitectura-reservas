@@ -16,13 +16,13 @@ Los JSON de `catalogo/` son semilla/fallback de la UI. **No uses `GITHUB_TOKEN` 
 ## Acceso
 
 1. Un humano abre **Ajustes → Agentes → + Agente** y te pega el bloque (clave + URLs).
-2. Lees Documentación → API (`/v1/docs` o `/v1/docs.json`).
-3. Te registras y late según ese contrato.
-4. Operas skills con `GET/POST /v1/ejecutar/:skillId[/entradas|/salidas]` (`negocio` = id del local).
+2. Lees Documentación → API (`/v1/docs` o `/v1/docs.json`) — sección **Agente: cómo conectar y modificar todo**.
+3. Te registras y late según ese contrato (`lee`/`escribe` → `["*"]`; ACL fino aún no filtra rutas).
+4. Bearer invite = escritura completa del hub. Skills: `GET/POST /v1/ejecutar/:skillId[/entradas|/salidas]` (`negocio` = id del local). Corridas: `POST /v1/corridas` → `GET …/siguiente` → salidas con `corrida_id`.
 
 ## Qué puedes modificar (vía API)
 
-Skills (incl. `entradas`/`salidas`), Campos ancla, Campos MongoDB, Clusters (`/v1/clusters` + URI), Base de datos (`/v1/proyectos` + alias `/v1/esquemas`, con `cluster_id`), Fundamentos — cada cambio versionado donde aplica. Eliminar skill limpia asociaciones N:M en bases de datos. Ejecutar salidas exige Bearer + anclas ∈ `salidas` de la skill + URI en el Cluster.
+Skills (I/O), system prompts, anclas, campos Mongo, clusters (+ URI), bases (`/v1/proyectos` · `/v1/esquemas`), colecciones (vía PUT BD o `GET /v1/colecciones`), flujos (CRUD incl. DELETE), corridas (crear/listar/siguiente/DELETE), fundamentos, Empujar (`…/crear-bd`), sync Mongo, color de entidades. Ejecutar salidas: Bearer + anclas ∈ `salidas` + URI en el Cluster.
 
 No hay cola de comentarios / Metricool todavía.
 

@@ -22,7 +22,9 @@ export const API_DOCS_INDEX = {
     writeRequiresInvite: true,
     bodyClaveExceptions: ['/v1/agentes/registro', '/v1/agentes/latido'],
     inviteCreateOpen: '/v1/invites',
-    aclLeeEscribe: 'metadata on agente; not enforced on /v1/ejecutar or catalog writes yet',
+    aclLeeEscribe:
+      'metadata only — not enforced on routes; Bearer invite = full hub write; registro defaults lee/escribe to ["*"]',
+    fullAccess: true,
     noExpiry: true,
   },
   errors: {
@@ -142,6 +144,12 @@ export const API_DOCS_INDEX = {
       summary: 'Nueva versión de flujo (nodos[] + aristas[]; nombre/descripcion opcionales)',
     },
     {
+      method: 'DELETE',
+      path: '/v1/flujos/:id',
+      auth: true,
+      summary: 'Borrar flujo (+ versiones + índice corridas; Mongo best-effort)',
+    },
+    {
       method: 'POST',
       path: '/v1/corridas',
       auth: true,
@@ -156,6 +164,12 @@ export const API_DOCS_INDEX = {
       summary: 'Listar corridas (índice D1 + hidratar Mongo)',
     },
     { method: 'GET', path: '/v1/corridas/:id', auth: false, summary: 'Ficha corrida + flujo pinneado' },
+    {
+      method: 'DELETE',
+      path: '/v1/corridas/:id',
+      auth: true,
+      summary: 'Borrar corrida (Mongo + índice D1)',
+    },
     {
       method: 'GET',
       path: '/v1/corridas/:id/siguiente',
@@ -195,6 +209,14 @@ export const API_DOCS_INDEX = {
       summary: 'Bases de datos (softwares)',
     },
     { method: 'GET', path: '/v1/proyectos/:id', auth: false, alias: '/v1/esquemas/:id', summary: 'Ficha BD' },
+    {
+      method: 'GET',
+      path: '/v1/colecciones',
+      auth: false,
+      query: ['proyecto?'],
+      summary:
+        'Catálogo aplanado de colecciones (desde proyectos); mutar vía PUT /v1/proyectos/:id { colecciones }',
+    },
     {
       method: 'GET',
       path: '/v1/proyectos/:id/diagrama',
