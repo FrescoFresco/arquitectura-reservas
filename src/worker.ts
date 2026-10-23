@@ -99,6 +99,18 @@ import {
   rowToDisparador,
   validateDisparadorBody,
 } from './disparadores';
+import {
+  cloneDoc,
+  emitCambioDatos,
+  emitWebhook,
+  ensureEventosIndexes,
+  EVENTOS_COLLECTION,
+  publicEvento,
+  runHorarioTick,
+  SYSTEM_COLLECTIONS,
+  type EventoDoc,
+  type MotorDeps,
+} from './eventos-motor';
 
 export type Env = {
   DB: D1Database;
@@ -377,8 +389,14 @@ app.use('/v1/*', async (c, next) => {
     return next();
   }
   // Public agent self-registration / heartbeat use body.clave instead.
+  // Webhook de disparador: autenticado por token en la URL (404 si no coincide).
   const path = new URL(c.req.url).pathname;
-  if (path === '/v1/agentes/registro' || path === '/v1/agentes/latido' || path === '/v1/invites') {
+  if (
+    path === '/v1/agentes/registro' ||
+    path === '/v1/agentes/latido' ||
+    path === '/v1/invites' ||
+    path.startsWith('/v1/disparar/')
+  ) {
     return next();
   }
   const clave = extractClave(c);
@@ -579,15 +597,19 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
   }
 
   const escritos: string[] = [];
+  const origenEscritura = corridaId ? `corrida:${corridaId}` : 'api';
   try {
     await withMongoDb(
       resolved.env,
       async (db) => {
         const docCache = new Map<string, Record<string, unknown> | null>();
+        const antesCache = new Map<string, Record<string, unknown> | null>();
         for (const m of maps) {
           const cacheKey = m.coleccion + '|' + m.baseDatos;
           if (!docCache.has(cacheKey)) {
-            let doc = await findDocForColeccion(db, m.coleccion, negocio);
+            let existing = await findDocForColeccion(db, m.coleccion, negocio);
+            antesCache.set(cacheKey, cloneDoc(existing));
+            let doc = existing ? ({ ...existing } as Record<string, unknown>) : null;
             if (!doc) {
               if (m.coleccion === 'negocios') doc = { _id: negocio };
               else if (m.coleccion === 'procesos') doc = { _id: negocio + '-proceso', negocio_id: negocio };
@@ -601,16 +623,39 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
           setByPath(doc, m.claveMongo, normalizedValores[m.ancla]);
           escritos.push(m.ancla);
         }
+        const proyId =
+          proyectoId ||
+          corridaCtx?.doc.proyecto_id ||
+          (await proyectoIdForBaseDatos(c.env.DB, baseDatos)) ||
+          '';
         for (const [cacheKey, doc] of docCache) {
           if (!doc) continue;
-          const coleccion = cacheKey.split('|')[0];
+          const coleccion = cacheKey.split('|')[0]!;
           const id = doc._id;
           const { _id, ...rest } = doc;
+          const antes = antesCache.get(cacheKey) || null;
+          const operacion = antes ? ('actualizar' as const) : ('crear' as const);
           await db.collection(coleccion).updateOne(
             { _id: id ?? negocio },
             { $set: { ...rest, _id: id ?? negocio } },
             { upsert: true }
           );
+          if (SYSTEM_COLLECTIONS.has(coleccion) || !proyId) continue;
+          const despues = cloneDoc(doc);
+          try {
+            await emitCambioDatos(db, motorDeps(c.env), {
+              proyectoId: proyId,
+              coleccion,
+              documentoId: String(id ?? negocio),
+              operacion,
+              antes,
+              despues,
+              origen: origenEscritura,
+              negocio,
+            });
+          } catch (emitErr) {
+            console.error('emitCambioDatos', emitErr);
+          }
         }
       },
       baseDatos
@@ -1035,9 +1080,26 @@ app.post('/v1/disparadores/:id/pausar', async (c) => {
   return setDisparadorActivo(c, false);
 });
 
+/** Ops/smoke: ejecuta el tick horario ahora (mismo código que el Cron Trigger CF). */
+app.post('/v1/interno/horario-tick', async (c) => {
+  try {
+    const r = await runHorarioTick(
+      async (proyectoId, fn) => {
+        const mongo = await mongoForProyecto(c.env, proyectoId);
+        if (!mongo) return null;
+        return withMongoDb(mongo.env, fn, mongo.dbName);
+      },
+      motorDeps(c.env)
+    );
+    return c.json({ ok: true, ...r });
+  } catch (err) {
+    return jsonError(c, 502, err instanceof Error ? err.message : 'tick falló');
+  }
+});
+
 /**
  * Crea una corrida en Mongo `corridas` de la BD del proyecto del flujo.
- * Body: { flujo_id, negocio, datos_iniciales? }
+ * Body: { flujo_id, negocio, datos_iniciales?, disparador_id? }
  */
 app.post('/v1/corridas', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
@@ -1045,6 +1107,7 @@ app.post('/v1/corridas', async (c) => {
     negocio?: string;
     negocio_id?: string;
     datos_iniciales?: Record<string, unknown>;
+    disparador_id?: string;
   };
   const flujoId = String(body.flujo_id || '').trim();
   const negocio = String(body.negocio || body.negocio_id || '').trim();
@@ -1053,42 +1116,130 @@ app.post('/v1/corridas', async (c) => {
   const flujo = await loadFlujoVersion(c.env.DB, flujoId);
   if (!flujo) return jsonError(c, 404, 'Flujo no encontrado.');
 
+  let disparadorId: string | null = String(body.disparador_id || '').trim() || null;
+  if (disparadorId) {
+    const drow = await c.env.DB.prepare('SELECT * FROM disparadores WHERE id = ?')
+      .bind(disparadorId)
+      .first<Record<string, unknown>>();
+    if (!drow) return jsonError(c, 404, 'Disparador no encontrado.');
+    const d = rowToDisparador(drow);
+    if (d.flujo_id !== flujoId) {
+      return jsonError(c, 400, 'disparador_id no pertenece a este flujo.');
+    }
+  }
+
   const datos: Record<string, unknown> = {};
   if (body.datos_iniciales && typeof body.datos_iniciales === 'object') {
     for (const [k, v] of Object.entries(body.datos_iniciales)) {
       const a = normalizeAnclaKey(k);
       if (a) datos[a] = v;
+      else datos[k] = v;
     }
   }
 
-  const ts = nowIso();
-  const id = newCorridaId();
-  const doc: CorridaDoc = {
-    _id: id,
-    flujo_id: flujo.id,
-    flujo_version: flujo.version,
-    proyecto_id: flujo.proyectoId,
-    negocio,
-    estado: 'en_curso',
-    paso_actual: '',
-    pasos: [],
-    datos,
-    errores: [],
-    creada: ts,
-    actualizada: ts,
-    padre_id: null,
-    hijo_id: null,
-    subflujo_nodo_id: null,
-  };
-
   try {
-    await applyAvanceToCorrida(c.env, doc, flujo, primerPasoEjecutable(flujo.nodos, flujo.aristas, datos), ts);
+    const doc = await startCorridaForDisparo(c.env, {
+      flujoId,
+      negocio,
+      datos,
+      disparadorId: disparadorId || '',
+      eventoId: '',
+    });
+    return c.json({ ok: true, corrida: publicCorrida(doc) }, 201);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'No se pudo iniciar la corrida.';
     return jsonError(c, 502, msg);
   }
+});
 
-  return c.json({ ok: true, corrida: publicCorrida(doc) }, 201);
+/**
+ * Webhook de disparador. 404 si token incorrecto o pausado (sin detalles).
+ * 202 { evento_id, corridas[] }
+ */
+app.post('/v1/disparar/:flujo/:token', async (c) => {
+  const flujoId = c.req.param('flujo');
+  const token = c.req.param('token');
+  const row = await c.env.DB.prepare(
+    `SELECT * FROM disparadores WHERE flujo_id = ? AND tipo = 'webhook' AND token = ?`
+  )
+    .bind(flujoId, token)
+    .first<Record<string, unknown>>();
+  if (!row) return jsonError(c, 404, 'No encontrado.');
+  const d = rowToDisparador(row);
+  if (!d.activo) return jsonError(c, 404, 'No encontrado.');
+
+  const flujo = await c.env.DB.prepare('SELECT id, proyecto_id FROM flujos WHERE id = ?')
+    .bind(flujoId)
+    .first<{ id: string; proyecto_id: string }>();
+  if (!flujo) return jsonError(c, 404, 'No encontrado.');
+
+  const body = await c.req.json().catch(() => ({}));
+  const headers: Record<string, string> = {};
+  c.req.raw.headers.forEach((v, k) => {
+    const lk = k.toLowerCase();
+    if (lk === 'authorization' || lk === 'cookie') return;
+    if (headers[lk] == null) headers[lk] = v;
+  });
+  const negocioBody =
+    body && typeof body === 'object'
+      ? String((body as Record<string, unknown>).negocio || (body as Record<string, unknown>).negocio_id || '').trim()
+      : '';
+
+  const mongo = await mongoForProyecto(c.env, flujo.proyecto_id);
+  if (!mongo) return jsonError(c, 503, 'configure MONGODB_URI');
+
+  try {
+    const evento = await withMongoDb(
+      mongo.env,
+      async (db) =>
+        emitWebhook(db, motorDeps(c.env), {
+          disparador: d,
+          proyectoId: flujo.proyecto_id,
+          body,
+          headers,
+          negocio: negocioBody || undefined,
+        }),
+      mongo.dbName
+    );
+    const corridas: string[] = [];
+    for (const r of evento.resultado || []) {
+      if (r.corridas?.length) corridas.push(...r.corridas);
+      else if (r.corrida_id) corridas.push(r.corrida_id);
+    }
+    return c.json({ ok: true, evento_id: evento._id, corridas }, 202);
+  } catch (err) {
+    return jsonMongoError(c, 502, err);
+  }
+});
+
+/** Listar eventos recientes (smoke / depuración). */
+app.get('/v1/eventos', async (c) => {
+  const proyectoId = String(c.req.query('proyecto') || c.req.query('proyecto_id') || 'reservas').trim();
+  const coleccion = String(c.req.query('coleccion') || '').trim();
+  const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 20) || 20));
+  const mongo = await mongoForProyecto(c.env, proyectoId);
+  if (!mongo) return jsonError(c, 503, 'configure MONGODB_URI');
+  try {
+    const eventos = await withMongoDb(
+      mongo.env,
+      async (db) => {
+        await ensureEventosIndexes(db);
+        const q: Record<string, unknown> = {};
+        if (coleccion) q.coleccion = coleccion;
+        const rows = await db
+          .collection(EVENTOS_COLLECTION)
+          .find(q)
+          .sort({ creado: -1 })
+          .limit(limit)
+          .toArray();
+        return rows.map((r) => publicEvento(r as unknown as EventoDoc));
+      },
+      mongo.dbName
+    );
+    return c.json({ ok: true, proyecto_id: proyectoId, eventos });
+  } catch (err) {
+    return jsonMongoError(c, 502, err);
+  }
 });
 
 app.get('/v1/corridas', async (c) => {
@@ -2460,9 +2611,37 @@ app.post('/v1/mongo/sync/negocio', async (c) => {
   try {
     const built = await buildNegocioFromAnclas(c.env.DB, negocioId);
     const dbName = resolveMongoDbName(resolved.env, built.baseDatos);
+    const proyId =
+      (await proyectoIdForBaseDatos(c.env.DB, dbName)) ||
+      String((await c.env.DB.prepare('SELECT id FROM proyectos LIMIT 1').first<{ id: string }>())?.id || '');
     const result = await withMongoDb(
       resolved.env,
-      async (db) => upsertNegocio(db, built.doc),
+      async (db) => {
+        const antesRaw = (await db.collection('negocios').findOne({ _id: negocioId })) as Record<
+          string,
+          unknown
+        > | null;
+        const antes = cloneDoc(antesRaw);
+        const up = await upsertNegocio(db, built.doc);
+        const despues = cloneDoc(built.doc as unknown as Record<string, unknown>);
+        if (proyId) {
+          try {
+            await emitCambioDatos(db, motorDeps(c.env), {
+              proyectoId: proyId,
+              coleccion: 'negocios',
+              documentoId: negocioId,
+              operacion: antes ? 'actualizar' : 'crear',
+              antes,
+              despues,
+              origen: 'api',
+              negocio: negocioId,
+            });
+          } catch (e) {
+            console.error('emitCambioDatos sync/negocio', e);
+          }
+        }
+        return up;
+      },
       dbName
     );
     return c.json({
@@ -2516,7 +2695,30 @@ app.post('/v1/mongo/sync/proyecto', async (c) => {
     const dbName = resolveMongoDbName(resolved.env, built.baseDatos);
     const result = await withMongoDb(
       resolved.env,
-      async (db) => upsertNegocio(db, built.doc),
+      async (db) => {
+        const antesRaw = (await db.collection('negocios').findOne({ _id: negocioId })) as Record<
+          string,
+          unknown
+        > | null;
+        const antes = cloneDoc(antesRaw);
+        const up = await upsertNegocio(db, built.doc);
+        const despues = cloneDoc(built.doc as unknown as Record<string, unknown>);
+        try {
+          await emitCambioDatos(db, motorDeps(c.env), {
+            proyectoId,
+            coleccion: 'negocios',
+            documentoId: negocioId,
+            operacion: antes ? 'actualizar' : 'crear',
+            antes,
+            despues,
+            origen: 'api',
+            negocio: negocioId,
+          });
+        } catch (e) {
+          console.error('emitCambioDatos sync/proyecto', e);
+        }
+        return up;
+      },
       dbName
     );
     return c.json({
@@ -3479,7 +3681,7 @@ app.onError((err, c) => {
   return jsonError(c, 500, err instanceof Error ? err.message : 'Error interno.');
 });
 
-/** Alias público: /v1/esquemas → mismos handlers que /v1/proyectos. */
+/** Alias público: /v1/esquemas → mismos handlers que /v1/proyectos. Cron = motor horario. */
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -3488,6 +3690,18 @@ export default {
       request = new Request(url.toString(), request);
     }
     return app.fetch(request, env, ctx);
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      runHorarioTick(
+        async (proyectoId, fn) => {
+          const mongo = await mongoForProyecto(env, proyectoId);
+          if (!mongo) return null;
+          return withMongoDb(mongo.env, fn, mongo.dbName);
+        },
+        motorDeps(env)
+      ).catch((err) => console.error('horario tick', err))
+    );
   },
 };
 
@@ -4055,6 +4269,60 @@ async function mongoForProyecto(
   const resolved = await resolveRuntimeMongo(env, baseDatos, proyectoId);
   if (!mongoUriConfigured(resolved.env)) return null;
   return { env: resolved.env, dbName: resolved.meta.db };
+}
+
+function motorDeps(env: Env): MotorDeps {
+  return {
+    dbD1: env.DB,
+    nowIso,
+    startCorrida: (args) => startCorridaForDisparo(env, args),
+  };
+}
+
+/** Crea corrida + avance inicial (usado por POST /v1/corridas y motor de disparo). */
+async function startCorridaForDisparo(
+  env: Env,
+  args: {
+    flujoId: string;
+    negocio: string;
+    datos: Record<string, unknown>;
+    disparadorId: string;
+    eventoId: string;
+    proyectoId?: string;
+  }
+): Promise<CorridaDoc> {
+  const flujo = await loadFlujoVersion(env.DB, args.flujoId);
+  if (!flujo) throw new Error(`Flujo «${args.flujoId}» no encontrado.`);
+  const ts = nowIso();
+  const id = newCorridaId();
+  const datos: Record<string, unknown> = { ...(args.datos || {}) };
+  const doc: CorridaDoc = {
+    _id: id,
+    flujo_id: flujo.id,
+    flujo_version: flujo.version,
+    proyecto_id: flujo.proyectoId,
+    negocio: args.negocio,
+    estado: 'en_curso',
+    paso_actual: '',
+    pasos: [],
+    datos,
+    errores: [],
+    creada: ts,
+    actualizada: ts,
+    padre_id: null,
+    hijo_id: null,
+    subflujo_nodo_id: null,
+    disparador_id: args.disparadorId || null,
+    evento_id: args.eventoId || null,
+  };
+  await applyAvanceToCorrida(
+    env,
+    doc,
+    flujo,
+    primerPasoEjecutable(flujo.nodos, flujo.aristas, datos),
+    ts
+  );
+  return doc;
 }
 
 async function upsertCorridasIndex(db: D1Database, doc: CorridaDoc) {

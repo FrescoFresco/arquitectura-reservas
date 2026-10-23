@@ -33,6 +33,10 @@ export type CorridaDoc = {
   hijo_id?: string | null;
   /** Nodo subflujo del padre que disparó al hijo */
   subflujo_nodo_id?: string | null;
+  /** Disparador que arrancó la corrida (Fase 2) */
+  disparador_id?: string | null;
+  /** Evento Mongo que la originó (Fase 2) */
+  evento_id?: string | null;
 };
 
 export function newCorridaId(): string {
@@ -60,6 +64,8 @@ export function publicCorrida(doc: CorridaDoc) {
     padre_id: doc.padre_id || null,
     hijo_id: doc.hijo_id || null,
     subflujo_nodo_id: doc.subflujo_nodo_id || null,
+    disparador_id: doc.disparador_id || null,
+    evento_id: doc.evento_id || null,
   };
 }
 

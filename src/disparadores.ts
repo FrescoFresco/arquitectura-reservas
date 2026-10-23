@@ -120,6 +120,117 @@ function validateCronField(field: string, min: number, max: number, label: strin
   return null;
 }
 
+/** ¿La expresión de 5 campos coincide con `date` en la zona dada? (default Atlantic/Canary). */
+export function cronMatchesAt(
+  expr: string,
+  date: Date = new Date(),
+  timeZone = 'Atlantic/Canary'
+): boolean {
+  const parts = String(expr || '').trim().split(/\s+/);
+  if (parts.length !== 5) return false;
+  const tz = getTzCronParts(date, timeZone);
+  return (
+    cronFieldMatches(parts[0]!, tz.minute, 0, 59) &&
+    cronFieldMatches(parts[1]!, tz.hour, 0, 23) &&
+    cronFieldMatches(parts[2]!, tz.day, 1, 31) &&
+    cronFieldMatches(parts[3]!, tz.month, 1, 12) &&
+    cronFieldMatchesDow(parts[4]!, tz.dow)
+  );
+}
+
+export function getTzCronParts(
+  date: Date,
+  timeZone = 'Atlantic/Canary'
+): { minute: number; hour: number; day: number; month: number; dow: number } {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hourCycle: 'h23',
+    weekday: 'short',
+  });
+  const bag: Record<string, string> = {};
+  for (const p of fmt.formatToParts(date)) {
+    if (p.type !== 'literal') bag[p.type] = p.value;
+  }
+  const wd = String(bag.weekday || '').slice(0, 3).toLowerCase();
+  const dowMap: Record<string, number> = {
+    sun: 0,
+    mon: 1,
+    tue: 2,
+    wed: 3,
+    thu: 4,
+    fri: 5,
+    sat: 6,
+  };
+  return {
+    minute: Number(bag.minute) || 0,
+    hour: Number(bag.hour) || 0,
+    day: Number(bag.day) || 1,
+    month: Number(bag.month) || 1,
+    dow: dowMap[wd] ?? 0,
+  };
+}
+
+function cronFieldMatches(field: string, value: number, min: number, max: number): boolean {
+  if (field === '*') return true;
+  for (const chunk of field.split(',')) {
+    const stepParts = chunk.split('/');
+    const base = stepParts[0]!;
+    const step = stepParts[1] ? Number(stepParts[1]) : 1;
+    if (!Number.isFinite(step) || step < 1) continue;
+    let start = min;
+    let end = max;
+    if (base !== '*') {
+      const range = base.split('-');
+      if (range.length === 1) {
+        if (!/^\d+$/.test(range[0]!)) continue;
+        start = Number(range[0]);
+        end = start;
+      } else if (range.length === 2 && /^\d+$/.test(range[0]!) && /^\d+$/.test(range[1]!)) {
+        start = Number(range[0]);
+        end = Number(range[1]);
+      } else continue;
+    }
+    for (let n = start; n <= end; n += step) {
+      if (n === value) return true;
+    }
+  }
+  return false;
+}
+
+/** Día de semana: 0 y 7 = domingo. */
+function cronFieldMatchesDow(field: string, dow: number): boolean {
+  if (field === '*') return true;
+  for (const chunk of field.split(',')) {
+    const stepParts = chunk.split('/');
+    const base = stepParts[0]!;
+    const step = stepParts[1] ? Number(stepParts[1]) : 1;
+    if (!Number.isFinite(step) || step < 1) continue;
+    let start = 0;
+    let end = 7;
+    if (base !== '*') {
+      const range = base.split('-');
+      if (range.length === 1) {
+        if (!/^\d+$/.test(range[0]!)) continue;
+        start = Number(range[0]);
+        end = start;
+      } else if (range.length === 2 && /^\d+$/.test(range[0]!) && /^\d+$/.test(range[1]!)) {
+        start = Number(range[0]);
+        end = Number(range[1]);
+      } else continue;
+    }
+    for (let n = start; n <= end; n += step) {
+      const norm = n === 7 ? 0 : n;
+      if (norm === dow) return true;
+    }
+  }
+  return false;
+}
+
 export function parsePipeline(raw: unknown): { ok: true; pipeline: Record<string, unknown>[] | null } | { ok: false; error: string } {
   if (raw == null || raw === '') return { ok: true, pipeline: null };
   let list: unknown = raw;
