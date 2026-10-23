@@ -33,7 +33,7 @@ Worker: `campos-ancla-api`. D1: `campos-ancla-db`. Los JSON de `catalogo/` en la
 4. `POST {API_BASE}/v1/agentes/registro` — eliges nombre (e `id` opcional); guarda el `id` de la respuesta.
 5. Cada ~30 s: `POST {API_BASE}/v1/agentes/latido` con ese `id` + clave → aparece **En línea** en la UI.
 6. Lee catálogos con `GET` (público). Escribe / ejecuta salidas con `Authorization: Bearer {AGENTE_CLAVE}`.
-7. Para una skill: `GET /v1/ejecutar/:skillId` → contrato I/O + `systemPrompts` (MD de cada prompt vinculado); luego entradas (GET) / salidas (POST).
+7. Para una skill: `GET /v1/ejecutar/:skillId` → contrato I/O + `systemPrompts` (array 0..1 con MD del prompt, si hay); luego entradas (GET) / salidas (POST).
 
 La clave **no caduca**. Solo deja de valer si un humano la revoca.
 
@@ -219,11 +219,13 @@ Si solo envías `anclas` (legado), se tratan como **salidas**.
 `PUT /v1/skills/:id` crea **versión nueva** (no pisa el markdown anterior).  
 `DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`, `system_prompt_skills`).
 
-Ficha / listado de skill incluyen `systemPrompts`: array de prompts vinculados (id, nombre, descripcion, hash), orden por nombre. Vacío si no hay.
+Ficha / listado de skill incluyen `systemPrompts`: **array de longitud 0..1** (compat; una skill tiene como máximo un system prompt). Campos: id, nombre, descripcion, hash. Vacío `[]` si no hay.
+
+Al crear/editar skill puedes enviar `systemPromptId` (string o `null`) o `systemPrompts` (array de 0 o 1 id). Si el PUT solo lleva ese campo (sin markdown/I/O), **no** crea versión nueva de MD: solo actualiza el vínculo.
 
 ### System prompts
 
-MD versionado (comportamiento estable del agente) con relación N:M a skills (`system_prompt_skills`).
+MD versionado (comportamiento estable del agente). Relación: **un prompt → muchas skills**; **cada skill → como máximo 1 prompt** (`system_prompt_skills.skill_id` UNIQUE).
 
 ```
 POST {API_BASE}/v1/system-prompts
@@ -238,8 +240,10 @@ Content-Type: application/json
 }
 ```
 
-`PUT` crea **versión nueva** del markdown; si envías `skills`, sustituye la asociación N:M.  
-UI: Catálogos → **System prompts** (Documento | Skills | Interno).
+`PUT` crea **versión nueva** del markdown; si envías `skills`, sustituye la lista de skills de ese prompt.  
+Si una skill ya estaba ligada a **otro** prompt, se **mueve** automáticamente a este (auto-replace); la respuesta incluye `movedSkills: [{ skillId, fromSystemPromptId }]`.
+
+UI: Catálogos → **System prompts** (Documento | Skills | Interno). En la ficha skill, pestaña **System prompts** elige **uno** (o ninguno).
 
 ### Ejecutar skill (entradas / salidas → Mongo)
 
@@ -257,7 +261,7 @@ GET {API_BASE}/v1/ejecutar/:skillId
 }
 ```
 
-`systemPrompts`: **todos** los prompts vinculados a esa skill, ordenados por nombre. Si no hay ninguno → `[]`. El agente carga el MD de sistema + el MD de la skill.
+`systemPrompts`: array de longitud **0..1** (máx. un prompt por skill). Si no hay vínculo → `[]`. El agente carga el MD de sistema (si existe) + el MD de la skill.
 
 #### 1) Leer entradas (público)
 

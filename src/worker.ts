@@ -599,7 +599,10 @@ app.get('/v1/ejecutar/:skillId', async (c) => {
     entradas,
     salidas,
     anclas,
-    /** Todos los system prompts vinculados (orden por nombre). Vacío si no hay. */
+    /**
+     * Compat: array de longitud 0..1 (máx. un system prompt por skill).
+     * Vacío si no hay vínculo.
+     */
     systemPrompts,
   });
 });
@@ -1224,6 +1227,8 @@ app.post('/v1/skills', async (c) => {
     anclas?: string[];
     entradas?: string[];
     salidas?: string[];
+    systemPromptId?: string | null;
+    systemPrompts?: unknown;
   };
   const nombre = String(body.nombre || '').trim();
   if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
@@ -1232,6 +1237,8 @@ app.post('/v1/skills', async (c) => {
   const markdown = String(body.markdown || '');
   const descripcion = String(body.descripcion || '').trim().slice(0, 280);
   const io = resolveSkillIoFromBody(body);
+  const promptLink = resolveSkillSystemPromptId(body);
+  if (promptLink.error) return jsonError(c, 400, promptLink.error);
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
   try {
@@ -1249,6 +1256,13 @@ app.post('/v1/skills', async (c) => {
     .bind(id, todayIso(), markdown, '', id + '.md', hash)
     .run();
   await replaceSkillIo(c.env.DB, id, io.entradas, io.salidas);
+  if (promptLink.set) {
+    try {
+      await setSkillSystemPrompt(c.env.DB, id, promptLink.id);
+    } catch {
+      return jsonError(c, 400, 'System prompt no encontrado.');
+    }
+  }
   const skill = await hydrateSkill(
     c.env.DB,
     (await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first()) as Record<string, unknown>
@@ -1265,9 +1279,43 @@ app.put('/v1/skills/:id', async (c) => {
     anclas?: string[];
     entradas?: string[];
     salidas?: string[];
+    systemPromptId?: string | null;
+    systemPrompts?: unknown;
   };
   const row = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'Skill no encontrada.');
+  const promptLink = resolveSkillSystemPromptId(body);
+  if (promptLink.error) return jsonError(c, 400, promptLink.error);
+
+  const hasDocOrIo =
+    body.nombre != null ||
+    body.descripcion != null ||
+    body.markdown != null ||
+    body.entradas != null ||
+    body.salidas != null ||
+    body.anclas != null;
+
+  // Solo cambiar el system prompt: actualiza N:M sin nueva versión de MD.
+  if (promptLink.set && !hasDocOrIo) {
+    try {
+      const linkResult = await setSkillSystemPrompt(c.env.DB, id, promptLink.id);
+      const skill = await hydrateSkill(
+        c.env.DB,
+        (await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first()) as Record<
+          string,
+          unknown
+        >
+      );
+      return c.json({
+        ok: true,
+        skill,
+        movedSkill: linkResult.moved,
+      });
+    } catch {
+      return jsonError(c, 400, 'System prompt no encontrado.');
+    }
+  }
+
   const nombre = String(body.nombre ?? (row as { nombre: string }).nombre).trim();
   const descripcion = String(body.descripcion ?? ((row as { descripcion: string }).descripcion || ''))
     .trim()
@@ -1300,11 +1348,20 @@ app.put('/v1/skills/:id', async (c) => {
     const io = resolveSkillIoFromBody(body);
     await replaceSkillIo(c.env.DB, id, io.entradas, io.salidas);
   }
+  let movedSkill: MovedSkillLink | null = null;
+  if (promptLink.set) {
+    try {
+      const linkResult = await setSkillSystemPrompt(c.env.DB, id, promptLink.id);
+      movedSkill = linkResult.moved;
+    } catch {
+      return jsonError(c, 400, 'System prompt no encontrado.');
+    }
+  }
   const skill = await hydrateSkill(
     c.env.DB,
     (await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first()) as Record<string, unknown>
   );
-  return c.json({ ok: true, skill });
+  return c.json({ ok: true, skill, movedSkill });
 });
 
 app.delete('/v1/skills/:id', async (c) => {
@@ -2182,7 +2239,7 @@ app.post('/v1/system-prompts', async (c) => {
   )
     .bind(id, todayIso(), markdown, '', id + '.md', hash)
     .run();
-  await replaceSystemPromptSkills(c.env.DB, id, skills);
+  const linkResult = await replaceSystemPromptSkills(c.env.DB, id, skills);
   return c.json(
     {
       ok: true,
@@ -2193,6 +2250,8 @@ app.post('/v1/system-prompts', async (c) => {
           unknown
         >
       ),
+      /** Skills que tenían otro prompt y se movieron aquí (máx. 1 prompt/skill). */
+      movedSkills: linkResult.moved,
     },
     201
   );
@@ -2240,8 +2299,10 @@ app.put('/v1/system-prompts/:id', async (c) => {
   )
     .bind(id, numero, todayIso(), markdown, '', id + '.md', hash)
     .run();
+  let movedSkills: MovedSkillLink[] = [];
   if (body.skills != null) {
-    await replaceSystemPromptSkills(c.env.DB, id, normalizeIdList(body.skills));
+    const linkResult = await replaceSystemPromptSkills(c.env.DB, id, normalizeIdList(body.skills));
+    movedSkills = linkResult.moved;
   }
   return c.json({
     ok: true,
@@ -2252,6 +2313,7 @@ app.put('/v1/system-prompts/:id', async (c) => {
         unknown
       >
     ),
+    movedSkills,
   });
 });
 
@@ -2499,14 +2561,111 @@ function normalizeIdList(list: unknown): string[] {
   return out;
 }
 
-async function replaceSystemPromptSkills(db: D1Database, systemPromptId: string, skills: string[]) {
+type MovedSkillLink = { skillId: string; fromSystemPromptId: string };
+
+/**
+ * Sustituye las skills de un system prompt.
+ * Regla: cada skill tiene como máximo 1 prompt → si ya estaba en otro, se mueve aquí (auto-replace).
+ */
+async function replaceSystemPromptSkills(
+  db: D1Database,
+  systemPromptId: string,
+  skills: string[]
+): Promise<{ moved: MovedSkillLink[] }> {
+  const moved: MovedSkillLink[] = [];
+  for (const s of skills) {
+    const prev = await db
+      .prepare(
+        'SELECT system_prompt_id FROM system_prompt_skills WHERE skill_id = ? AND system_prompt_id != ?'
+      )
+      .bind(s, systemPromptId)
+      .first<{ system_prompt_id: string }>();
+    if (prev?.system_prompt_id) {
+      moved.push({ skillId: s, fromSystemPromptId: prev.system_prompt_id });
+    }
+  }
   await db.prepare('DELETE FROM system_prompt_skills WHERE system_prompt_id = ?').bind(systemPromptId).run();
   for (const s of skills) {
+    // Quita vínculo previo en otro prompt (UNIQUE skill_id) y enlaza a este.
+    await db.prepare('DELETE FROM system_prompt_skills WHERE skill_id = ?').bind(s).run();
     await db
-      .prepare('INSERT OR IGNORE INTO system_prompt_skills (system_prompt_id, skill_id) VALUES (?, ?)')
+      .prepare('INSERT INTO system_prompt_skills (system_prompt_id, skill_id) VALUES (?, ?)')
       .bind(systemPromptId, s)
       .run();
   }
+  return { moved };
+}
+
+/**
+ * Asigna (o quita) el único system prompt de una skill. Auto-replace si ya tenía otro.
+ * systemPromptId null/'' → sin prompt.
+ */
+async function setSkillSystemPrompt(
+  db: D1Database,
+  skillId: string,
+  systemPromptId: string | null
+): Promise<{ moved: MovedSkillLink | null }> {
+  const prev = await db
+    .prepare('SELECT system_prompt_id FROM system_prompt_skills WHERE skill_id = ?')
+    .bind(skillId)
+    .first<{ system_prompt_id: string }>();
+  await db.prepare('DELETE FROM system_prompt_skills WHERE skill_id = ?').bind(skillId).run();
+  if (!systemPromptId) {
+    return {
+      moved: prev?.system_prompt_id
+        ? { skillId, fromSystemPromptId: prev.system_prompt_id }
+        : null,
+    };
+  }
+  const exists = await db
+    .prepare('SELECT id FROM system_prompts WHERE id = ?')
+    .bind(systemPromptId)
+    .first();
+  if (!exists) throw new Error('System prompt no encontrado.');
+  await db
+    .prepare('INSERT INTO system_prompt_skills (system_prompt_id, skill_id) VALUES (?, ?)')
+    .bind(systemPromptId, skillId)
+    .run();
+  return {
+    moved:
+      prev?.system_prompt_id && prev.system_prompt_id !== systemPromptId
+        ? { skillId, fromSystemPromptId: prev.system_prompt_id }
+        : null,
+  };
+}
+
+/** Acepta systemPromptId (string|null) o systemPrompts (array 0..1). */
+function resolveSkillSystemPromptId(body: {
+  systemPromptId?: unknown;
+  systemPrompts?: unknown;
+}): { set: boolean; id: string | null; error?: string } {
+  if (body.systemPromptId !== undefined) {
+    if (body.systemPromptId === null || body.systemPromptId === '') return { set: true, id: null };
+    const id = String(body.systemPromptId).trim();
+    if (!ID_RE.test(id)) return { set: true, id: null, error: 'systemPromptId inválido.' };
+    return { set: true, id };
+  }
+  if (body.systemPrompts !== undefined) {
+    if (!Array.isArray(body.systemPrompts)) {
+      return { set: true, id: null, error: 'systemPrompts debe ser un array de 0 o 1 id.' };
+    }
+    if (body.systemPrompts.length > 1) {
+      return {
+        set: true,
+        id: null,
+        error: 'Una skill tiene como máximo 1 system prompt (envía 0 o 1 id).',
+      };
+    }
+    if (body.systemPrompts.length === 0) return { set: true, id: null };
+    const raw = body.systemPrompts[0];
+    const id =
+      raw && typeof raw === 'object' && 'id' in (raw as object)
+        ? String((raw as { id: unknown }).id || '').trim()
+        : String(raw || '').trim();
+    if (!id || !ID_RE.test(id)) return { set: true, id: null, error: 'systemPrompts[0] inválido.' };
+    return { set: true, id };
+  }
+  return { set: false, id: null };
 }
 
 async function hydrateSystemPrompt(db: D1Database, row: Record<string, unknown>) {
@@ -2533,7 +2692,8 @@ async function hydrateSystemPrompt(db: D1Database, row: Record<string, unknown>)
 }
 
 /**
- * System prompts vinculados a una skill, ordenados por nombre.
+ * System prompt(s) de una skill — como máximo 1 (UNIQUE skill_id).
+ * Se sigue devolviendo array 0..1 por compatibilidad con clientes.
  * withMarkdown: incluye markdown + meta de la versión actual (bundle ejecutar).
  */
 async function loadSystemPromptsForSkill(
@@ -2547,7 +2707,8 @@ async function loadSystemPromptsForSkill(
        FROM system_prompt_skills sps
        JOIN system_prompts sp ON sp.id = sps.system_prompt_id
        WHERE sps.skill_id = ?
-       ORDER BY sp.nombre`
+       ORDER BY sp.nombre
+       LIMIT 1`
     )
     .bind(skillId)
     .all();
