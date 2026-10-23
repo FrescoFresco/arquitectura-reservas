@@ -134,3 +134,232 @@ export function scheduleDebouncedSchemaSync(
     })()
   );
 }
+
+/** Modo visible en Historial: real | dry-run | auto. */
+export type EmpujeModo = 'real' | 'dry-run' | 'auto';
+
+export type EsquemaEmpujeRow = {
+  id: string;
+  proyectoId: string;
+  ts: string;
+  modo: EmpujeModo;
+  ok: boolean;
+  resumen: string;
+  detalle: Record<string, unknown>;
+};
+
+export function resolveEmpujeModo(opts: {
+  auto?: boolean;
+  dryRun?: boolean;
+  mock?: boolean;
+}): EmpujeModo {
+  if (opts.auto) return 'auto';
+  if (opts.dryRun || opts.mock) return 'dry-run';
+  return 'real';
+}
+
+export function resumenDesdeDetalle(
+  modo: EmpujeModo,
+  ok: boolean,
+  detalle: Record<string, unknown>
+): string {
+  if (!ok) {
+    const err = detalle.error != null ? String(detalle.error) : '';
+    return (err || 'Error').slice(0, 240);
+  }
+  if (detalle.dryRun || detalle.mock || modo === 'dry-run') {
+    const plan = detalle.plan as { collections?: unknown[] } | undefined;
+    const n = Array.isArray(plan?.collections) ? plan!.collections!.length : 0;
+    const hint = detalle.hint != null ? String(detalle.hint) : '';
+    const base = n ? `Simulación · ${n} colección${n === 1 ? '' : 'es'}` : 'Simulación';
+    return hint ? `${base}. ${hint}`.slice(0, 280) : base;
+  }
+  const created = Array.isArray(detalle.created) ? (detalle.created as string[]) : [];
+  const updated = Array.isArray(detalle.updated) ? (detalle.updated as string[]) : [];
+  const parts: string[] = [];
+  if (created.length) parts.push(`Creadas: ${created.join(', ')}`);
+  if (updated.length) parts.push(`Actualizadas: ${updated.join(', ')}`);
+  if (!parts.length) {
+    const db = detalle.db != null ? String(detalle.db) : '';
+    return db ? `Empujado a ${db}` : 'Empujón OK';
+  }
+  return parts.join(' · ').slice(0, 280);
+}
+
+function newEmpujeId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    /* fall through */
+  }
+  return `emp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Persist one Empujar / auto-sync attempt (best-effort; never throws to caller). */
+export async function recordEsquemaEmpuje(
+  db: D1Database,
+  input: {
+    proyectoId: string;
+    ts?: string;
+    modo: EmpujeModo;
+    ok: boolean;
+    detalle: Record<string, unknown>;
+    resumen?: string;
+  }
+): Promise<string | null> {
+  const proyectoId = String(input.proyectoId || '').trim();
+  if (!proyectoId) return null;
+  const ts = String(input.ts || new Date().toISOString());
+  const id = newEmpujeId();
+  const detalle = input.detalle && typeof input.detalle === 'object' ? input.detalle : {};
+  const resumen =
+    (input.resumen && String(input.resumen).trim()) ||
+    resumenDesdeDetalle(input.modo, !!input.ok, detalle);
+  try {
+    await db
+      .prepare(
+        `INSERT INTO esquema_empujes (id, proyecto_id, ts, modo, ok, resumen, detalle_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        id,
+        proyectoId,
+        ts,
+        input.modo,
+        input.ok ? 1 : 0,
+        String(resumen).slice(0, 500),
+        JSON.stringify(detalle).slice(0, 100_000)
+      )
+      .run();
+    return id;
+  } catch (err) {
+    console.error('recordEsquemaEmpuje', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+export type ListEmpujesOpts = {
+  limit?: number;
+  cursor?: string | null;
+  estado?: 'ok' | 'error' | '';
+  desde?: string;
+  hasta?: string;
+};
+
+/** Keyset cursor: `ts~id` (ISO ts + empuje id). */
+function encodeEmpujeCursor(ts: string, id: string): string {
+  return `${encodeURIComponent(ts)}~${encodeURIComponent(id)}`;
+}
+
+function decodeEmpujeCursor(raw: string): { ts: string; id: string } | null {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const i = s.indexOf('~');
+  if (i <= 0) return null;
+  try {
+    const ts = decodeURIComponent(s.slice(0, i));
+    const id = decodeURIComponent(s.slice(i + 1));
+    if (!ts || !id) return null;
+    return { ts, id };
+  } catch {
+    return null;
+  }
+}
+
+export async function listEsquemaEmpujes(
+  db: D1Database,
+  proyectoId: string,
+  opts: ListEmpujesOpts = {}
+): Promise<{
+  items: EsquemaEmpujeRow[];
+  nextCursor: string | null;
+  limit: number;
+}> {
+  const pid = String(proyectoId || '').trim();
+  let limit = Number(opts.limit);
+  if (!Number.isFinite(limit) || limit < 1) limit = 50;
+  if (limit > 100) limit = 100;
+
+  const where: string[] = ['proyecto_id = ?'];
+  const binds: unknown[] = [pid];
+
+  if (opts.estado === 'ok') {
+    where.push('ok = 1');
+  } else if (opts.estado === 'error') {
+    where.push('ok = 0');
+  }
+
+  const desde = String(opts.desde || '').trim();
+  const hasta = String(opts.hasta || '').trim();
+  if (desde) {
+    where.push('ts >= ?');
+    binds.push(desde);
+  }
+  if (hasta) {
+    where.push('ts <= ?');
+    binds.push(hasta);
+  }
+
+  const cur = decodeEmpujeCursor(String(opts.cursor || ''));
+  if (cur) {
+    where.push('(ts < ? OR (ts = ? AND id < ?))');
+    binds.push(cur.ts, cur.ts, cur.id);
+  }
+
+  const sql = `SELECT id, proyecto_id, ts, modo, ok, resumen, detalle_json
+    FROM esquema_empujes
+    WHERE ${where.join(' AND ')}
+    ORDER BY ts DESC, id DESC
+    LIMIT ?`;
+  binds.push(limit + 1);
+
+  const res = await db
+    .prepare(sql)
+    .bind(...binds)
+    .all<{
+      id: string;
+      proyecto_id: string;
+      ts: string;
+      modo: string;
+      ok: number;
+      resumen: string;
+      detalle_json: string;
+    }>();
+
+  const rows = res.results || [];
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const items: EsquemaEmpujeRow[] = page.map((r) => {
+    let detalle: Record<string, unknown> = {};
+    try {
+      const p = JSON.parse(String(r.detalle_json || '{}'));
+      if (p && typeof p === 'object') detalle = p as Record<string, unknown>;
+    } catch {
+      detalle = { raw: String(r.detalle_json || '') };
+    }
+    const modoRaw = String(r.modo || '');
+    const modo: EmpujeModo =
+      modoRaw === 'auto' || modoRaw === 'dry-run' || modoRaw === 'real'
+        ? modoRaw
+        : 'real';
+    return {
+      id: String(r.id),
+      proyectoId: String(r.proyecto_id),
+      ts: String(r.ts),
+      modo,
+      ok: !!(r.ok === 1 || r.ok === true),
+      resumen: String(r.resumen || ''),
+      detalle,
+    };
+  });
+
+  let nextCursor: string | null = null;
+  if (hasMore && items.length) {
+    const last = items[items.length - 1];
+    nextCursor = encodeEmpujeCursor(last.ts, last.id);
+  }
+
+  return { items, nextCursor, limit };
+}
