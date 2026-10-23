@@ -765,13 +765,13 @@
         st.flujoVersion = data.flujo && data.flujo.version;
         if (data.flujo && data.flujo.proyectoId) st.proyectoId = data.flujo.proyectoId;
         seleccionarFlujoTab('resumen');
-        pintarFlujoFicha();
-        if (typeof window.iconizarPestanasFicha === 'function') {
-          window.iconizarPestanasFicha(document.getElementById('flujoReader'));
-        }
         if (dlg) {
           if (typeof window.openFichaPane === 'function') window.openFichaPane(dlg);
           else if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+        }
+        pintarFlujoFicha();
+        if (typeof window.iconizarPestanasFicha === 'function') {
+          window.iconizarPestanasFicha(document.getElementById('flujoReader'));
         }
       })
       .catch(function (err) {

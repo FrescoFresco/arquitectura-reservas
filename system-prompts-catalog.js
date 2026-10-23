@@ -414,6 +414,8 @@
         });
       }
     }
+    if (typeof openFichaPane === 'function') openFichaPane(dlg);
+    else if (dlg && !dlg.open) dlg.showModal();
     if (typeof window.cablearColorFicha === 'function') {
       window.cablearColorFicha(dlg, {
         kind: 'system-prompt',
@@ -423,8 +425,6 @@
         onSaved: function (hex) { item.color = hex; }
       });
     }
-    if (typeof openFichaPane === 'function') openFichaPane(dlg);
-    else if (dlg && !dlg.open) dlg.showModal();
     if (nombreEl) nombreEl.focus();
   }
 

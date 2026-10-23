@@ -328,10 +328,237 @@
     return tileCss(color);
   }
 
+  /* ─── Capa catálogo (persistencia + cableado único) ─────────────────
+   * Un solo módulo para todos los tipos: skills, proyectos, anclas, …
+   * catalogo-ui registra kinds y pasa fetch/auth; las fichas/filas reutilizan esto.
+   */
+
+  var PATHS = {
+    skill: '/v1/skills/',
+    ancla: '/v1/anclas/',
+    mongo: '/v1/mongo/',
+    cluster: '/v1/clusters/',
+    proyecto: '/v1/proyectos/',
+    'system-prompt': '/v1/system-prompts/',
+    fundamento: '/v1/fundamentos/',
+    agente: '/v1/agentes/',
+    flujo: '/v1/flujos/'
+  };
+
+  var catalogCfg = {
+    ensureAuth: null,
+    apiFetchAuth: null
+  };
+  /** kind → { listItems(), itemId(item), applyLocal(id,color), refresh() } */
+  var kindRegistry = {};
+
+  function configureCatalog(opts) {
+    opts = opts || {};
+    if (typeof opts.ensureAuth === 'function') catalogCfg.ensureAuth = opts.ensureAuth;
+    if (typeof opts.apiFetchAuth === 'function') catalogCfg.apiFetchAuth = opts.apiFetchAuth;
+  }
+
+  function registerKind(kind, hooks) {
+    if (!kind || !hooks) return;
+    kindRegistry[kind] = hooks;
+  }
+
+  function listForKind(kind) {
+    var h = kindRegistry[kind];
+    if (!h || typeof h.listItems !== 'function') return [];
+    var list = h.listItems();
+    return Array.isArray(list) ? list : [];
+  }
+
+  function itemIdOf(kind, item) {
+    var h = kindRegistry[kind];
+    if (h && typeof h.itemId === 'function') return h.itemId(item);
+    if (!item) return null;
+    return item.key != null ? item.key : item.id;
+  }
+
+  function coloresUsados(kind, excludeId) {
+    var out = [];
+    listForKind(kind).forEach(function (x) {
+      var xid = itemIdOf(kind, x);
+      if (xid === excludeId) return;
+      var c = x && x.color;
+      if (c && typeof c === 'string') out.push(c);
+    });
+    return out;
+  }
+
+  function aplicarLocal(kind, id, color) {
+    var h = kindRegistry[kind];
+    if (h && typeof h.applyLocal === 'function') {
+      h.applyLocal(id, color);
+      return;
+    }
+    listForKind(kind).forEach(function (x) {
+      if (itemIdOf(kind, x) === id) x.color = color;
+    });
+  }
+
+  function refrescarKind(kind) {
+    var h = kindRegistry[kind];
+    if (h && typeof h.refresh === 'function') {
+      try { h.refresh(); } catch (e) {}
+    }
+  }
+
+  function entidadDeRespuesta(data) {
+    if (!data || typeof data !== 'object') return null;
+    return (
+      data.skill ||
+      data.ancla ||
+      data.campo ||
+      data.cluster ||
+      data.proyecto ||
+      data.systemPrompt ||
+      data.fundamento ||
+      data.agente ||
+      data.flujo ||
+      null
+    );
+  }
+
+  function assertPersistido(data, color, kind, coleccionId) {
+    var want = color == null || color === '' ? null : String(color).toLowerCase();
+    if (kind === 'coleccion') {
+      var proy = data && data.proyecto;
+      var cols = proy && Array.isArray(proy.colecciones) ? proy.colecciones : null;
+      if (!cols) throw new Error('La API no devolvió colecciones con color. ¿Worker desactualizado?');
+      if (coleccionId) {
+        var hit = null;
+        for (var i = 0; i < cols.length; i++) {
+          if (cols[i] && cols[i].id === coleccionId) { hit = cols[i]; break; }
+        }
+        if (!hit || !Object.prototype.hasOwnProperty.call(hit, 'color')) {
+          throw new Error('La colección no devolvió color tras guardar.');
+        }
+        var gotCol = hit.color == null || hit.color === '' ? null : String(hit.color).toLowerCase();
+        if (gotCol !== want) throw new Error('El color de colección no coincidió tras guardar.');
+      }
+      return;
+    }
+    var ent = entidadDeRespuesta(data);
+    if (!ent || !Object.prototype.hasOwnProperty.call(ent, 'color')) {
+      throw new Error('La API no devolvió el campo color (Worker desactualizado). No se guardó el tinte.');
+    }
+    var got = ent.color == null || ent.color === '' ? null : String(ent.color).toLowerCase();
+    if (got !== want) {
+      throw new Error('El color no coincidió tras guardar (API: ' + got + ', pedido: ' + want + ').');
+    }
+  }
+
+  /**
+   * Persiste color vía PUT {color} (o colecciones JSON).
+   * optsColeccion: { getProyecto(proyId), onProyectoUpdated(proyId, data) }
+   */
+  function guardar(kind, id, color, optsColeccion) {
+    optsColeccion = optsColeccion || {};
+    if (!catalogCfg.ensureAuth || !catalogCfg.apiFetchAuth) {
+      return Promise.reject(new Error('ColorEntidad.configure({ ensureAuth, apiFetchAuth }) pendiente.'));
+    }
+    if (kind === 'coleccion') {
+      var parts = String(id).split('/');
+      var proyId = parts[0];
+      var colId = parts.slice(1).join('/') || parts[1];
+      var proy = typeof optsColeccion.getProyecto === 'function'
+        ? optsColeccion.getProyecto(proyId)
+        : null;
+      if (!proy) return Promise.reject(new Error('Base de datos no encontrada.'));
+      var cols = (proy.colecciones || []).map(function (c) {
+        var o = { id: c.id, descripcion: c.descripcion || '' };
+        if (c.id === colId) o.color = color;
+        else if (Object.prototype.hasOwnProperty.call(c, 'color')) o.color = c.color;
+        return o;
+      });
+      return catalogCfg.ensureAuth().then(function () {
+        return catalogCfg.apiFetchAuth('/v1/proyectos/' + encodeURIComponent(proyId), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ colecciones: cols })
+        });
+      }).then(function (data) {
+        assertPersistido(data, color, kind, colId);
+        aplicarLocal(kind, id, color);
+        if (typeof optsColeccion.onProyectoUpdated === 'function') {
+          optsColeccion.onProyectoUpdated(proyId, data);
+        }
+        refrescarKind(kind);
+        return data;
+      });
+    }
+    var base = PATHS[kind];
+    if (!base) return Promise.reject(new Error('Tipo de color desconocido: ' + kind));
+    return catalogCfg.ensureAuth().then(function () {
+      return catalogCfg.apiFetchAuth(base + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color: color })
+      });
+    }).then(function (data) {
+      assertPersistido(data, color, kind);
+      aplicarLocal(kind, id, color);
+      refrescarKind(kind);
+      return data;
+    });
+  }
+
+  /**
+   * Cablea el tile del header de ficha (cualquier catálogo).
+   * dlgOrEl: dialog, selector, o el propio .ficha-titulo-icon
+   */
+  function bindCatalogFicha(dlgOrEl, opts) {
+    opts = opts || {};
+    var icon = null;
+    if (typeof dlgOrEl === 'string') icon = document.querySelector(dlgOrEl);
+    else if (dlgOrEl && dlgOrEl.querySelector) {
+      icon = dlgOrEl.querySelector('.ficha-titulo-icon') || dlgOrEl;
+    } else {
+      icon = dlgOrEl;
+    }
+    if (!icon) return null;
+    var kind = opts.kind;
+    var id = opts.id;
+    return bindFichaIcon(icon, {
+      iconKind: opts.iconKind || kind || 'skill',
+      getColor: function () {
+        if (typeof opts.getColor === 'function') return opts.getColor();
+        return opts.color || null;
+      },
+      getUsados: function () {
+        if (typeof opts.getUsados === 'function') return opts.getUsados();
+        return coloresUsados(kind, id);
+      },
+      onSave: function (hex) {
+        opts.color = hex;
+        guardar(kind, id, hex, opts.coleccionOpts).then(function () {
+          if (typeof opts.onSaved === 'function') opts.onSaved(hex);
+        }).catch(function (err) {
+          console.error(err);
+          alert((err && err.message) || 'No se pudo guardar el color.');
+        });
+      }
+    });
+  }
+
+  /** Copia color normalizado a un objeto de catálogo (normalizers). */
+  function attachNormalized(out, item) {
+    if (!out || !item || typeof item !== 'object') return out;
+    if (!Object.prototype.hasOwnProperty.call(item, 'color')) return out;
+    var c = item.color;
+    if (c == null || c === '') out.color = null;
+    else if (typeof c === 'string' && COLOR_RE.test(c.trim())) out.color = c.trim().toLowerCase();
+    return out;
+  }
+
   global.ColorEntidad = {
     DEFAULT_INK: DEFAULT_INK,
     DEFAULT_TINT: DEFAULT_TINT,
     PALETA: PALETA.slice(),
+    PATHS: PATHS,
     normalizeHex: normalizeHex,
     tintFromInk: tintFromInk,
     tintOf: tintOf,
@@ -342,6 +569,14 @@
     openPicker: openPicker,
     closePopover: closePopover,
     bindFichaIcon: bindFichaIcon,
-    reactStyle: reactStyle
+    reactStyle: reactStyle,
+    /* catálogo */
+    configure: configureCatalog,
+    registerKind: registerKind,
+    coloresUsados: coloresUsados,
+    guardar: guardar,
+    bindCatalogFicha: bindCatalogFicha,
+    attachNormalized: attachNormalized,
+    entidadDeRespuesta: entidadDeRespuesta
   };
 })(typeof window !== 'undefined' ? window : globalThis);
