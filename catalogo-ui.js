@@ -7,6 +7,7 @@ const CATALOGOS = [
   { id: 'campos-mongodb', nombre: 'Campos', icono: 'mongo' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
+  { id: 'flujos', nombre: 'Flujos', icono: 'flujo' },
   { id: 'system-prompts', nombre: 'System prompts', icono: 'system-prompt' }
 ];
 const TABLAS = [];
@@ -37,7 +38,9 @@ const FICHA_PANE_IDS = [
   'dlgColeccion',
   'dlgAgenteFicha',
   'dlgFundamento',
-  'dlgSystemPrompt'
+  'dlgSystemPrompt',
+  'dlgFlujo',
+  'dlgCorrida'
 ];
 
 function syncFichaPaneClass() {
@@ -252,14 +255,18 @@ function coloresUsadosCatalogo(kind, excludeId) {
       if (x.id !== excludeId) push(x.color);
     });
   } else if (kind === 'flujo') {
-    var flujosLista =
-      (state.flujos && state.flujos.lista) ||
-      (window.FlujosCorridasUI && window.FlujosCorridasUI.flujos) ||
-      (window.FlujosCorridasUI && window.FlujosCorridasUI.state && window.FlujosCorridasUI.state.flujos) ||
-      [];
-    flujosLista.forEach(function (x) {
-      if (x.id !== excludeId) push(x.color);
-    });
+    var flujosSeen = {};
+    function pushFlujo(x) {
+      if (!x || !x.id || x.id === excludeId || flujosSeen[x.id]) return;
+      flujosSeen[x.id] = true;
+      push(x.color);
+    }
+    ((state.flujos && state.flujos.lista) || []).forEach(pushFlujo);
+    var fc = window.FlujosCorridasUI && window.FlujosCorridasUI.state;
+    if (fc) {
+      (fc.flujos || []).forEach(pushFlujo);
+      (fc.catalogFlujos || []).forEach(pushFlujo);
+    }
   } else if (kind === 'coleccion') {
     ((state.colecciones && state.colecciones.lista) || []).forEach(function (x) {
       if (x.key !== excludeId && x.id !== excludeId) push(x.color);
@@ -393,8 +400,12 @@ function cablearColorFicha(dlgOrEl, opts) {
             window.FundamentosUI.refrescar();
           } else if (kind === 'system-prompt' && window.SystemPromptsUI && typeof window.SystemPromptsUI.refrescar === 'function') {
             window.SystemPromptsUI.refrescar();
-          } else if (kind === 'flujo' && typeof pintarFlujosProyecto === 'function') {
-            pintarFlujosProyecto();
+          } else if (kind === 'flujo' && window.FlujosCorridasUI) {
+            if (typeof window.FlujosCorridasUI.refrescarListas === 'function') {
+              window.FlujosCorridasUI.refrescarListas();
+            } else if (typeof window.FlujosCorridasUI.cargarCatalogo === 'function') {
+              window.FlujosCorridasUI.cargarCatalogo();
+            }
           }
         } catch (e) {}
       }).catch(function (err) {
@@ -3529,6 +3540,9 @@ function seleccionarCatalogo(id) {
   renderPestanasCatalogo();
   // Re-fetch from live API on tab focus so agent writes appear without hard reload.
   if (id === 'skills') cargarSkills();
+  if (id === 'flujos' && window.FlujosCorridasUI && typeof window.FlujosCorridasUI.cargarCatalogo === 'function') {
+    window.FlujosCorridasUI.cargarCatalogo();
+  }
   if (id === 'system-prompts' && window.SystemPromptsCatalog) window.SystemPromptsCatalog.cargar();
   if (id === 'campos-ancla') cargarCampos();
   if (id === 'campos-mongodb') cargarMongo();
@@ -8105,6 +8119,12 @@ window.asegurarClaveCatalogo = asegurarClaveCatalogo;
 window.renderMermaidEn = renderMermaidEn;
 window.atrasDesdeFicha = atrasDesdeFicha;
 window.iconizarPestanasFicha = iconizarPestanasFicha;
+window.openFichaPane = openFichaPane;
+window.abrirProyecto = abrirProyecto;
+window.cargarProyectos = cargarProyectos;
+window.listaProyectosCatalogo = function () {
+  return (state.proyectos && state.proyectos.lista) || [];
+};
 
 const UI_PROD_BASE = 'https://campos-ancla.web-legal-es.workers.dev/';
 const API_PROD_BASE = 'https://campos-ancla-api.web-legal-es.workers.dev';

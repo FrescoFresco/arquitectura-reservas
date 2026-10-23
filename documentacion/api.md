@@ -372,6 +372,7 @@ n8n **solo orquesta**; la lógica vive aquí.
 Condiciones seguras (sin `eval`): `{ "eq": ["_ancla_", valor] }`, `{ "neq": [...] }`, `{ "exists": "_ancla_" }`, `{ "truthy": "_ancla_" }`. Paths = claves de ancla en `corrida.datos`.
 
 ```
+GET  {API_BASE}/v1/flujos              → todos (catálogo top-level)
 GET  {API_BASE}/v1/flujos?proyecto=reservas
 GET  {API_BASE}/v1/flujos/:id[?version=N]
      → { ok, flujo: { …, nodos, aristas, mermaid, versiones:[{numero,fecha,hash}] } }
@@ -381,7 +382,7 @@ PUT  {API_BASE}/v1/flujos/:id   Authorization: Bearer inv_…
      { nodos[], aristas[], nombre?, descripcion? }  → nueva versión (bump)
 ```
 
-UI: ficha Base de datos → pestañas **Flujos** / **Corridas**. Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
+UI: Catálogos → **Flujos** (todas las BDs; ficha Resumen | Base de datos | Documento | Versiones | Corridas | Interno). También ficha Base de datos → pestañas **Flujos** / **Corridas** (filtrado). Semilla viva: `reservas-descubrir-mapear` → `inicio → descubrir-negocio → mapear-recorrido → fin`.
 
 **Corridas** (Mongo colección `corridas` en la BD del proyecto; índice liviano en D1):
 
