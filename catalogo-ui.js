@@ -1432,7 +1432,7 @@ function iconoDePestanaFicha(tabId) {
     asociados: 'asociados',
     colecciones: 'coleccion',
     diagrama: 'diagrama',
-    operativa: 'diagrama',
+    operativa: 'entradas-salidas',
     campos: 'mongo',
     skills: 'skills',
     'system-prompts': 'system-prompt',
