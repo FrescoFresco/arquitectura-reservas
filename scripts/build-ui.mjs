@@ -21,6 +21,8 @@ const files = [
   'fundamentos-ui.js',
   'proyectos-ui.js',
   'skills-ui.js',
+  'system-prompts-ui.js',
+  'system-prompts-catalog.js',
 ];
 
 const dirs = ['catalogo', 'documentacion', 'mapa'];

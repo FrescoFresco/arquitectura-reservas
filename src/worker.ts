@@ -590,6 +590,7 @@ app.get('/v1/ejecutar/:skillId', async (c) => {
   const entradas = (skill.entradas as string[]) || [];
   const salidas = (skill.salidas as string[]) || [];
   const anclas = (skill.anclas as string[]) || [];
+  const systemPrompts = await loadSystemPromptsForSkill(c.env.DB, skillId, { withMarkdown: true });
   return c.json({
     ok: true,
     skill: skillId,
@@ -598,6 +599,8 @@ app.get('/v1/ejecutar/:skillId', async (c) => {
     entradas,
     salidas,
     anclas,
+    /** Todos los system prompts vinculados (orden por nombre). Vacío si no hay. */
+    systemPrompts,
   });
 });
 
@@ -1002,6 +1005,30 @@ app.get('/v1/proyectos/:id', async (c) => {
   return c.json({ ok: true, proyecto: await hydrateProyecto(c.env.DB, row as Record<string, unknown>) });
 });
 
+app.get('/v1/system-prompts', async (c) => {
+  const rows = await c.env.DB.prepare(
+    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM system_prompts ORDER BY nombre'
+  ).all();
+  const out = [];
+  for (const row of rows.results || []) {
+    out.push(await hydrateSystemPrompt(c.env.DB, row as Record<string, unknown>));
+  }
+  return c.json({ ok: true, id: 'system-prompts', nombre: 'System prompts', systemPrompts: out });
+});
+
+app.get('/v1/system-prompts/:id', async (c) => {
+  const row = await c.env.DB.prepare(
+    'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM system_prompts WHERE id = ?'
+  )
+    .bind(c.req.param('id'))
+    .first();
+  if (!row) return jsonError(c, 404, 'System prompt no encontrado.');
+  return c.json({
+    ok: true,
+    systemPrompt: await hydrateSystemPrompt(c.env.DB, row as Record<string, unknown>),
+  });
+});
+
 app.get('/v1/fundamentos', async (c) => {
   const rows = await c.env.DB.prepare(
     'SELECT id, nombre, descripcion, hash, created_at, updated_at FROM fundamentos ORDER BY nombre'
@@ -1285,6 +1312,7 @@ app.delete('/v1/skills/:id', async (c) => {
   await c.env.DB.batch([
     c.env.DB.prepare('DELETE FROM proyecto_skills WHERE skill_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM ancla_skills WHERE skill_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM system_prompt_skills WHERE skill_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM skills WHERE id = ?').bind(id),
   ]);
   return c.json({ ok: true, deleted: id });
@@ -2123,6 +2151,116 @@ app.delete('/v1/proyectos/:id', async (c) => {
   return c.json({ ok: true, deleted: id });
 });
 
+app.post('/v1/system-prompts', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    id?: string;
+    nombre?: string;
+    descripcion?: string;
+    markdown?: string;
+    skills?: string[];
+  };
+  const nombre = String(body.nombre || '').trim();
+  if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
+  const id = String(body.id || slugId(nombre)).trim();
+  if (!ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
+  const markdown = String(body.markdown || '');
+  const descripcion = String(body.descripcion || '').trim().slice(0, 280);
+  const skills = normalizeIdList(body.skills);
+  const ts = nowIso();
+  const hash = await sha256Hex(markdown || id + '|1');
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO system_prompts (id, nombre, descripcion, hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+      .bind(id, nombre, descripcion, hash, ts, ts)
+      .run();
+  } catch {
+    return jsonError(c, 409, 'Ya existe ese system prompt.');
+  }
+  await c.env.DB.prepare(
+    'INSERT INTO system_prompt_versions (system_prompt_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, 1, ?, ?, ?, ?, ?)'
+  )
+    .bind(id, todayIso(), markdown, '', id + '.md', hash)
+    .run();
+  await replaceSystemPromptSkills(c.env.DB, id, skills);
+  return c.json(
+    {
+      ok: true,
+      systemPrompt: await hydrateSystemPrompt(
+        c.env.DB,
+        (await c.env.DB.prepare('SELECT * FROM system_prompts WHERE id = ?').bind(id).first()) as Record<
+          string,
+          unknown
+        >
+      ),
+    },
+    201
+  );
+});
+
+app.put('/v1/system-prompts/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT * FROM system_prompts WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'System prompt no encontrado.');
+  const body = (await c.req.json().catch(() => ({}))) as {
+    nombre?: string;
+    descripcion?: string;
+    markdown?: string;
+    skills?: string[];
+  };
+  const nombre = String(body.nombre ?? (row as { nombre: string }).nombre).trim();
+  const descripcion = String(body.descripcion ?? ((row as { descripcion: string }).descripcion || ''))
+    .trim()
+    .slice(0, 280);
+  const max = await c.env.DB.prepare(
+    'SELECT COALESCE(MAX(numero), 0) AS m FROM system_prompt_versions WHERE system_prompt_id = ?'
+  )
+    .bind(id)
+    .first<{ m: number }>();
+  const numero = (max?.m || 0) + 1;
+  const markdown =
+    body.markdown != null
+      ? String(body.markdown)
+      : (
+          await c.env.DB.prepare(
+            'SELECT markdown FROM system_prompt_versions WHERE system_prompt_id = ? ORDER BY numero DESC LIMIT 1'
+          )
+            .bind(id)
+            .first<{ markdown: string }>()
+        )?.markdown || '';
+  const hash = await sha256Hex(markdown || id + '|' + numero);
+  const ts = nowIso();
+  await c.env.DB.prepare(
+    'UPDATE system_prompts SET nombre = ?, descripcion = ?, hash = ?, updated_at = ? WHERE id = ?'
+  )
+    .bind(nombre, descripcion, hash, ts, id)
+    .run();
+  await c.env.DB.prepare(
+    'INSERT INTO system_prompt_versions (system_prompt_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  )
+    .bind(id, numero, todayIso(), markdown, '', id + '.md', hash)
+    .run();
+  if (body.skills != null) {
+    await replaceSystemPromptSkills(c.env.DB, id, normalizeIdList(body.skills));
+  }
+  return c.json({
+    ok: true,
+    systemPrompt: await hydrateSystemPrompt(
+      c.env.DB,
+      (await c.env.DB.prepare('SELECT * FROM system_prompts WHERE id = ?').bind(id).first()) as Record<
+        string,
+        unknown
+      >
+    ),
+  });
+});
+
+app.delete('/v1/system-prompts/:id', async (c) => {
+  const id = c.req.param('id');
+  await c.env.DB.prepare('DELETE FROM system_prompts WHERE id = ?').bind(id).run();
+  return c.json({ ok: true, deleted: id });
+});
+
 app.post('/v1/fundamentos', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     id?: string;
@@ -2334,6 +2472,7 @@ async function hydrateSkill(db: D1Database, row: Record<string, unknown>) {
     else salidas.push(a);
   }
   const anclas = unionAnclas(entradas, salidas);
+  const systemPrompts = await loadSystemPromptsForSkill(db, id, { withMarkdown: false });
   return {
     id,
     nombre: row.nombre,
@@ -2342,8 +2481,101 @@ async function hydrateSkill(db: D1Database, row: Record<string, unknown>) {
     entradas,
     salidas,
     anclas,
+    systemPrompts,
     versiones: versiones.results || [],
   };
+}
+
+function normalizeIdList(list: unknown): string[] {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of list) {
+    const id = String(raw || '').trim();
+    if (!id || !ID_RE.test(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+async function replaceSystemPromptSkills(db: D1Database, systemPromptId: string, skills: string[]) {
+  await db.prepare('DELETE FROM system_prompt_skills WHERE system_prompt_id = ?').bind(systemPromptId).run();
+  for (const s of skills) {
+    await db
+      .prepare('INSERT OR IGNORE INTO system_prompt_skills (system_prompt_id, skill_id) VALUES (?, ?)')
+      .bind(systemPromptId, s)
+      .run();
+  }
+}
+
+async function hydrateSystemPrompt(db: D1Database, row: Record<string, unknown>) {
+  const id = String(row.id);
+  const versiones = await db
+    .prepare(
+      'SELECT numero, fecha, markdown, ruta, nombre_archivo AS nombreArchivo, hash FROM system_prompt_versions WHERE system_prompt_id = ? ORDER BY numero'
+    )
+    .bind(id)
+    .all();
+  const skillsRows = await db
+    .prepare('SELECT skill_id FROM system_prompt_skills WHERE system_prompt_id = ? ORDER BY skill_id')
+    .bind(id)
+    .all();
+  const skills = (skillsRows.results || []).map((r) => String((r as { skill_id: string }).skill_id));
+  return {
+    id,
+    nombre: row.nombre,
+    descripcion: row.descripcion || '',
+    hash: row.hash || '',
+    skills,
+    versiones: versiones.results || [],
+  };
+}
+
+/**
+ * System prompts vinculados a una skill, ordenados por nombre.
+ * withMarkdown: incluye markdown + meta de la versión actual (bundle ejecutar).
+ */
+async function loadSystemPromptsForSkill(
+  db: D1Database,
+  skillId: string,
+  opts?: { withMarkdown?: boolean }
+) {
+  const links = await db
+    .prepare(
+      `SELECT sp.id, sp.nombre, sp.descripcion, sp.hash
+       FROM system_prompt_skills sps
+       JOIN system_prompts sp ON sp.id = sps.system_prompt_id
+       WHERE sps.skill_id = ?
+       ORDER BY sp.nombre`
+    )
+    .bind(skillId)
+    .all();
+  const out: Record<string, unknown>[] = [];
+  for (const raw of links.results || []) {
+    const r = raw as { id: string; nombre: string; descripcion: string; hash: string };
+    const item: Record<string, unknown> = {
+      id: r.id,
+      nombre: r.nombre,
+      descripcion: r.descripcion || '',
+      hash: r.hash || '',
+    };
+    if (opts?.withMarkdown) {
+      const ver = await db
+        .prepare(
+          `SELECT numero, fecha, markdown, hash FROM system_prompt_versions
+           WHERE system_prompt_id = ? ORDER BY numero DESC LIMIT 1`
+        )
+        .bind(r.id)
+        .first<{ numero: number; fecha: string; markdown: string; hash: string }>();
+      item.markdown = ver?.markdown || '';
+      item.version = ver
+        ? { numero: ver.numero, fecha: ver.fecha, hash: ver.hash || '' }
+        : null;
+    }
+    out.push(item);
+  }
+  return out;
 }
 
 async function loadAnclaMongoMaps(db: D1Database, anclas: string[]): Promise<AnclaMongoMap[]> {
