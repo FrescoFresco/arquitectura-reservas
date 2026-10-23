@@ -171,7 +171,9 @@ export function resumenDesdeDetalle(
     const plan = detalle.plan as { collections?: unknown[] } | undefined;
     const n = Array.isArray(plan?.collections) ? plan!.collections!.length : 0;
     const hint = detalle.hint != null ? String(detalle.hint) : '';
-    const base = n ? `Simulación · ${n} colección${n === 1 ? '' : 'es'}` : 'Simulación';
+    const base = n
+      ? `Simulación · ${n} ${n === 1 ? 'colección' : 'colecciones'}`
+      : 'Simulación';
     return hint ? `${base}. ${hint}`.slice(0, 280) : base;
   }
   const created = Array.isArray(detalle.created) ? (detalle.created as string[]) : [];
