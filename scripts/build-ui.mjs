@@ -27,7 +27,7 @@ const files = [
   'flujos-corridas-ui.js',
 ];
 
-const dirs = ['catalogo', 'documentacion', 'mapa'];
+const dirs = ['catalogo', 'documentacion'];
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });

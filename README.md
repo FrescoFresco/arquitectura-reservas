@@ -38,11 +38,11 @@ El índice de Skills está en [`catalogo/skills/index.json`](./catalogo/skills/i
 
 El índice de Campos ancla está en [`catalogo/campos-ancla/index.json`](./catalogo/campos-ancla/index.json). Cada celda muestra el ancla completo; al pulsarla se abre un popup con pestañas Definición / Mongo / Skills. Campos MongoDB está en [`catalogo/campos-mongodb/index.json`](./catalogo/campos-mongodb/index.json): celdas `colección.clave` y ficha con bsonType y ancla enlazada. Ambos índices incluyen `hash` estable por campo.
 
-Los archivos del mapa pueden seguir en [`mapa/`](./mapa/), pero la página ya no tiene hub ni editor del mapa.
+El hub del mapa y las tablas de activación se eliminaron del panel; el espejo opcional [`scripts/subir.js`](./scripts/subir.js) solo publica `skills` o `proyectos`.
 
 Los agentes trabajan contra la API Worker (`documentacion/api.md`): invite → registro → latido → CRUD con `Authorization: Bearer inv_…`. No usan GitHub Contents ni token de GitHub.
 
-Opcional (solo espejo estático del repo, no el estado vivo): [`scripts/subir.js`](./scripts/subir.js) con `GITHUB_TOKEN` en el entorno. En el navegador, **+ Añadir skill** / ancla siguen pudiendo guardar overlay local encima del seed.
+Opcional (solo espejo estático del repo, no el estado vivo): `scripts/subir.js` con `GITHUB_TOKEN` en el entorno. En el navegador, **+ Añadir skill** / ancla siguen pudiendo guardar overlay local encima del seed.
 
 Ejemplo de skill en el índice:
 

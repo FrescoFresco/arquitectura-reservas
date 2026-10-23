@@ -47,68 +47,10 @@ function siguienteNumero(versiones) {
   }, 0) + 1;
 }
 
-const TABLAS_ACTIVACION = {
-  reglas: 'Tabla de reglas',
-  pasos: 'Tabla de pasos'
-};
-
-function validarTabla(texto) {
-  let data;
-  try { data = JSON.parse(String(texto)); } catch (e) { throw new Error('El archivo de la tabla no es JSON.'); }
-  if (!data || !Array.isArray(data.columnas) || !data.columnas.length) throw new Error('La tabla necesita columnas.');
-  if (!data.columnas.every(function (c) { return typeof c === 'string' && c.trim() !== ''; })) {
-    throw new Error('Cada columna necesita nombre.');
-  }
-  if (!Array.isArray(data.filas)) throw new Error('La tabla necesita filas.');
-  data.filas.forEach(function (fila) {
-    if (!Array.isArray(fila) || fila.length !== data.columnas.length) {
-      throw new Error('Hay una fila que no coincide con las columnas.');
-    }
-    if (!fila.every(function (c) { return typeof c === 'string'; })) {
-      throw new Error('Las celdas tienen que ser texto.');
-    }
-  });
-  return data;
-}
-
 function planificarSubida(opts) {
   const fecha = opts.fecha;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) throw new Error('La fecha tiene que ser YYYY-MM-DD.');
   const tipo = (opts.tipo === 'microoperaciones' || opts.tipo === 'bloques') ? 'skills' : opts.tipo;
-  if (tipo === 'tabla-activacion') {
-    const tabla = String(opts.tabla || '');
-    if (!Object.prototype.hasOwnProperty.call(TABLAS_ACTIVACION, tabla)) {
-      throw new Error('La tabla tiene que ser reglas o pasos.');
-    }
-    const indice = clonar(opts.indice && typeof opts.indice === 'object' ? opts.indice : {});
-    if (!Array.isArray(indice.versiones)) indice.versiones = [];
-    const numero = siguienteNumero(indice.versiones);
-    const ruta = 'catalogo/tabla-activacion/' + tabla + '/v' + numero + '.json';
-    indice.id = indice.id || tabla;
-    indice.nombre = indice.nombre || TABLAS_ACTIVACION[tabla];
-    indice.versiones.push({ numero: numero, fecha: fecha, ruta: ruta });
-    return {
-      archivo: { ruta: ruta, mensaje: 'Publica ' + TABLAS_ACTIVACION[tabla] + ' v' + numero },
-      indiceRuta: 'catalogo/tabla-activacion/' + tabla + '/index.json',
-      indiceMensaje: 'Actualiza el índice de ' + TABLAS_ACTIVACION[tabla],
-      indice: indice
-    };
-  }
-  if (tipo === 'mapa') {
-    const indice = clonar(opts.indice && typeof opts.indice === 'object' ? opts.indice : {});
-    if (!Array.isArray(indice.versiones)) indice.versiones = [];
-    const numero = siguienteNumero(indice.versiones);
-    const ruta = 'mapa/v' + numero + '.mmd';
-    indice.id = indice.id || 'flujo';
-    indice.nombre = indice.nombre || 'Flujo del sistema';
-    indice.versiones.push({ numero: numero, fecha: fecha, ruta: ruta });
-    return {
-      archivo: { ruta: ruta, mensaje: 'Publica el mapa v' + numero },
-      indiceRuta: 'mapa/index.json',
-      indiceMensaje: 'Actualiza el índice del mapa',
-      indice: indice
-    };
-  }
   if (tipo === 'proyectos') {
     const indice = clonar(opts.indice && typeof opts.indice === 'object' ? opts.indice : {});
     if (!Array.isArray(indice.proyectos)) indice.proyectos = [];
@@ -159,7 +101,7 @@ function planificarSubida(opts) {
       indice: indice
     };
   }
-  if (tipo !== 'skills') throw new Error('El destino tiene que ser skills, mapa, tabla-activacion o proyectos.');
+  if (tipo !== 'skills') throw new Error('El destino tiene que ser skills o proyectos.');
   const indice = clonar(opts.indice && typeof opts.indice === 'object' ? opts.indice : {});
   if (!Array.isArray(indice.instrucciones)) indice.instrucciones = [];
   indice.id = 'skills';
@@ -308,11 +250,11 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const destino = args._[0];
   if (!destino || args._.length !== 1) {
-    throw new Error('Uso: node scripts/subir.js skills|mapa|tabla-activacion|proyectos --archivo ./fichero [--tabla reglas|pasos] [--nueva --nombre "Nombre"] [--id id] [--eliminar --id id] [--ensayo]');
+    throw new Error('Uso: node scripts/subir.js skills|proyectos --archivo ./fichero [--nueva --nombre "Nombre"] [--id id] [--eliminar --id id] [--ensayo]');
   }
   const tipo = (destino === 'microoperaciones' || destino === 'bloques') ? 'skills' : destino;
-  if (tipo !== 'skills' && tipo !== 'mapa' && tipo !== 'tabla-activacion' && tipo !== 'proyectos') {
-    throw new Error('El destino tiene que ser skills, mapa, tabla-activacion o proyectos.');
+  if (tipo !== 'skills' && tipo !== 'proyectos') {
+    throw new Error('El destino tiene que ser skills o proyectos.');
   }
   if (args.eliminar) {
     if (tipo !== 'skills') throw new Error('Eliminar solo vale para una skill.');
@@ -322,29 +264,15 @@ async function main() {
     throw new Error('Falta --archivo.');
   }
   const bytes = args.eliminar ? null : fs.readFileSync(args.archivo);
-  if (!args.eliminar && tipo === 'mapa') {
-    if (bytes.includes(0)) throw new Error('El mapa tiene que ser texto UTF-8.');
-    const texto = bytes.toString('utf8');
-    if (!texto.trim()) throw new Error('El mapa está vacío.');
-  }
-  if (!args.eliminar && tipo === 'tabla-activacion') validarTabla(bytes.toString('utf8'));
   const fecha = args.fecha || fechaHoy();
   const repo = process.env.GITHUB_REPOSITORIO || REPO_DEFECTO;
   const rama = process.env.GITHUB_RAMA || RAMA_DEFECTO;
-  const indiceRuta = tipo === 'mapa'
-    ? 'mapa/index.json'
-    : (tipo === 'tabla-activacion'
-      ? 'catalogo/tabla-activacion/' + String(args.tabla || '') + '/index.json'
-      : (tipo === 'proyectos' ? 'catalogo/proyectos/index.json' : 'catalogo/skills/index.json'));
+  const indiceRuta = tipo === 'proyectos' ? 'catalogo/proyectos/index.json' : 'catalogo/skills/index.json';
   let indice = null;
   if (args.ensayo) {
-    const local = tipo === 'mapa'
-      ? path.join(process.cwd(), 'mapa', 'index.json')
-      : (tipo === 'tabla-activacion'
-        ? path.join(process.cwd(), 'catalogo', 'tabla-activacion', String(args.tabla || ''), 'index.json')
-        : (tipo === 'proyectos'
-          ? path.join(process.cwd(), 'catalogo', 'proyectos', 'index.json')
-          : path.join(process.cwd(), 'catalogo', 'skills', 'index.json')));
+    const local = tipo === 'proyectos'
+      ? path.join(process.cwd(), 'catalogo', 'proyectos', 'index.json')
+      : path.join(process.cwd(), 'catalogo', 'skills', 'index.json');
     if (fs.existsSync(local)) indice = JSON.parse(fs.readFileSync(local, 'utf8'));
   } else {
     const token = tokenDeEntorno();
@@ -388,8 +316,6 @@ async function main() {
 module.exports = {
   planificarSubida: planificarSubida,
   planificarEliminacion: planificarEliminacion,
-  validarTabla: validarTabla,
-  extensionDe: extensionDe,
   slugId: slugId,
   fechaHoy: fechaHoy
 };

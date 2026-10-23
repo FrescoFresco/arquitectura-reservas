@@ -266,36 +266,6 @@ export function buildDiagrama(
   };
 }
 
-/** Map bsonType catálogo → JSON Schema type for $jsonSchema. */
-export function bsonToJsonSchemaType(bson: string): string | string[] {
-  const t = String(bson || 'string').toLowerCase();
-  switch (t) {
-    case 'int':
-    case 'long':
-    case 'double':
-    case 'decimal':
-    case 'number':
-      return 'number';
-    case 'bool':
-    case 'boolean':
-      return 'boolean';
-    case 'date':
-    case 'timestamp':
-      return 'string'; // ISO; Atlas also accepts date via bsonType in validator
-    case 'object':
-    case 'document':
-      return 'object';
-    case 'array':
-      return 'array';
-    case 'objectid':
-      return 'string';
-    case 'null':
-      return 'null';
-    default:
-      return 'string';
-  }
-}
-
 export function buildJsonSchemaForCollection(
   coleccionId: string,
   campos: MongoCampoShape[]
@@ -434,20 +404,3 @@ function bsonToAtlasBson(bson: string): string | string[] {
       return 'string';
   }
 }
-
-export const DEFAULT_RESERVAS_COLECCIONES: ColeccionDef[] = [
-  { id: 'negocios', descripcion: 'Un documento por negocio cliente' },
-  { id: 'procesos', descripcion: 'Puntos A / alcances de reserva por negocio' },
-  { id: 'versiones', descripcion: 'Recorridos, scripts y funciones versionados' },
-  { id: 'reservas', descripcion: 'Reservas hechas por los agentes' },
-  { id: 'ejecuciones', descripcion: 'Historial de ejecuciones' },
-  { id: 'reservas_prueba', descripcion: 'Reservas de prueba (no producción)' },
-];
-
-export const DEFAULT_RESERVAS_RELACIONES: RelacionDef[] = [
-  { desde: 'procesos.negocio_id', hacia: 'negocios._id', tipo: 'N:1' },
-  { desde: 'versiones.proceso_id', hacia: 'procesos._id', tipo: 'N:1' },
-  { desde: 'reservas.negocio_id', hacia: 'negocios._id', tipo: 'N:1' },
-  { desde: 'ejecuciones.negocio_id', hacia: 'negocios._id', tipo: 'N:1' },
-  { desde: 'reservas_prueba.negocio_id', hacia: 'negocios._id', tipo: 'N:1' },
-];

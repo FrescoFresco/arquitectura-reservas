@@ -41,13 +41,13 @@ Ejemplo Pelo Sur: buscar "mechas rubias" en las notas de las citas y obtener pri
 
 ### Conectar Campos ancla (Worker API)
 
-Usa la ficha **Base de datos → Conexión** en el panel: pega la URI ahí (campo tipo contraseña). Queda cifrada en D1 por esquema; **nunca se reexpone** en GET. **No hay** URI global en Ajustes. Esta pestaña de Documentación es solo lectura.
+Usa la ficha **Cluster → Conexión** en el panel: pega la URI ahí (campo tipo contraseña). Queda cifrada en D1 por cluster; **nunca se reexpone** en GET. **No hay** URI global en Ajustes. Esta pestaña de Documentación es solo lectura.
 
 El Worker `campos-ancla-api` usa el driver oficial **`mongodb`** (TCP en Cloudflare Workers; ver [docs CF](https://developers.cloudflare.com/workers/databases/third-party-integrations/mongodb/)).
 
 1. Crea un cluster en Atlas y copia la cadena SRV (`mongodb+srv://…`).
-2. En el panel: abre la Base de datos → pestaña **Conexión** → pega URI (+ base) → **Guardar** / **Probar**.
-3. Comprueba: `GET /v1/proyectos/:id/mongo-config` → `{ configured, own, connected, db, source, hint? }` (sin URI). Ops: `GET /health` / `GET /v1/mongo/status` solo reflejan el secret `MONGODB_URI` del Worker.
-4. Sincroniza un negocio (invite Bearer): `POST /v1/mongo/sync/negocio` con `{ "negocio_id": "pelo-sur" }` (ops/env) o `POST /v1/mongo/sync/proyecto` con `{ "proyecto_id": "…" }` (URI del esquema).
+2. En el panel: abre el Cluster → pestaña **Conexión** → pega URI (+ base) → **Guardar** / **Probar**.
+3. Comprueba: `GET /v1/clusters/:id/mongo-config` → `{ configured, own, connected, db, source, hint? }` (sin URI). Ops: `GET /health` / `GET /v1/mongo/status` solo reflejan el secret `MONGODB_URI` del Worker.
+4. Sincroniza un negocio (invite Bearer): `POST /v1/mongo/sync/negocio` con `{ "negocio_id": "pelo-sur" }` (ops/env) o `POST /v1/mongo/sync/proyecto` con `{ "proyecto_id": "…" }` (URI del Cluster de esa BD).
 
 Detalle: `CLOUDFLARE.md` (sección MongoDB) y el doc del proyecto en el store.

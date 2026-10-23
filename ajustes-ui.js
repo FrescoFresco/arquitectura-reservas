@@ -1,6 +1,6 @@
 /**
  * Ajustes → Agentes (catálogo de quién entra en el hub).
- * La URI Mongo ya no vive aquí: solo en Base de datos → Conexión.
+ * La URI Mongo ya no vive aquí: solo en Cluster → Conexión.
  */
 (function () {
   'use strict';

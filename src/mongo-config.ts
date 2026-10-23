@@ -6,14 +6,11 @@
  * humans.
  *
  * Product path: URI on **Cluster** (`mongo_config_cluster`). Bases de datos
- * (proyectos) reference a cluster via `cluster_id`. Legacy `mongo_config` /
- * `mongo_config_proyecto` are no longer in the product resolution path.
+ * (proyectos) reference a cluster via `cluster_id`.
  * Env `MONGODB_URI` is ops-only (health / status / sync without proyecto).
  *
  * Never log or return the URI. Status may expose a safe host last-4 hint only.
  */
-
-const CONFIG_ID = 'default';
 
 export type StoredMongoConfig = {
   uri: string;
@@ -24,7 +21,7 @@ export type StoredMongoConfig = {
 
 export type MongoConfigMeta = {
   configured: boolean;
-  source: 'cluster' | 'proyecto' | 'stored' | 'env' | 'none';
+  source: 'cluster' | 'env' | 'none';
   hint: string;
   db: string;
 };
@@ -106,79 +103,6 @@ type ConfigRow = {
   db_name: string;
   updated_at: string;
 };
-
-export async function readStoredMeta(db: D1Database): Promise<{
-  present: boolean;
-  hint: string;
-  dbName: string;
-  updatedAt: string;
-} | null> {
-  const row = await db
-    .prepare('SELECT ciphertext, iv, uri_hint, db_name, updated_at FROM mongo_config WHERE id = ?')
-    .bind(CONFIG_ID)
-    .first<ConfigRow>();
-  if (!row) return null;
-  return {
-    present: true,
-    hint: String(row.uri_hint || ''),
-    dbName: String(row.db_name || ''),
-    updatedAt: String(row.updated_at || ''),
-  };
-}
-
-export async function loadStoredUri(
-  db: D1Database,
-  encryptionKey: string | undefined
-): Promise<StoredMongoConfig | null> {
-  const row = await db
-    .prepare('SELECT ciphertext, iv, uri_hint, db_name, updated_at FROM mongo_config WHERE id = ?')
-    .bind(CONFIG_ID)
-    .first<ConfigRow>();
-  if (!row) return null;
-  if (!encryptionKey || !String(encryptionKey).trim()) {
-    throw new Error('ENCRYPTION_KEY missing');
-  }
-  const uri = await decryptUri(row.ciphertext, row.iv, String(encryptionKey).trim());
-  const dbName = String(row.db_name || '').trim();
-  return {
-    uri,
-    db: dbName || undefined,
-    hint: String(row.uri_hint || '') || safeUriHint(uri),
-    updatedAt: String(row.updated_at || ''),
-  };
-}
-
-export async function saveStoredUri(
-  db: D1Database,
-  encryptionKey: string,
-  uri: string,
-  dbName: string | undefined
-): Promise<{ hint: string; db: string; updatedAt: string }> {
-  const trimmed = String(uri).trim();
-  const { ciphertext, iv } = await encryptUri(trimmed, encryptionKey);
-  const hint = safeUriHint(trimmed);
-  const dbVal = (dbName && String(dbName).trim()) || '';
-  const updatedAt = new Date().toISOString();
-  await db
-    .prepare(
-      `INSERT INTO mongo_config (id, ciphertext, iv, uri_hint, db_name, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         ciphertext = excluded.ciphertext,
-         iv = excluded.iv,
-         uri_hint = excluded.uri_hint,
-         db_name = excluded.db_name,
-         updated_at = excluded.updated_at`
-    )
-    .bind(CONFIG_ID, ciphertext, iv, hint, dbVal, updatedAt)
-    .run();
-  return { hint, db: dbVal, updatedAt };
-}
-
-export async function clearStoredUri(db: D1Database): Promise<boolean> {
-  const res = await db.prepare('DELETE FROM mongo_config WHERE id = ?').bind(CONFIG_ID).run();
-  return Boolean(res.meta?.changes);
-}
 
 /** ——— Per-cluster (URI Atlas del cluster) ——— */
 
@@ -270,101 +194,6 @@ export async function clearClusterStoredUri(db: D1Database, clusterId: string): 
   if (!id) return false;
   const res = await db
     .prepare('DELETE FROM mongo_config_cluster WHERE cluster_id = ?')
-    .bind(id)
-    .run();
-  return Boolean(res.meta?.changes);
-}
-
-/** ——— Legacy per-proyecto (migración; ya no en path de producto) ——— */
-
-export async function readProyectoMongoMeta(
-  db: D1Database,
-  proyectoId: string
-): Promise<{
-  present: boolean;
-  hint: string;
-  dbName: string;
-  updatedAt: string;
-} | null> {
-  const id = String(proyectoId || '').trim();
-  if (!id) return null;
-  const row = await db
-    .prepare(
-      'SELECT ciphertext, iv, uri_hint, db_name, updated_at FROM mongo_config_proyecto WHERE proyecto_id = ?'
-    )
-    .bind(id)
-    .first<ConfigRow>();
-  if (!row) return null;
-  return {
-    present: true,
-    hint: String(row.uri_hint || ''),
-    dbName: String(row.db_name || ''),
-    updatedAt: String(row.updated_at || ''),
-  };
-}
-
-export async function loadProyectoStoredUri(
-  db: D1Database,
-  encryptionKey: string | undefined,
-  proyectoId: string
-): Promise<StoredMongoConfig | null> {
-  const id = String(proyectoId || '').trim();
-  if (!id) return null;
-  const row = await db
-    .prepare(
-      'SELECT ciphertext, iv, uri_hint, db_name, updated_at FROM mongo_config_proyecto WHERE proyecto_id = ?'
-    )
-    .bind(id)
-    .first<ConfigRow>();
-  if (!row) return null;
-  if (!encryptionKey || !String(encryptionKey).trim()) {
-    throw new Error('ENCRYPTION_KEY missing');
-  }
-  const uri = await decryptUri(row.ciphertext, row.iv, String(encryptionKey).trim());
-  const dbName = String(row.db_name || '').trim();
-  return {
-    uri,
-    db: dbName || undefined,
-    hint: String(row.uri_hint || '') || safeUriHint(uri),
-    updatedAt: String(row.updated_at || ''),
-  };
-}
-
-export async function saveProyectoStoredUri(
-  db: D1Database,
-  encryptionKey: string,
-  proyectoId: string,
-  uri: string,
-  dbName: string | undefined
-): Promise<{ hint: string; db: string; updatedAt: string }> {
-  const id = String(proyectoId || '').trim();
-  if (!id) throw new Error('Falta proyecto_id');
-  const trimmed = String(uri).trim();
-  const { ciphertext, iv } = await encryptUri(trimmed, encryptionKey);
-  const hint = safeUriHint(trimmed);
-  const dbVal = (dbName && String(dbName).trim()) || '';
-  const updatedAt = new Date().toISOString();
-  await db
-    .prepare(
-      `INSERT INTO mongo_config_proyecto (proyecto_id, ciphertext, iv, uri_hint, db_name, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(proyecto_id) DO UPDATE SET
-         ciphertext = excluded.ciphertext,
-         iv = excluded.iv,
-         uri_hint = excluded.uri_hint,
-         db_name = excluded.db_name,
-         updated_at = excluded.updated_at`
-    )
-    .bind(id, ciphertext, iv, hint, dbVal, updatedAt)
-    .run();
-  return { hint, db: dbVal, updatedAt };
-}
-
-export async function clearProyectoStoredUri(db: D1Database, proyectoId: string): Promise<boolean> {
-  const id = String(proyectoId || '').trim();
-  if (!id) return false;
-  const res = await db
-    .prepare('DELETE FROM mongo_config_proyecto WHERE proyecto_id = ?')
     .bind(id)
     .run();
   return Boolean(res.meta?.changes);

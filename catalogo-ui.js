@@ -10,7 +10,6 @@ const CATALOGOS = [
   { id: 'flujos', nombre: 'Flujos', icono: 'flujo' },
   { id: 'system-prompts', nombre: 'System prompts', icono: 'system-prompt' }
 ];
-const TABLAS = [];
 const DOCUMENTOS = [
   { id: 'fundamentos', nombre: 'Fundamentos', icono: 'fundamento' },
   { id: 'arquitectura', nombre: 'Arquitectura', icono: 'arquitectura' },
@@ -23,7 +22,6 @@ const LS_MONGO = 'arquitectura-reservas.catalogo.campos-mongodb';
 const LS_PROYECTOS = 'arquitectura-reservas.catalogo.proyectos';
 const LS_AGENTES = 'arquitectura-reservas.catalogo.agentes';
 const LS_FUNDAMENTOS = 'arquitectura-reservas.catalogo.fundamentos';
-const LS_MAPA = 'arquitectura-reservas.mapa.flujo';
 const AGENTE_LATIDO_MS = 120000;
 const AGENTE_POLL_MS = 4000;
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -284,7 +282,10 @@ function registrarColorEntidadKinds() {
   });
   window.ColorEntidad.registerKind('ancla', {
     listItems: function () { return (state.campos && state.campos.lista) || []; },
-    applyLocal: function (id, color) { setOnList(state.campos && state.campos.lista, id, color); },
+    applyLocal: function (id, color) {
+      setOnList(state.campos && state.campos.lista, id, color);
+      setOnList(state.campos && state.campos.remotos, id, color);
+    },
     refresh: function () {
       if (window.CamposAnclaUI && typeof window.CamposAnclaUI.refrescar === 'function' && typeof camposBridge === 'function') {
         window.CamposAnclaUI.refrescar(camposBridge());
@@ -293,7 +294,10 @@ function registrarColorEntidadKinds() {
   });
   window.ColorEntidad.registerKind('mongo', {
     listItems: function () { return (state.mongo && state.mongo.lista) || []; },
-    applyLocal: function (id, color) { setOnList(state.mongo && state.mongo.lista, id, color); },
+    applyLocal: function (id, color) {
+      setOnList(state.mongo && state.mongo.lista, id, color);
+      setOnList(state.mongo && state.mongo.remotos, id, color);
+    },
     refresh: function () {
       if (window.CamposMongoUI && typeof window.CamposMongoUI.refrescar === 'function' && typeof mongoBridge === 'function') {
         window.CamposMongoUI.refrescar(mongoBridge());
@@ -539,26 +543,9 @@ const state = {
     fetchToken: 0,
     inflightRuta: null
   },
-  tablaId: 'reglas',
-  tablaHistorial: false,
-  tablas: {
-    reglas: { remotas: [], versiones: [], abiertaNumero: null, ready: false, error: false },
-    pasos: { remotas: [], versiones: [], abiertaNumero: null, ready: false, error: false }
-  },
   fetchToken: 0,
   inflightRuta: null,
-  pendingFocus: null,
-  mapa: {
-    remotas: [],
-    versiones: [],
-    abiertaNumero: null,
-    historial: false,
-    fuente: '',
-    preview: false,
-    token: 0,
-    dibujo: 0,
-    mermaidListo: false
-  }
+  pendingFocus: null
 };
 
 const mdCache = new Map();
@@ -1623,8 +1610,17 @@ function mergeCampos(remotos, locales, eliminados) {
   (locales || []).forEach(function (raw) {
     const c = normalizeCampo(raw);
     if (!c) return;
-    c.origen = 'local';
-    map.set(c.id, c);
+    const prev = map.get(c.id);
+    if (!prev) {
+      c.origen = 'local';
+      map.set(c.id, c);
+      return;
+    }
+    const merged = Object.assign({}, prev, c, { origen: 'local' });
+    if (!Object.prototype.hasOwnProperty.call(c, 'color')) {
+      copiarColorMeta(merged, prev);
+    }
+    map.set(c.id, merged);
   });
   const ocultos = new Set(eliminados || []);
   return Array.from(map.values()).filter(function (c) { return !ocultos.has(c.id); });
@@ -1823,8 +1819,17 @@ function mergeMongo(remotos, locales, eliminados) {
   (locales || []).forEach(function (raw) {
     const c = normalizeMongoCampo(raw);
     if (!c) return;
-    c.origen = 'local';
-    map.set(c.id, c);
+    const prev = map.get(c.id);
+    if (!prev) {
+      c.origen = 'local';
+      map.set(c.id, c);
+      return;
+    }
+    const merged = Object.assign({}, prev, c, { origen: 'local' });
+    if (!Object.prototype.hasOwnProperty.call(c, 'color')) {
+      copiarColorMeta(merged, prev);
+    }
+    map.set(c.id, merged);
   });
   const ocultos = new Set(eliminados || []);
   return Array.from(map.values()).filter(function (c) { return !ocultos.has(c.id); });
@@ -3406,27 +3411,6 @@ function cerrarHistorial() {
   render();
 }
 
-function onClickBloques(e) {
-  const eliminar = e.target.closest('[data-accion="eliminar"]');
-  if (eliminar) {
-    e.preventDefault();
-    abrirDialogoEliminar(eliminar.dataset.id);
-    return;
-  }
-  const subir = e.target.closest('[data-accion="subir-version"]');
-  if (subir) {
-    e.preventDefault();
-    abrirDialogoVersion(subir.dataset.id);
-    return;
-  }
-  const abrir = e.target.closest('[data-accion="abrir"]');
-  if (!abrir) return;
-  const ins = state.instrucciones.find(function (item) { return item.id === abrir.dataset.id; });
-  if (!ins) return;
-  state.pendingFocus = null;
-  abrirInstruccion(ins.id, versionActual(ins).numero);
-}
-
 function onClickHistorial(e) {
   const btn = e.target.closest('[data-numero]');
   if (!btn || !state.abiertaId) return;
@@ -3641,731 +3625,6 @@ function nombreDeArchivo(input, destinoId) {
   document.getElementById(destinoId).textContent = file ? file.name : '';
 }
 
-function versionMapaAbierta() {
-  return state.mapa.versiones.find(function (v) { return v.numero === state.mapa.abiertaNumero; }) || null;
-}
-
-function pintarMapaChrome() {
-  const v = versionMapaAbierta();
-  const label = document.getElementById('mapaVersion');
-  if (label) label.textContent = v ? formatVersion(v.numero, v.fecha) : '';
-  const pop = document.getElementById('mapaHistorial');
-  const lista = document.getElementById('mapaHistorialLista');
-  const btn = document.getElementById('btnHistMapa');
-  if (!pop || !lista || !btn) return;
-  pop.hidden = !state.mapa.historial;
-  btn.setAttribute('aria-expanded', state.mapa.historial ? 'true' : 'false');
-  lista.replaceChildren();
-  const orden = state.mapa.versiones.slice().sort(function (a, b) { return b.numero - a.numero; });
-  orden.forEach(function (item) {
-    const li = document.createElement('li');
-    const b = el('button', null, '');
-    b.type = 'button';
-    b.dataset.mapaVersion = String(item.numero);
-    const marca = item.numero === state.mapa.abiertaNumero;
-    if (marca) b.setAttribute('aria-current', 'true');
-    b.append(el('span', null, formatVersion(item.numero, item.fecha)));
-    if (marca) b.append(el('span', 'marca', 'Abierta'));
-    li.append(b);
-    lista.append(li);
-  });
-}
-
-function asegurarMermaid() {
-  if (!window.mermaid) return false;
-  if (!state.mapa.mermaidListo) {
-    window.mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      theme: 'default',
-      flowchart: { useMaxWidth: true, htmlLabels: true, nodeSpacing: 28, rankSpacing: 36 }
-    });
-    state.mapa.mermaidListo = true;
-  }
-  return true;
-}
-
-function montarDiagrama(fuente) {
-  const status = document.getElementById('mapStatus');
-  const actual = document.getElementById('flowMermaid');
-  if (!actual) return;
-  const token = ++state.mapa.dibujo;
-  const el = document.createElement('div');
-  el.id = 'flowMermaid';
-  el.className = 'mermaid';
-  el.textContent = fuente;
-  actual.replaceWith(el);
-  const nota = state.mapa.preview ? 'Vista previa sin publicar. No crea una versión.' : '';
-  function fallo(texto) {
-    if (token !== state.mapa.dibujo) return;
-    el.className = 'map-fallback';
-    el.textContent = fuente;
-    if (status) status.textContent = nota || texto;
-  }
-  if (!asegurarMermaid()) {
-    fallo('Mapa en texto: requiere conexión para visualizar el diagrama.');
-    return;
-  }
-  if (status) status.textContent = nota || 'Cargando diagrama…';
-  const renderId = 'flowSvg' + token;
-  let done;
-  try {
-    done = window.mermaid.render(renderId, fuente);
-  } catch (e) {
-    fallo('Mapa en texto.');
-    return;
-  }
-  Promise.resolve(done).then(function (res) {
-    if (token !== state.mapa.dibujo) return;
-    const svg = res && res.svg ? res.svg : '';
-    if (!svg) {
-      fallo('Mapa en texto.');
-      return;
-    }
-    el.innerHTML = svg;
-    const suelto = document.getElementById(renderId);
-    if (suelto && !el.contains(suelto)) suelto.remove();
-    if (status) status.textContent = nota;
-  }).catch(function () {
-    fallo('Mapa en texto.');
-  });
-}
-
-function normalizarMapa(data) {
-  const list = data && Array.isArray(data.versiones) ? data.versiones : [];
-  const seen = new Set();
-  const versiones = [];
-  list.forEach(function (v) {
-    const n = normalizeVersionIndice(v);
-    if (!n || seen.has(n.numero)) return;
-    seen.add(n.numero);
-    versiones.push(n);
-  });
-  versiones.sort(function (a, b) { return a.numero - b.numero; });
-  return versiones;
-}
-
-function leerMapaLocal() {
-  try {
-    const raw = localStorage.getItem(LS_MAPA);
-    if (!raw) return [];
-    const data = JSON.parse(raw);
-    const list = data && Array.isArray(data.versiones) ? data.versiones : [];
-    return list.map(function (v) {
-      const numero = Number(v && v.numero);
-      const fecha = v && typeof v.fecha === 'string' ? v.fecha : '';
-      if (!Number.isInteger(numero) || numero < 1) return null;
-      if (!/^(\d{4})-(\d{2})-(\d{2})/.test(fecha)) return null;
-      if (typeof v.fuente !== 'string' || !v.fuente.trim()) return null;
-      return { numero: numero, fecha: fecha.slice(0, 10), fuente: v.fuente, origen: 'local' };
-    }).filter(Boolean);
-  } catch (e) {
-    return [];
-  }
-}
-
-function mergeMapa(remotas, locales) {
-  const map = new Map();
-  remotas.forEach(function (v) { map.set(v.numero, v); });
-  locales.forEach(function (v) { map.set(v.numero, v); });
-  return Array.from(map.values()).sort(function (a, b) { return a.numero - b.numero; });
-}
-
-function refrescarMapa() {
-  state.mapa.versiones = mergeMapa(state.mapa.remotas, leerMapaLocal());
-}
-
-function pintarOrigenMapa() {
-  const nodo = document.getElementById('mapaOrigen');
-  const v = versionMapaAbierta();
-  if (!nodo) return;
-  if (v && v.origen === 'local') {
-    nodo.hidden = false;
-    nodo.textContent = 'En este navegador. No está en GitHub.';
-  } else {
-    nodo.hidden = true;
-    nodo.textContent = '';
-  }
-}
-
-function elegirVersionMapa(numero) {
-  const v = state.mapa.versiones.find(function (item) { return item.numero === numero; });
-  if (!v) return;
-  state.mapa.abiertaNumero = v.numero;
-  state.mapa.preview = false;
-  state.mapa.historial = false;
-  pintarMapaChrome();
-  pintarOrigenMapa();
-  if (typeof v.fuente === 'string') {
-    state.mapa.fuente = v.fuente;
-    montarDiagrama(v.fuente);
-    return;
-  }
-  const token = ++state.mapa.token;
-  const status = document.getElementById('mapStatus');
-  if (status) status.textContent = 'Cargando diagrama…';
-  let url;
-  try { url = hrefRuta(v.ruta); } catch (e) {
-    if (status) status.textContent = 'No se pudo leer esta versión del mapa.';
-    return;
-  }
-  fetch(url, { cache: 'no-store' })
-    .then(function (res) {
-      if (!res.ok) throw new Error('http');
-      return res.text();
-    })
-    .then(function (text) {
-      if (token !== state.mapa.token) return;
-      state.mapa.fuente = text;
-      state.mapa.preview = false;
-      montarDiagrama(text);
-      pintarMapaChrome();
-      pintarOrigenMapa();
-    })
-    .catch(function () {
-      if (token !== state.mapa.token) return;
-      if (status) status.textContent = 'No se pudo leer esta versión del mapa.';
-    });
-}
-
-function cargarMapa() {
-  const status = document.getElementById('mapStatus');
-  fetch('mapa/index.json', { cache: 'no-store' })
-    .then(function (res) {
-      if (!res.ok) throw new Error('http');
-      return res.json();
-    })
-    .then(function (data) {
-      state.mapa.remotas = normalizarMapa(data);
-      refrescarMapa();
-      if (!state.mapa.versiones.length) {
-        if (status) status.textContent = 'No hay versiones del mapa.';
-        pintarMapaChrome();
-        return;
-      }
-      const ultima = state.mapa.versiones[state.mapa.versiones.length - 1];
-      elegirVersionMapa(ultima.numero);
-    })
-    .catch(function () {
-      if (status) status.textContent = 'No se pudo leer el índice del mapa.';
-    });
-}
-
-function guardarVersionMapa(fuente) {
-  const store = { versiones: leerMapaLocal().map(function (v) {
-    return { numero: v.numero, fecha: v.fecha, fuente: v.fuente };
-  }) };
-  const creada = { numero: siguienteNumero(state.mapa.versiones), fecha: todayISO(), fuente: fuente };
-  store.versiones.push(creada);
-  const json = JSON.stringify(store);
-  if (json.length > 4500000) throw new Error('No cabe en el almacenamiento de este navegador.');
-  localStorage.setItem(LS_MAPA, json);
-  refrescarMapa();
-  return creada;
-}
-
-function abrirEdicionMapa() {
-  const dlg = document.getElementById('dlgMapa');
-  const ta = document.getElementById('mapaFuente');
-  const err = document.getElementById('mapaError');
-  if (!dlg || !ta) return;
-  if (!state.mapa.fuente) {
-    const status = document.getElementById('mapStatus');
-    if (status) status.textContent = 'El diagrama todavía no está cargado.';
-    return;
-  }
-  ta.value = state.mapa.fuente;
-  if (err) err.textContent = '';
-  const label = document.getElementById('mapaEditVersion');
-  const v = versionMapaAbierta();
-  if (label) label.textContent = v ? formatVersion(v.numero, v.fecha) : '';
-  dlg.showModal();
-  ta.focus();
-}
-
-function onSubmitMapa(e) {
-  e.preventDefault();
-  const ta = document.getElementById('mapaFuente');
-  const err = document.getElementById('mapaError');
-  const submit = e.currentTarget.querySelector('[type="submit"]');
-  const texto = ta.value;
-  if (!texto.trim()) {
-    err.textContent = 'El diagrama está vacío.';
-    return;
-  }
-  if (texto.length > 400000) {
-    err.textContent = 'El diagrama es demasiado grande para este navegador.';
-    return;
-  }
-  submit.disabled = true;
-  try {
-    const creada = guardarVersionMapa(texto);
-    document.getElementById('dlgMapa').close();
-    elegirVersionMapa(creada.numero);
-  } catch (error) {
-    err.textContent = error.message;
-  } finally {
-    submit.disabled = false;
-  }
-}
-
-function alternarHistMapa() {
-  if (!state.mapa.versiones.length) return;
-  state.mapa.historial = !state.mapa.historial;
-  const venia = document.activeElement && document.activeElement.id === 'btnHistMapa';
-  pintarMapaChrome();
-  if (state.mapa.historial) {
-    const current = document.querySelector('#mapaHistorialLista [aria-current="true"]');
-    if (current) current.focus();
-  } else if (venia) {
-    const boton = document.getElementById('btnHistMapa');
-    if (boton) boton.focus();
-  }
-}
-
-function clonarTabla(tabla) {
-  return {
-    columnas: tabla.columnas.slice(),
-    filas: tabla.filas.map(function (fila) { return fila.slice(); })
-  };
-}
-
-function aplicarColumna(tabla, nombre) {
-  const n = String(nombre || '').trim();
-  if (!n) throw new Error('Escribe el nombre de la columna.');
-  if (n.length > 80) throw new Error('El nombre de la columna es demasiado largo.');
-  if (tabla.columnas.some(function (c) { return c === n; })) throw new Error('Esa columna ya está.');
-  const siguiente = clonarTabla(tabla);
-  siguiente.columnas.push(n);
-  siguiente.filas = siguiente.filas.map(function (fila) {
-    const row = fila.slice();
-    while (row.length < siguiente.columnas.length - 1) row.push('');
-    row.push('');
-    return row;
-  });
-  return siguiente;
-}
-
-function aplicarValor(tabla, cambio) {
-  const siguiente = clonarTabla(tabla);
-  if (!cambio || cambio.tipo === 'fila') {
-    const celdas = ((cambio && cambio.celdas) || []).map(function (c) { return String(c == null ? '' : c); });
-    if (celdas.length !== siguiente.columnas.length) throw new Error('La fila no coincide con las columnas.');
-    if (!celdas.some(function (c) { return c.trim() !== ''; })) throw new Error('Escribe algún valor.');
-    siguiente.filas.push(celdas);
-    return siguiente;
-  }
-  if (cambio.tipo === 'celda') {
-    const fila = Number(cambio.fila);
-    const col = Number(cambio.columna);
-    if (!Number.isInteger(fila) || fila < 0 || fila >= siguiente.filas.length) throw new Error('Elige una fila.');
-    if (!Number.isInteger(col) || col < 0 || col >= siguiente.columnas.length) throw new Error('Elige una columna.');
-    const valor = String(cambio.valor == null ? '' : cambio.valor);
-    if (!valor.trim()) throw new Error('Escribe el valor.');
-    siguiente.filas[fila][col] = valor;
-    return siguiente;
-  }
-  throw new Error('Elige una fila nueva o una celda.');
-}
-
-function normalizarCuerpoTabla(data) {
-  if (!data || !Array.isArray(data.columnas) || !data.columnas.length) return null;
-  if (!data.columnas.every(function (c) { return typeof c === 'string' && c.trim() !== ''; })) return null;
-  if (!Array.isArray(data.filas)) return null;
-  const filas = [];
-  for (let i = 0; i < data.filas.length; i++) {
-    const fila = data.filas[i];
-    if (!Array.isArray(fila) || fila.length !== data.columnas.length) return null;
-    if (!fila.every(function (c) { return typeof c === 'string'; })) return null;
-    filas.push(fila.slice());
-  }
-  return { columnas: data.columnas.slice(), filas: filas };
-}
-
-function leerTablasStore() {
-  const vacio = { reglas: [], pasos: [] };
-  try {
-    const raw = localStorage.getItem(LS_TABLA);
-    if (!raw) return vacio;
-    const data = JSON.parse(raw);
-    TABLAS.forEach(function (tabla) {
-      const list = data && Array.isArray(data[tabla.id]) ? data[tabla.id] : [];
-      vacio[tabla.id] = list.map(function (v) {
-        const numero = Number(v && v.numero);
-        const fecha = v && typeof v.fecha === 'string' ? v.fecha : '';
-        const cuerpo = normalizarCuerpoTabla(v);
-        if (!Number.isInteger(numero) || numero < 1 || !/^(\d{4})-(\d{2})-(\d{2})/.test(fecha) || !cuerpo) return null;
-        return {
-          numero: numero,
-          fecha: fecha.slice(0, 10),
-          columnas: cuerpo.columnas,
-          filas: cuerpo.filas,
-          origen: 'local'
-        };
-      }).filter(Boolean);
-    });
-    return vacio;
-  } catch (e) {
-    return { reglas: [], pasos: [] };
-  }
-}
-
-function guardarTablasStore(store) {
-  const json = JSON.stringify(store);
-  if (json.length > 4500000) throw new Error('No cabe en el almacenamiento de este navegador.');
-  localStorage.setItem(LS_TABLA, json);
-}
-
-function mergeTablas(remotas, locales) {
-  const map = new Map();
-  remotas.forEach(function (v) { map.set(v.numero, v); });
-  locales.forEach(function (v) { map.set(v.numero, v); });
-  return Array.from(map.values()).sort(function (a, b) { return a.numero - b.numero; });
-}
-
-function refrescarTabla(id) {
-  const bolsa = state.tablas[id];
-  const locales = leerTablasStore()[id] || [];
-  bolsa.versiones = mergeTablas(bolsa.remotas, locales);
-}
-
-function versionTablaAbierta() {
-  const bolsa = state.tablas[state.tablaId];
-  return bolsa.versiones.find(function (v) { return v.numero === bolsa.abiertaNumero; }) || null;
-}
-
-const tablaCache = new Map();
-
-function cuerpoDeVersion(v) {
-  if (v && v.columnas) return Promise.resolve({ columnas: v.columnas, filas: v.filas });
-  if (tablaCache.has(v.ruta)) return Promise.resolve(tablaCache.get(v.ruta));
-  return fetch(hrefRuta(v.ruta), { cache: 'no-store' }).then(function (res) {
-    if (!res.ok) throw new Error('http');
-    return res.json();
-  }).then(function (data) {
-    const cuerpo = normalizarCuerpoTabla(data);
-    if (!cuerpo) throw new Error('tabla');
-    tablaCache.set(v.ruta, cuerpo);
-    return cuerpo;
-  });
-}
-
-function renderTablaPestanas() {
-  const lista = document.getElementById('tablaTabs');
-  if (!lista) return;
-  lista.replaceChildren();
-  TABLAS.forEach(function (tabla) {
-    const btn = el('button', 'pestana', tabla.nombre);
-    btn.type = 'button';
-    btn.id = 'tab-' + tabla.id;
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-controls', 'tablaActiva');
-    btn.dataset.tabla = tabla.id;
-    const on = tabla.id === state.tablaId;
-    btn.setAttribute('aria-selected', on ? 'true' : 'false');
-    btn.tabIndex = on ? 0 : -1;
-    lista.append(btn);
-  });
-}
-
-function pintarTabla(cuerpo) {
-  const grid = document.getElementById('tablaGrid');
-  if (!grid) return;
-  grid.replaceChildren();
-  const thead = document.createElement('thead');
-  const hr = document.createElement('tr');
-  cuerpo.columnas.forEach(function (col) { hr.append(el('th', null, col)); });
-  thead.append(hr);
-  const tbody = document.createElement('tbody');
-  cuerpo.filas.forEach(function (fila) {
-    const tr = document.createElement('tr');
-    fila.forEach(function (celda) { tr.append(el('td', null, celda)); });
-    tbody.append(tr);
-  });
-  grid.append(thead, tbody);
-}
-
-function pintarHistTabla() {
-  const pop = document.getElementById('tablaHistorial');
-  const lista = document.getElementById('tablaHistorialLista');
-  const btn = document.getElementById('btnHistTabla');
-  const bolsa = state.tablas[state.tablaId];
-  if (!pop || !lista || !btn || !bolsa) return;
-  pop.hidden = !state.tablaHistorial;
-  btn.setAttribute('aria-expanded', state.tablaHistorial ? 'true' : 'false');
-  lista.replaceChildren();
-  const orden = bolsa.versiones.slice().sort(function (a, b) { return b.numero - a.numero; });
-  orden.forEach(function (item) {
-    const li = document.createElement('li');
-    const b = el('button', null, '');
-    b.type = 'button';
-    b.dataset.tablaVersion = String(item.numero);
-    const marca = item.numero === bolsa.abiertaNumero;
-    if (marca) b.setAttribute('aria-current', 'true');
-    b.append(el('span', null, formatVersion(item.numero, item.fecha)));
-    if (marca) b.append(el('span', 'marca', 'Abierta'));
-    li.append(b);
-    lista.append(li);
-  });
-}
-
-function renderTablaEstado(texto) {
-  const nodo = document.getElementById('tablaEstado');
-  if (!nodo) return;
-  nodo.textContent = texto || '';
-  nodo.hidden = !texto;
-}
-
-function mostrarTablaAbierta() {
-  const bolsa = state.tablas[state.tablaId];
-  const label = document.getElementById('tablaVersion');
-  const origen = document.getElementById('tablaOrigen');
-  const v = versionTablaAbierta();
-  if (label) label.textContent = v ? formatVersion(v.numero, v.fecha) : '';
-  if (origen) {
-    origen.hidden = !(v && v.origen === 'local');
-    origen.textContent = v && v.origen === 'local' ? 'En este navegador. No está en GitHub.' : '';
-  }
-  pintarHistTabla();
-  if (!bolsa.ready) {
-    renderTablaEstado('Cargando la tabla…');
-    return;
-  }
-  if (bolsa.error && !bolsa.versiones.length) {
-    renderTablaEstado('No se pudo leer el índice de esta tabla.');
-    const grid = document.getElementById('tablaGrid');
-    if (grid) grid.replaceChildren();
-    return;
-  }
-  if (!v) {
-    renderTablaEstado('No hay versiones.');
-    return;
-  }
-  renderTablaEstado('');
-  cuerpoDeVersion(v).then(function (cuerpo) {
-    if (versionTablaAbierta() !== v) return;
-    pintarTabla(cuerpo);
-  }).catch(function () {
-    if (versionTablaAbierta() !== v) return;
-    renderTablaEstado('No se pudo leer esta versión.');
-  });
-}
-
-function elegirVersionTabla(numero) {
-  const bolsa = state.tablas[state.tablaId];
-  if (!bolsa.versiones.some(function (v) { return v.numero === numero; })) return;
-  bolsa.abiertaNumero = numero;
-  state.tablaHistorial = false;
-  mostrarTablaAbierta();
-}
-
-function seleccionarTabla(id) {
-  if (!TABLAS.some(function (t) { return t.id === id; })) return;
-  state.tablaId = id;
-  state.tablaHistorial = false;
-  renderTablaPestanas();
-  mostrarTablaAbierta();
-  const tab = document.getElementById('tab-' + id);
-  if (tab) tab.focus();
-}
-
-function publicarTablaLocal(id, cuerpo) {
-  const store = leerTablasStore();
-  const bolsa = state.tablas[id];
-  const creada = {
-    numero: siguienteNumero(bolsa.versiones),
-    fecha: todayISO(),
-    columnas: cuerpo.columnas,
-    filas: cuerpo.filas
-  };
-  store[id].push(creada);
-  guardarTablasStore(store);
-  refrescarTabla(id);
-  bolsa.abiertaNumero = creada.numero;
-  state.tablaHistorial = false;
-  mostrarTablaAbierta();
-  return creada;
-}
-
-function abrirDialogoColumna() {
-  const dlg = document.getElementById('dlgColumna');
-  const form = document.getElementById('formColumna');
-  form.reset();
-  document.getElementById('columnaError').textContent = '';
-  const nombre = TABLAS.find(function (t) { return t.id === state.tablaId; });
-  document.getElementById('columnaDestino').textContent = nombre ? nombre.nombre : '';
-  dlg.showModal();
-  form.nombre.focus();
-}
-
-function camposDeValor(cuerpo) {
-  const box = document.getElementById('valorCampos');
-  box.replaceChildren();
-  const modo = document.createElement('select');
-  modo.id = 'valorModo';
-  const labelModo = el('label', null, 'Dónde');
-  modo.replaceChildren();
-  const optNueva = el('option', null, 'Fila nueva');
-  optNueva.value = 'nueva';
-  modo.append(optNueva);
-  cuerpo.filas.forEach(function (fila, i) {
-    const opt = el('option', null, 'Fila ' + (i + 1) + (fila[0] ? ' · ' + fila[0] : ''));
-    opt.value = String(i);
-    modo.append(opt);
-  });
-  if (!cuerpo.filas.length) modo.disabled = true;
-  labelModo.append(modo);
-  const dinamico = el('div', null, null);
-  dinamico.id = 'valorDinamico';
-  box.append(labelModo, dinamico);
-  function pintar() {
-    dinamico.replaceChildren();
-    if (modo.value === 'nueva') {
-      cuerpo.columnas.forEach(function (col, i) {
-        const label = el('label', null, col);
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.name = 'celda-' + i;
-        input.autocomplete = 'off';
-        label.append(input);
-        dinamico.append(label);
-      });
-      return;
-    }
-    const labelCol = el('label', null, 'Columna');
-    const sel = document.createElement('select');
-    sel.name = 'columna';
-    cuerpo.columnas.forEach(function (col, i) {
-      const opt = el('option', null, col);
-      opt.value = String(i);
-      sel.append(opt);
-    });
-    labelCol.append(sel);
-    const labelVal = el('label', null, 'Valor');
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.name = 'valor';
-    input.autocomplete = 'off';
-    labelVal.append(input);
-    dinamico.append(labelCol, labelVal);
-  }
-  modo.onchange = pintar;
-  pintar();
-}
-
-function abrirDialogoValor() {
-  const v = versionTablaAbierta();
-  const err = document.getElementById('valorError');
-  err.textContent = '';
-  if (!v) {
-    err.textContent = 'No hay una versión abierta.';
-    return;
-  }
-  cuerpoDeVersion(v).then(function (cuerpo) {
-    if (versionTablaAbierta() !== v) return;
-    const dlg = document.getElementById('dlgValor');
-    const form = document.getElementById('formValor');
-    form.dataset.base = JSON.stringify(cuerpo);
-    const nombre = TABLAS.find(function (t) { return t.id === state.tablaId; });
-    document.getElementById('valorDestino').textContent = nombre ? nombre.nombre : '';
-    camposDeValor(cuerpo);
-    dlg.showModal();
-  }).catch(function () {
-    err.textContent = 'No se pudo leer esta versión.';
-  });
-}
-
-function onSubmitColumna(e) {
-  e.preventDefault();
-  const form = e.currentTarget;
-  const err = document.getElementById('columnaError');
-  const submit = form.querySelector('[type="submit"]');
-  err.textContent = '';
-  const v = versionTablaAbierta();
-  const id = state.tablaId;
-  if (!v) {
-    err.textContent = 'No hay una versión abierta.';
-    return;
-  }
-  submit.disabled = true;
-  cuerpoDeVersion(v).then(function (cuerpo) {
-    const siguiente = aplicarColumna(cuerpo, form.nombre.value);
-    publicarTablaLocal(id, siguiente);
-    document.getElementById('dlgColumna').close();
-  }).catch(function (error) {
-    err.textContent = error.message;
-  }).then(function () {
-    submit.disabled = false;
-  });
-}
-
-function onSubmitValor(e) {
-  e.preventDefault();
-  const form = e.currentTarget;
-  const err = document.getElementById('valorError');
-  const submit = form.querySelector('[type="submit"]');
-  err.textContent = '';
-  let cuerpo;
-  try { cuerpo = JSON.parse(form.dataset.base || ''); } catch (error) {
-    err.textContent = 'No se pudo leer esta versión.';
-    return;
-  }
-  const modo = document.getElementById('valorModo').value;
-  let cambio;
-  if (modo === 'nueva') {
-    cambio = {
-      tipo: 'fila',
-      celdas: cuerpo.columnas.map(function (_col, i) { return form.elements['celda-' + i].value; })
-    };
-  } else {
-    cambio = {
-      tipo: 'celda',
-      fila: Number(modo),
-      columna: Number(form.elements.columna.value),
-      valor: form.elements.valor.value
-    };
-  }
-  submit.disabled = true;
-  try {
-    const siguiente = aplicarValor(cuerpo, cambio);
-    publicarTablaLocal(state.tablaId, siguiente);
-    document.getElementById('dlgValor').close();
-  } catch (error) {
-    err.textContent = error.message;
-  } finally {
-    submit.disabled = false;
-  }
-}
-
-function cargarTablas() {
-  TABLAS.forEach(function (tabla) {
-    fetch('catalogo/tabla-activacion/' + tabla.id + '/index.json', { cache: 'no-store' })
-      .then(function (res) {
-        if (!res.ok) throw new Error('http');
-        return res.json();
-      })
-      .then(function (data) {
-        const bolsa = state.tablas[tabla.id];
-        bolsa.remotas = normalizarMapa(data);
-        bolsa.error = false;
-      })
-      .catch(function () {
-        const bolsa = state.tablas[tabla.id];
-        bolsa.remotas = [];
-        bolsa.error = true;
-      })
-      .then(function () {
-        const bolsa = state.tablas[tabla.id];
-        bolsa.ready = true;
-        refrescarTabla(tabla.id);
-        if (!bolsa.abiertaNumero && bolsa.versiones.length) {
-          bolsa.abiertaNumero = bolsa.versiones[bolsa.versiones.length - 1].numero;
-        }
-        if (state.tablaId === tabla.id) mostrarTablaAbierta();
-      });
-  });
-}
-
 function iniciar() {
   registrarColorEntidadKinds();
   renderPestanasCatalogo();
@@ -4571,31 +3830,11 @@ function iniciar() {
     }
     reabrirMongoTrasAnclaSiProcede();
   });
-  const btnEdicion = document.getElementById('btnEdicion');
-  if (btnEdicion) btnEdicion.addEventListener('click', abrirEdicionMapa);
-  const formMapa = document.getElementById('formMapa');
-  if (formMapa) formMapa.addEventListener('submit', onSubmitMapa);
-  const mapaCancelar = document.getElementById('mapaCancelar');
-  if (mapaCancelar) mapaCancelar.addEventListener('click', function () {
-    document.getElementById('dlgMapa').close();
-  });
-  const btnHistMapa = document.getElementById('btnHistMapa');
-  if (btnHistMapa) btnHistMapa.addEventListener('click', alternarHistMapa);
-  const listaMapa = document.getElementById('mapaHistorialLista');
-  if (listaMapa) listaMapa.addEventListener('click', function (e) {
-    const btn = e.target.closest('[data-mapa-version]');
-    if (!btn) return;
-    elegirVersionMapa(Number(btn.dataset.mapaVersion));
-  });
   document.addEventListener('click', function (e) {
     if (state.historial && !e.target.closest('#historial') && !e.target.closest('#btnHistorial')) cerrarHistorial();
     if (state.historialSkillId && !e.target.closest('.skill-historial') && !e.target.closest('.historial-ancla')) {
       state.historialSkillId = null;
       pintarSkills();
-    }
-    if (state.mapa.historial && !e.target.closest('#mapaHistorial') && !e.target.closest('#btnHistMapa')) {
-      state.mapa.historial = false;
-      pintarMapaChrome();
     }
   });
   document.addEventListener('keydown', function (e) {
@@ -4622,13 +3861,6 @@ function iniciar() {
       const boton = document.getElementById('btnHistorial');
       if (boton) boton.focus();
       return;
-    }
-    if (state.mapa.historial) {
-      e.preventDefault();
-      state.mapa.historial = false;
-      pintarMapaChrome();
-      const boton = document.getElementById('btnHistMapa');
-      if (boton) boton.focus();
     }
   });
 
@@ -7928,15 +7160,6 @@ function onSubmitEditarAgente(e) {
   }
 }
 
-function generarClaveInvite() {
-  const bytes = new Uint8Array(18);
-  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
-  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
-  return 'inv_' + Array.from(bytes).map(function (b) {
-    return b.toString(16).padStart(2, '0');
-  }).join('');
-}
-
 function agenteEnLinea(ag) {
   if (!ag) return false;
   if (ag.demoEnLinea) return true;
@@ -8885,24 +8108,6 @@ function copiarClaveAcceso() {
   copiarTextoPortapapeles(clave, 'darAccesoCopiarClave', 'darAccesoError');
 }
 
-function slugAgenteDesdeNombre(nombre) {
-  const base = String(nombre || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48) || 'agente';
-  refrescarAgentes();
-  let id = base;
-  let n = 2;
-  while (state.agentes.lista.some(function (a) { return a.id === id; })) {
-    id = base + '-' + n;
-    n += 1;
-  }
-  return id;
-}
-
 function espejoAgenteLocal(entrada) {
   const store = leerAgentesStore();
   store.agentes = (store.agentes || []).filter(function (a) { return !(a && a.id === entrada.id); });
@@ -9813,11 +9018,7 @@ function wireFundamentosUi() {
 
 const api = {
   CATALOGOS: CATALOGOS,
-  TABLAS: TABLAS,
   DOCUMENTOS: DOCUMENTOS,
-  aplicarColumna: aplicarColumna,
-  aplicarValor: aplicarValor,
-  normalizarCuerpoTabla: normalizarCuerpoTabla,
   formatVersion: formatVersion,
   todayISO: todayISO,
   siguienteNumero: siguienteNumero,
@@ -9827,8 +9028,7 @@ const api = {
   normalizeLocales: normalizeLocales,
   mergeInstrucciones: mergeInstrucciones,
   renderMarkdown: renderMarkdown,
-  htmlDeMarkdown: htmlDeMarkdown,
-  normalizarMapa: normalizarMapa
+  htmlDeMarkdown: htmlDeMarkdown
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
