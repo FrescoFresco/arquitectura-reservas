@@ -804,9 +804,14 @@ function attachEntityColor(out, item) {
   return out;
 }
 
+/** Copia `color` en merges remoto/local (sin esto mergeProyectos perdía el tinte). */
+function copiarColorMeta(destino, fuente) {
+  return attachEntityColor(destino, fuente || {});
+}
+
 function conMetaSkill(destino, fuente) {
   if (fuente.descripcion) destino.descripcion = fuente.descripcion;
-  if (Object.prototype.hasOwnProperty.call(fuente, 'color')) destino.color = fuente.color;
+  copiarColorMeta(destino, fuente);
   if (fuente.entradas) destino.entradas = fuente.entradas.slice();
   if (fuente.salidas) destino.salidas = fuente.salidas.slice();
   if (fuente.anclas && fuente.anclas.length) destino.anclas = fuente.anclas.slice();
@@ -4766,6 +4771,7 @@ function conMetaProyecto(destino, fuente) {
     destino.clusterId = String(fuente.clusterId || fuente.cluster_id || '').trim() || null;
   }
   if (fuente.legacyNegocio != null) destino.legacyNegocio = !!fuente.legacyNegocio;
+  copiarColorMeta(destino, fuente);
   return destino;
 }
 
@@ -9169,6 +9175,7 @@ function normalizeFundamentosLocales(list) {
 
 function conMetaFundamento(destino, fuente) {
   if (fuente.descripcion) destino.descripcion = fuente.descripcion;
+  copiarColorMeta(destino, fuente);
   return destino;
 }
 
