@@ -59,8 +59,21 @@ async function main() {
         `INSERT INTO skill_versions (skill_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES ('${esc(ins.id)}', ${Number(v.numero)}, '${esc(v.fecha || now.slice(0, 10))}', '${esc(md)}', '${esc(v.ruta || '')}', '${esc(v.nombreArchivo || '')}', '${esc(v.hash || '')}');`
       );
     }
-    for (const a of ins.anclas || []) {
-      stmts.push(`INSERT INTO skill_anclas (skill_id, ancla) VALUES ('${esc(ins.id)}', '${esc(a)}');`);
+    const entradas = Array.isArray(ins.entradas) ? ins.entradas : [];
+    const salidas = Array.isArray(ins.salidas)
+      ? ins.salidas
+      : Array.isArray(ins.anclas)
+        ? ins.anclas
+        : [];
+    for (const a of entradas) {
+      stmts.push(
+        `INSERT OR IGNORE INTO skill_anclas (skill_id, ancla, direccion) VALUES ('${esc(ins.id)}', '${esc(a)}', 'entrada');`
+      );
+    }
+    for (const a of salidas) {
+      stmts.push(
+        `INSERT OR IGNORE INTO skill_anclas (skill_id, ancla, direccion) VALUES ('${esc(ins.id)}', '${esc(a)}', 'salida');`
+      );
     }
   }
 

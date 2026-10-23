@@ -58,6 +58,15 @@ import {
   scheduleDebouncedSchemaSync,
   type LastSyncSummary,
 } from './schema-auto-sync';
+import {
+  buildOperativaMermaid,
+  findDocForColeccion,
+  getByPath,
+  normalizeAnclasList,
+  setByPath,
+  unionAnclas,
+  type AnclaMongoMap,
+} from './skill-io';
 
 export type Env = {
   DB: D1Database;
@@ -345,6 +354,202 @@ app.get('/v1/skills/:id', async (c) => {
   return c.json({ ok: true, skill: await hydrateSkill(c.env.DB, row as Record<string, unknown>) });
 });
 
+/**
+ * Lee valores de las anclas de entrada de una skill desde Mongo (vía Campo Mongo / clave_mongo).
+ * GET público (lectura de catálogo + datos del negocio). Query: negocio=<id>
+ * → { ok, skill, negocio, valores: { "_ancla_": valor } }
+ */
+app.get('/v1/ejecutar/:skillId/entradas', async (c) => {
+  const skillId = c.req.param('skillId');
+  const negocio = String(c.req.query('negocio') || '').trim();
+  if (!negocio) return jsonError(c, 400, 'Falta query negocio.');
+  if (!ID_RE.test(negocio)) return jsonError(c, 400, 'negocio inválido.');
+  const row = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(skillId).first();
+  if (!row) return jsonError(c, 404, 'Skill no encontrada.');
+  const skill = await hydrateSkill(c.env.DB, row as Record<string, unknown>);
+  const entradas = (skill.entradas as string[]) || [];
+  const maps = await loadAnclaMongoMaps(c.env.DB, entradas);
+  const baseDatos =
+    maps.find((m) => m.baseDatos)?.baseDatos || (await catalogMongoDbHint(c.env.DB)) || 'software_reservas';
+  const proyectoId = await proyectoIdForBaseDatos(c.env.DB, baseDatos);
+  const resolved = await resolveRuntimeMongo(c.env, baseDatos, proyectoId || undefined);
+  const valores: Record<string, unknown> = {};
+  for (const a of entradas) valores[a] = null;
+
+  if (mongoUriConfigured(resolved.env) && maps.length) {
+    try {
+      await withMongoDb(
+        resolved.env,
+        async (db) => {
+          const docCache = new Map<string, Record<string, unknown> | null>();
+          for (const m of maps) {
+            const cacheKey = m.coleccion + '|' + m.baseDatos;
+            if (!docCache.has(cacheKey)) {
+              docCache.set(cacheKey, await findDocForColeccion(db, m.coleccion, negocio));
+            }
+            const doc = docCache.get(cacheKey);
+            if (!doc) continue;
+            const v = getByPath(doc, m.claveMongo);
+            if (v !== undefined) valores[m.ancla] = v;
+          }
+        },
+        baseDatos
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'lectura Mongo falló';
+      if (msg !== 'configure MONGODB_URI') {
+        const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
+        return jsonError(c, 502, scrubbed);
+      }
+    }
+  }
+
+  // Fallback D1 ancla_valores_negocio si Mongo no tiene valor
+  for (const m of maps) {
+    if (valores[m.ancla] != null && valores[m.ancla] !== '') continue;
+    const vals = await loadValoresNegocio(c.env.DB, negocio, m.id, { mask: false });
+    if (vals.valorActual) valores[m.ancla] = vals.valorActual;
+  }
+
+  return c.json({
+    ok: true,
+    skill: skillId,
+    negocio,
+    valores,
+    mongo: {
+      configured: resolved.meta.configured,
+      db: resolved.meta.db,
+      source: resolved.meta.source,
+    },
+  });
+});
+
+/**
+ * Escribe valores en las anclas de salida de una skill → Mongo.
+ * Auth: Bearer inv_…  Body: { negocio, valores: { "_ancla_": valor } }
+ * 400 si alguna ancla no está en salidas de la skill.
+ */
+app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
+  const skillId = c.req.param('skillId');
+  const body = (await c.req.json().catch(() => ({}))) as {
+    negocio?: string;
+    negocio_id?: string;
+    valores?: Record<string, unknown>;
+  };
+  const negocio = String(body.negocio || body.negocio_id || '').trim();
+  if (!negocio) return jsonError(c, 400, 'Falta negocio.');
+  if (!ID_RE.test(negocio)) return jsonError(c, 400, 'negocio inválido.');
+  const valoresIn = body.valores && typeof body.valores === 'object' ? body.valores : null;
+  if (!valoresIn) return jsonError(c, 400, 'Falta valores.');
+
+  const row = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(skillId).first();
+  if (!row) return jsonError(c, 404, 'Skill no encontrada.');
+  const skill = await hydrateSkill(c.env.DB, row as Record<string, unknown>);
+  const salidas = new Set((skill.salidas as string[]) || []);
+  const keys = Object.keys(valoresIn).map((k) => {
+    let a = k.trim();
+    if (a && a[0] !== '_') a = '_' + a;
+    if (a && a[a.length - 1] !== '_') a = a + '_';
+    return a;
+  });
+  const invalidas = keys.filter((a) => a && !salidas.has(a));
+  if (invalidas.length) {
+    return c.json(
+      {
+        ok: false,
+        error: 'Ancla(s) no están en salidas de esta skill.',
+        invalidas,
+        salidas: [...salidas],
+      },
+      400
+    );
+  }
+
+  const maps = await loadAnclaMongoMaps(c.env.DB, keys);
+  const baseDatos =
+    maps.find((m) => m.baseDatos)?.baseDatos || (await catalogMongoDbHint(c.env.DB)) || 'software_reservas';
+  const proyectoId = await proyectoIdForBaseDatos(c.env.DB, baseDatos);
+  const resolved = await resolveRuntimeMongo(c.env, baseDatos, proyectoId || undefined);
+  if (!mongoUriConfigured(resolved.env)) {
+    return c.json(mongoNotConfiguredError(), 503);
+  }
+
+  const escritos: string[] = [];
+  try {
+    await withMongoDb(
+      resolved.env,
+      async (db) => {
+        const docCache = new Map<string, Record<string, unknown> | null>();
+        for (const m of maps) {
+          const cacheKey = m.coleccion + '|' + m.baseDatos;
+          if (!docCache.has(cacheKey)) {
+            let doc = await findDocForColeccion(db, m.coleccion, negocio);
+            if (!doc) {
+              // Crear stub mínimo
+              if (m.coleccion === 'negocios') doc = { _id: negocio };
+              else if (m.coleccion === 'procesos') doc = { _id: negocio + '-proceso', negocio_id: negocio };
+              else doc = { _id: negocio + '-' + m.coleccion, negocio_id: negocio };
+            }
+            docCache.set(cacheKey, doc);
+          }
+          const doc = docCache.get(cacheKey);
+          if (!doc) continue;
+          const rawKey = Object.keys(valoresIn).find((k) => {
+            let a = k.trim();
+            if (a && a[0] !== '_') a = '_' + a;
+            if (a && a[a.length - 1] !== '_') a = a + '_';
+            return a === m.ancla;
+          });
+          if (rawKey == null) continue;
+          setByPath(doc, m.claveMongo, valoresIn[rawKey]);
+          escritos.push(m.ancla);
+        }
+        for (const [cacheKey, doc] of docCache) {
+          if (!doc) continue;
+          const coleccion = cacheKey.split('|')[0];
+          const id = doc._id;
+          const { _id, ...rest } = doc;
+          await db.collection(coleccion).updateOne(
+            { _id: id ?? negocio },
+            { $set: { ...rest, _id: id ?? negocio } },
+            { upsert: true }
+          );
+        }
+      },
+      baseDatos
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'escritura Mongo falló';
+    if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
+    const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
+    return jsonError(c, 502, scrubbed);
+  }
+
+  // Espejo D1 por negocio (observaciones/valor) cuando hay fila ancla
+  const ts = nowIso();
+  for (const m of maps) {
+    const rawKey = Object.keys(valoresIn).find((k) => {
+      let a = k.trim();
+      if (a && a[0] !== '_') a = '_' + a;
+      if (a && a[a.length - 1] !== '_') a = a + '_';
+      return a === m.ancla;
+    });
+    if (rawKey == null) continue;
+    const val = valoresIn[rawKey];
+    const asStr = val == null ? '' : typeof val === 'string' ? val : JSON.stringify(val);
+    await c.env.DB.prepare(
+      `INSERT INTO ancla_valores_negocio (negocio_id, ancla_id, observaciones, valor_actual, updated_at)
+       VALUES (?, ?, '[]', ?, ?)
+       ON CONFLICT(negocio_id, ancla_id) DO UPDATE SET valor_actual = excluded.valor_actual, updated_at = excluded.updated_at`
+    )
+      .bind(negocio, m.id, asStr, ts)
+      .run()
+      .catch(() => undefined);
+  }
+
+  return c.json({ ok: true, skill: skillId, negocio, escritos });
+});
+
 app.get('/v1/anclas', async (c) => {
   // Batch hydrate: one query for anclas + one for ancla_skills (avoids N+1 D1_ERROR under load).
   const reveal = await mayRevealSensitive(c);
@@ -594,6 +799,40 @@ app.get('/v1/proyectos/:id/diagrama', async (c) => {
     ...(coleccionQ ? { coleccion: coleccionQ } : {}),
     diagrama,
   });
+});
+
+/**
+ * Operativa: cadena de skills de la BD (salidas A → entradas B).
+ * Entradas sin productor se marcan en rojo en el Mermaid.
+ */
+app.get('/v1/proyectos/:id/operativa', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT id FROM proyectos WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'Proyecto no encontrado.');
+  const links = await c.env.DB.prepare(
+    'SELECT skill_id FROM proyecto_skills WHERE proyecto_id = ? ORDER BY skill_id'
+  )
+    .bind(id)
+    .all();
+  const skills = [];
+  for (const r of links.results || []) {
+    const sid = String((r as { skill_id: string }).skill_id);
+    const srow = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(sid).first();
+    if (!srow) continue;
+    const hydrated = await hydrateSkill(c.env.DB, srow as Record<string, unknown>);
+    skills.push({
+      id: String(hydrated.id),
+      nombre: String(hydrated.nombre || hydrated.id),
+      entradas: (hydrated.entradas as string[]) || [],
+      salidas: (hydrated.salidas as string[]) || [],
+    });
+  }
+  const operativa = buildOperativaMermaid(skills);
+  const format = String(c.req.query('format') || 'json').toLowerCase();
+  if (format === 'mermaid' || format === 'text') {
+    return c.text(operativa.mermaid, 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+  }
+  return c.json({ ok: true, proyecto: id, skills, ...operativa });
 });
 
 /**
@@ -924,6 +1163,8 @@ app.post('/v1/skills', async (c) => {
     descripcion?: string;
     markdown?: string;
     anclas?: string[];
+    entradas?: string[];
+    salidas?: string[];
   };
   const nombre = String(body.nombre || '').trim();
   if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
@@ -931,7 +1172,7 @@ app.post('/v1/skills', async (c) => {
   if (!ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
   const markdown = String(body.markdown || '');
   const descripcion = String(body.descripcion || '').trim().slice(0, 280);
-  const anclas = normalizeAnclas(body.anclas);
+  const io = resolveSkillIoFromBody(body);
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
   try {
@@ -948,7 +1189,7 @@ app.post('/v1/skills', async (c) => {
   )
     .bind(id, todayIso(), markdown, '', id + '.md', hash)
     .run();
-  await replaceSkillAnclas(c.env.DB, id, anclas);
+  await replaceSkillIo(c.env.DB, id, io.entradas, io.salidas);
   const skill = await hydrateSkill(
     c.env.DB,
     (await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first()) as Record<string, unknown>
@@ -963,6 +1204,8 @@ app.put('/v1/skills/:id', async (c) => {
     descripcion?: string;
     markdown?: string;
     anclas?: string[];
+    entradas?: string[];
+    salidas?: string[];
   };
   const row = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first();
   if (!row) return jsonError(c, 404, 'Skill no encontrada.');
@@ -994,7 +1237,10 @@ app.put('/v1/skills/:id', async (c) => {
   )
     .bind(id, numero, todayIso(), markdown, '', id + '.md', hash)
     .run();
-  if (body.anclas) await replaceSkillAnclas(c.env.DB, id, normalizeAnclas(body.anclas));
+  if (body.entradas != null || body.salidas != null || body.anclas != null) {
+    const io = resolveSkillIoFromBody(body);
+    await replaceSkillIo(c.env.DB, id, io.entradas, io.salidas);
+  }
   const skill = await hydrateSkill(
     c.env.DB,
     (await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first()) as Record<string, unknown>
@@ -1967,19 +2213,23 @@ function slugId(nombre: string) {
 }
 
 function normalizeAnclas(list: unknown): string[] {
-  if (!Array.isArray(list)) return [];
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of list) {
-    let a = String(raw || '').trim();
-    if (!a) continue;
-    if (a[0] !== '_') a = '_' + a;
-    if (a[a.length - 1] !== '_') a = a + '_';
-    if (seen.has(a)) continue;
-    seen.add(a);
-    out.push(a);
+  return normalizeAnclasList(list);
+}
+
+/** Body → entradas/salidas. Si solo viene `anclas` (legado), se tratan como salidas. */
+function resolveSkillIoFromBody(body: {
+  anclas?: string[];
+  entradas?: string[];
+  salidas?: string[];
+}): { entradas: string[]; salidas: string[] } {
+  const hasIo = body.entradas != null || body.salidas != null;
+  if (hasIo) {
+    return {
+      entradas: normalizeAnclasList(body.entradas),
+      salidas: normalizeAnclasList(body.salidas),
+    };
   }
-  return out;
+  return { entradas: [], salidas: normalizeAnclasList(body.anclas) };
 }
 
 async function sha256Hex(texto: string) {
@@ -1991,9 +2241,27 @@ async function sha256Hex(texto: string) {
 }
 
 async function replaceSkillAnclas(db: D1Database, skillId: string, anclas: string[]) {
+  await replaceSkillIo(db, skillId, [], anclas);
+}
+
+async function replaceSkillIo(
+  db: D1Database,
+  skillId: string,
+  entradas: string[],
+  salidas: string[]
+) {
   await db.prepare('DELETE FROM skill_anclas WHERE skill_id = ?').bind(skillId).run();
-  for (const a of anclas) {
-    await db.prepare('INSERT INTO skill_anclas (skill_id, ancla) VALUES (?, ?)').bind(skillId, a).run();
+  for (const a of entradas) {
+    await db
+      .prepare('INSERT OR IGNORE INTO skill_anclas (skill_id, ancla, direccion) VALUES (?, ?, ?)')
+      .bind(skillId, a, 'entrada')
+      .run();
+  }
+  for (const a of salidas) {
+    await db
+      .prepare('INSERT OR IGNORE INTO skill_anclas (skill_id, ancla, direccion) VALUES (?, ?, ?)')
+      .bind(skillId, a, 'salida')
+      .run();
   }
 }
 
@@ -2019,15 +2287,69 @@ async function hydrateSkill(db: D1Database, row: Record<string, unknown>) {
     )
     .bind(id)
     .all();
-  const anclas = await db.prepare('SELECT ancla FROM skill_anclas WHERE skill_id = ? ORDER BY ancla').bind(id).all();
+  const rows = await db
+    .prepare('SELECT ancla, direccion FROM skill_anclas WHERE skill_id = ? ORDER BY ancla')
+    .bind(id)
+    .all();
+  const entradas: string[] = [];
+  const salidas: string[] = [];
+  for (const raw of rows.results || []) {
+    const r = raw as { ancla: string; direccion?: string };
+    const a = String(r.ancla || '');
+    if (!a) continue;
+    const dir = String(r.direccion || 'salida');
+    if (dir === 'entrada') entradas.push(a);
+    else salidas.push(a);
+  }
+  const anclas = unionAnclas(entradas, salidas);
   return {
     id,
     nombre: row.nombre,
     descripcion: row.descripcion || '',
     hash: row.hash || '',
-    anclas: (anclas.results || []).map((r) => (r as { ancla: string }).ancla),
+    entradas,
+    salidas,
+    anclas,
     versiones: versiones.results || [],
   };
+}
+
+async function loadAnclaMongoMaps(db: D1Database, anclas: string[]): Promise<AnclaMongoMap[]> {
+  const out: AnclaMongoMap[] = [];
+  for (const a of anclas) {
+    const row = await db
+      .prepare('SELECT id, ancla, clave_mongo, coleccion, base_datos FROM anclas WHERE ancla = ?')
+      .bind(a)
+      .first<{
+        id: string;
+        ancla: string;
+        clave_mongo: string;
+        coleccion: string;
+        base_datos: string;
+      }>();
+    if (!row) continue;
+    out.push({
+      ancla: row.ancla,
+      id: row.id,
+      coleccion: String(row.coleccion || '').trim(),
+      claveMongo: String(row.clave_mongo || '').trim(),
+      baseDatos: String(row.base_datos || '').trim(),
+    });
+  }
+  return out;
+}
+
+async function proyectoIdForBaseDatos(db: D1Database, baseDatos: string): Promise<string | null> {
+  const bd = String(baseDatos || '').trim();
+  if (!bd) return null;
+  const row = await db
+    .prepare(
+      `SELECT id FROM proyectos WHERE base_datos = ? AND legacy_negocio = 0
+       ORDER BY CASE id WHEN 'reservas' THEN 0 ELSE 1 END, id LIMIT 1`
+    )
+    .bind(bd)
+    .first<{ id: string }>();
+  return row?.id || null;
 }
 
 async function mayRevealSensitive(c: {

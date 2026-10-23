@@ -142,6 +142,8 @@ Prefijo completo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
 
 ### Skill (ejemplo de escritura)
 
+Cada skill declara **entradas** (anclas que lee) y **salidas** (anclas que escribe). El campo `anclas` es la **unión** de ambas (compatibilidad).
+
 ```
 POST {API_BASE}/v1/skills
 Authorization: Bearer inv_…
@@ -151,12 +153,49 @@ Content-Type: application/json
   "nombre": "Mapear recorrido",
   "descripcion": "…",
   "markdown": "# Mapear recorrido\n\n…",
-  "anclas": ["_negocio.nombre_"]
+  "entradas": ["_proceso.url_inicio_"],
+  "salidas": ["_version.recorrido.campos_"],
+  "anclas": ["_proceso.url_inicio_", "_version.recorrido.campos_"]
 }
 ```
 
+Respuesta de listado/ficha incluye `entradas`, `salidas` y `anclas` (unión).  
+Si solo envías `anclas` (legado), se tratan como **salidas**.
+
 `PUT /v1/skills/:id` crea **versión nueva** (no pisa el markdown anterior).  
 `DELETE` quita la skill y limpia asociaciones N:M (`proyecto_skills`, `ancla_skills`).
+
+### Ejecutar skill (entradas / salidas → Mongo)
+
+El agente lee las entradas y escribe las salidas vía Campo Mongo vinculado a cada ancla (`claveMongo` + `coleccion`).
+
+```
+GET {API_BASE}/v1/ejecutar/:skillId/entradas?negocio=<id>
+→ { ok, skill, negocio, valores: { "_ancla_": valor }, mongo: { configured, db, source } }
+```
+
+```
+POST {API_BASE}/v1/ejecutar/:skillId/salidas
+Authorization: Bearer inv_…
+Content-Type: application/json
+
+{ "negocio": "<id>", "valores": { "_ancla_": valor } }
+→ { ok, skill, negocio, escritos: ["_ancla_", …] }
+```
+
+`400` si alguna clave de `valores` **no** está en `salidas` de esa skill (`invalidas` en el body).  
+Sin URI Atlas en el Cluster → `503` en escritura.
+
+### Operativa (cadena de skills de una Base de datos)
+
+```
+GET {API_BASE}/v1/proyectos/:id/operativa
+GET {API_BASE}/v1/esquemas/:id/operativa
+→ { ok, proyecto, skills, mermaid, huecos, enlaces }
+  ?format=mermaid → text/plain
+```
+
+Une **salidas** de skill A con **entradas** de skill B (mismo id de ancla). `huecos` = entradas que **ninguna** skill escribe (en el Mermaid van en rojo).
 
 ### Clusters (URI Atlas)
 

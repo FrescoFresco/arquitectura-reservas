@@ -14,9 +14,7 @@
         "_version.recorrido.sistema.nombre_",
         "_version.recorrido.llega_a_b_",
         "_version.recorrido.pasos_",
-        "_version.recorrido.campos.N.nombre_",
-        "_version.recorrido.campos.N.selector_",
-        "_version.recorrido.campos.N.clase_",
+        "_version.recorrido.campos_",
         "_version.recorrido.boton_confirmar.selector_"
       ],
       "versiones": [
@@ -41,6 +39,19 @@
           "nombreArchivo": "mapear-recorrido.md",
           "hash": "54aa622e033810b007203ba5d70d4cd22f39132413763794ec18d423d7e69653"
         }
+      ],
+      "entradas": [
+        "_negocio.nombre_",
+        "_negocio.url_",
+        "_negocio.zona_horaria_",
+        "_proceso.url_inicio_"
+      ],
+      "salidas": [
+        "_version.recorrido.sistema.nombre_",
+        "_version.recorrido.llega_a_b_",
+        "_version.recorrido.pasos_",
+        "_version.recorrido.campos_",
+        "_version.recorrido.boton_confirmar.selector_"
       ]
     },
     {
@@ -51,7 +62,7 @@
         "_proceso.url_inicio_",
         "_version.recorrido.sistema.nombre_",
         "_version.recorrido.pasos_",
-        "_version.recorrido.campos.N.selector_",
+        "_version.recorrido.campos_",
         "_version.script_",
         "_version.funcion.nombre_",
         "_version.funcion.parametros_"
@@ -64,6 +75,17 @@
           "nombreArchivo": "generar-script.md",
           "hash": "aa2f2d631b885823cd00e13114499fc29dd16a13cb644fa395ca9578e83255f2"
         }
+      ],
+      "entradas": [
+        "_proceso.url_inicio_",
+        "_version.recorrido.sistema.nombre_",
+        "_version.recorrido.pasos_",
+        "_version.recorrido.campos_"
+      ],
+      "salidas": [
+        "_version.script_",
+        "_version.funcion.nombre_",
+        "_version.funcion.parametros_"
       ]
     },
     {
@@ -71,10 +93,10 @@
       "nombre": "Descubrir negocio",
       "descripcion": "Reúne identidad, contactos y punto A de reserva a partir de la web del local.",
       "anclas": [
-        "_negocio.nombre_",
         "_negocio.url_",
-        "_negocio.zona_horaria_",
+        "_negocio.nombre_",
         "_negocio.telefono_",
+        "_negocio.zona_horaria_",
         "_proceso.url_inicio_"
       ],
       "versiones": [
@@ -85,6 +107,16 @@
           "nombreArchivo": "descubrir-negocio.md",
           "hash": "67dd041300839c2d2dfd26d2210e64db1a2b4dc1f4a5a70432d3ec737ea4143d"
         }
+      ],
+      "entradas": [
+        "_negocio.url_"
+      ],
+      "salidas": [
+        "_negocio.nombre_",
+        "_negocio.telefono_",
+        "_negocio.url_",
+        "_negocio.zona_horaria_",
+        "_proceso.url_inicio_"
       ]
     },
     {
@@ -96,8 +128,9 @@
         "_ejecucion.respuesta.estado_",
         "_ejecucion.respuesta.motivo_",
         "_ejecucion.ultima_url_",
-        "_ejecucion.traza.N.mensaje_",
-        "_corrida.errores.N_"
+        "_ejecucion.traza_",
+        "_corrida.errores_",
+        "_version.recorrido.llega_a_b_"
       ],
       "versiones": [
         {
@@ -107,6 +140,17 @@
           "nombreArchivo": "diagnosticar-alerta.md",
           "hash": "a6008875da4f23011c331895b9e2a05cb7344e952f041c5b85ea63da378566dc"
         }
+      ],
+      "entradas": [
+        "_proceso.url_inicio_",
+        "_ejecucion.respuesta.estado_",
+        "_ejecucion.respuesta.motivo_",
+        "_ejecucion.ultima_url_",
+        "_ejecucion.traza_"
+      ],
+      "salidas": [
+        "_corrida.errores_",
+        "_version.recorrido.llega_a_b_"
       ]
     }
   ]
