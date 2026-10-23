@@ -792,15 +792,7 @@
         st.flujoAbierto = data.flujo;
         st.flujoVersion = data.flujo && data.flujo.version;
         if (data.flujo && data.flujo.proyectoId) st.proyectoId = data.flujo.proyectoId;
-<<<<<<< HEAD
-        seleccionarFlujoTab('resumen');
-=======
-        seleccionarFlujoTab(tabInicial);
-        pintarFlujoFicha();
-        if (typeof window.iconizarPestanasFicha === 'function') {
-          window.iconizarPestanasFicha(document.getElementById('flujoReader'));
-        }
->>>>>>> origin/main
+        seleccionarFlujoTab(typeof tabInicial !== 'undefined' ? tabInicial : 'resumen');
         if (dlg) {
           if (typeof window.openFichaPane === 'function') window.openFichaPane(dlg);
           else if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
