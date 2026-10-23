@@ -185,7 +185,8 @@ dialog::backdrop{background:#17212f66}
 .agentes-sync{margin-right:auto;font-size:12px;font-weight:600;color:#8a97a8;white-space:nowrap}
 .dlg .reader-tabs{margin:12px 0 0}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
-.skill-io-subtabs{margin:0 0 10px;gap:4px}
+.skill-io-subtabs,.asociados-subtabs{margin:0 0 10px;gap:4px}
+.asociados-subpane[hidden]{display:none!important}
 .skill-conexion{display:flex;flex-direction:column;gap:14px}
 .skill-conexion-card{margin:0;padding:12px 14px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fbff}
 .skill-conexion-card h4{margin:0 0 6px;font-size:13px;font-weight:700;color:#17212f}
@@ -525,16 +526,20 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="readerTabDoc" data-reader-tab="documento" aria-selected="true" aria-controls="readerPanelDoc">Documento</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabAnclas" data-reader-tab="anclas" aria-selected="false" aria-controls="readerPanelAnclas">Anclas</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabAsociados" data-reader-tab="asociados" aria-selected="false" aria-controls="readerPanelAsociados">Asociados</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabConexion" data-reader-tab="conexion" aria-selected="false" aria-controls="readerPanelConexion">Conexión</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabBases" data-reader-tab="bases" aria-selected="false" aria-controls="readerPanelBases">Bases de datos</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabSystemPrompts" data-reader-tab="system-prompts" aria-selected="false" aria-controls="readerPanelSystemPrompts">System prompts</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabInterno" data-reader-tab="interno" aria-selected="false" aria-controls="readerPanelInterno">Interno</button>
 </div>
 <div class="reader-panel" id="readerPanelDoc" role="tabpanel" aria-labelledby="readerTabDoc">
 <div class="md-wrap"><div class="md" id="md"></div></div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="readerPanelAnclas" role="tabpanel" aria-labelledby="readerTabAnclas" hidden>
+<div class="reader-panel ancla-ficha-body" id="readerPanelAsociados" role="tabpanel" aria-labelledby="readerTabAsociados" hidden>
+<div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="readerAsociadosSubtabs" role="tablist" aria-label="Vínculos de la skill">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-reader-asoc-sub="anclas" aria-selected="true">Anclas</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-reader-asoc-sub="system-prompt" aria-selected="false">System prompt</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-reader-asoc-sub="bases" aria-selected="false">Bases de datos</button>
+</div>
+<div class="asociados-subpane" id="readerAsocPaneAnclas" data-reader-asoc-pane="anclas">
 <div id="readerAnclas">
 <div class="ancla-ficha-tabs reader-tabs skill-io-subtabs" id="readerAnclasSubtabs" role="tablist" aria-label="Entradas o salidas">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" data-skill-io-sub="entradas" aria-selected="true">Entradas</button>
@@ -545,15 +550,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ancla-ficha-vacio" id="readerAnclasVacio" hidden>Ninguna ancla en esta lista.</p>
 </div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="readerPanelConexion" role="tabpanel" aria-labelledby="readerTabConexion" hidden>
-<p class="ajustes-hint">Las dos llamadas que hará el agente al ejecutar esta skill (solo lectura; se generan solas).</p>
-<div id="readerConexionBox" class="skill-conexion"></div>
-</div>
-<div class="reader-panel ancla-ficha-body" id="readerPanelBases" role="tabpanel" aria-labelledby="readerTabBases" hidden>
-<div id="readerBasesLista" class="proy-tab-catalogo"></div>
-<p class="ancla-ficha-vacio" id="readerBasesVacio" hidden>Ninguna base de datos usa esta skill todavía.</p>
-</div>
-<div class="reader-panel ancla-ficha-body" id="readerPanelSystemPrompts" role="tabpanel" aria-labelledby="readerTabSystemPrompts" hidden>
+<div class="asociados-subpane" id="readerAsocPaneSystemPrompt" data-reader-asoc-pane="system-prompt" hidden>
 <div class="editar-anclas-top" style="margin-bottom:0.75rem">
 <span class="historial-titulo">System prompt (máx. 1)</span>
 <button type="button" class="icon-btn" id="btnEditarSkillSystemPrompt" aria-label="Elegir system prompt" title="Elegir system prompt">
@@ -563,6 +560,15 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ajustes-hint" id="readerSystemPromptsHint">Una skill tiene como máximo un system prompt.</p>
 <div id="readerSystemPromptsLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="readerSystemPromptsVacio" hidden>Ningún system prompt asociado.</p>
+</div>
+<div class="asociados-subpane" id="readerAsocPaneBases" data-reader-asoc-pane="bases" hidden>
+<div id="readerBasesLista" class="proy-tab-catalogo"></div>
+<p class="ancla-ficha-vacio" id="readerBasesVacio" hidden>Ninguna base de datos usa esta skill todavía.</p>
+</div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="readerPanelConexion" role="tabpanel" aria-labelledby="readerTabConexion" hidden>
+<p class="ajustes-hint">Las dos llamadas que hará el agente al ejecutar esta skill (solo lectura; se generan solas).</p>
+<div id="readerConexionBox" class="skill-conexion"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelInterno" role="tabpanel" aria-labelledby="readerTabInterno" hidden>
 <dl class="ancla-ficha-dl">
@@ -614,12 +620,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="proyReaderTabs" role="tablist" aria-label="Secciones de la base de datos">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="proyTabResumen" data-proy-tab="resumen" aria-selected="true" aria-controls="proyPanelResumen">Resumen</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCluster" data-proy-tab="cluster" aria-selected="false" aria-controls="proyPanelCluster">Cluster</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabAsociados" data-proy-tab="asociados" aria-selected="false" aria-controls="proyPanelAsociados">Asociados</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDocumento" data-proy-tab="documento" aria-selected="false" aria-controls="proyPanelDocumento">Documento</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabColecciones" data-proy-tab="colecciones" aria-selected="false" aria-controls="proyPanelColecciones">Colecciones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCampos" data-proy-tab="campos" aria-selected="false" aria-controls="proyPanelCampos">Campos</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabSkills" data-proy-tab="skills" aria-selected="false" aria-controls="proyPanelSkills">Skills</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabOperativa" data-proy-tab="operativa" aria-selected="false" aria-controls="proyPanelOperativa">Operativa</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabFlujos" data-proy-tab="flujos" aria-selected="false" aria-controls="proyPanelFlujos">Flujos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCorridas" data-proy-tab="corridas" aria-selected="false" aria-controls="proyPanelCorridas">Corridas</button>
@@ -633,15 +636,35 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Base de datos</dt><dd><code id="proyReaderBaseDatos">—</code></dd></div>
 </dl>
 </div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelCluster" role="tabpanel" aria-labelledby="proyTabCluster" hidden>
+<div class="reader-panel ancla-ficha-body" id="proyPanelAsociados" role="tabpanel" aria-labelledby="proyTabAsociados" hidden>
+<div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="proyAsociadosSubtabs" role="tablist" aria-label="Vínculos de la base de datos">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-proy-asoc-sub="cluster" aria-selected="true">Cluster</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-proy-asoc-sub="colecciones" aria-selected="false">Colecciones</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-proy-asoc-sub="campos" aria-selected="false">Campos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-proy-asoc-sub="skills" aria-selected="false">Skills</button>
+</div>
+<div class="asociados-subpane" id="proyAsocPaneCluster" data-proy-asoc-pane="cluster">
 <div id="proyClusterLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="proyClusterVacio" hidden>Sin cluster asignado. La URI Atlas vive en el Cluster.</p>
 </div>
+<div class="asociados-subpane" id="proyAsocPaneColecciones" data-proy-asoc-pane="colecciones" hidden>
+<div id="proyColeccionesLista" class="proy-tab-catalogo"></div>
+</div>
+<div class="asociados-subpane" id="proyAsocPaneCampos" data-proy-asoc-pane="campos" hidden>
+<div id="proyCamposLista" class="proy-tab-catalogo"></div>
+</div>
+<div class="asociados-subpane" id="proyAsocPaneSkills" data-proy-asoc-pane="skills" hidden>
+<div class="editar-anclas-top" style="margin-bottom:0.75rem">
+<span class="historial-titulo">Skills asociadas</span>
+<button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills de la base de datos" title="Editar skills">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+</div>
+<div id="proySkillsTabLista" class="proy-tab-catalogo"></div>
+</div>
+</div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelDocumento" role="tabpanel" aria-labelledby="proyTabDocumento" hidden>
 <div class="md-wrap"><div class="md" id="proyMd"></div></div>
-</div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelColecciones" role="tabpanel" aria-labelledby="proyTabColecciones" hidden>
-<div id="proyColeccionesLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelDiagrama" role="tabpanel" aria-labelledby="proyTabDiagrama" hidden>
 <p class="limite" id="proyDiagramaAyuda">Vista de las colecciones de esta base y sus relaciones (estilo diagrama entidad-relación).</p>
@@ -655,18 +678,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="proy-diagrama-render" id="proyDiagramaRender"></div>
 </div>
 </div>
-</div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelCampos" role="tabpanel" aria-labelledby="proyTabCampos" hidden>
-<div id="proyCamposLista" class="proy-tab-catalogo"></div>
-</div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelSkills" role="tabpanel" aria-labelledby="proyTabSkills" hidden>
-<div class="editar-anclas-top" style="margin-bottom:0.75rem">
-<span class="historial-titulo">Skills asociadas</span>
-<button type="button" class="icon-btn" id="btnEditarProyectoSkills" aria-label="Editar skills de la base de datos" title="Editar skills">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-</button>
-</div>
-<div id="proySkillsTabLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelOperativa" role="tabpanel" aria-labelledby="proyTabOperativa" hidden>
 <p class="ajustes-hint">Cadena de skills: una salida de A que coincide con una entrada de B. En <span style="color:#b91c1c;font-weight:600">rojo</span> las entradas que ninguna skill escribe. La ejecución ordenada vive en <strong>Flujos</strong> / <strong>Corridas</strong>.</p>
@@ -806,7 +817,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="flujoReaderTabs" role="tablist" aria-label="Secciones del flujo">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="flujoTabResumen" data-flujo-tab="resumen" aria-selected="true" aria-controls="flujoPanelResumen">Resumen</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabBaseDatos" data-flujo-tab="base-datos" aria-selected="false" aria-controls="flujoPanelBaseDatos">Base de datos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabAsociados" data-flujo-tab="asociados" aria-selected="false" aria-controls="flujoPanelAsociados">Asociados</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabDocumento" data-flujo-tab="documento" aria-selected="false" aria-controls="flujoPanelDocumento">Documento</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabVersiones" data-flujo-tab="versiones" aria-selected="false" aria-controls="flujoPanelVersiones">Versiones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="flujoTabCorridas" data-flujo-tab="corridas" aria-selected="false" aria-controls="flujoPanelCorridas">Corridas</button>
@@ -822,9 +833,20 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ajustes-hint" style="margin-top:12px">Grafo (Mermaid) de la versión abierta:</p>
 <div class="proy-diagrama-render" id="flujoGrafoResumen"></div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="flujoPanelBaseDatos" role="tabpanel" aria-labelledby="flujoTabBaseDatos" hidden>
+<div class="reader-panel ancla-ficha-body" id="flujoPanelAsociados" role="tabpanel" aria-labelledby="flujoTabAsociados" hidden>
+<div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="flujoAsociadosSubtabs" role="tablist" aria-label="Vínculos del flujo">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-flujo-asoc-sub="base-datos" aria-selected="true">Base de datos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-flujo-asoc-sub="skills" aria-selected="false">Skills del grafo</button>
+</div>
+<div class="asociados-subpane" id="flujoAsocPaneBaseDatos" data-flujo-asoc-pane="base-datos">
 <p class="ajustes-hint">Base de datos (proyecto) a la que pertenece este flujo.</p>
 <div id="flujoBaseDatosLista" class="proy-tab-catalogo"></div>
+<p class="ancla-ficha-vacio" id="flujoBaseDatosVacio" hidden>Sin base de datos vinculada.</p>
+</div>
+<div class="asociados-subpane" id="flujoAsocPaneSkills" data-flujo-asoc-pane="skills" hidden>
+<div id="flujoSkillsGrafoLista" class="proy-tab-catalogo"></div>
+<p class="ancla-ficha-vacio" id="flujoSkillsGrafoVacio" hidden>Ninguna skill en los nodos del grafo.</p>
+</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelDocumento" role="tabpanel" aria-labelledby="flujoTabDocumento" hidden>
 <p class="ajustes-hint">Grafo del flujo (Mermaid) y lista de nodos/aristas. Editar abre el JSON.</p>
@@ -973,7 +995,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-tabs reader-tabs" id="clusterReaderTabs" role="tablist" aria-label="Secciones del cluster">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="clusterTabResumen" data-cluster-tab="resumen" aria-selected="true" aria-controls="clusterPanelResumen">Resumen</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="clusterTabConexion" data-cluster-tab="conexion" aria-selected="false" aria-controls="clusterPanelConexion">Conexión</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="clusterTabBases" data-cluster-tab="bases" aria-selected="false" aria-controls="clusterPanelBases">Bases de datos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="clusterTabAsociados" data-cluster-tab="asociados" aria-selected="false" aria-controls="clusterPanelAsociados">Asociados</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="clusterPanelResumen" role="tabpanel" aria-labelledby="clusterTabResumen">
 <dl class="ancla-ficha-dl">
@@ -1016,8 +1038,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="clusterPanelBases" role="tabpanel" aria-labelledby="clusterTabBases" hidden>
+<div class="reader-panel ancla-ficha-body" id="clusterPanelAsociados" role="tabpanel" aria-labelledby="clusterTabAsociados" hidden>
+<div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="clusterAsociadosSubtabs" role="tablist" aria-label="Vínculos del cluster">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-cluster-asoc-sub="bases" aria-selected="true">Bases de datos</button>
+</div>
+<div class="asociados-subpane" id="clusterAsocPaneBases" data-cluster-asoc-pane="bases">
 <div id="clusterBasesLista" class="proy-tab-catalogo"></div>
+</div>
 </div>
 </article>
 </dialog>
@@ -1070,9 +1097,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="colReaderTabs" role="tablist" aria-label="Secciones de la colección">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="colTabResumen" data-col-tab="resumen" aria-selected="true" aria-controls="colPanelResumen">Resumen</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="colTabBaseDatos" data-col-tab="base-datos" aria-selected="false" aria-controls="colPanelBaseDatos">Base de datos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="colTabDiagrama" data-col-tab="diagrama" aria-selected="false" aria-controls="colPanelDiagrama">Diagrama</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="colTabCampos" data-col-tab="campos" aria-selected="false" aria-controls="colPanelCampos">Campos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="colTabAsociados" data-col-tab="asociados" aria-selected="false" aria-controls="colPanelAsociados">Asociados</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="colPanelResumen" role="tabpanel" aria-labelledby="colTabResumen">
 <dl class="ancla-ficha-dl">
@@ -1080,9 +1106,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Descripción</dt><dd id="colReaderDesc">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Base de datos</dt><dd><code id="colReaderPadre">—</code></dd></div>
 </dl>
-</div>
-<div class="reader-panel ancla-ficha-body" id="colPanelBaseDatos" role="tabpanel" aria-labelledby="colTabBaseDatos" hidden>
-<div id="colBaseDatosLista" class="proy-tab-catalogo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="colPanelDiagrama" role="tabpanel" aria-labelledby="colTabDiagrama" hidden>
 <p class="limite" id="colDiagramaAyuda">Vista del cajón y sus campos, y las relaciones con otras colecciones de la misma base (estilo diagrama entidad-relación).</p>
@@ -1097,7 +1120,15 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="colPanelCampos" role="tabpanel" aria-labelledby="colTabCampos" hidden>
+<div class="reader-panel ancla-ficha-body" id="colPanelAsociados" role="tabpanel" aria-labelledby="colTabAsociados" hidden>
+<div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="colAsociadosSubtabs" role="tablist" aria-label="Vínculos de la colección">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-col-asoc-sub="base-datos" aria-selected="true">Base de datos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-col-asoc-sub="campos" aria-selected="false">Campos</button>
+</div>
+<div class="asociados-subpane" id="colAsocPaneBaseDatos" data-col-asoc-pane="base-datos">
+<div id="colBaseDatosLista" class="proy-tab-catalogo"></div>
+</div>
+<div class="asociados-subpane" id="colAsocPaneCampos" data-col-asoc-pane="campos" hidden>
 <div class="catalogo-toolbar" style="margin-bottom:10px">
 <button type="button" class="btn primary btn-anadir" id="colCamposCta" hidden>
 <span class="btn-anadir-plus" aria-hidden="true">+</span>
@@ -1106,6 +1137,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <p class="ajustes-hint" id="colCamposNota" hidden></p>
 <div id="colCamposLista" class="proy-tab-catalogo"></div>
+</div>
 </div>
 </article>
 </dialog>
@@ -1559,13 +1591,17 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="spReaderTabs" role="tablist" aria-label="Secciones del system prompt">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="spTabDoc" data-sp-tab="documento" aria-selected="true" aria-controls="spPanelDoc">Documento</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="spTabSkills" data-sp-tab="skills" aria-selected="false" aria-controls="spPanelSkills">Skills</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="spTabAsociados" data-sp-tab="asociados" aria-selected="false" aria-controls="spPanelAsociados">Asociados</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="spTabInterno" data-sp-tab="interno" aria-selected="false" aria-controls="spPanelInterno">Interno</button>
 </div>
 <div class="reader-panel" id="spPanelDoc" role="tabpanel" aria-labelledby="spTabDoc">
 <div class="md-wrap"><div class="md" id="spMd"></div></div>
 </div>
-<div class="reader-panel ancla-ficha-body" id="spPanelSkills" role="tabpanel" aria-labelledby="spTabSkills" hidden>
+<div class="reader-panel ancla-ficha-body" id="spPanelAsociados" role="tabpanel" aria-labelledby="spTabAsociados" hidden>
+<div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="spAsociadosSubtabs" role="tablist" aria-label="Vínculos del system prompt">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-sp-asoc-sub="skills" aria-selected="true">Skills</button>
+</div>
+<div class="asociados-subpane" id="spAsocPaneSkills" data-sp-asoc-pane="skills">
 <div class="editar-anclas-top" style="margin-bottom:0.75rem">
 <span class="historial-titulo">Skills asociadas</span>
 <button type="button" class="icon-btn" id="btnEditarSystemPromptSkills" aria-label="Editar skills del system prompt" title="Editar skills">
@@ -1573,6 +1609,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </button>
 </div>
 <div id="spSkillsTabLista" class="proy-tab-catalogo"></div>
+</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="spPanelInterno" role="tabpanel" aria-labelledby="spTabInterno" hidden>
 <dl class="ancla-ficha-dl">

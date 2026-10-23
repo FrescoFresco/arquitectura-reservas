@@ -475,6 +475,7 @@ const state = {
     volverA: null,
     navigatingAway: false,
     tab: 'resumen',
+    asocSub: 'base-datos',
     diagramaToken: 0,
     _mermaidPromise: null
   },
@@ -483,7 +484,8 @@ const state = {
     indexError: false,
     lista: [],
     abiertoId: null,
-    tab: 'resumen'
+    tab: 'resumen',
+    asocSub: 'bases'
   },
   proyectos: {
     ready: false,
@@ -493,6 +495,7 @@ const state = {
     abiertoId: null,
     abiertaNumero: null,
     historial: false,
+    asocSub: 'cluster',
     reabrirColeccionKey: null,
     reabrirColeccionTab: null,
     fetchToken: 0,
@@ -1235,6 +1238,13 @@ function svgPestanaCatalogo(tipo) {
       svgPath('M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6'),
       svgPath('M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6')
     );
+  } else if (tipo === 'asociados' || tipo === 'asociado') {
+    // Lucide: link-2
+    svg.append(
+      svgPath('M9 17H7A5 5 0 0 1 7 7h2'),
+      svgPath('M15 7h2a5 5 0 1 1 0 10h-2'),
+      svgLine('8', '12', '16', '12')
+    );
   } else if (tipo === 'cluster') {
     // Lucide: server
     (function () {
@@ -1424,6 +1434,7 @@ function iconoDePestanaFicha(tabId) {
     salidas: 'ancla',
     interno: 'interno',
     resumen: 'resumen',
+    asociados: 'asociados',
     colecciones: 'coleccion',
     diagrama: 'diagrama',
     operativa: 'diagrama',
@@ -1437,6 +1448,7 @@ function iconoDePestanaFicha(tabId) {
     definicion: 'definicion',
     historial: 'historial',
     mongo: 'mongo',
+    campo: 'mongo',
     coleccion: 'coleccion',
     empujar: 'empujar',
     flujos: 'flujo',
@@ -1472,7 +1484,14 @@ function iconizarPestanasFicha(root) {
         || btn.getAttribute('data-editar-sp-tab')
         || btn.getAttribute('data-agente-tab')
         || btn.getAttribute('data-flujo-tab')
-        || btn.getAttribute('data-corrida-tab');
+        || btn.getAttribute('data-corrida-tab')
+        || btn.getAttribute('data-reader-asoc-sub')
+        || btn.getAttribute('data-proy-asoc-sub')
+        || btn.getAttribute('data-col-asoc-sub')
+        || btn.getAttribute('data-cluster-asoc-sub')
+        || btn.getAttribute('data-sp-asoc-sub')
+        || btn.getAttribute('data-flujo-asoc-sub')
+        || btn.getAttribute('data-skill-io-sub');
     }
     const tipo = iconoDePestanaFicha(tabId) || tabId;
     if (!tipo) return;
@@ -2948,13 +2967,43 @@ function renderReader() {
   if (nombre) nombre.focus();
 }
 
+var skillAsocSub = 'anclas';
+
+function readerAsocSubActual() {
+  const on = document.querySelector('#readerAsociadosSubtabs [data-reader-asoc-sub].is-on');
+  return (on && on.getAttribute('data-reader-asoc-sub')) || skillAsocSub || 'anclas';
+}
+
+function seleccionarReaderAsocSub(id) {
+  if (id !== 'anclas' && id !== 'system-prompt' && id !== 'bases') id = 'anclas';
+  skillAsocSub = id;
+  const tabs = document.querySelectorAll('#readerAsociadosSubtabs [data-reader-asoc-sub]');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-reader-asoc-sub') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('#readerPanelAsociados [data-reader-asoc-pane]').forEach(function (pane) {
+    pane.hidden = pane.getAttribute('data-reader-asoc-pane') !== id;
+  });
+  const ins = instruccionAbierta();
+  if (id === 'anclas') seleccionarReaderIoSub(readerIoSubActual());
+  if (id === 'bases') pintarSkillBases(ins);
+  if (id === 'system-prompt' && window.SystemPromptsCatalog) {
+    window.SystemPromptsCatalog.pintarSkillSystemPromptsTab(ins);
+  }
+}
+
 function seleccionarReaderTab(id) {
+  if (id === 'anclas' || id === 'bases' || id === 'system-prompts' || id === 'system-prompt') {
+    const sub = id === 'system-prompts' ? 'system-prompt' : id;
+    id = 'asociados';
+    skillAsocSub = sub;
+  }
   const tabs = document.querySelectorAll('#readerTabs [data-reader-tab]');
   const panelDoc = document.getElementById('readerPanelDoc');
-  const panelAnclas = document.getElementById('readerPanelAnclas');
+  const panelAsociados = document.getElementById('readerPanelAsociados');
   const panelConexion = document.getElementById('readerPanelConexion');
-  const panelBases = document.getElementById('readerPanelBases');
-  const panelSystemPrompts = document.getElementById('readerPanelSystemPrompts');
   const panelInterno = document.getElementById('readerPanelInterno');
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-reader-tab') === id;
@@ -2962,19 +3011,11 @@ function seleccionarReaderTab(id) {
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
   if (panelDoc) panelDoc.hidden = id !== 'documento';
-  if (panelAnclas) panelAnclas.hidden = id !== 'anclas';
+  if (panelAsociados) panelAsociados.hidden = id !== 'asociados';
   if (panelConexion) panelConexion.hidden = id !== 'conexion';
-  if (panelBases) panelBases.hidden = id !== 'bases';
-  if (panelSystemPrompts) panelSystemPrompts.hidden = id !== 'system-prompts';
   if (panelInterno) panelInterno.hidden = id !== 'interno';
-  if (id === 'anclas') {
-    seleccionarReaderIoSub(readerIoSubActual());
-  }
+  if (id === 'asociados') seleccionarReaderAsocSub(skillAsocSub || readerAsocSubActual());
   if (id === 'conexion') pintarSkillConexion(instruccionAbierta());
-  if (id === 'bases') pintarSkillBases(instruccionAbierta());
-  if (id === 'system-prompts' && window.SystemPromptsCatalog) {
-    window.SystemPromptsCatalog.pintarSkillSystemPromptsTab(instruccionAbierta());
-  }
 }
 
 function pintarSkillBases(ins) {
@@ -4416,6 +4457,12 @@ function iniciar() {
     if (!btn) return;
     seleccionarReaderIoSub(btn.getAttribute('data-skill-io-sub'));
   });
+  const readerAsociadosSubtabs = document.getElementById('readerAsociadosSubtabs');
+  if (readerAsociadosSubtabs) readerAsociadosSubtabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-reader-asoc-sub]');
+    if (!btn) return;
+    seleccionarReaderAsocSub(btn.getAttribute('data-reader-asoc-sub'));
+  });
   const editarAnclasSubtabs = document.getElementById('editarAnclasSubtabs');
   if (editarAnclasSubtabs) editarAnclasSubtabs.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-editar-io-sub]');
@@ -4873,16 +4920,41 @@ function cerrarProyectoModal() {
   pintarProyectos();
 }
 
+function proyAsocSubActivo() {
+  return state.proyectos.asocSub || 'cluster';
+}
+
+function proyAsociadosVisible() {
+  return !!document.querySelector('#proyReaderTabs [data-proy-tab="asociados"].is-on');
+}
+
+function seleccionarProyAsocSub(id) {
+  if (id !== 'cluster' && id !== 'colecciones' && id !== 'campos' && id !== 'skills') id = 'cluster';
+  state.proyectos.asocSub = id;
+  const tabs = document.querySelectorAll('#proyAsociadosSubtabs [data-proy-asoc-sub]');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-proy-asoc-sub') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('#proyPanelAsociados [data-proy-asoc-pane]').forEach(function (pane) {
+    pane.hidden = pane.getAttribute('data-proy-asoc-pane') !== id;
+  });
+  const proy = proyectoAbierto();
+  if (!proy) return;
+  if (id === 'cluster') pintarProyectoCluster(proy);
+  if (id === 'colecciones') pintarProyectoColecciones(proy);
+  if (id === 'campos') pintarProyectoCampos(proy);
+  if (id === 'skills') pintarProyectoSkillsTab(proy);
+}
+
 function seleccionarProyReaderTab(id) {
   const tabs = document.querySelectorAll('#proyReaderTabs [data-proy-tab]');
   const panels = {
     resumen: document.getElementById('proyPanelResumen'),
-    cluster: document.getElementById('proyPanelCluster'),
+    asociados: document.getElementById('proyPanelAsociados'),
     documento: document.getElementById('proyPanelDocumento'),
-    colecciones: document.getElementById('proyPanelColecciones'),
     diagrama: document.getElementById('proyPanelDiagrama'),
-    campos: document.getElementById('proyPanelCampos'),
-    skills: document.getElementById('proyPanelSkills'),
     operativa: document.getElementById('proyPanelOperativa'),
     flujos: document.getElementById('proyPanelFlujos'),
     corridas: document.getElementById('proyPanelCorridas'),
@@ -4890,9 +4962,13 @@ function seleccionarProyReaderTab(id) {
     historial: document.getElementById('proyPanelHistorial'),
     interno: document.getElementById('proyPanelInterno')
   };
-  // Compat: nombres antiguos (agentes/conexión ya no son pestaña de BD)
+  // Compat: vínculos movidos a Asociados; agentes/conexión ya no son pestaña de BD
   if (id === 'conexion' || id === 'agentes') id = 'resumen';
   if (id === 'sync') id = 'empujar';
+  if (id === 'cluster' || id === 'colecciones' || id === 'campos' || id === 'skills') {
+    state.proyectos.asocSub = id;
+    id = 'asociados';
+  }
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-proy-tab') === id;
     btn.classList.toggle('is-on', on);
@@ -4903,12 +4979,9 @@ function seleccionarProyReaderTab(id) {
   });
   const proy = proyectoAbierto();
   if (!proy) return;
-  if (id === 'cluster') pintarProyectoCluster(proy);
+  if (id === 'asociados') seleccionarProyAsocSub(proyAsocSubActivo());
   if (id === 'documento') pintarVersionProyecto(versionProyectoAbierta(proy));
-  if (id === 'colecciones') pintarProyectoColecciones(proy);
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
-  if (id === 'campos') pintarProyectoCampos(proy);
-  if (id === 'skills') pintarProyectoSkillsTab(proy);
   if (id === 'operativa') cargarProyectoOperativa(proy);
   if (id === 'flujos') {
     if (window.FlujosCorridasUI && typeof window.FlujosCorridasUI.cargarFlujos === 'function') {
@@ -4925,6 +4998,7 @@ function seleccionarProyReaderTab(id) {
 }
 
 window.seleccionarProyReaderTab = seleccionarProyReaderTab;
+window.abrirProyecto = abrirProyecto;
 
 function cargarProyectoOperativa(proy) {
   const estado = document.getElementById('proyOperativaEstado');
@@ -5285,7 +5359,7 @@ function pintarProyectoColecciones(proy) {
         if (!k) return;
         conteo[k] = (conteo[k] || 0) + 1;
       });
-      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="colecciones"].is-on');
+      const tabOn = proyAsociadosVisible() && proyAsocSubActivo() === 'colecciones';
       if (!tabOn) return;
       render(conteo);
     })
@@ -5326,7 +5400,7 @@ function pintarProyectoCampos(proy) {
     .then(function (data) {
       const abierta = proyectoAbierto();
       if (!abierta || abierta.id !== proy.id) return;
-      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="campos"].is-on');
+      const tabOn = proyAsociadosVisible() && proyAsocSubActivo() === 'campos';
       if (!tabOn) return;
       const raw = (data && data.campos) || [];
       const campos = raw.map(normalizeMongoCampo).filter(Boolean);
@@ -5382,7 +5456,7 @@ function pintarProyectoSkillsTab(proy) {
     .then(function (data) {
       const abierta = proyectoAbierto();
       if (!abierta || abierta.id !== proy.id) return;
-      const tabOn = document.querySelector('#proyReaderTabs [data-proy-tab="skills"].is-on');
+      const tabOn = proyAsociadosVisible() && proyAsocSubActivo() === 'skills';
       if (!tabOn) return;
       const todos = normalizeIndice(data);
       const filtrados = todos.filter(function (ins) {
@@ -5920,12 +5994,32 @@ function cerrarClusterModal() {
   pintarClusters();
 }
 
+function seleccionarClusterAsocSub(id) {
+  if (id !== 'bases') id = 'bases';
+  state.clusters.asocSub = id;
+  const tabs = document.querySelectorAll('#clusterAsociadosSubtabs [data-cluster-asoc-sub]');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-cluster-asoc-sub') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('#clusterPanelAsociados [data-cluster-asoc-pane]').forEach(function (pane) {
+    pane.hidden = pane.getAttribute('data-cluster-asoc-pane') !== id;
+  });
+  const cl = clusterAbierto();
+  if (cl && id === 'bases') pintarClusterBases(cl);
+}
+
 function seleccionarClusterReaderTab(id) {
+  if (id === 'bases') {
+    state.clusters.asocSub = 'bases';
+    id = 'asociados';
+  }
   const tabs = document.querySelectorAll('#clusterReaderTabs [data-cluster-tab]');
   const panels = {
     resumen: document.getElementById('clusterPanelResumen'),
     conexion: document.getElementById('clusterPanelConexion'),
-    bases: document.getElementById('clusterPanelBases')
+    asociados: document.getElementById('clusterPanelAsociados')
   };
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-cluster-tab') === id;
@@ -5939,7 +6033,7 @@ function seleccionarClusterReaderTab(id) {
   const cl = clusterAbierto();
   if (!cl) return;
   if (id === 'conexion') cargarClusterConexion(cl);
-  if (id === 'bases') pintarClusterBases(cl);
+  if (id === 'asociados') seleccionarClusterAsocSub(state.clusters.asocSub || 'bases');
 }
 
 function pintarClusterBases(cl) {
@@ -7034,17 +7128,36 @@ function cargarColecciones() {
   pintarColecciones();
 }
 
+function seleccionarColAsocSub(id) {
+  if (id !== 'base-datos' && id !== 'campos') id = 'base-datos';
+  state.colecciones.asocSub = id;
+  const tabs = document.querySelectorAll('#colAsociadosSubtabs [data-col-asoc-sub]');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-col-asoc-sub') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('#colPanelAsociados [data-col-asoc-pane]').forEach(function (pane) {
+    pane.hidden = pane.getAttribute('data-col-asoc-pane') !== id;
+  });
+  if (id === 'base-datos') pintarColeccionBaseDatos(coleccionAbierta());
+  if (id === 'campos') pintarColeccionCampos(coleccionAbierta());
+}
+
 function seleccionarColReaderTab(id) {
-  if (id !== 'resumen' && id !== 'base-datos' && id !== 'diagrama' && id !== 'campos') {
+  if (id === 'base-datos' || id === 'campos') {
+    state.colecciones.asocSub = id;
+    id = 'asociados';
+  }
+  if (id !== 'resumen' && id !== 'diagrama' && id !== 'asociados') {
     id = 'resumen';
   }
   state.colecciones.tab = id;
   const tabs = document.querySelectorAll('#colReaderTabs [data-col-tab]');
   const panels = {
     resumen: document.getElementById('colPanelResumen'),
-    'base-datos': document.getElementById('colPanelBaseDatos'),
     diagrama: document.getElementById('colPanelDiagrama'),
-    campos: document.getElementById('colPanelCampos')
+    asociados: document.getElementById('colPanelAsociados')
   };
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-col-tab') === id;
@@ -7054,9 +7167,8 @@ function seleccionarColReaderTab(id) {
   Object.keys(panels).forEach(function (k) {
     if (panels[k]) panels[k].hidden = k !== id;
   });
-  if (id === 'base-datos') pintarColeccionBaseDatos(coleccionAbierta());
   if (id === 'diagrama') cargarColeccionDiagrama(coleccionAbierta());
-  if (id === 'campos') pintarColeccionCampos(coleccionAbierta());
+  if (id === 'asociados') seleccionarColAsocSub(state.colecciones.asocSub || 'base-datos');
 }
 
 function cargarMermaidLib() {
@@ -7480,6 +7592,14 @@ function wireColeccionesUi() {
       seleccionarColReaderTab(btn.getAttribute('data-col-tab'));
     });
   }
+  const asocTabs = document.getElementById('colAsociadosSubtabs');
+  if (asocTabs) {
+    asocTabs.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-col-asoc-sub]');
+      if (!btn) return;
+      seleccionarColAsocSub(btn.getAttribute('data-col-asoc-sub'));
+    });
+  }
   const dlg = document.getElementById('dlgColeccion');
   if (dlg) dlg.addEventListener('close', alCerrarFichaColeccion);
 }
@@ -7504,6 +7624,12 @@ function wireClustersUi() {
     const btn = e.target.closest('[data-cluster-tab]');
     if (!btn) return;
     seleccionarClusterReaderTab(btn.getAttribute('data-cluster-tab'));
+  });
+  const asocTabs = document.getElementById('clusterAsociadosSubtabs');
+  if (asocTabs) asocTabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-cluster-asoc-sub]');
+    if (!btn) return;
+    seleccionarClusterAsocSub(btn.getAttribute('data-cluster-asoc-sub'));
   });
   const formConexion = document.getElementById('formClusterConexion');
   if (formConexion) formConexion.addEventListener('submit', onGuardarClusterConexion);
@@ -7598,6 +7724,12 @@ function wireProyectosUi() {
     const btn = e.target.closest('[data-proy-tab]');
     if (!btn) return;
     seleccionarProyReaderTab(btn.getAttribute('data-proy-tab'));
+  });
+  const proyAsocTabs = document.getElementById('proyAsociadosSubtabs');
+  if (proyAsocTabs) proyAsocTabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-proy-asoc-sub]');
+    if (!btn) return;
+    seleccionarProyAsocSub(btn.getAttribute('data-proy-asoc-sub'));
   });
   const editarProyTabs = document.getElementById('editarProyTabs');
   if (editarProyTabs) editarProyTabs.addEventListener('click', function (e) {

@@ -216,11 +216,32 @@
     pintar();
   }
 
+  var asocSub = 'skills';
+
+  function seleccionarAsocSub(id) {
+    if (id !== 'skills') id = 'skills';
+    asocSub = id;
+    var tabs = document.querySelectorAll('#spAsociadosSubtabs [data-sp-asoc-sub]');
+    tabs.forEach(function (btn) {
+      var on = btn.getAttribute('data-sp-asoc-sub') === id;
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('#spPanelAsociados [data-sp-asoc-pane]').forEach(function (pane) {
+      pane.hidden = pane.getAttribute('data-sp-asoc-pane') !== id;
+    });
+    if (id === 'skills') pintarSkillsTab(abierto());
+  }
+
   function seleccionarTab(id) {
+    if (id === 'skills') {
+      asocSub = 'skills';
+      id = 'asociados';
+    }
     var tabs = document.querySelectorAll('#spReaderTabs [data-sp-tab]');
     var panels = {
       documento: document.getElementById('spPanelDoc'),
-      skills: document.getElementById('spPanelSkills'),
+      asociados: document.getElementById('spPanelAsociados'),
       interno: document.getElementById('spPanelInterno')
     };
     tabs.forEach(function (btn) {
@@ -231,7 +252,7 @@
     Object.keys(panels).forEach(function (key) {
       if (panels[key]) panels[key].hidden = key !== id;
     });
-    if (id === 'skills') pintarSkillsTab(abierto());
+    if (id === 'asociados') seleccionarAsocSub(asocSub || 'skills');
   }
 
   function pintarSkillsTab(item) {
@@ -275,7 +296,8 @@
       .then(function (data) {
         var a = abierto();
         if (!a || a.id !== item.id) return;
-        var tabOn = document.querySelector('#spReaderTabs [data-sp-tab="skills"].is-on');
+        var tabOn = document.querySelector('#spReaderTabs [data-sp-tab="asociados"].is-on')
+          && asocSub === 'skills';
         if (!tabOn) return;
         var todos = (typeof state !== 'undefined' && state.instrucciones && state.instrucciones.length)
           ? state.instrucciones
@@ -940,6 +962,14 @@
         var btn = e.target.closest('[data-sp-tab]');
         if (!btn) return;
         seleccionarTab(btn.getAttribute('data-sp-tab'));
+      });
+    }
+    var asocTabs = document.getElementById('spAsociadosSubtabs');
+    if (asocTabs) {
+      asocTabs.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-sp-asoc-sub]');
+        if (!btn) return;
+        seleccionarAsocSub(btn.getAttribute('data-sp-asoc-sub'));
       });
     }
     var btnEditarSkills = document.getElementById('btnEditarSystemPromptSkills');

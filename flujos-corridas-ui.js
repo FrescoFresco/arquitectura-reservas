@@ -281,11 +281,89 @@
     if (panel && !panel.hidden) cargarCatalogo();
   }
 
+  var flujoAsocSub = 'base-datos';
+
+  function skillsDelGrafo(f) {
+    var ids = [];
+    var seen = {};
+    (f && f.nodos || []).forEach(function (n) {
+      var sid = n && n.skill ? String(n.skill).trim() : '';
+      if (!sid || seen[sid]) return;
+      seen[sid] = true;
+      ids.push(sid);
+    });
+    return ids;
+  }
+
+  function pintarFlujoSkillsGrafo(f) {
+    var mount = document.getElementById('flujoSkillsGrafoLista');
+    var vacio = document.getElementById('flujoSkillsGrafoVacio');
+    if (!mount) return;
+    var ids = skillsDelGrafo(f);
+    if (!ids.length) {
+      mount.replaceChildren();
+      if (vacio) {
+        vacio.hidden = false;
+        vacio.textContent = 'Ninguna skill en los nodos del grafo.';
+      }
+      return;
+    }
+    if (vacio) vacio.hidden = true;
+    if (!window.SkillsUI || typeof window.SkillsUI.montarLista !== 'function') {
+      mount.textContent = ids.join(', ');
+      return;
+    }
+    function bridgeCon(instrucciones, ready, indexError) {
+      return {
+        getSnapshot: function () {
+          return {
+            ready: ready,
+            indexError: !!indexError,
+            instrucciones: instrucciones || [],
+            abierta: null
+          };
+        },
+        abrirSkill: function (id) {
+          if (typeof window.abrirVistaSkill === 'function') window.abrirVistaSkill(id);
+        },
+        añadirSkill: function () {}
+      };
+    }
+    var listaLocal = (typeof state !== 'undefined' && state.instrucciones || []).filter(function (ins) {
+      return ids.indexOf(ins.id) >= 0;
+    });
+    window.SkillsUI.montarLista(mount, bridgeCon(listaLocal, true, false), {
+      emptyMsg: 'Ninguna skill en los nodos del grafo.'
+    });
+  }
+
+  function seleccionarFlujoAsocSub(id) {
+    if (id !== 'base-datos' && id !== 'skills') id = 'base-datos';
+    flujoAsocSub = id;
+    var tabs = document.querySelectorAll('#flujoAsociadosSubtabs [data-flujo-asoc-sub]');
+    tabs.forEach(function (btn) {
+      var on = btn.getAttribute('data-flujo-asoc-sub') === id;
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('#flujoPanelAsociados [data-flujo-asoc-pane]').forEach(function (pane) {
+      pane.hidden = pane.getAttribute('data-flujo-asoc-pane') !== id;
+    });
+    var f = st.flujoAbierto;
+    if (!f) return;
+    if (id === 'base-datos') pintarFlujoBaseDatos();
+    if (id === 'skills') pintarFlujoSkillsGrafo(f);
+  }
+
   function seleccionarFlujoTab(id) {
+    if (id === 'base-datos' || id === 'skills') {
+      flujoAsocSub = id === 'skills' ? 'skills' : 'base-datos';
+      id = 'asociados';
+    }
     var tabs = document.querySelectorAll('#flujoReaderTabs [data-flujo-tab]');
     var panels = {
       resumen: document.getElementById('flujoPanelResumen'),
-      'base-datos': document.getElementById('flujoPanelBaseDatos'),
+      asociados: document.getElementById('flujoPanelAsociados'),
       documento: document.getElementById('flujoPanelDocumento'),
       versiones: document.getElementById('flujoPanelVersiones'),
       corridas: document.getElementById('flujoPanelCorridas'),
@@ -300,7 +378,7 @@
       if (panels[key]) panels[key].hidden = key !== id;
     });
     if (id === 'resumen') pintarFlujoResumenGrafo();
-    if (id === 'base-datos') pintarFlujoBaseDatos();
+    if (id === 'asociados') seleccionarFlujoAsocSub(flujoAsocSub || 'base-datos');
     if (id === 'documento') pintarFlujoDocumento();
     if (id === 'versiones') pintarFlujoVersionesTab();
     if (id === 'corridas') cargarFlujoCorridas();
@@ -362,8 +440,8 @@
     if (st.flujoEdit) rellenarEditorFlujo();
     var onRes = document.querySelector('#flujoReaderTabs [data-flujo-tab="resumen"].is-on');
     if (onRes) pintarFlujoResumenGrafo();
-    var onBd = document.querySelector('#flujoReaderTabs [data-flujo-tab="base-datos"].is-on');
-    if (onBd) pintarFlujoBaseDatos();
+    var onAsoc = document.querySelector('#flujoReaderTabs [data-flujo-tab="asociados"].is-on');
+    if (onAsoc) seleccionarFlujoAsocSub(flujoAsocSub || 'base-datos');
     var onDoc = document.querySelector('#flujoReaderTabs [data-flujo-tab="documento"].is-on');
     if (onDoc) pintarFlujoDocumento();
     var onVer = document.querySelector('#flujoReaderTabs [data-flujo-tab="versiones"].is-on');
@@ -442,9 +520,19 @@
 
   function pintarFlujoBaseDatos() {
     var mount = document.getElementById('flujoBaseDatosLista');
+    var vacio = document.getElementById('flujoBaseDatosVacio');
     var f = st.flujoAbierto;
     if (!mount || !f) return;
     var pid = f.proyectoId || f.proyecto_id;
+    if (!pid) {
+      mount.replaceChildren();
+      if (vacio) {
+        vacio.hidden = false;
+        vacio.textContent = 'Sin base de datos vinculada.';
+      }
+      return;
+    }
+    if (vacio) vacio.hidden = true;
     if (!window.ProyectosUI || typeof window.ProyectosUI.montarLista !== 'function') {
       mount.textContent = pid || '—';
       return;
@@ -1280,6 +1368,14 @@
         var btn = e.target.closest('[data-flujo-tab]');
         if (!btn) return;
         seleccionarFlujoTab(btn.getAttribute('data-flujo-tab'));
+      });
+    }
+    var flujoAsocTabs = document.getElementById('flujoAsociadosSubtabs');
+    if (flujoAsocTabs) {
+      flujoAsocTabs.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-flujo-asoc-sub]');
+        if (!btn) return;
+        seleccionarFlujoAsocSub(btn.getAttribute('data-flujo-asoc-sub'));
       });
     }
     var btnHist = document.getElementById('btnHistorialFlujo');

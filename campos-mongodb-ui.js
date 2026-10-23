@@ -55,7 +55,7 @@
     var setTab = props.setTab;
     var items = [
       { id: 'definicion', label: 'Definición' },
-      { id: 'coleccion', label: 'Colección' },
+      { id: 'asociados', label: 'Asociados' },
       { id: 'ancla', label: 'Ancla' },
       { id: 'interno', label: 'Interno' }
     ];
@@ -71,6 +71,44 @@
           onClick: function () { setTab(item.id); }
         }, e(IconoPestanaFicha, { tipo: item.id }), item.label);
       })
+    );
+  }
+
+  function AsociadosSubtabs(props) {
+    var sub = props.sub;
+    var setSub = props.setSub;
+    var items = [{ id: 'coleccion', label: 'Colección' }];
+    return e('div', {
+      className: 'ancla-ficha-tabs reader-tabs asociados-subtabs',
+      role: 'tablist',
+      'aria-label': 'Vínculos del campo'
+    },
+      items.map(function (item) {
+        var selected = sub === item.id;
+        return e('button', {
+          type: 'button',
+          key: item.id,
+          role: 'tab',
+          className: 'ancla-ficha-tab' + (selected ? ' is-on' : ''),
+          'aria-selected': selected ? 'true' : 'false',
+          onClick: function () { setSub(item.id); }
+        }, e(IconoPestanaFicha, { tipo: item.id }), item.label);
+      })
+    );
+  }
+
+  function PanelAsociados(props) {
+    var subState = useState('coleccion');
+    var sub = subState[0];
+    var setSub = subState[1];
+    return e('div', { role: 'tabpanel' },
+      e(AsociadosSubtabs, { sub: sub, setSub: setSub }),
+      sub === 'coleccion'
+        ? e(PanelColeccion, {
+          coleccionItems: props.coleccionItems || [],
+          onAbrirColeccion: props.onAbrirColeccion
+        })
+        : null
     );
   }
 
@@ -259,9 +297,10 @@
 
   function Ficha(props) {
     var c = props.campo;
-    var initial = props.initialTab === 'coleccion' || props.initialTab === 'interno' || props.initialTab === 'ancla'
-      ? props.initialTab
-      : 'definicion';
+    var initialRaw = props.initialTab;
+    var initial = initialRaw === 'coleccion' || initialRaw === 'asociados'
+      ? 'asociados'
+      : (initialRaw === 'interno' || initialRaw === 'ancla' ? initialRaw : 'definicion');
     var tabState = useState(initial);
     var tab = tabState[0];
     var setTab = tabState[1];
@@ -333,8 +372,8 @@
             e(Fila, { label: 'Descripción' }, c.descripcion || '—')
           )
           : null,
-        tab === 'coleccion'
-          ? e(PanelColeccion, {
+        tab === 'asociados'
+          ? e(PanelAsociados, {
             coleccionItems: props.coleccionItems || [],
             onAbrirColeccion: props.onAbrirColeccion
           })
