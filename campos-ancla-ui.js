@@ -88,8 +88,7 @@
     var items = [
       { id: 'definicion', label: 'Definición' },
       { id: 'historial', label: 'Historial' },
-      { id: 'mongo', label: 'Mongo' },
-      { id: 'skills', label: 'Skills' },
+      { id: 'asociados', label: 'Asociados' },
       { id: 'interno', label: 'Interno' }
     ];
     return e('div', { className: 'ancla-ficha-tabs', role: 'tablist', 'aria-label': 'Secciones del ancla' },
@@ -106,6 +105,53 @@
           onClick: function () { setTab(item.id); }
         }, e(IconoPestanaFicha, { tipo: item.id }), item.label);
       })
+    );
+  }
+
+  function AsociadosSubtabs(props) {
+    var sub = props.sub;
+    var setSub = props.setSub;
+    var items = [
+      { id: 'campo', label: 'Campo' },
+      { id: 'skills', label: 'Skills' }
+    ];
+    return e('div', {
+      className: 'ancla-ficha-tabs reader-tabs asociados-subtabs',
+      role: 'tablist',
+      'aria-label': 'Vínculos del ancla'
+    },
+      items.map(function (item) {
+        var selected = sub === item.id;
+        return e('button', {
+          type: 'button',
+          key: item.id,
+          role: 'tab',
+          className: 'ancla-ficha-tab' + (selected ? ' is-on' : ''),
+          'aria-selected': selected ? 'true' : 'false',
+          onClick: function () { setSub(item.id); }
+        }, e(IconoPestanaFicha, { tipo: item.id === 'campo' ? 'mongo' : item.id }), item.label);
+      })
+    );
+  }
+
+  function PanelAsociados(props) {
+    var subState = useState('campo');
+    var sub = subState[0];
+    var setSub = subState[1];
+    return e('div', { id: 'ancla-panel-asociados', role: 'tabpanel' },
+      e(AsociadosSubtabs, { sub: sub, setSub: setSub }),
+      sub === 'campo'
+        ? e(PanelMongo, {
+          campo: props.campo,
+          mongo: props.mongo,
+          onAbrirCampo: props.onAbrirCampo
+        })
+        : e(PanelSkills, {
+          skills: props.skills,
+          skillItems: props.skillItems || [],
+          nombres: props.nombresSkill,
+          onAbrirSkill: props.onAbrirSkill
+        })
     );
   }
 
@@ -484,15 +530,13 @@
       e('div', { className: 'ancla-ficha-body' },
         tab === 'definicion' ? e(PanelDefinicion, { campo: c }) : null,
         tab === 'historial' ? e(PanelHistorial, { campo: c, negocioId: props.negocioId || 'pelo-sur' }) : null,
-        tab === 'mongo' ? e(PanelMongo, {
+        tab === 'asociados' ? e(PanelAsociados, {
           campo: c,
           mongo: props.mongo,
-          onAbrirCampo: props.onAbrirCampo
-        }) : null,
-        tab === 'skills' ? e(PanelSkills, {
+          onAbrirCampo: props.onAbrirCampo,
           skills: skills,
           skillItems: props.skillItems || [],
-          nombres: props.nombresSkill,
+          nombresSkill: props.nombresSkill,
           onAbrirSkill: props.onAbrirSkill
         }) : null,
         tab === 'interno' ? e(PanelInterno, { campo: c }) : null
