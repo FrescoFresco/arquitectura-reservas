@@ -74,13 +74,12 @@
       'aria-label': 'Ver skill ' + ins.nombre,
       onClick: function () { props.onAbrir(ins.id); }
     },
-      e('span', {
+      e('span', Object.assign({
         className: 'catalogo-fila-icon',
-        'aria-hidden': 'true',
-        style: (typeof window !== 'undefined' && window.ColorEntidad)
-          ? window.ColorEntidad.reactStyle(ins.color)
-          : undefined
-      }, e(IconoSkill)),
+        'aria-hidden': 'true'
+      }, (typeof window !== 'undefined' && window.ColorEntidad && window.ColorEntidad.reactProps)
+        ? window.ColorEntidad.reactProps(ins.color)
+        : {}), e(IconoSkill)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, ins.nombre),
         e('span', { className: 'catalogo-fila-codigo' }, secundario)

@@ -70,13 +70,12 @@
       'aria-label': 'Ver fundamento ' + item.nombre,
       onClick: function () { props.onAbrir(item.id); }
     },
-      e('span', {
+      e('span', Object.assign({
         className: 'catalogo-fila-icon',
-        'aria-hidden': 'true',
-        style: (typeof window !== 'undefined' && window.ColorEntidad)
-          ? window.ColorEntidad.reactStyle(item.color)
-          : undefined
-      }, e(IconoFundamento)),
+        'aria-hidden': 'true'
+      }, (typeof window !== 'undefined' && window.ColorEntidad && window.ColorEntidad.reactProps)
+        ? window.ColorEntidad.reactProps(item.color)
+        : {}), e(IconoFundamento)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, item.nombre),
         e('span', { className: 'catalogo-fila-codigo' }, secundario)

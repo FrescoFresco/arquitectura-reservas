@@ -64,13 +64,12 @@
       'aria-label': 'Abrir colección ' + (col.id || ''),
       onClick: function () { props.onAbrir(col.key); }
     },
-      e('span', {
+      e('span', Object.assign({
         className: 'catalogo-fila-icon',
-        'aria-hidden': 'true',
-        style: (typeof window !== 'undefined' && window.ColorEntidad)
-          ? window.ColorEntidad.reactStyle(col.color)
-          : undefined
-      }, e(IconoColeccion)),
+        'aria-hidden': 'true'
+      }, (typeof window !== 'undefined' && window.ColorEntidad && window.ColorEntidad.reactProps)
+        ? window.ColorEntidad.reactProps(col.color)
+        : {}), e(IconoColeccion)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, col.id || '—'),
         e('span', { className: 'catalogo-fila-codigo' }, secundario)

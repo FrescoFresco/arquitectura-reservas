@@ -62,13 +62,12 @@
       'aria-label': 'Ver cluster ' + cl.nombre,
       onClick: function () { props.onAbrir(cl.id); }
     },
-      e('span', {
+      e('span', Object.assign({
         className: 'catalogo-fila-icon',
-        'aria-hidden': 'true',
-        style: (typeof window !== 'undefined' && window.ColorEntidad)
-          ? window.ColorEntidad.reactStyle(cl.color)
-          : undefined
-      }, e(IconoCluster)),
+        'aria-hidden': 'true'
+      }, (typeof window !== 'undefined' && window.ColorEntidad && window.ColorEntidad.reactProps)
+        ? window.ColorEntidad.reactProps(cl.color)
+        : {}), e(IconoCluster)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, cl.nombre),
         e('span', { className: 'catalogo-fila-codigo' }, secundario)
