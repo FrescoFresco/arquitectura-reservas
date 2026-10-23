@@ -224,6 +224,18 @@ Si solo envías `anclas` (legado), se tratan como **salidas**.
 
 Ficha / listado de skill incluyen `systemPrompts`: **array de longitud 0..1** (compat; una skill tiene como máximo un system prompt). Campos: id, nombre, descripcion, hash. Vacío `[]` si no hay.
 
+
+### Color por entidad (tile del icono)
+
+Todas las entidades de catálogo con fila (`catalogo-fila`) admiten `color`: hex `#RRGGBB` o `null` (default visual azul `#1c63d5` / tint `#edf3ff`). Solo colorea el squircle del icono (lista + header de ficha).
+
+- GET list/detail incluyen `color` (nullable).
+- PUT/POST aceptan `color`. Si el PUT es **solo** `{ "color": "#c45c3a" }` (o `null`), **no** crea versión nueva de MD.
+- Colecciones: `color` en cada ítem de `proyectos.colecciones[]`; PUT con solo `{ "colecciones": […] }` actualiza el JSON sin bump de versión.
+- Generar color (UI): max-min ΔE76 vs colores ya usados en el **mismo** catálogo; `null`/default no cuentan.
+
+Tablas D1: `skills`, `anclas`, `campos_mongo`, `proyectos`, `clusters`, `system_prompts`, `fundamentos`, `agentes`, `flujos`.
+
 Al crear/editar skill puedes enviar `systemPromptId` (string o `null`) o `systemPrompts` (array de 0 o 1 id). Si el PUT solo lleva ese campo (sin markdown/I/O), **no** crea versión nueva de MD: solo actualiza el vínculo.
 
 ### System prompts

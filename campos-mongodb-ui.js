@@ -280,7 +280,27 @@
     var label = c.campo || (c.coleccion + '.' + c.clave);
     return e('div', { className: 'ancla-ficha', role: 'document', 'aria-label': 'Ficha del campo MongoDB' },
       e('div', { className: 'ancla-ficha-header' },
-        e('span', { className: 'ficha-titulo-icon', 'aria-hidden': 'true' }, e(IconoMongo)),
+        e('button', {
+          type: 'button',
+          className: 'ficha-titulo-icon ficha-titulo-icon-color',
+          'aria-label': 'Color',
+          title: 'Color',
+          style: (typeof window !== 'undefined' && window.ColorEntidad)
+            ? window.ColorEntidad.reactStyle(c.color)
+            : undefined,
+          onClick: function (ev) {
+            if (!window.ColorEntidad) return;
+            window.ColorEntidad.openPicker({
+              anchor: ev.currentTarget,
+              color: c.color,
+              usados: typeof props.getUsadosColor === 'function' ? props.getUsadosColor() : [],
+              iconKind: 'mongo',
+              onChange: function (hex) {
+                if (typeof props.onColor === 'function') props.onColor(hex);
+              }
+            });
+          }
+        }, e(IconoMongo)),
         e('div', { className: 'ancla-ficha-header-text' },
           e('h3', { className: 'ancla-ficha-titulo' }, label),
           c.ancla ? e('code', { className: 'ancla-ficha-codigo' }, c.ancla) : null
@@ -397,7 +417,13 @@
       'aria-label': 'Abrir ' + titulo,
       onClick: function () { props.onAbrir(c.id); }
     },
-      e('span', { className: 'catalogo-fila-icon', 'aria-hidden': 'true' }, e(IconoMongo)),
+      e('span', {
+        className: 'catalogo-fila-icon',
+        'aria-hidden': 'true',
+        style: (typeof window !== 'undefined' && window.ColorEntidad)
+          ? window.ColorEntidad.reactStyle(c.color)
+          : undefined
+      }, e(IconoMongo)),
       e('span', { className: 'catalogo-fila-main' },
         e('span', { className: 'catalogo-fila-titulo' }, titulo),
         e('code', { className: 'catalogo-fila-codigo' }, codigo)
@@ -496,6 +522,8 @@
       onCerrar: onCerrar,
       onEditar: opts.onEditar || null,
       onEliminar: opts.onEliminar || null,
+      onColor: opts.onColor || null,
+      getUsadosColor: opts.getUsadosColor || null,
       initialTab: opts.initialTab || 'definicion',
       coleccionItems: opts.coleccionItems || [],
       onAbrirColeccion: opts.onAbrirColeccion || null,

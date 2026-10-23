@@ -43,6 +43,7 @@ export type FlujoVersionDoc = {
   nodos: FlujoNodo[];
   aristas: FlujoArista[];
   hash: string;
+  color?: string | null;
 };
 
 export function parseNodos(raw: unknown): FlujoNodo[] {

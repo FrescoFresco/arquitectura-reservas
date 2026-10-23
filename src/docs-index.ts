@@ -52,7 +52,7 @@ export const API_DOCS_INDEX = {
       method: 'GET',
       path: '/v1/skills',
       auth: false,
-      summary: 'Listar skills (entradas/salidas/anclas + systemPrompts[] longitud 0..1)',
+      summary: 'Listar skills (entradas/salidas/anclas + systemPrompts[] 0..1 + color)',
     },
     {
       method: 'GET',
@@ -71,7 +71,7 @@ export const API_DOCS_INDEX = {
       path: '/v1/skills/:id',
       auth: true,
       summary:
-        'Nueva versión + I/O; o solo { systemPromptId } / { systemPrompts:[id] } sin bump de MD (auto-replace)',
+        'Nueva versión + I/O; o solo { systemPromptId } / { color } sin bump de MD',
     },
     { method: 'DELETE', path: '/v1/skills/:id', auth: true, summary: 'Borrar skill + N:M' },
     {
