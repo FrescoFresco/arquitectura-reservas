@@ -625,7 +625,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabDiagrama" data-proy-tab="diagrama" aria-selected="false" aria-controls="proyPanelDiagrama">Diagrama</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabOperativa" data-proy-tab="operativa" aria-selected="false" aria-controls="proyPanelOperativa">Operativa</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabFlujos" data-proy-tab="flujos" aria-selected="false" aria-controls="proyPanelFlujos">Flujos</button>
-<button type="button" class="ancla-ficha-tab" role="tab" id="proyTabCorridas" data-proy-tab="corridas" aria-selected="false" aria-controls="proyPanelCorridas">Corridas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabEmpujar" data-proy-tab="empujar" aria-selected="false" aria-controls="proyPanelEmpujar">Empujar</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabHistorial" data-proy-tab="historial" aria-selected="false" aria-controls="proyPanelHistorial">Historial</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="proyTabInterno" data-proy-tab="interno" aria-selected="false" aria-controls="proyPanelInterno">Interno</button>
@@ -680,7 +679,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelOperativa" role="tabpanel" aria-labelledby="proyTabOperativa" hidden>
-<p class="ajustes-hint">Cadena de skills: una salida de A que coincide con una entrada de B. En <span style="color:#b91c1c;font-weight:600">rojo</span> las entradas que ninguna skill escribe. La ejecución ordenada vive en <strong>Flujos</strong> / <strong>Corridas</strong>.</p>
+<p class="ajustes-hint">Cadena de skills: una salida de A que coincide con una entrada de B. En <span style="color:#b91c1c;font-weight:600">rojo</span> las entradas que ninguna skill escribe. La ejecución ordenada vive en <strong>Flujos</strong>; las <strong>Corridas</strong> cuelgan de cada ficha Flujo.</p>
 <p class="ancla-ficha-vacio" id="proyOperativaEstado">Cargando operativa…</p>
 <div class="proy-diagrama-render" id="proyOperativaRender" hidden></div>
 <ul class="operativa-huecos" id="proyOperativaHuecos" hidden></ul>
@@ -690,52 +689,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </p>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelFlujos" role="tabpanel" aria-labelledby="proyTabFlujos" hidden>
-<p class="ajustes-hint">Flujos de ejecución (nodos Inicio / Skill / Decisión / Espera / Subflujo / Fin). Ligados a esta base; las corridas los instancian por negocio.</p>
+<p class="ajustes-hint">Flujos de ejecución (nodos Inicio / Skill / Decisión / Espera / Subflujo / Fin). Ligados a esta base; abre un flujo para ver y arrancar sus <strong>Corridas</strong>.</p>
 <div class="editar-anclas-top" style="margin-bottom:0.75rem">
 <span class="historial-titulo">Flujos</span>
 <button type="button" class="btn" id="btnNuevoFlujo" title="Crear flujo">+ Flujo</button>
 </div>
 <p class="ancla-ficha-vacio" id="proyFlujosEstado" hidden>Cargando flujos…</p>
 <div id="proyFlujosLista" class="proy-tab-catalogo"></div>
-</div>
-<div class="reader-panel ancla-ficha-body" id="proyPanelCorridas" role="tabpanel" aria-labelledby="proyTabCorridas" hidden>
-<p class="ajustes-hint">Historial de ejecución (tipo C): instancias de un flujo para un negocio. Clic en una fila para ver pasos, datos y errores. «+ Corrida» arranca el bucle (n8n u otro agente sigue con /siguiente + salidas).</p>
-<div class="editar-anclas-top" style="margin-bottom:0.75rem">
-<span class="historial-titulo">Corridas</span>
-<button type="button" class="btn" id="btnNuevaCorrida" title="Crear corrida">+ Corrida</button>
-</div>
-<div class="proy-historial-filtros" id="proyCorridasFiltros">
-<label>Estado
-<select id="proyCorridasEstado" aria-label="Filtrar corridas por estado">
-<option value="">Todos</option>
-<option value="en_curso">en_curso</option>
-<option value="esperando">esperando</option>
-<option value="terminada">terminada</option>
-<option value="error">error</option>
-</select>
-</label>
-<label>Negocio
-<input type="text" id="proyCorridasNegocio" aria-label="Filtrar por negocio" placeholder="pelo-sur" autocomplete="off">
-</label>
-<label>Flujo
-<input type="text" id="proyCorridasFlujo" aria-label="Filtrar por flujo_id" placeholder="reservas-descubrir-mapear" autocomplete="off">
-</label>
-<button type="button" class="btn" id="btnProyCorridasFiltrar">Filtrar</button>
-</div>
-<p class="ancla-ficha-vacio" id="proyCorridasEstadoMsg" hidden>Cargando corridas…</p>
-<div class="tabla-scroll" id="proyCorridasTablaWrap" hidden>
-<table class="proy-historial-tabla" id="proyCorridasTabla">
-<thead>
-<tr><th>Negocio</th><th>Estado</th><th>Flujo</th><th>Creada</th><th>Paso</th></tr>
-</thead>
-<tbody id="proyCorridasBody"></tbody>
-</table>
-</div>
-<div class="proy-historial-pager" id="proyCorridasPager" hidden>
-<button type="button" class="btn" id="btnProyCorridasPrev" hidden>Anterior</button>
-<span id="proyCorridasPagerInfo" class="ajustes-hint" style="margin:0"></span>
-<button type="button" class="btn" id="btnProyCorridasNext" hidden>Siguiente</button>
-</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelEmpujar" role="tabpanel" aria-labelledby="proyTabEmpujar" hidden>
 <p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run). Usa el botón <strong>Empujar esquema</strong> arriba o el de esta pestaña.</p>
@@ -875,9 +835,40 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <ul id="flujoVersionesLista" class="flujo-nodos-lista"></ul>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelCorridas" role="tabpanel" aria-labelledby="flujoTabCorridas" hidden>
-<p class="ajustes-hint">Corridas de este flujo (filtro <code>flujo_id</code>). Clic abre el detalle; el historial completo sigue en la ficha Base de datos → Corridas.</p>
-<p class="ancla-ficha-vacio" id="flujoCorridasEstado" hidden>Cargando…</p>
-<div id="flujoCorridasLista" class="proy-tab-catalogo"></div>
+<p class="ajustes-hint">Historial de ejecución (tipo C) de este flujo: instancias por negocio. Clic en una fila para ver pasos, datos y errores. «+ Corrida» arranca el bucle (n8n u otro agente sigue con /siguiente + salidas).</p>
+<div class="editar-anclas-top" style="margin-bottom:0.75rem">
+<span class="historial-titulo">Corridas</span>
+<button type="button" class="btn" id="btnFlujoNuevaCorrida" title="Crear corrida de este flujo">+ Corrida</button>
+</div>
+<div class="proy-historial-filtros" id="flujoCorridasFiltros">
+<label>Estado
+<select id="flujoCorridasEstadoFiltro" aria-label="Filtrar corridas por estado">
+<option value="">Todos</option>
+<option value="en_curso">en_curso</option>
+<option value="esperando">esperando</option>
+<option value="terminada">terminada</option>
+<option value="error">error</option>
+</select>
+</label>
+<label>Negocio
+<input type="text" id="flujoCorridasNegocio" aria-label="Filtrar por negocio" placeholder="pelo-sur" autocomplete="off">
+</label>
+<button type="button" class="btn" id="btnFlujoCorridasFiltrar">Filtrar</button>
+</div>
+<p class="ancla-ficha-vacio" id="flujoCorridasEstado" hidden>Cargando corridas…</p>
+<div class="tabla-scroll" id="flujoCorridasTablaWrap" hidden>
+<table class="proy-historial-tabla" id="flujoCorridasTabla">
+<thead>
+<tr><th>Negocio</th><th>Estado</th><th>Creada</th><th>Paso</th></tr>
+</thead>
+<tbody id="flujoCorridasBody"></tbody>
+</table>
+</div>
+<div class="proy-historial-pager" id="flujoCorridasPager" hidden>
+<button type="button" class="btn" id="btnFlujoCorridasPrev" hidden>Anterior</button>
+<span id="flujoCorridasPagerInfo" class="ajustes-hint" style="margin:0"></span>
+<button type="button" class="btn" id="btnFlujoCorridasNext" hidden>Siguiente</button>
+</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelInterno" role="tabpanel" aria-labelledby="flujoTabInterno" hidden>
 <dl class="ancla-ficha-dl">
@@ -1797,8 +1788,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="fundamentos-ui.js?v=20261023color2"></script>
 <script src="system-prompts-ui.js?v=20261023color2"></script>
 <script src="system-prompts-catalog.js?v=20261023picker1"></script>
-<script src="catalogo-ui.js?v=20261023color2"></script>
-<script src="flujos-corridas-ui.js?v=20261023color2"></script>
+<script src="catalogo-ui.js?v=20261023corridas-flujo"></script>
+<script src="flujos-corridas-ui.js?v=20261023corridas-flujo"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>
