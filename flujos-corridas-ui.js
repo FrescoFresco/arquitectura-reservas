@@ -35,7 +35,9 @@
     flujoDispFormOpen: false,
     flujoEventos: [],
     flujoEventosToken: 0,
-    flujoCorrSub: 'corridas'
+    flujoCorrSub: 'corridas',
+    dispValidacionOk: false,
+    flujoValidacionOk: false
   };
 
   function apiBase() {
@@ -795,6 +797,16 @@
     if (dEl) dEl.value = f.descripcion || '';
     if (noEl) noEl.value = JSON.stringify(f.nodos || [], null, 2);
     if (arEl) arEl.value = JSON.stringify(f.aristas || [], null, 2);
+    var defEl = document.getElementById('flujoRedactorDefinicion');
+    if (defEl) {
+      defEl.value = JSON.stringify({ nodos: f.nodos || [], aristas: f.aristas || [] }, null, 2);
+    }
+    var intEl = document.getElementById('flujoRedactorIntencion');
+    if (intEl) intEl.value = '';
+    var meta = document.getElementById('flujoRedactorMeta');
+    if (meta) meta.hidden = true;
+    // Edición de flujo existente: permitir Guardar; Generar/Probar revalidan
+    setFlujoGuardarEnabled(true);
   }
 
   function labelTipoDisp(tipo) {
@@ -1003,6 +1015,241 @@
     return body;
   }
 
+  function setDispGuardarEnabled(ok) {
+    st.dispValidacionOk = !!ok;
+    var btn = document.getElementById('btnFlujoDispGuardar');
+    if (btn) btn.disabled = !ok;
+  }
+
+  function setFlujoGuardarEnabled(ok) {
+    st.flujoValidacionOk = !!ok;
+    var btn = document.getElementById('btnGuardarFlujoVersion');
+    if (btn) btn.disabled = !ok;
+  }
+
+  function pintarRedactorMeta(elId, data) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    var val = (data && data.validacion) || {};
+    var errores = val.errores || [];
+    var avisos = val.avisos || [];
+    var lines = [];
+    if (data && data.explicacion) lines.push('Explicación · ' + data.explicacion);
+    if (data && data.modo) lines.push('Modo · ' + data.modo + (data.modelo ? ' (' + data.modelo + ')' : ''));
+    if (data && data.nota) lines.push('Nota · ' + data.nota);
+    if (errores.length) lines.push('Errores · ' + errores.join('; '));
+    else lines.push('Validación · OK');
+    if (avisos.length) lines.push('Avisos · ' + avisos.join('; '));
+    if (data && data.prueba) lines.push('Prueba · ' + data.prueba);
+    el.hidden = false;
+    el.classList.toggle('is-err', errores.length > 0);
+    el.classList.toggle('is-ok', errores.length === 0);
+    el.textContent = lines.join('\n');
+  }
+
+  function aplicarDefinicionDisparador(def) {
+    if (!def || typeof def !== 'object') return;
+    var tipoEl = document.getElementById('flujoDispTipo');
+    if (tipoEl && def.tipo) tipoEl.value = def.tipo;
+    syncDispCamposPorTipo();
+    var cron = document.getElementById('flujoDispCron');
+    if (cron && def.cron != null) cron.value = String(def.cron);
+    var colH = document.getElementById('flujoDispColeccionH');
+    if (colH && def.coleccion != null) colH.value = String(def.coleccion);
+    var colC = document.getElementById('flujoDispColeccionC');
+    if (colC && def.coleccion != null) colC.value = String(def.coleccion);
+    var ops = document.getElementById('flujoDispOps');
+    if (ops && def.operaciones != null) ops.value = JSON.stringify(def.operaciones);
+    var neg = document.getElementById('flujoDispNegocio');
+    if (neg && def.negocio != null) neg.value = String(def.negocio);
+    var anti = document.getElementById('flujoDispAnti');
+    if (anti && def.anti_bucle != null) anti.value = def.anti_bucle === false ? 'false' : 'true';
+    var agr = document.getElementById('flujoDispAgrupar');
+    if (agr && def.agrupar_segundos != null) agr.value = String(def.agrupar_segundos);
+    var pipe = document.getElementById('flujoDispPipeline');
+    if (pipe) pipe.value = JSON.stringify(def.pipeline || [], null, 2);
+    var idEl = document.getElementById('flujoDispId');
+    if (idEl && def.id && !st.flujoDispEditId) idEl.value = String(def.id);
+  }
+
+  function definicionActualDisparador() {
+    try {
+      var raw = (document.getElementById('dispRedactorDefinicion') || {}).value || '';
+      if (raw.trim()) return JSON.parse(raw);
+    } catch (e) {
+      /* fall through */
+    }
+    try {
+      return leerFormDisparador();
+    } catch (e2) {
+      return null;
+    }
+  }
+
+  function generarRedactorDisparador() {
+    var intencion = String((document.getElementById('dispRedactorIntencion') || {}).value || '').trim();
+    if (!intencion) {
+      pintarRedactorMeta('dispRedactorMeta', {
+        explicacion: 'Escribe una intención.',
+        validacion: { ok: false, errores: ['Falta intención'], avisos: [] }
+      });
+      setDispGuardarEnabled(false);
+      return;
+    }
+    pintarRedactorMeta('dispRedactorMeta', {
+      explicacion: 'Generando…',
+      validacion: { ok: true, errores: [], avisos: [] }
+    });
+    var defActual = definicionActualDisparador();
+    Promise.resolve()
+      .then(function () {
+        return typeof window.asegurarClaveCatalogo === 'function'
+          ? window.asegurarClaveCatalogo()
+          : null;
+      })
+      .then(function () {
+        return window.apiFetchAuth('/v1/redactor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            intencion: intencion,
+            tipo_definicion: 'disparador',
+            definicion_actual: defActual,
+            origen: 'panel-disparador'
+          })
+        });
+      })
+      .then(function (data) {
+        if (!data || data.ok === false) throw new Error((data && data.error) || 'Error redactor');
+        var defEl = document.getElementById('dispRedactorDefinicion');
+        if (defEl) defEl.value = JSON.stringify(data.definicion, null, 2);
+        aplicarDefinicionDisparador(data.definicion);
+        pintarRedactorMeta('dispRedactorMeta', data);
+        setDispGuardarEnabled(data.validacion && data.validacion.ok);
+      })
+      .catch(function (err) {
+        pintarRedactorMeta('dispRedactorMeta', {
+          explicacion: err.message || String(err),
+          validacion: { ok: false, errores: [err.message || 'Error'], avisos: [] }
+        });
+        setDispGuardarEnabled(false);
+      });
+  }
+
+  function generarRedactorFlujo() {
+    var intencion = String((document.getElementById('flujoRedactorIntencion') || {}).value || '').trim();
+    if (!intencion) {
+      pintarRedactorMeta('flujoRedactorMeta', {
+        explicacion: 'Escribe una intención.',
+        validacion: { ok: false, errores: ['Falta intención'], avisos: [] }
+      });
+      setFlujoGuardarEnabled(false);
+      return;
+    }
+    var nodosRaw = (document.getElementById('flujoEditNodos') || {}).value || '[]';
+    var aristasRaw = (document.getElementById('flujoEditAristas') || {}).value || '[]';
+    var defActual = null;
+    try {
+      defActual = { nodos: JSON.parse(nodosRaw), aristas: JSON.parse(aristasRaw) };
+    } catch (e) {
+      defActual = null;
+    }
+    pintarRedactorMeta('flujoRedactorMeta', {
+      explicacion: 'Generando…',
+      validacion: { ok: true, errores: [], avisos: [] }
+    });
+    Promise.resolve()
+      .then(function () {
+        return typeof window.asegurarClaveCatalogo === 'function'
+          ? window.asegurarClaveCatalogo()
+          : null;
+      })
+      .then(function () {
+        return window.apiFetchAuth('/v1/redactor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            intencion: intencion,
+            tipo_definicion: 'flujo',
+            definicion_actual: defActual,
+            origen: 'panel-flujo'
+          })
+        });
+      })
+      .then(function (data) {
+        if (!data || data.ok === false) throw new Error((data && data.error) || 'Error redactor');
+        var defEl = document.getElementById('flujoRedactorDefinicion');
+        if (defEl) defEl.value = JSON.stringify(data.definicion, null, 2);
+        var def = data.definicion || {};
+        var noEl = document.getElementById('flujoEditNodos');
+        var arEl = document.getElementById('flujoEditAristas');
+        if (noEl && def.nodos) noEl.value = JSON.stringify(def.nodos, null, 2);
+        if (arEl && def.aristas) arEl.value = JSON.stringify(def.aristas, null, 2);
+        pintarRedactorMeta('flujoRedactorMeta', data);
+        setFlujoGuardarEnabled(data.validacion && data.validacion.ok);
+      })
+      .catch(function (err) {
+        pintarRedactorMeta('flujoRedactorMeta', {
+          explicacion: err.message || String(err),
+          validacion: { ok: false, errores: [err.message || 'Error'], avisos: [] }
+        });
+        setFlujoGuardarEnabled(false);
+      });
+  }
+
+  function probarRedactorFlujoLocal() {
+    var raw = (document.getElementById('flujoRedactorDefinicion') || {}).value || '';
+    var nodosRaw = (document.getElementById('flujoEditNodos') || {}).value || '';
+    var aristasRaw = (document.getElementById('flujoEditAristas') || {}).value || '';
+    var def;
+    try {
+      def = raw.trim() ? JSON.parse(raw) : { nodos: JSON.parse(nodosRaw), aristas: JSON.parse(aristasRaw) };
+    } catch (e) {
+      pintarRedactorMeta('flujoRedactorMeta', {
+        explicacion: 'JSON inválido',
+        validacion: { ok: false, errores: [e.message || String(e)], avisos: [] },
+        prueba: 'falló'
+      });
+      setFlujoGuardarEnabled(false);
+      return;
+    }
+    var nodos = def.nodos || [];
+    var aristas = def.aristas || [];
+    var errores = [];
+    if (!Array.isArray(nodos) || !nodos.length) errores.push('nodos vacío');
+    if (!Array.isArray(aristas) || !aristas.length) errores.push('aristas vacío');
+    var ids = {};
+    (nodos || []).forEach(function (n) {
+      if (n && n.id) ids[n.id] = n;
+    });
+    if (!Object.keys(ids).some(function (k) { return ids[k].tipo === 'inicio'; })) {
+      errores.push('falta inicio');
+    }
+    if (!Object.keys(ids).some(function (k) { return ids[k].tipo === 'fin'; })) {
+      errores.push('falta fin');
+    }
+    (aristas || []).forEach(function (a) {
+      if (!a || !ids[a.desde] || !ids[a.hacia]) {
+        errores.push('arista inválida ' + ((a && a.desde) || '?') + '→' + ((a && a.hacia) || '?'));
+      }
+    });
+    var ok = errores.length === 0;
+    if (ok && nodos.length && aristas.length) {
+      var noEl = document.getElementById('flujoEditNodos');
+      var arEl = document.getElementById('flujoEditAristas');
+      if (noEl) noEl.value = JSON.stringify(nodos, null, 2);
+      if (arEl) arEl.value = JSON.stringify(aristas, null, 2);
+    }
+    pintarRedactorMeta('flujoRedactorMeta', {
+      explicacion: 'Validación de nodos/aristas (sin crear corrida). Confirma tú con Guardar versión.',
+      validacion: { ok: ok, errores: errores, avisos: [] },
+      prueba: ok
+        ? 'estructura OK · ' + nodos.length + ' nodos · ' + aristas.length + ' aristas'
+        : 'estructura inválida'
+    });
+    setFlujoGuardarEnabled(ok);
+  }
+
   function abrirFormDisparador(d) {
     st.flujoDispFormOpen = true;
     st.flujoDispEditId = d && d.id ? d.id : null;
@@ -1051,11 +1298,39 @@
       out.hidden = true;
       out.textContent = '';
     }
+    var intEl = document.getElementById('dispRedactorIntencion');
+    if (intEl) intEl.value = '';
+    var defEl = document.getElementById('dispRedactorDefinicion');
+    if (defEl) {
+      if (d) {
+        defEl.value = JSON.stringify(
+          {
+            tipo: d.tipo,
+            cron: d.cron,
+            coleccion: d.coleccion,
+            operaciones: d.operaciones,
+            pipeline: d.pipeline || [],
+            anti_bucle: d.anti_bucle !== false,
+            agrupar_segundos: d.agrupar_segundos || 0,
+            negocio: d.negocio || ''
+          },
+          null,
+          2
+        );
+      } else {
+        defEl.value = '';
+      }
+    }
+    var meta = document.getElementById('dispRedactorMeta');
+    if (meta) meta.hidden = true;
+    // Edición de disparador ya guardado: permitir Guardar; nuevo: exige Generar/validar
+    setDispGuardarEnabled(!!d);
   }
 
   function cerrarFormDisparador() {
     st.flujoDispFormOpen = false;
     st.flujoDispEditId = null;
+    setDispGuardarEnabled(false);
     var wrap = document.getElementById('flujoDisparadorFormWrap');
     if (wrap) wrap.hidden = true;
   }
@@ -1175,10 +1450,18 @@
           out.textContent = lines.join('\n');
         }
         setDispMsg('Prueba lista (no se creó nada)', false);
+        var okPrueba = !(data && data.error);
+        setDispGuardarEnabled(okPrueba);
+        pintarRedactorMeta('dispRedactorMeta', {
+          explicacion: 'Dry-run del pipeline (no crea corridas).',
+          validacion: { ok: okPrueba, errores: data && data.error ? [String(data.error)] : [], avisos: [] },
+          prueba: lines[0]
+        });
       })
       .catch(function (err) {
         var raw = err && err.data ? err.data : null;
         setDispMsg((raw && raw.error) || err.message || 'Error al probar', true);
+        setDispGuardarEnabled(false);
         if (out) {
           out.hidden = false;
           out.textContent = JSON.stringify(raw || { error: err.message }, null, 2);
@@ -1991,6 +2274,12 @@
     if (btnDispCancel) btnDispCancel.addEventListener('click', cerrarFormDisparador);
     var btnDispProbar = document.getElementById('btnFlujoDispProbar');
     if (btnDispProbar) btnDispProbar.addEventListener('click', probarDisparadorForm);
+    var btnDispGen = document.getElementById('btnDispRedactorGenerar');
+    if (btnDispGen) btnDispGen.addEventListener('click', generarRedactorDisparador);
+    var btnFlujoGen = document.getElementById('btnFlujoRedactorGenerar');
+    if (btnFlujoGen) btnFlujoGen.addEventListener('click', generarRedactorFlujo);
+    var btnFlujoProbarR = document.getElementById('btnFlujoRedactorProbar');
+    if (btnFlujoProbarR) btnFlujoProbarR.addEventListener('click', probarRedactorFlujoLocal);
     var btnCopyUrl = document.getElementById('btnFlujoDispCopiarUrl');
     if (btnCopyUrl) {
       btnCopyUrl.addEventListener('click', function () {

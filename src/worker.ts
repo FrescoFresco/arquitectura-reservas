@@ -115,6 +115,14 @@ import {
   type EventoDoc,
   type MotorDeps,
 } from './eventos-motor';
+import {
+  generarDefinicion,
+  isTipoDefinicion,
+  registrarEjecucionSkill,
+  esquemaParaTipo,
+  REDACTOR_SKILL_ID,
+  type RedactorContexto,
+} from './redactor';
 
 export type Env = {
   DB: D1Database;
@@ -130,6 +138,10 @@ export type Env = {
    * Prefer `wrangler secret put ENCRYPTION_KEY`. Required to save/load stored URI.
    */
   ENCRYPTION_KEY?: string;
+  /** OpenAI API key for Redactor (skill generar-definicion). Optional — mock if absent. */
+  OPENAI_API_KEY?: string;
+  /** OpenAI model id (default gpt-4o-mini). */
+  OPENAI_MODEL?: string;
 };
 
 type ResolvedMongo = {
@@ -1118,6 +1130,136 @@ app.post('/v1/disparadores/:id/probar', async (c) => {
     disparador_id: d.id,
   };
   return responderProbarDisparador(c, flujo.proyecto_id, merged);
+});
+
+/**
+ * Redactor — intención → definición JSON (skill generar-definicion).
+ * Body: { intencion, tipo_definicion, definicion_actual?, origen? }
+ * → { ok, definicion, explicacion, validacion, modo, ejecucion_id }
+ * Sin OPENAI_API_KEY: mock heurístico + validación (no bloquea la fase).
+ */
+app.post('/v1/redactor', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const intencion = String(body.intencion || '').trim();
+  const tipoRaw = String(body.tipo_definicion || body.tipo || '').trim();
+  if (!intencion) return jsonError(c, 400, 'Falta intencion.');
+  if (!isTipoDefinicion(tipoRaw)) {
+    return jsonError(c, 400, 'tipo_definicion inválido (disparador|flujo|pipeline).');
+  }
+  const origen = String(body.origen || 'api').trim() || 'api';
+
+  const [anclaRows, skillRows, flujoRows, campoRows] = await Promise.all([
+    c.env.DB.prepare('SELECT ancla FROM anclas ORDER BY ancla').all(),
+    c.env.DB.prepare('SELECT id FROM skills ORDER BY id').all(),
+    c.env.DB.prepare('SELECT id FROM flujos ORDER BY id').all(),
+    c.env.DB.prepare(
+      "SELECT DISTINCT coleccion FROM campos_mongo WHERE coleccion IS NOT NULL AND coleccion != '' ORDER BY coleccion"
+    ).all(),
+  ]);
+  const contexto: RedactorContexto = {
+    anclas: (anclaRows.results || []).map((r) => String((r as { ancla: string }).ancla)),
+    skills: (skillRows.results || []).map((r) => String((r as { id: string }).id)),
+    flujos: (flujoRows.results || []).map((r) => String((r as { id: string }).id)),
+    colecciones: (campoRows.results || []).map((r) => String((r as { coleccion: string }).coleccion)),
+  };
+  if (!contexto.colecciones.length) {
+    contexto.colecciones = ['negocios', 'reservas', 'procesos', 'versiones', 'ejecuciones'];
+  }
+
+  const result = await generarDefinicion({
+    intencion,
+    tipo: tipoRaw,
+    contexto,
+    definicionActual: body.definicion_actual !== undefined ? body.definicion_actual : body.definicionActual,
+    openaiKey: c.env.OPENAI_API_KEY,
+    openaiModel: c.env.OPENAI_MODEL,
+  });
+
+  const entrada = {
+    intencion,
+    tipo_definicion: tipoRaw,
+    esquema: esquemaParaTipo(tipoRaw),
+    contexto,
+    definicion_actual: body.definicion_actual ?? body.definicionActual ?? null,
+  };
+  const salida = {
+    definicion: result.definicion,
+    explicacion: result.explicacion,
+    validacion: result.validacion,
+    modo: result.modo,
+    modelo: result.modelo || null,
+  };
+
+  let ejecucionId: string | null = null;
+  try {
+    ejecucionId = await registrarEjecucionSkill(c.env.DB, entrada, salida, {
+      modo: result.modo,
+      ok: result.validacion.ok,
+      origen,
+    });
+  } catch (err) {
+    console.warn('skill_ejecuciones insert failed', err instanceof Error ? err.message : err);
+  }
+
+  return c.json({
+    ok: true,
+    skill: REDACTOR_SKILL_ID,
+    definicion: result.definicion,
+    explicacion: result.explicacion,
+    validacion: result.validacion,
+    modo: result.modo,
+    modelo: result.modelo || null,
+    ejecucion_id: ejecucionId,
+    nota:
+      result.modo === 'mock'
+        ? 'Sin OPENAI_API_KEY (wrangler secret put OPENAI_API_KEY). Mock heurístico + validación.'
+        : undefined,
+  });
+});
+
+app.get('/v1/skills/:id/ejecuciones', async (c) => {
+  const skillId = c.req.param('id');
+  const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 20) || 20));
+  try {
+    const rows = await c.env.DB.prepare(
+      'SELECT id, skill_id, origen, modo, ok, entrada_json, salida_json, creado FROM skill_ejecuciones WHERE skill_id = ? ORDER BY creado DESC LIMIT ?'
+    )
+      .bind(skillId, limit)
+      .all();
+    const ejecuciones = (rows.results || []).map((r) => {
+      const row = r as Record<string, unknown>;
+      let entrada: unknown = {};
+      let salida: unknown = {};
+      try {
+        entrada = JSON.parse(String(row.entrada_json || '{}'));
+      } catch {
+        /* ignore */
+      }
+      try {
+        salida = JSON.parse(String(row.salida_json || '{}'));
+      } catch {
+        /* ignore */
+      }
+      return {
+        id: row.id,
+        skill_id: row.skill_id,
+        origen: row.origen,
+        modo: row.modo,
+        ok: Number(row.ok) === 1,
+        entrada,
+        salida,
+        creado: row.creado,
+      };
+    });
+    return c.json({ ok: true, skill_id: skillId, ejecuciones });
+  } catch {
+    return c.json({
+      ok: true,
+      skill_id: skillId,
+      ejecuciones: [],
+      nota: 'tabla skill_ejecuciones no disponible',
+    });
+  }
 });
 
 /** Ops/smoke: ejecuta el tick horario ahora (mismo código que el Cron Trigger CF). */
