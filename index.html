@@ -54,12 +54,11 @@
 .btn-anadir{display:inline-flex;align-items:center;gap:8px}
 .btn-anadir-plus{font-weight:800;line-height:1;font-size:15px}
 .btn-anadir-svg{width:16px;height:16px;display:block;flex:none}
-.proy-skills-picker{display:flex;flex-direction:column;gap:8px;margin:0}
-.proy-skills-picker label{display:flex;align-items:flex-start;gap:10px;margin:0;padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff;cursor:pointer;font-weight:600}
-.proy-skills-picker label:hover{background:#f5f8fc;border-color:#c9d5e8}
-.proy-skills-picker input{margin:3px 0 0;flex:none}
-.proy-skills-picker .proy-skill-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
-.proy-skills-picker .proy-skill-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:#315eb6}
+/* Pickers de asociación: mismas filas catalogo-fila que Catálogos */
+.proy-skills-picker,.catalogo-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch;margin:0;max-height:min(50vh,420px);overflow:auto;padding:2px}
+.proy-skills-picker:not(:has(.catalogo-fila)),.catalogo-picker:not(:has(.catalogo-fila)){display:block}
+.catalogo-fila.is-selected{border-color:#9db7ea;background:#f8fbff;box-shadow:0 0 0 3px #e7efff}
+@media(max-width:800px){.proy-skills-picker,.catalogo-picker{grid-template-columns:1fr}}
 .agente-avatar{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#edf3ff;color:#1c63d5;font-size:14px;font-weight:800;overflow:hidden}
 .agente-avatar-img{width:100%;height:100%;object-fit:cover;display:block}
 .agente-ficha-avatar{font-size:16px;font-weight:800;overflow:hidden}
@@ -844,7 +843,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </form>
 </dialog>
-<dialog id="dlgEditarProyectoSkills" aria-labelledby="dlgEditarProyectoSkillsTitulo">
+<dialog id="dlgEditarProyectoSkills" class="dlg-wide" aria-labelledby="dlgEditarProyectoSkillsTitulo">
 <form class="dlg" id="formEditarProyectoSkills">
 <h3 id="dlgEditarProyectoSkillsTitulo">Skills de la base de datos</h3>
 <p class="nota">Marca las skills del catálogo asociadas a esta base de datos. Guardar actualiza la lista; no crea una versión del documento.</p>
@@ -1318,7 +1317,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </form>
 </dialog>
-<dialog id="dlgEditarSystemPromptSkills" aria-labelledby="dlgEditarSystemPromptSkillsTitulo">
+<dialog id="dlgEditarSystemPromptSkills" class="dlg-wide" aria-labelledby="dlgEditarSystemPromptSkillsTitulo">
 <form class="dlg" id="formEditarSystemPromptSkills">
 <h3 id="dlgEditarSystemPromptSkillsTitulo">Skills del system prompt</h3>
 <p class="nota">Puedes asociar muchas skills. Si una skill ya tiene otro prompt, se <strong>moverá</strong> a este.</p>
@@ -1330,7 +1329,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </form>
 </dialog>
-<dialog id="dlgEditarSkillSystemPrompt" aria-labelledby="dlgEditarSkillSystemPromptTitulo">
+<dialog id="dlgEditarSkillSystemPrompt" class="dlg-wide" aria-labelledby="dlgEditarSkillSystemPromptTitulo">
 <form class="dlg" id="formEditarSkillSystemPrompt">
 <h3 id="dlgEditarSkillSystemPromptTitulo">System prompt de la skill</h3>
 <p class="nota">Elige como máximo uno. Si ya tenía otro, se sustituye.</p>
@@ -1439,9 +1438,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="colecciones-ui.js?v=20261022tabs1"></script>
 <script src="agentes-ui.js?v=20261022colclick2"></script>
 <script src="fundamentos-ui.js?v=20261020z"></script>
-<script src="system-prompts-ui.js?v=20261023sp4"></script>
-<script src="system-prompts-catalog.js?v=20261023sp4"></script>
-<script src="catalogo-ui.js?v=20261023sp4"></script>
+<script src="system-prompts-ui.js?v=20261023picker1"></script>
+<script src="system-prompts-catalog.js?v=20261023picker1"></script>
+<script src="catalogo-ui.js?v=20261023picker1"></script>
 <script src="ajustes-ui.js?v=20261022ajag1"></script>
 
 </body>
