@@ -212,12 +212,26 @@ export const API_DOCS_INDEX = {
       summary: 'Dry-run de un disparador existente (opcional override body)',
     },
     {
+      method: 'GET',
+      path: '/v1/redactor',
+      auth: false,
+      summary:
+        'Contrato Redactor (público). Generar = POST + Bearer; sin auth en POST → 401 (no 404)',
+    },
+    {
       method: 'POST',
       path: '/v1/redactor',
       auth: true,
       body: ['intencion', 'tipo_definicion', 'definicion_actual?', 'origen?'],
       summary:
         'Redactor: intención → definición (skill generar-definicion); mock si no hay OPENAI_API_KEY',
+    },
+    {
+      method: 'POST',
+      path: '/v1/interno/corridas-stale-tick',
+      auth: true,
+      summary:
+        'Ops: marcar corridas en_curso caducadas (timeout_sin_avance; mismo tick que el cron CF)',
     },
     {
       method: 'GET',

@@ -87,7 +87,10 @@ import {
   type FlujoVersionDoc,
 } from './flujos';
 import {
+  applyCorridaStaleTimeout,
+  DEFAULT_CORRIDA_STALE_MS,
   ensurePasoPendiente,
+  isCorridaStaleByUpdatedAt,
   markPasoHecho,
   newCorridaId,
   publicCorrida,
@@ -142,6 +145,11 @@ export type Env = {
   OPENAI_API_KEY?: string;
   /** OpenAI model id (default gpt-4o-mini). */
   OPENAI_MODEL?: string;
+  /**
+   * Ms sin actualización en corrida `en_curso` antes de marcarla `error` (timeout_sin_avance).
+   * Default 10800000 (3h). Solo afecta en_curso; no toca esperando (humano/subflujo).
+   */
+  CORRIDA_STALE_MS?: string;
 };
 
 type ResolvedMongo = {
@@ -776,13 +784,14 @@ app.post('/v1/flujos', async (c) => {
     nombre?: string;
     descripcion?: string;
     proyecto_id?: string;
+    proyectoId?: string;
     proyecto?: string;
     nodos?: unknown;
     aristas?: unknown;
   };
   const id = String(body.id || '').trim();
   const nombre = String(body.nombre || '').trim();
-  const proyectoId = String(body.proyecto_id || body.proyecto || '').trim();
+  const proyectoId = String(body.proyecto_id || body.proyectoId || body.proyecto || '').trim();
   if (!id || !ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
   if (!nombre) return jsonError(c, 400, 'Falta nombre.');
   if (!proyectoId || !ID_RE.test(proyectoId)) return jsonError(c, 400, 'proyecto_id inválido.');
@@ -1133,6 +1142,34 @@ app.post('/v1/disparadores/:id/probar', async (c) => {
 });
 
 /**
+ * Contrato Redactor (público). Evita 404 si se abre GET en el navegador /
+ * exploradores que asumen GET; la generación es POST + Bearer.
+ */
+app.get('/v1/redactor', (c) =>
+  c.json({
+    ok: true,
+    skill: REDACTOR_SKILL_ID,
+    method: 'POST',
+    path: '/v1/redactor',
+    auth: 'Authorization: Bearer inv_… (obligatorio en POST; sin Bearer → 401, no 404)',
+    body: {
+      intencion: 'string',
+      tipo_definicion: 'disparador|flujo|pipeline',
+      definicion_actual: 'object? (opcional)',
+      origen: 'string? (panel-disparador|panel-flujo|api)',
+    },
+    response: {
+      definicion: 'object|array',
+      explicacion: 'string',
+      validacion: { ok: 'boolean', errores: 'string[]', avisos: 'string[]' },
+      modo: 'openai|mock',
+      ejecucion_id: 'string?',
+    },
+    nota: 'Sin OPENAI_API_KEY responde mock heurístico + validación. La IA no guarda sola.',
+  })
+);
+
+/**
  * Redactor — intención → definición JSON (skill generar-definicion).
  * Body: { intencion, tipo_definicion, definicion_actual?, origen? }
  * → { ok, definicion, explicacion, validacion, modo, ejecucion_id }
@@ -1276,6 +1313,22 @@ app.post('/v1/interno/horario-tick', async (c) => {
     return c.json({ ok: true, ...r });
   } catch (err) {
     return jsonError(c, 502, err instanceof Error ? err.message : 'tick falló');
+  }
+});
+
+/** Ops/smoke: marca corridas en_curso caducadas (mismo código que el Cron Trigger CF).
+ * Body opcional: { stale_ms?: number } para override puntual (p. ej. pruebas). */
+app.post('/v1/interno/corridas-stale-tick', async (c) => {
+  try {
+    const body = (await c.req.json().catch(() => ({}))) as { stale_ms?: number };
+    const override =
+      body.stale_ms != null && Number.isFinite(Number(body.stale_ms))
+        ? Number(body.stale_ms)
+        : undefined;
+    const r = await runCorridasStaleTick(c.env, new Date(), override);
+    return c.json({ ok: true, ...r });
+  } catch (err) {
+    return jsonError(c, 502, err instanceof Error ? err.message : 'stale tick falló');
   }
 });
 
@@ -3884,6 +3937,7 @@ export default {
         motorDeps(env)
       ).catch((err) => console.error('horario tick', err))
     );
+    ctx.waitUntil(runCorridasStaleTick(env).catch((err) => console.error('corridas stale tick', err)));
   },
 };
 
@@ -4563,6 +4617,56 @@ async function upsertCorridasIndex(db: D1Database, doc: CorridaDoc) {
     )
     .bind(doc._id, doc.proyecto_id, doc.flujo_id, doc.negocio, doc.estado, doc.actualizada)
     .run();
+}
+
+function corridaStaleMs(env: Env): number {
+  const raw = env.CORRIDA_STALE_MS != null ? Number(env.CORRIDA_STALE_MS) : NaN;
+  if (Number.isFinite(raw) && raw >= 60_000) return raw;
+  return DEFAULT_CORRIDA_STALE_MS;
+}
+
+/**
+ * Cron: corridas `en_curso` sin actualización ≥ CORRIDA_STALE_MS → estado `error`
+ * (timeout_sin_avance). No borra documentos; no toca `esperando`.
+ */
+async function runCorridasStaleTick(
+  env: Env,
+  at: Date = new Date(),
+  staleMsOverride?: number
+): Promise<{ scanned: number; marked: string[]; stale_ms: number }> {
+  const staleMs =
+    staleMsOverride != null && Number.isFinite(staleMsOverride) && staleMsOverride >= 60_000
+      ? staleMsOverride
+      : corridaStaleMs(env);
+  const cutoff = new Date(at.getTime() - staleMs).toISOString();
+  const rows = await env.DB.prepare(
+    `SELECT id, proyecto_id, updated_at FROM corridas_index
+     WHERE estado = 'en_curso' AND updated_at < ?
+     ORDER BY updated_at ASC LIMIT 50`
+  )
+    .bind(cutoff)
+    .all<{ id: string; proyecto_id: string; updated_at: string }>();
+  const list = rows.results || [];
+  const marked: string[] = [];
+  const nowMs = at.getTime();
+  const ts = at.toISOString();
+
+  for (const row of list) {
+    if (!isCorridaStaleByUpdatedAt(row.updated_at, nowMs, staleMs)) continue;
+    const loaded = await loadCorridaDoc(env, row.id);
+    if (!loaded.ok) continue;
+    const doc = loaded.doc;
+    if (doc.estado !== 'en_curso') {
+      await upsertCorridasIndex(env.DB, doc);
+      continue;
+    }
+    if (!isCorridaStaleByUpdatedAt(doc.actualizada, nowMs, staleMs)) continue;
+    const next = applyCorridaStaleTimeout(doc, ts);
+    await saveCorridaDoc(env, next);
+    marked.push(doc._id);
+  }
+
+  return { scanned: list.length, marked, stale_ms: staleMs };
 }
 
 async function saveCorridaDoc(env: Env, doc: CorridaDoc): Promise<void> {
