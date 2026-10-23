@@ -68,6 +68,21 @@ import {
   unionAnclas,
   type AnclaMongoMap,
 } from './skill-io';
+import {
+  avanzarDesde,
+  findNodo,
+  parseAristas,
+  parseNodos,
+  primerPasoEjecutable,
+  type FlujoVersionDoc,
+} from './flujos';
+import {
+  ensurePasoPendiente,
+  markPasoHecho,
+  newCorridaId,
+  publicCorrida,
+  type CorridaDoc,
+} from './corridas';
 
 export type Env = {
   DB: D1Database;
@@ -454,7 +469,9 @@ app.get('/v1/ejecutar/:skillId/entradas', async (c) => {
 
 /**
  * Escribe valores en las anclas de salida de una skill → Mongo.
- * Auth: Bearer inv_…  Body: { negocio, valores: { "_ancla_": valor } }
+ * Auth: Bearer inv_…  Body: { negocio, valores: { "_ancla_": valor }, corrida_id?, nodo_id? }
+ * Con corrida_id + nodo_id: además copia a corrida.datos, marca paso hecho y avanza el flujo.
+ * Sin corrida_id: comportamiento previo (sin romper).
  * 400 si alguna ancla no está en salidas de la skill.
  */
 app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
@@ -463,6 +480,8 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
     negocio?: string;
     negocio_id?: string;
     valores?: Record<string, unknown>;
+    corrida_id?: string;
+    nodo_id?: string;
   };
   const negocio = String(body.negocio || body.negocio_id || '').trim();
   if (!negocio) return jsonError(c, 400, 'Falta negocio.');
@@ -470,16 +489,16 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
   const valoresIn = body.valores && typeof body.valores === 'object' ? body.valores : null;
   if (!valoresIn) return jsonError(c, 400, 'Falta valores.');
 
+  const corridaId = String(body.corrida_id || '').trim();
+  const nodoId = String(body.nodo_id || '').trim();
+  if (corridaId && !nodoId) return jsonError(c, 400, 'Con corrida_id hace falta nodo_id.');
+  if (nodoId && !corridaId) return jsonError(c, 400, 'Con nodo_id hace falta corrida_id.');
+
   const row = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(skillId).first();
   if (!row) return jsonError(c, 404, 'Skill no encontrada.');
   const skill = await hydrateSkill(c.env.DB, row as Record<string, unknown>);
   const salidas = new Set((skill.salidas as string[]) || []);
-  const keys = Object.keys(valoresIn).map((k) => {
-    let a = k.trim();
-    if (a && a[0] !== '_') a = '_' + a;
-    if (a && a[a.length - 1] !== '_') a = a + '_';
-    return a;
-  });
+  const keys = Object.keys(valoresIn).map((k) => normalizeAnclaKey(k));
   const invalidas = keys.filter((a) => a && !salidas.has(a));
   if (invalidas.length) {
     return c.json(
@@ -493,10 +512,49 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
     );
   }
 
+  const normalizedValores: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(valoresIn)) {
+    const a = normalizeAnclaKey(k);
+    if (a) normalizedValores[a] = v;
+  }
+
+  let corridaCtx: { doc: CorridaDoc; flujo: FlujoVersionDoc } | null = null;
+  if (corridaId) {
+    const loaded = await loadCorridaWithFlujo(c.env, corridaId);
+    if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+    const { doc, flujo } = loaded;
+    if (doc.negocio !== negocio) {
+      return jsonError(c, 400, 'negocio no coincide con la corrida.', {
+        corrida_negocio: doc.negocio,
+      });
+    }
+    if (doc.estado === 'terminada' || doc.estado === 'error') {
+      return jsonError(c, 409, `Corrida en estado ${doc.estado}; no acepta salidas.`);
+    }
+    if (doc.paso_actual !== nodoId) {
+      return jsonError(c, 409, 'nodo_id no es el paso_actual de la corrida.', {
+        paso_actual: doc.paso_actual,
+        nodo_id: nodoId,
+      });
+    }
+    const nodo = findNodo(flujo.nodos, nodoId);
+    if (!nodo || nodo.tipo !== 'skill' || nodo.skill !== skillId) {
+      return jsonError(c, 409, 'El nodo actual no es esta skill.', {
+        nodo: nodo ? { id: nodo.id, tipo: nodo.tipo, skill: nodo.skill } : null,
+        skill: skillId,
+      });
+    }
+    corridaCtx = { doc, flujo };
+  }
+
   const maps = await loadAnclaMongoMaps(c.env.DB, keys);
   const baseDatos =
-    maps.find((m) => m.baseDatos)?.baseDatos || (await catalogMongoDbHint(c.env.DB)) || 'software_reservas';
-  const proyectoId = await proyectoIdForBaseDatos(c.env.DB, baseDatos);
+    maps.find((m) => m.baseDatos)?.baseDatos ||
+    (corridaCtx
+      ? (await loadProyectoBaseDatos(c.env.DB, corridaCtx.doc.proyecto_id)) || 'software_reservas'
+      : (await catalogMongoDbHint(c.env.DB)) || 'software_reservas');
+  const proyectoId =
+    corridaCtx?.doc.proyecto_id || (await proyectoIdForBaseDatos(c.env.DB, baseDatos));
   const resolved = await resolveRuntimeMongo(c.env, baseDatos, proyectoId || undefined);
   if (!mongoUriConfigured(resolved.env)) {
     return c.json(mongoNotConfiguredError(), 503);
@@ -513,7 +571,6 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
           if (!docCache.has(cacheKey)) {
             let doc = await findDocForColeccion(db, m.coleccion, negocio);
             if (!doc) {
-              // Crear stub mínimo
               if (m.coleccion === 'negocios') doc = { _id: negocio };
               else if (m.coleccion === 'procesos') doc = { _id: negocio + '-proceso', negocio_id: negocio };
               else doc = { _id: negocio + '-' + m.coleccion, negocio_id: negocio };
@@ -522,14 +579,8 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
           }
           const doc = docCache.get(cacheKey);
           if (!doc) continue;
-          const rawKey = Object.keys(valoresIn).find((k) => {
-            let a = k.trim();
-            if (a && a[0] !== '_') a = '_' + a;
-            if (a && a[a.length - 1] !== '_') a = a + '_';
-            return a === m.ancla;
-          });
-          if (rawKey == null) continue;
-          setByPath(doc, m.claveMongo, valoresIn[rawKey]);
+          if (!(m.ancla in normalizedValores)) continue;
+          setByPath(doc, m.claveMongo, normalizedValores[m.ancla]);
           escritos.push(m.ancla);
         }
         for (const [cacheKey, doc] of docCache) {
@@ -550,20 +601,16 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
     const msg = err instanceof Error ? err.message : 'escritura Mongo falló';
     if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
     const scrubbed = msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***');
+    if (corridaCtx) {
+      await failCorrida(c.env, corridaCtx.doc, nodoId, scrubbed);
+    }
     return jsonError(c, 502, scrubbed);
   }
 
-  // Espejo D1 por negocio (observaciones/valor) cuando hay fila ancla
   const ts = nowIso();
   for (const m of maps) {
-    const rawKey = Object.keys(valoresIn).find((k) => {
-      let a = k.trim();
-      if (a && a[0] !== '_') a = '_' + a;
-      if (a && a[a.length - 1] !== '_') a = a + '_';
-      return a === m.ancla;
-    });
-    if (rawKey == null) continue;
-    const val = valoresIn[rawKey];
+    if (!(m.ancla in normalizedValores)) continue;
+    const val = normalizedValores[m.ancla];
     const asStr = val == null ? '' : typeof val === 'string' ? val : JSON.stringify(val);
     await c.env.DB.prepare(
       `INSERT INTO ancla_valores_negocio (negocio_id, ancla_id, observaciones, valor_actual, updated_at)
@@ -575,7 +622,354 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
       .catch(() => undefined);
   }
 
-  return c.json({ ok: true, skill: skillId, negocio, escritos });
+  let corridaOut: ReturnType<typeof publicCorrida> | null = null;
+  if (corridaCtx) {
+    try {
+      const advanced = await advanceCorridaAfterSkill(
+        c.env,
+        corridaCtx.doc,
+        corridaCtx.flujo,
+        nodoId,
+        normalizedValores,
+        ts
+      );
+      corridaOut = publicCorrida(advanced);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'avance de corrida falló';
+      await failCorrida(c.env, corridaCtx.doc, nodoId, msg);
+      return jsonError(c, 502, msg);
+    }
+  }
+
+  return c.json({
+    ok: true,
+    skill: skillId,
+    negocio,
+    escritos,
+    ...(corridaOut ? { corrida: corridaOut } : {}),
+  });
+});
+
+/** Flujos versionados (D1). */
+app.get('/v1/flujos', async (c) => {
+  const proyecto = String(c.req.query('proyecto') || c.req.query('proyecto_id') || '').trim();
+  let sql = 'SELECT id, nombre, descripcion, proyecto_id, hash, created_at, updated_at FROM flujos';
+  const binds: string[] = [];
+  if (proyecto) {
+    sql += ' WHERE proyecto_id = ?';
+    binds.push(proyecto);
+  }
+  sql += ' ORDER BY nombre';
+  const rows = binds.length
+    ? await c.env.DB.prepare(sql).bind(...binds).all()
+    : await c.env.DB.prepare(sql).all();
+  const out = [];
+  for (const row of rows.results || []) {
+    out.push(await hydrateFlujoListItem(c.env.DB, row as Record<string, unknown>));
+  }
+  return c.json({ ok: true, id: 'flujos', nombre: 'Flujos', flujos: out });
+});
+
+app.get('/v1/flujos/:id', async (c) => {
+  const id = c.req.param('id');
+  const flujo = await loadFlujoVersion(c.env.DB, id);
+  if (!flujo) return jsonError(c, 404, 'Flujo no encontrado.');
+  return c.json({ ok: true, flujo });
+});
+
+app.post('/v1/flujos', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    id?: string;
+    nombre?: string;
+    descripcion?: string;
+    proyecto_id?: string;
+    proyecto?: string;
+    nodos?: unknown;
+    aristas?: unknown;
+  };
+  const id = String(body.id || '').trim();
+  const nombre = String(body.nombre || '').trim();
+  const proyectoId = String(body.proyecto_id || body.proyecto || '').trim();
+  if (!id || !ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
+  if (!nombre) return jsonError(c, 400, 'Falta nombre.');
+  if (!proyectoId || !ID_RE.test(proyectoId)) return jsonError(c, 400, 'proyecto_id inválido.');
+  const proy = await c.env.DB.prepare('SELECT id FROM proyectos WHERE id = ?').bind(proyectoId).first();
+  if (!proy) return jsonError(c, 404, 'Proyecto no encontrado.');
+  const exists = await c.env.DB.prepare('SELECT id FROM flujos WHERE id = ?').bind(id).first();
+  if (exists) return jsonError(c, 409, 'Ya existe un flujo con ese id.');
+  const nodos = parseNodos(body.nodos);
+  const aristas = parseAristas(body.aristas);
+  if (!nodos.length) return jsonError(c, 400, 'Falta nodos[].');
+  const ts = nowIso();
+  const hash = `flujo-${id}-v1`;
+  await c.env.DB.prepare(
+    `INSERT INTO flujos (id, nombre, descripcion, proyecto_id, hash, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(id, nombre, String(body.descripcion || ''), proyectoId, hash, ts, ts)
+    .run();
+  await c.env.DB.prepare(
+    `INSERT INTO flujo_versions (flujo_id, numero, fecha, nodos_json, aristas_json, hash)
+     VALUES (?, 1, ?, ?, ?, ?)`
+  )
+    .bind(id, todayIso(), JSON.stringify(nodos), JSON.stringify(aristas), hash)
+    .run();
+  const flujo = await loadFlujoVersion(c.env.DB, id);
+  return c.json({ ok: true, flujo }, 201);
+});
+
+/**
+ * Crea una corrida en Mongo `corridas` de la BD del proyecto del flujo.
+ * Body: { flujo_id, negocio, datos_iniciales? }
+ */
+app.post('/v1/corridas', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    flujo_id?: string;
+    negocio?: string;
+    negocio_id?: string;
+    datos_iniciales?: Record<string, unknown>;
+  };
+  const flujoId = String(body.flujo_id || '').trim();
+  const negocio = String(body.negocio || body.negocio_id || '').trim();
+  if (!flujoId) return jsonError(c, 400, 'Falta flujo_id.');
+  if (!negocio || !ID_RE.test(negocio)) return jsonError(c, 400, 'negocio inválido.');
+  const flujo = await loadFlujoVersion(c.env.DB, flujoId);
+  if (!flujo) return jsonError(c, 404, 'Flujo no encontrado.');
+
+  const datos: Record<string, unknown> = {};
+  if (body.datos_iniciales && typeof body.datos_iniciales === 'object') {
+    for (const [k, v] of Object.entries(body.datos_iniciales)) {
+      const a = normalizeAnclaKey(k);
+      if (a) datos[a] = v;
+    }
+  }
+
+  const ts = nowIso();
+  const id = newCorridaId();
+  const doc: CorridaDoc = {
+    _id: id,
+    flujo_id: flujo.id,
+    flujo_version: flujo.version,
+    proyecto_id: flujo.proyectoId,
+    negocio,
+    estado: 'en_curso',
+    paso_actual: '',
+    pasos: [],
+    datos,
+    errores: [],
+    creada: ts,
+    actualizada: ts,
+    padre_id: null,
+    hijo_id: null,
+    subflujo_nodo_id: null,
+  };
+
+  try {
+    await applyAvanceToCorrida(c.env, doc, flujo, primerPasoEjecutable(flujo.nodos, flujo.aristas, datos), ts);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'No se pudo iniciar la corrida.';
+    return jsonError(c, 502, msg);
+  }
+
+  return c.json({ ok: true, corrida: publicCorrida(doc) }, 201);
+});
+
+app.get('/v1/corridas', async (c) => {
+  const flujoId = String(c.req.query('flujo_id') || '').trim();
+  const negocio = String(c.req.query('negocio') || '').trim();
+  const estado = String(c.req.query('estado') || '').trim();
+  const proyectoQ = String(c.req.query('proyecto') || c.req.query('proyecto_id') || '').trim();
+
+  let sql = 'SELECT id, proyecto_id, flujo_id, negocio, estado, updated_at FROM corridas_index WHERE 1=1';
+  const binds: string[] = [];
+  if (flujoId) {
+    sql += ' AND flujo_id = ?';
+    binds.push(flujoId);
+  }
+  if (negocio) {
+    sql += ' AND negocio = ?';
+    binds.push(negocio);
+  }
+  if (estado) {
+    sql += ' AND estado = ?';
+    binds.push(estado);
+  }
+  if (proyectoQ) {
+    sql += ' AND proyecto_id = ?';
+    binds.push(proyectoQ);
+  }
+  sql += ' ORDER BY updated_at DESC LIMIT 100';
+  const idx = binds.length
+    ? await c.env.DB.prepare(sql).bind(...binds).all()
+    : await c.env.DB.prepare(sql).all();
+  const rows = (idx.results || []) as Array<{
+    id: string;
+    proyecto_id: string;
+    flujo_id: string;
+    negocio: string;
+    estado: string;
+    updated_at: string;
+  }>;
+
+  // Hidratar desde Mongo cuando sea posible; si falla, devolver índice.
+  const byProyecto = new Map<string, string[]>();
+  for (const r of rows) {
+    const list = byProyecto.get(r.proyecto_id) || [];
+    list.push(r.id);
+    byProyecto.set(r.proyecto_id, list);
+  }
+  const docs = new Map<string, CorridaDoc>();
+  for (const [proyId, ids] of byProyecto) {
+    try {
+      const mongo = await mongoForProyecto(c.env, proyId);
+      if (!mongo) continue;
+      await withMongoDb(
+        mongo.env,
+        async (db) => {
+          const found = await db
+            .collection('corridas')
+            .find({ _id: { $in: ids } })
+            .toArray();
+          for (const f of found) {
+            docs.set(String((f as CorridaDoc)._id), f as CorridaDoc);
+          }
+        },
+        mongo.dbName
+      );
+    } catch {
+      /* índice basta */
+    }
+  }
+
+  const corridas = rows.map((r) => {
+    const d = docs.get(r.id);
+    return d
+      ? publicCorrida(d)
+      : {
+          id: r.id,
+          flujo_id: r.flujo_id,
+          proyecto_id: r.proyecto_id,
+          negocio: r.negocio,
+          estado: r.estado,
+          actualizada: r.updated_at,
+        };
+  });
+  return c.json({ ok: true, corridas });
+});
+
+app.get('/v1/corridas/:id', async (c) => {
+  const id = c.req.param('id');
+  const loaded = await loadCorridaWithFlujo(c.env, id);
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  return c.json({ ok: true, corrida: publicCorrida(loaded.doc), flujo: loaded.flujo });
+});
+
+/**
+ * Paso debido para n8n: skill + systemPrompt + entradas (datos corrida → Mongo).
+ * terminada → { tipo: "fin" }; esperando → { tipo: "espera" }.
+ */
+app.get('/v1/corridas/:id/siguiente', async (c) => {
+  const id = c.req.param('id');
+  const loaded = await loadCorridaWithFlujo(c.env, id);
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  let { doc, flujo } = loaded;
+
+  // Si espera hijo de subflujo, reanudar al terminar el hijo.
+  if (doc.estado === 'esperando' && doc.hijo_id) {
+    const child = await loadCorridaDoc(c.env, doc.hijo_id);
+    if (child.ok && child.doc.estado === 'terminada') {
+      const ts = nowIso();
+      try {
+        doc = await resumeParentAfterChild(c.env, doc, flujo, child.doc, ts);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'No se pudo reanudar tras subflujo.';
+        return jsonError(c, 502, msg);
+      }
+    } else if (child.ok && child.doc.estado === 'error') {
+      await failCorrida(c.env, doc, doc.paso_actual, `Subflujo en error: ${doc.hijo_id}`);
+      return c.json({
+        ok: true,
+        corrida_id: doc._id,
+        tipo: 'error',
+        negocio: doc.negocio,
+        error: 'El subflujo terminó en error.',
+        hijo_id: doc.hijo_id,
+      });
+    }
+  }
+
+  if (doc.estado === 'terminada') {
+    return c.json({
+      ok: true,
+      corrida_id: doc._id,
+      tipo: 'fin',
+      negocio: doc.negocio,
+      paso_actual: doc.paso_actual,
+    });
+  }
+  if (doc.estado === 'error') {
+    return c.json({
+      ok: true,
+      corrida_id: doc._id,
+      tipo: 'error',
+      negocio: doc.negocio,
+      errores: doc.errores,
+    });
+  }
+  if (doc.estado === 'esperando') {
+    const nodo = findNodo(flujo.nodos, doc.paso_actual);
+    return c.json({
+      ok: true,
+      corrida_id: doc._id,
+      nodo_id: doc.paso_actual,
+      tipo: 'espera',
+      skill: null,
+      systemPrompt: null,
+      entradas: {},
+      negocio: doc.negocio,
+      hijo_id: doc.hijo_id || null,
+      motivo: nodo?.tipo === 'subflujo' ? 'subflujo' : 'aprobacion',
+    });
+  }
+
+  const nodo = findNodo(flujo.nodos, doc.paso_actual);
+  if (!nodo) {
+    return jsonError(c, 500, 'paso_actual no existe en el flujo.', { paso_actual: doc.paso_actual });
+  }
+  if (nodo.tipo !== 'skill' || !nodo.skill) {
+    return c.json({
+      ok: true,
+      corrida_id: doc._id,
+      nodo_id: nodo.id,
+      tipo: nodo.tipo,
+      skill: nodo.skill || null,
+      systemPrompt: null,
+      entradas: {},
+      negocio: doc.negocio,
+    });
+  }
+
+  const skillRow = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(nodo.skill).first();
+  if (!skillRow) return jsonError(c, 404, `Skill «${nodo.skill}» no encontrada.`);
+  const skill = await hydrateSkill(c.env.DB, skillRow as Record<string, unknown>);
+  const entradasList = (skill.entradas as string[]) || [];
+  const systemPrompts = await loadSystemPromptsForSkill(c.env.DB, nodo.skill, { withMarkdown: true });
+  const systemPrompt = systemPrompts[0] || null;
+
+  const entradas = await resolveEntradasValores(c.env, entradasList, doc.negocio, doc.datos);
+
+  return c.json({
+    ok: true,
+    corrida_id: doc._id,
+    nodo_id: nodo.id,
+    tipo: 'skill',
+    skill: nodo.skill,
+    systemPrompt,
+    entradas,
+    negocio: doc.negocio,
+    flujo_id: doc.flujo_id,
+    flujo_version: doc.flujo_version,
+  });
 });
 
 /**
@@ -2737,6 +3131,373 @@ async function loadSystemPromptsForSkill(
     out.push(item);
   }
   return out;
+}
+
+function normalizeAnclaKey(raw: string): string {
+  let a = String(raw || '').trim();
+  if (!a) return '';
+  if (a[0] !== '_') a = '_' + a;
+  if (a[a.length - 1] !== '_') a = a + '_';
+  return a;
+}
+
+async function loadProyectoBaseDatos(db: D1Database, proyectoId: string): Promise<string | null> {
+  const row = await db
+    .prepare('SELECT base_datos FROM proyectos WHERE id = ?')
+    .bind(proyectoId)
+    .first<{ base_datos: string }>();
+  return row?.base_datos ? String(row.base_datos) : null;
+}
+
+async function hydrateFlujoListItem(db: D1Database, row: Record<string, unknown>) {
+  const id = String(row.id);
+  const ver = await db
+    .prepare(
+      `SELECT numero FROM flujo_versions WHERE flujo_id = ? ORDER BY numero DESC LIMIT 1`
+    )
+    .bind(id)
+    .first<{ numero: number }>();
+  return {
+    id,
+    nombre: String(row.nombre || ''),
+    descripcion: String(row.descripcion || ''),
+    proyectoId: String(row.proyecto_id || ''),
+    hash: String(row.hash || ''),
+    version: ver?.numero || 1,
+    createdAt: String(row.created_at || ''),
+    updatedAt: String(row.updated_at || ''),
+  };
+}
+
+async function loadFlujoVersion(
+  db: D1Database,
+  flujoId: string,
+  version?: number
+): Promise<FlujoVersionDoc | null> {
+  const meta = await db
+    .prepare('SELECT id, nombre, descripcion, proyecto_id, hash FROM flujos WHERE id = ?')
+    .bind(flujoId)
+    .first<{
+      id: string;
+      nombre: string;
+      descripcion: string;
+      proyecto_id: string;
+      hash: string;
+    }>();
+  if (!meta) return null;
+  const ver = version
+    ? await db
+        .prepare(
+          `SELECT numero, nodos_json, aristas_json, hash FROM flujo_versions
+           WHERE flujo_id = ? AND numero = ?`
+        )
+        .bind(flujoId, version)
+        .first<{ numero: number; nodos_json: string; aristas_json: string; hash: string }>()
+    : await db
+        .prepare(
+          `SELECT numero, nodos_json, aristas_json, hash FROM flujo_versions
+           WHERE flujo_id = ? ORDER BY numero DESC LIMIT 1`
+        )
+        .bind(flujoId)
+        .first<{ numero: number; nodos_json: string; aristas_json: string; hash: string }>();
+  if (!ver) return null;
+  return {
+    id: meta.id,
+    nombre: meta.nombre,
+    descripcion: meta.descripcion || '',
+    proyectoId: meta.proyecto_id,
+    version: ver.numero,
+    nodos: parseNodos(ver.nodos_json),
+    aristas: parseAristas(ver.aristas_json),
+    hash: ver.hash || meta.hash || '',
+  };
+}
+
+async function mongoForProyecto(
+  env: Env,
+  proyectoId: string
+): Promise<{ env: MongoEnv; dbName: string } | null> {
+  const baseDatos = (await loadProyectoBaseDatos(env.DB, proyectoId)) || undefined;
+  const resolved = await resolveRuntimeMongo(env, baseDatos, proyectoId);
+  if (!mongoUriConfigured(resolved.env)) return null;
+  return { env: resolved.env, dbName: resolved.meta.db };
+}
+
+async function upsertCorridasIndex(db: D1Database, doc: CorridaDoc) {
+  await db
+    .prepare(
+      `INSERT INTO corridas_index (id, proyecto_id, flujo_id, negocio, estado, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         estado = excluded.estado,
+         updated_at = excluded.updated_at,
+         flujo_id = excluded.flujo_id,
+         negocio = excluded.negocio,
+         proyecto_id = excluded.proyecto_id`
+    )
+    .bind(doc._id, doc.proyecto_id, doc.flujo_id, doc.negocio, doc.estado, doc.actualizada)
+    .run();
+}
+
+async function saveCorridaDoc(env: Env, doc: CorridaDoc): Promise<void> {
+  const mongo = await mongoForProyecto(env, doc.proyecto_id);
+  if (!mongo) throw new Error('configure MONGODB_URI');
+  doc.actualizada = nowIso();
+  await withMongoDb(
+    mongo.env,
+    async (db) => {
+      const { _id, ...rest } = doc;
+      await db.collection('corridas').updateOne(
+        { _id },
+        { $set: { ...rest, _id } },
+        { upsert: true }
+      );
+    },
+    mongo.dbName
+  );
+  await upsertCorridasIndex(env.DB, doc);
+}
+
+async function loadCorridaDoc(
+  env: Env,
+  id: string
+): Promise<{ ok: true; doc: CorridaDoc } | { ok: false; status: number; error: string }> {
+  const idx = await env.DB.prepare(
+    'SELECT id, proyecto_id FROM corridas_index WHERE id = ?'
+  )
+    .bind(id)
+    .first<{ id: string; proyecto_id: string }>();
+  if (!idx) return { ok: false, status: 404, error: 'Corrida no encontrada.' };
+  const mongo = await mongoForProyecto(env, idx.proyecto_id);
+  if (!mongo) {
+    return { ok: false, status: 503, error: 'configure MONGODB_URI' };
+  }
+  try {
+    const doc = await withMongoDb(
+      mongo.env,
+      async (db) => (await db.collection('corridas').findOne({ _id: id })) as CorridaDoc | null,
+      mongo.dbName
+    );
+    if (!doc) return { ok: false, status: 404, error: 'Corrida no encontrada en Mongo.' };
+    return { ok: true, doc };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'lectura corrida falló';
+    if (msg === 'configure MONGODB_URI') return { ok: false, status: 503, error: msg };
+    return {
+      ok: false,
+      status: 502,
+      error: msg.replace(/mongodb(\+srv)?:\/\/[^\s'"]+/gi, 'mongodb://***'),
+    };
+  }
+}
+
+async function loadCorridaWithFlujo(
+  env: Env,
+  id: string
+): Promise<
+  | { ok: true; doc: CorridaDoc; flujo: FlujoVersionDoc }
+  | { ok: false; status: number; error: string }
+> {
+  const loaded = await loadCorridaDoc(env, id);
+  if (!loaded.ok) return loaded;
+  const flujo = await loadFlujoVersion(env.DB, loaded.doc.flujo_id, loaded.doc.flujo_version);
+  if (!flujo) return { ok: false, status: 404, error: 'Flujo de la corrida no encontrado.' };
+  return { ok: true, doc: loaded.doc, flujo };
+}
+
+async function failCorrida(env: Env, doc: CorridaDoc, nodoId: string, error: string) {
+  const ts = nowIso();
+  doc.estado = 'error';
+  doc.errores = [...(doc.errores || []), { at: ts, nodo_id: nodoId, error }];
+  doc.pasos = (doc.pasos || []).map((p) =>
+    p.nodo_id === nodoId && p.estado === 'pendiente' ? { ...p, estado: 'error' as const, fin: ts } : p
+  );
+  doc.actualizada = ts;
+  try {
+    await saveCorridaDoc(env, doc);
+  } catch {
+    /* best effort */
+  }
+}
+
+async function applyAvanceToCorrida(
+  env: Env,
+  doc: CorridaDoc,
+  flujo: FlujoVersionDoc,
+  avance: ReturnType<typeof primerPasoEjecutable>,
+  ts: string
+): Promise<CorridaDoc> {
+  if (avance.kind === 'error') {
+    doc.estado = 'error';
+    doc.errores = [...(doc.errores || []), { at: ts, error: avance.error }];
+    doc.actualizada = ts;
+    await saveCorridaDoc(env, doc);
+    throw new Error(avance.error);
+  }
+
+  if (avance.kind === 'fin') {
+    doc.paso_actual = avance.nodo.id;
+    doc.estado = 'terminada';
+    doc.actualizada = ts;
+    await saveCorridaDoc(env, doc);
+    if (doc.padre_id) {
+      // El padre se reanuda en GET /siguiente o al guardar; marcamos hijo listo.
+    }
+    return doc;
+  }
+
+  if (avance.kind === 'espera') {
+    doc.paso_actual = avance.nodo.id;
+    doc.estado = 'esperando';
+    doc.hijo_id = null;
+    doc.subflujo_nodo_id = null;
+    doc.actualizada = ts;
+    await saveCorridaDoc(env, doc);
+    return doc;
+  }
+
+  if (avance.kind === 'subflujo') {
+    const childFlujo = await loadFlujoVersion(env.DB, avance.flujoId);
+    if (!childFlujo) {
+      doc.estado = 'error';
+      doc.errores = [
+        ...(doc.errores || []),
+        { at: ts, nodo_id: avance.nodo.id, error: `Subflujo «${avance.flujoId}» no existe.` },
+      ];
+      doc.paso_actual = avance.nodo.id;
+      await saveCorridaDoc(env, doc);
+      throw new Error(`Subflujo «${avance.flujoId}» no existe.`);
+    }
+    const childId = newCorridaId();
+    const child: CorridaDoc = {
+      _id: childId,
+      flujo_id: childFlujo.id,
+      flujo_version: childFlujo.version,
+      proyecto_id: childFlujo.proyectoId,
+      negocio: doc.negocio,
+      estado: 'en_curso',
+      paso_actual: '',
+      pasos: [],
+      datos: { ...doc.datos },
+      errores: [],
+      creada: ts,
+      actualizada: ts,
+      padre_id: doc._id,
+      hijo_id: null,
+      subflujo_nodo_id: null,
+    };
+    await applyAvanceToCorrida(
+      env,
+      child,
+      childFlujo,
+      primerPasoEjecutable(childFlujo.nodos, childFlujo.aristas, child.datos),
+      ts
+    );
+    doc.paso_actual = avance.nodo.id;
+    doc.estado = 'esperando';
+    doc.hijo_id = childId;
+    doc.subflujo_nodo_id = avance.nodo.id;
+    doc.actualizada = ts;
+    await saveCorridaDoc(env, doc);
+    return doc;
+  }
+
+  // skill
+  doc.paso_actual = avance.nodo.id;
+  doc.estado = 'en_curso';
+  doc.pasos = ensurePasoPendiente(doc.pasos || [], avance.nodo.id, avance.nodo.skill || null, ts);
+  doc.hijo_id = null;
+  doc.subflujo_nodo_id = null;
+  doc.actualizada = ts;
+  await saveCorridaDoc(env, doc);
+  return doc;
+}
+
+async function advanceCorridaAfterSkill(
+  env: Env,
+  doc: CorridaDoc,
+  flujo: FlujoVersionDoc,
+  nodoId: string,
+  salidas: Record<string, unknown>,
+  ts: string
+): Promise<CorridaDoc> {
+  doc.datos = { ...(doc.datos || {}), ...salidas };
+  doc.pasos = markPasoHecho(doc.pasos || [], nodoId, salidas, ts);
+  const avance = avanzarDesde(flujo.nodos, flujo.aristas, nodoId, doc.datos);
+  return applyAvanceToCorrida(env, doc, flujo, avance, ts);
+}
+
+async function resumeParentAfterChild(
+  env: Env,
+  parent: CorridaDoc,
+  flujo: FlujoVersionDoc,
+  child: CorridaDoc,
+  ts: string
+): Promise<CorridaDoc> {
+  // Fusionar datos del hijo
+  parent.datos = { ...(parent.datos || {}), ...(child.datos || {}) };
+  const fromId = parent.subflujo_nodo_id || parent.paso_actual;
+  parent.hijo_id = null;
+  parent.subflujo_nodo_id = null;
+  parent.estado = 'en_curso';
+  const avance = avanzarDesde(flujo.nodos, flujo.aristas, fromId, parent.datos);
+  return applyAvanceToCorrida(env, parent, flujo, avance, ts);
+}
+
+/** Entradas: prioriza corrida.datos; si falta, Mongo (+ fallback D1) como ejecutar/entradas. */
+async function resolveEntradasValores(
+  env: Env,
+  entradas: string[],
+  negocio: string,
+  datos: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const valores: Record<string, unknown> = {};
+  for (const a of entradas) {
+    if (Object.prototype.hasOwnProperty.call(datos, a) && datos[a] != null && datos[a] !== '') {
+      valores[a] = datos[a];
+    } else {
+      valores[a] = null;
+    }
+  }
+  const missing = entradas.filter((a) => valores[a] == null || valores[a] === '');
+  if (!missing.length) return valores;
+
+  const maps = await loadAnclaMongoMaps(env.DB, missing);
+  const baseDatos =
+    maps.find((m) => m.baseDatos)?.baseDatos || (await catalogMongoDbHint(env.DB)) || 'software_reservas';
+  const proyectoId = await proyectoIdForBaseDatos(env.DB, baseDatos);
+  const resolved = await resolveRuntimeMongo(env, baseDatos, proyectoId || undefined);
+
+  if (mongoUriConfigured(resolved.env) && maps.length) {
+    try {
+      await withMongoDb(
+        resolved.env,
+        async (db) => {
+          const docCache = new Map<string, Record<string, unknown> | null>();
+          for (const m of maps) {
+            const cacheKey = m.coleccion + '|' + m.baseDatos;
+            if (!docCache.has(cacheKey)) {
+              docCache.set(cacheKey, await findDocForColeccion(db, m.coleccion, negocio));
+            }
+            const doc = docCache.get(cacheKey);
+            if (!doc) continue;
+            const v = getByPath(doc, m.claveMongo);
+            if (v !== undefined) valores[m.ancla] = v;
+          }
+        },
+        baseDatos
+      );
+    } catch {
+      /* leave nulls */
+    }
+  }
+
+  for (const m of maps) {
+    if (valores[m.ancla] != null && valores[m.ancla] !== '') continue;
+    const vals = await loadValoresNegocio(env.DB, negocio, m.id, { mask: false });
+    if (vals.valorActual) valores[m.ancla] = vals.valorActual;
+  }
+  return valores;
 }
 
 async function loadAnclaMongoMaps(db: D1Database, anclas: string[]): Promise<AnclaMongoMap[]> {
