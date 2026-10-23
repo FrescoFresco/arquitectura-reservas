@@ -106,3 +106,41 @@ export function ensurePasoPendiente(
     },
   ];
 }
+
+/** Default: 3h sin avance (actualizada) → marcar error. Override con env CORRIDA_STALE_MS. */
+export const DEFAULT_CORRIDA_STALE_MS = 3 * 60 * 60 * 1000;
+
+export const CORRIDA_STALE_REASON = 'timeout_sin_avance';
+
+/**
+ * Corridas pull-based: el Worker no ejecuta skills; un agente/n8n debe
+ * GET /siguiente → POST salidas. Sin orquestador (o si se cae), quedan en_curso.
+ * Este helper marca la corrida y pasos pendientes como error sin borrar datos.
+ */
+export function applyCorridaStaleTimeout(
+  doc: CorridaDoc,
+  ts: string,
+  reason: string = CORRIDA_STALE_REASON
+): CorridaDoc {
+  const pasos = doc.pasos.map((p) => {
+    if (p.estado !== 'pendiente') return p;
+    return { ...p, estado: 'error' as const, fin: ts };
+  });
+  return {
+    ...doc,
+    estado: 'error',
+    pasos,
+    errores: [...(doc.errores || []), { at: ts, nodo_id: doc.paso_actual, error: reason }],
+    actualizada: ts,
+  };
+}
+
+export function isCorridaStaleByUpdatedAt(
+  actualizada: string,
+  nowMs: number,
+  staleMs: number
+): boolean {
+  const t = Date.parse(actualizada);
+  if (!Number.isFinite(t)) return false;
+  return nowMs - t >= staleMs;
+}

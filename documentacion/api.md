@@ -476,15 +476,20 @@ UI: ficha Flujo → pestaña **Disparadores** (entre Versiones y Corridas) + sub
 **Redactor** (skill `generar-definicion`, ejecutor modelo desde la API):
 
 ```
-POST {API_BASE}/v1/redactor   Authorization: Bearer inv_…
+GET  {API_BASE}/v1/redactor
+     → contrato (público). No genera. Antes de este GET, abrir la URL en el navegador devolvía 404.
+POST {API_BASE}/v1/redactor   Authorization: Bearer inv_…   ← obligatorio
      { intencion, tipo_definicion: "disparador"|"flujo"|"pipeline", definicion_actual?, origen? }
      → { ok, definicion, explicacion, validacion: { ok, errores[], avisos[] }, modo: "openai"|"mock", ejecucion_id }
+     Sin Bearer → 401 (no 404). Invite inválida → 403.
 GET  {API_BASE}/v1/skills/generar-definicion/ejecuciones?limit=20
 ```
 
 Sin secret `OPENAI_API_KEY` responde **mock** heurístico + validación (no bloquea). Con clave: OpenAI (`OPENAI_MODEL`, default `gpt-4o-mini`). La IA **nunca guarda sola**: Generar → Probar → Guardar (UI desactiva Guardar si `validacion.errores` no está vacío). Cada uso se registra en D1 `skill_ejecuciones`.
 
-UI: bloque Redactor en el formulario de disparador y en el editor de flujo (lápiz).
+UI: bloque Redactor en el formulario de disparador y en el editor de flujo (lápiz). `apiFetchAuth` + `asegurarClaveCatalogo()` (crea invite si falta).
+
+**Corridas caducadas:** el cron minuto también marca `en_curso` sin `actualizada` ≥ `CORRIDA_STALE_MS` (default 3h) como `error` con `timeout_sin_avance` (no borra). No toca `esperando`. Ops: `POST /v1/interno/corridas-stale-tick` (Bearer).
 
 **Corridas** (Mongo colección `corridas` en la BD del proyecto; índice liviano en D1):
 
