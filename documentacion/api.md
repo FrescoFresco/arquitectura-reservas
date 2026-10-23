@@ -402,9 +402,9 @@ GET {API_BASE}/v1/esquemas/:id/operativa
   ?format=mermaid → text/plain
 ```
 
-Une **salidas** de skill A con **entradas** de skill B (mismo id de ancla). `huecos` = entradas que **ninguna** skill escribe (en el Mermaid van en rojo). UI: ficha Base de datos → pestaña **Operativa**.
+Une **salidas** de skill A con **entradas** de skill B (mismo id de ancla). `huecos` = entradas que **ninguna** skill escribe (en el Mermaid van en rojo). UI: ficha Base de datos → pestaña **Operativa** (cableado I/O; **no** es la lista de flujos).
 
-La operativa es el **grafo derivado** (diseño). La **ejecución ordenada** con decisiones / espera / subflujo es un **flujo** + **corridas** (abajo).
+La operativa es el **grafo derivado** (diseño). La **orquestación ejecutable** con decisiones / espera / subflujo es un **Flujo**; cada ejecución es una **Corrida** (ficha Flujo → Corridas). En BD, **Asociados** = solo vínculos estructurales (Cluster, colecciones, campos, skills).
 
 ### Flujos y corridas (bucle n8n)
 

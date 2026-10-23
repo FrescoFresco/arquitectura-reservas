@@ -24,5 +24,15 @@ flowchart LR
 
 ### Regla clave
 
-La salida de una skill puede ser la entrada de otra. Así se encadenan las skills y se forma la operativa.
+La salida de una skill puede ser la entrada de otra. Así se encadenan las skills y se forma la **operativa**.
 - Ejemplo: `_proceso.url_inicio_` sale de descubrir-negocio y es la entrada de mapear-recorrido.
+
+### Operativa ≠ Flujo ≠ Corrida
+
+| Concepto | Qué es | Dónde en la UI |
+|----------|--------|----------------|
+| **Operativa** | Cableado I/O (salidas → entradas) entre skills de una BD | Ficha BD → **Operativa** |
+| **Flujo** | Grafo de orquestación ejecutable de una BD | Catálogos → **Flujos** o BD → **Flujos** |
+| **Corrida** | Una ejecución de un Flujo | Ficha **Flujo** → **Corridas** |
+
+n8n solo orquesta el bucle HTTP de la corrida; la lógica vive en Campos ancla.
