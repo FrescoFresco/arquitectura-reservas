@@ -1295,9 +1295,7 @@
   function abrirFormDisparador(d) {
     st.flujoDispFormOpen = true;
     st.flujoDispEditId = d && d.id ? d.id : null;
-    var wrap = document.getElementById('flujoDisparadorFormWrap');
     var tit = document.getElementById('flujoDisparadorFormTitulo');
-    if (wrap) wrap.hidden = false;
     if (tit) tit.textContent = d ? 'Editar ' + d.id : 'Nuevo disparador';
     var idEl = document.getElementById('flujoDispId');
     if (idEl) {
@@ -1367,14 +1365,16 @@
     if (meta) meta.hidden = true;
     // Edición de disparador ya guardado: permitir Guardar; nuevo: exige Generar/validar
     setDispGuardarEnabled(!!d);
+    var dlg = document.getElementById('dlgDisparador');
+    if (dlg && !dlg.open) dlg.showModal();
   }
 
   function cerrarFormDisparador() {
     st.flujoDispFormOpen = false;
     st.flujoDispEditId = null;
     setDispGuardarEnabled(false);
-    var wrap = document.getElementById('flujoDisparadorFormWrap');
-    if (wrap) wrap.hidden = true;
+    var dlg = document.getElementById('dlgDisparador');
+    if (dlg && dlg.open) dlg.close();
   }
 
   function setDispMsg(text, isErr) {
@@ -1701,7 +1701,10 @@
     st.flujoHistorial = false;
     st.flujoEdit = false;
     st.flujoDispFormOpen = false;
+    st.flujoDispEditId = null;
     st.flujoCorrSub = 'corridas';
+    var dlgDispOpen = document.getElementById('dlgDisparador');
+    if (dlgDispOpen && dlgDispOpen.open) dlgDispOpen.close();
     var dlg = document.getElementById('dlgFlujo');
     var qs = version != null ? '?version=' + encodeURIComponent(version) : '';
     fetch(apiBase() + '/v1/flujos/' + encodeURIComponent(id) + qs, { cache: 'no-store' })
@@ -2372,6 +2375,14 @@
     if (btnDispGuardar) btnDispGuardar.addEventListener('click', guardarDisparadorForm);
     var btnDispCancel = document.getElementById('btnFlujoDispCancelar');
     if (btnDispCancel) btnDispCancel.addEventListener('click', cerrarFormDisparador);
+    var dlgDisp = document.getElementById('dlgDisparador');
+    if (dlgDisp) {
+      dlgDisp.addEventListener('close', function () {
+        st.flujoDispFormOpen = false;
+        st.flujoDispEditId = null;
+        setDispGuardarEnabled(false);
+      });
+    }
     var btnDispProbar = document.getElementById('btnFlujoDispProbar');
     if (btnDispProbar) btnDispProbar.addEventListener('click', probarDisparadorForm);
     var btnDispGen = document.getElementById('btnDispRedactorGenerar');
