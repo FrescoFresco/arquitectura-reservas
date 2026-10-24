@@ -352,7 +352,11 @@ GET {API_BASE}/v1/skills/:id/ejecuciones?limit=20&proyecto=reservas
 GET {API_BASE}/v1/ejecutores/:id/ejecuciones?limit=20
 ```
 
-**Motor interno (cola `pasos`):** al crear una corrida se encola el primer nodo. El consumidor ejecuta `modelo`/`herramienta`/`decision`/`subflujo`/`fin`; `agente_externo`/`integracion` async dejan la corrida en `esperando_integracion` y el agente sigue con `/siguiente` + `/salidas` (que encola el siguiente). Sin clave de proveedor el ejecutor `modelo` usa mock de salidas (smoke E2E).
+**Motor interno (cola `pasos`):** al crear una corrida se encola el primer nodo. El consumidor ejecuta `modelo`/`herramienta`/`decision`/`subflujo`/`fin`; `agente_externo`/`integracion` async dejan la corrida en `esperando_integracion` y el agente sigue con `/siguiente` + `/salidas` (que encola el siguiente). Sin clave de proveedor el ejecutor `modelo` usa mock de salidas (E2E).
+
+**Skill `consultar-datos`** (ejecutor `herramienta-consultar-datos`, `config.funcion = "consultar-datos"`): Aggregation Pipeline de solo lectura en la BD Mongo del proyecto. Entradas `_consulta.coleccion_` + `_consulta.pipeline_`; salidas `_consulta.resultado_` + `_consulta.total_`. Misma allowlist que disparadores (`$out`/`$merge`/`$function` prohibidos); si el pipeline no trae `$limit`, se añade `$limit: 100`. Log en `ejecuciones` con `coste: 0`.
+
+Ejecutores canónicos del hub: `modelo-por-defecto`, `herramienta-consultar-datos`, `aprobacion-humana`, `agente-reservas-pagweb`.
 
 **Control de fallos:** timeout por `timeout_s` (sync AbortSignal + cron `esperando_integracion`); reintentos con backoff; estado `atascada` (cron 5 min, ≥10 min sin lease/actividad). Panel / API:
 

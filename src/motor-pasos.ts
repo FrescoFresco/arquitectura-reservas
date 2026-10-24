@@ -17,6 +17,7 @@ import {
   type EjecutorRow,
   type EjecutorTipo,
 } from './ejecutores';
+import { validatePipelineStages } from './disparadores';
 import type { CorridaDoc, CorridaPaso } from './corridas';
 import { withMongoDb, mongoUriConfigured, type MongoEnv } from './mongo';
 
@@ -504,16 +505,74 @@ function pickSalidasFromModel(
   return out;
 }
 
+const CONSULTA_DEFAULT_LIMIT = 100;
+
+/** Serializa docs Mongo (ObjectId / Date) a JSON plano. */
+function jsonSafeDocs(docs: unknown[]): Record<string, unknown>[] {
+  return JSON.parse(
+    JSON.stringify(docs, (_k, v) => {
+      if (v != null && typeof v === 'object' && typeof (v as { toHexString?: () => string }).toHexString === 'function') {
+        return String((v as { toHexString: () => string }).toHexString());
+      }
+      if (v instanceof Date) return v.toISOString();
+      return v;
+    })
+  ) as Record<string, unknown>[];
+}
+
+function parseConsultaPipeline(raw: unknown): Record<string, unknown>[] {
+  let pipeline: unknown = raw;
+  if (typeof pipeline === 'string') {
+    const s = pipeline.trim();
+    if (!s) throw new Error('_consulta.pipeline_ obligatorio.');
+    try {
+      pipeline = JSON.parse(s);
+    } catch {
+      throw new Error('_consulta.pipeline_ JSON inválido.');
+    }
+  }
+  if (!Array.isArray(pipeline)) {
+    throw new Error('_consulta.pipeline_ debe ser un array.');
+  }
+  const stages = pipeline as Record<string, unknown>[];
+  const stageErr = validatePipelineStages(stages);
+  if (stageErr) throw new Error(stageErr);
+  const hasLimit = stages.some((s) => Object.prototype.hasOwnProperty.call(s, '$limit'));
+  return hasLimit ? stages : [...stages, { $limit: CONSULTA_DEFAULT_LIMIT }];
+}
+
+/**
+ * Funciones internas tipo `herramienta`.
+ * `consultar-datos`: aggregate de solo lectura (allowlist = disparadores) + `$limit` 100 por defecto.
+ */
 async function ejecutarHerramienta(
+  deps: MotorDeps,
+  proyectoId: string,
   funcion: string,
   entradas: Record<string, unknown>,
   datos: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   if (funcion === 'consultar-datos') {
-    return { ...datos, ...entradas, _ok_: true };
+    const coleccion = String(entradas['_consulta.coleccion_'] ?? '').trim();
+    if (!coleccion) throw new Error('_consulta.coleccion_ obligatoria.');
+    const pipeline = parseConsultaPipeline(entradas['_consulta.pipeline_']);
+    const mongo = await deps.mongoForProyecto(proyectoId);
+    if (!mongo || !mongoUriConfigured(mongo.env)) {
+      throw new Error('Mongo no configurado para el proyecto de la corrida.');
+    }
+    const docs = await withMongoDb(
+      mongo.env,
+      async (db) => db.collection(coleccion).aggregate(pipeline).toArray(),
+      mongo.dbName
+    );
+    const resultado = jsonSafeDocs(docs as unknown[]);
+    return {
+      '_consulta.resultado_': resultado,
+      '_consulta.total_': resultado.length,
+    };
   }
   // Registro mínimo; funciones desconocidas → eco
-  return { ...entradas, _herramienta_: funcion, _ok_: true };
+  return { ...datos, ...entradas, _herramienta_: funcion, _ok_: true };
 }
 
 async function ejecutarIntegracion(
@@ -929,7 +988,14 @@ export async function processPasoMessage(
     try {
       if (ejecutor.tipo === 'herramienta') {
         const funcion = String(ejecutor.config.funcion || '');
-        const raw = await ejecutarHerramienta(funcion, entradas, doc.datos || {});
+        coste = 0;
+        const raw = await ejecutarHerramienta(
+          deps,
+          doc.proyecto_id,
+          funcion,
+          entradas,
+          doc.datos || {}
+        );
         salidas = {};
         for (const a of salidasDecl) {
           if (Object.prototype.hasOwnProperty.call(raw, a)) salidas[a] = raw[a];

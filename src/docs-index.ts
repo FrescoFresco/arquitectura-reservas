@@ -443,6 +443,7 @@ export const API_DOCS_INDEX = {
     'lee/escribe metadata only — Bearer invite = full hub write',
     'no POST/DELETE /v1/colecciones (mutar vía PUT /v1/proyectos/:id)',
     'skill sin ejecutorId = implícito agente_externo; cola pasos ejecuta modelo/herramienta/integracion',
+    'consultar-datos = herramienta interna (pipeline allowlist + $limit 100; coste 0)',
     'atascada = en_curso ≥10 min sin lease; reanudar desde panel',
     'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',
     'URI Mongo never in responses',
