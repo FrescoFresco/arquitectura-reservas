@@ -2,13 +2,14 @@
  * Corridas: instancias de ejecución de un flujo en Mongo (colección `corridas` por BD).
  */
 
-/** Estados Fase 2 (+ aliases legados). */
+/** Estados Fase 2–3 (+ aliases legados). */
 export type CorridaEstado =
   | 'pendiente'
   | 'en_curso'
   | 'esperando_integracion'
   | 'esperando_humano'
   | 'esperando_hijo'
+  | 'atascada'
   | 'completada'
   | 'fallida'
   | 'cancelada'
@@ -37,6 +38,9 @@ export type CorridaPaso = {
   entradas?: Record<string, unknown> | null;
   error?: string | null;
   coste?: unknown;
+  /** Fase 3: acción de panel (reintentar, aprobar, …) */
+  accion?: string | null;
+  quien?: string | null;
 };
 
 export type CorridaDoc = {
@@ -136,30 +140,38 @@ export function ensurePasoPendiente(
   ];
 }
 
-/** Default: 3h sin avance (actualizada) → marcar error. Override con env CORRIDA_STALE_MS. */
-export const DEFAULT_CORRIDA_STALE_MS = 3 * 60 * 60 * 1000;
+/** Fase 3: en_curso sin lease y sin actividad → atascada (default 10 min). */
+export const DEFAULT_ATASCADA_MS = 10 * 60 * 1000;
 
-export const CORRIDA_STALE_REASON = 'timeout_sin_avance';
+/** @deprecated usar DEFAULT_ATASCADA_MS; se mantiene por override legacy CORRIDA_STALE_MS. */
+export const DEFAULT_CORRIDA_STALE_MS = DEFAULT_ATASCADA_MS;
+
+export const CORRIDA_STALE_REASON = 'atascada';
+export const CORRIDA_TIMEOUT_REASON = 'timeout';
 
 /**
- * Corridas pull-based legacy + motor: sin avance → fallida.
+ * Marca corrida como atascada (recuperable con Reanudar).
  */
+export function applyCorridaAtascada(
+  doc: CorridaDoc,
+  ts: string,
+  reason: string = CORRIDA_STALE_REASON
+): CorridaDoc {
+  return {
+    ...doc,
+    estado: 'atascada',
+    errores: [...(doc.errores || []), { at: ts, nodo_id: doc.paso_actual, error: reason }],
+    actualizada: ts,
+  };
+}
+
+/** @deprecated alias → applyCorridaAtascada */
 export function applyCorridaStaleTimeout(
   doc: CorridaDoc,
   ts: string,
   reason: string = CORRIDA_STALE_REASON
 ): CorridaDoc {
-  const pasos = doc.pasos.map((p) => {
-    if (p.estado !== 'pendiente') return p;
-    return { ...p, estado: 'error' as const, fin: ts };
-  });
-  return {
-    ...doc,
-    estado: 'fallida',
-    pasos,
-    errores: [...(doc.errores || []), { at: ts, nodo_id: doc.paso_actual, error: reason }],
-    actualizada: ts,
-  };
+  return applyCorridaAtascada(doc, ts, reason);
 }
 
 export function isCorridaStaleByUpdatedAt(
@@ -189,4 +201,8 @@ export function isTerminal(estado: string): boolean {
     estado === 'error' ||
     estado === 'cancelada'
   );
+}
+
+export function isAtascada(estado: string): boolean {
+  return estado === 'atascada';
 }

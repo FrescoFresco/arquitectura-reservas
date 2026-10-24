@@ -124,6 +124,65 @@ export async function releaseLease(db: D1Database, corridaId: string): Promise<v
     .catch(() => undefined);
 }
 
+/** Fija deadline de espera (integración/humano) sin exigir lease libre. */
+export async function setLeaseDeadline(
+  db: D1Database,
+  corridaId: string,
+  nodoId: string,
+  timeoutS: number,
+  now: string
+): Promise<void> {
+  const until = new Date(Date.parse(now) + Math.max(1, timeoutS) * 1000).toISOString();
+  await db
+    .prepare(`UPDATE corridas_index SET lease_hasta = ?, lease_nodo_id = ? WHERE id = ?`)
+    .bind(until, nodoId, corridaId)
+    .run()
+    .catch(() => undefined);
+}
+
+export async function hasActiveLease(
+  db: D1Database,
+  corridaId: string,
+  now: string
+): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT lease_hasta FROM corridas_index WHERE id = ?`)
+    .bind(corridaId)
+    .first<{ lease_hasta: string | null }>();
+  const hasta = row?.lease_hasta ? String(row.lease_hasta) : '';
+  return !!hasta && hasta >= now;
+}
+
+/** Clasifica error para política de reintentos F3. */
+export function classifyPasoError(errMsg: string): 'validation' | 'http4xx' | 'timeout' | 'retryable' {
+  const m = String(errMsg || '');
+  if (/^timeout$/i.test(m.trim()) || /\btimeout\b/i.test(m)) return 'timeout';
+  if (/Salidas faltantes|no es JSON|formato incorrecto|validaci[oó]n/i.test(m)) return 'validation';
+  if (/\bHTTP 4\d\d\b/i.test(m) || /integracion HTTP 4\d\d/i.test(m)) return 'http4xx';
+  return 'retryable';
+}
+
+/**
+ * ¿Reintentar? validation: máx. 1 reintento (intento < 1).
+ * http4xx: nunca. resto: intento < reintentos.
+ */
+export function shouldRetryPaso(
+  errMsg: string,
+  intento: number,
+  reintentos: number
+): boolean {
+  const kind = classifyPasoError(errMsg);
+  if (kind === 'http4xx') return false;
+  if (kind === 'validation') return intento < 1;
+  return intento < Math.max(0, reintentos);
+}
+
+export function retryDelaySeconds(esperaReintentoS: number, intento: number): number {
+  const base = Math.max(1, Number(esperaReintentoS) || 10);
+  const exp = Math.min(10, Math.max(0, intento));
+  return Math.min(43200, base * Math.pow(2, exp));
+}
+
 export function implicitEjecutor(): {
   id: string;
   tipo: EjecutorTipo;
@@ -323,7 +382,8 @@ async function callModeloProveedor(
   env: MotorEnv,
   config: Record<string, unknown>,
   systemPrompt: string,
-  userPayload: Record<string, unknown>
+  userPayload: Record<string, unknown>,
+  timeoutS = 60
 ): Promise<{ text: string; coste: unknown; modelo: string; modo: 'real' | 'mock' }> {
   const proveedor = String(config.proveedor || 'openai').toLowerCase();
   const modelo = String(config.modelo || env.OPENAI_MODEL || 'gpt-4o-mini');
@@ -334,64 +394,76 @@ async function callModeloProveedor(
   }
   const temperatura = Number(config.temperatura ?? 0);
   const salidaJson = config.salida_json !== false;
+  const signal =
+    typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+      ? AbortSignal.timeout(Math.max(1, timeoutS) * 1000)
+      : undefined;
 
-  if (proveedor === 'anthropic') {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+  try {
+    if (proveedor === 'anthropic') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: modelo,
+          max_tokens: 4096,
+          temperature: temperatura,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: JSON.stringify(userPayload) }],
+        }),
+        signal,
+      });
+      if (!res.ok) throw new Error(`Anthropic HTTP ${res.status}`);
+      const data = (await res.json()) as { content?: Array<{ text?: string }>; usage?: unknown };
+      const text = data.content?.map((c) => c.text || '').join('') || '';
+      return { text, coste: data.usage || null, modelo, modo: 'real' };
+    }
+
+    const base =
+      proveedor === 'xai' ? 'https://api.x.ai/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions';
+    const body: Record<string, unknown> = {
+      model: modelo,
+      temperature: temperatura,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: JSON.stringify(userPayload) },
+      ],
+    };
+    if (salidaJson && proveedor !== 'xai') {
+      body.response_format = { type: 'json_object' };
+    }
+    const res = await fetch(base, {
       method: 'POST',
       headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: modelo,
-        max_tokens: 4096,
-        temperature: temperatura,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: JSON.stringify(userPayload) }],
-      }),
+      body: JSON.stringify(body),
+      signal,
     });
-    if (!res.ok) throw new Error(`Anthropic HTTP ${res.status}`);
-    const data = (await res.json()) as { content?: Array<{ text?: string }>; usage?: unknown };
-    const text = data.content?.map((c) => c.text || '').join('') || '';
-    return { text, coste: data.usage || null, modelo, modo: 'real' };
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`${proveedor} HTTP ${res.status}: ${errText.slice(0, 180)}`);
+    }
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: unknown;
+    };
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      coste: data.usage || null,
+      modelo,
+      modo: 'real',
+    };
+  } catch (e) {
+    const name = e instanceof Error ? e.name : '';
+    if (name === 'TimeoutError' || name === 'AbortError') throw new Error('timeout');
+    throw e;
   }
-
-  const base =
-    proveedor === 'xai' ? 'https://api.x.ai/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions';
-  const body: Record<string, unknown> = {
-    model: modelo,
-    temperature: temperatura,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: JSON.stringify(userPayload) },
-    ],
-  };
-  if (salidaJson && proveedor !== 'xai') {
-    body.response_format = { type: 'json_object' };
-  }
-  const res = await fetch(base, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(`${proveedor} HTTP ${res.status}: ${errText.slice(0, 180)}`);
-  }
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-    usage?: unknown;
-  };
-  return {
-    text: data.choices?.[0]?.message?.content || '',
-    coste: data.usage || null,
-    modelo,
-    modo: 'real',
-  };
 }
 
 function extractJsonObject(raw: string): Record<string, unknown> {
@@ -447,7 +519,8 @@ async function ejecutarHerramienta(
 async function ejecutarIntegracion(
   env: MotorEnv,
   config: Record<string, unknown>,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  timeoutS = 60
 ): Promise<{ asincrono: boolean; status: number; body: unknown }> {
   const url = String(config.url || '');
   const metodo = String(config.metodo || 'POST').toUpperCase();
@@ -456,19 +529,30 @@ async function ejecutarIntegracion(
   const secretName = config.secret ? String(config.secret) : '';
   const token = secretFromEnv(env, secretName);
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(url, {
-    method: metodo,
-    headers,
-    body: metodo === 'GET' || metodo === 'HEAD' ? undefined : JSON.stringify(payload),
-  });
-  const text = await res.text().catch(() => '');
-  let body: unknown = text;
+  const signal =
+    typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+      ? AbortSignal.timeout(Math.max(1, timeoutS) * 1000)
+      : undefined;
   try {
-    body = text ? JSON.parse(text) : null;
-  } catch {
-    /* raw */
+    const res = await fetch(url, {
+      method: metodo,
+      headers,
+      body: metodo === 'GET' || metodo === 'HEAD' ? undefined : JSON.stringify(payload),
+      signal,
+    });
+    const text = await res.text().catch(() => '');
+    let body: unknown = text;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      /* raw */
+    }
+    return { asincrono, status: res.status, body };
+  } catch (e) {
+    const name = e instanceof Error ? e.name : '';
+    if (name === 'TimeoutError' || name === 'AbortError') throw new Error('timeout');
+    throw e;
   }
-  return { asincrono, status: res.status, body };
 }
 
 async function enqueueNext(
@@ -520,13 +604,14 @@ export async function processPasoMessage(
   if (!loaded.ok) return 'ack';
   let { doc, flujo } = loaded;
 
-  // Estados terminales: descartar
+  // Estados terminales / atascada (solo reanudar desde panel): descartar
   if (
     doc.estado === 'completada' ||
     doc.estado === 'terminada' ||
     doc.estado === 'fallida' ||
     doc.estado === 'error' ||
-    doc.estado === 'cancelada'
+    doc.estado === 'cancelada' ||
+    doc.estado === 'atascada'
   ) {
     return 'ack';
   }
@@ -694,16 +779,17 @@ export async function processPasoMessage(
     }
 
     if (nodo.tipo === 'espera') {
+      const tsEspera = deps.nowIso();
       doc.estado = 'esperando_humano';
       doc.pasos = upsertPaso(doc.pasos || [], {
         nodo_id: nodoId,
         skill: null,
         estado: 'pendiente',
-        inicio: deps.nowIso(),
+        inicio: tsEspera,
         intento,
       });
       await deps.saveCorridaDoc(doc);
-      await releaseLease(deps.env.DB, corridaId);
+      await setLeaseDeadline(deps.env.DB, corridaId, nodoId, 3600, tsEspera);
       return 'ack';
     }
 
@@ -794,11 +880,11 @@ export async function processPasoMessage(
     });
     await deps.saveCorridaDoc(doc);
 
-    // agente_externo → esperar polling
+    // agente_externo → esperar polling (lease = deadline timeout)
     if (ejecutor.tipo === 'agente_externo') {
       doc.estado = 'esperando_integracion';
       await deps.saveCorridaDoc(doc);
-      await releaseLease(deps.env.DB, corridaId);
+      await setLeaseDeadline(deps.env.DB, corridaId, nodoId, ejecutor.timeout_s || 3600, deps.nowIso());
       await logEjecucion(deps, doc.proyecto_id, {
         skill: skillId,
         ejecutor_id: ejecutor.id,
@@ -818,7 +904,7 @@ export async function processPasoMessage(
     if (ejecutor.tipo === 'humano') {
       doc.estado = 'esperando_humano';
       await deps.saveCorridaDoc(doc);
-      await releaseLease(deps.env.DB, corridaId);
+      await setLeaseDeadline(deps.env.DB, corridaId, nodoId, ejecutor.timeout_s || 3600, deps.nowIso());
       await logEjecucion(deps, doc.proyecto_id, {
         skill: skillId,
         ejecutor_id: ejecutor.id,
@@ -861,13 +947,26 @@ export async function processPasoMessage(
           entradas,
           salidas_esperadas: salidasDecl,
         };
-        const r = await ejecutarIntegracion(deps.env, ejecutor.config, payload);
+        const r = await ejecutarIntegracion(
+          deps.env,
+          ejecutor.config,
+          payload,
+          ejecutor.timeout_s || 60
+        );
         if (r.status >= 400 && r.status < 500) {
+          errMsg = `integracion HTTP ${r.status}`;
+        } else if (r.status >= 500) {
           errMsg = `integracion HTTP ${r.status}`;
         } else if (r.asincrono || r.status === 202) {
           doc.estado = 'esperando_integracion';
           await deps.saveCorridaDoc(doc);
-          await releaseLease(deps.env.DB, corridaId);
+          await setLeaseDeadline(
+            deps.env.DB,
+            corridaId,
+            nodoId,
+            ejecutor.timeout_s || 60,
+            deps.nowIso()
+          );
           await logEjecucion(deps, doc.proyecto_id, {
             skill: skillId,
             ejecutor_id: ejecutor.id,
@@ -902,7 +1001,13 @@ export async function processPasoMessage(
           salidas: salidasDecl,
           instruccion: 'Devuelve un JSON con exactamente las claves de salidas.',
         };
-        const called = await callModeloProveedor(deps.env, ejecutor.config, systemPrompt, userPayload);
+        const called = await callModeloProveedor(
+          deps.env,
+          ejecutor.config,
+          systemPrompt,
+          userPayload,
+          ejecutor.timeout_s || 60
+        );
         coste = called.coste;
         if (called.modo === 'mock') {
           salidas = mockModeloSalidas(salidasDecl, entradas);
@@ -927,12 +1032,13 @@ export async function processPasoMessage(
     }
 
     if (errMsg) {
+      const fin = deps.nowIso();
       doc.pasos = upsertPaso(doc.pasos || [], {
         nodo_id: nodoId,
         skill: skillId,
         estado: 'error',
         inicio,
-        fin: deps.nowIso(),
+        fin,
         intento,
         ejecutor_id: ejecutor.id,
         ejecutor_version: ejecutor.version,
@@ -943,11 +1049,7 @@ export async function processPasoMessage(
         duracion_ms: duracion,
         coste,
       });
-      doc.errores = [...(doc.errores || []), { at: deps.nowIso(), nodo_id: nodoId, error: errMsg }];
-      // F2: sin reintentos automáticos de F3; marcar fallida (smoke espera completada con mock)
-      doc.estado = 'fallida';
-      await deps.saveCorridaDoc(doc);
-      await releaseLease(deps.env.DB, corridaId);
+      doc.errores = [...(doc.errores || []), { at: fin, nodo_id: nodoId, error: errMsg }];
       await logEjecucion(deps, doc.proyecto_id, {
         skill: skillId,
         ejecutor_id: ejecutor.id,
@@ -962,6 +1064,23 @@ export async function processPasoMessage(
         error: errMsg,
         intento,
       });
+
+      if (shouldRetryPaso(errMsg, intento, ejecutor.reintentos)) {
+        const delay = retryDelaySeconds(ejecutor.espera_reintento_s, intento);
+        doc.estado = 'en_curso';
+        await deps.saveCorridaDoc(doc);
+        await releaseLease(deps.env.DB, corridaId);
+        await enqueuePaso(
+          deps.env,
+          { corrida_id: doc._id, nodo_id: nodoId, intento: intento + 1 },
+          { delaySeconds: delay }
+        );
+        return 'ack';
+      }
+
+      doc.estado = 'fallida';
+      await deps.saveCorridaDoc(doc);
+      await releaseLease(deps.env.DB, corridaId);
       return 'ack';
     }
 
