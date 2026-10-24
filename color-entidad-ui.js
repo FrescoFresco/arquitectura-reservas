@@ -355,6 +355,7 @@
     cluster: '/v1/clusters/',
     proyecto: '/v1/proyectos/',
     'system-prompt': '/v1/system-prompts/',
+    ejecutor: '/v1/ejecutores/',
     fundamento: '/v1/fundamentos/',
     agente: '/v1/agentes/',
     flujo: '/v1/flujos/'

@@ -52,7 +52,8 @@ export function publicCorrida(doc: CorridaDoc) {
     id: doc._id,
     flujo_id: doc.flujo_id,
     flujo_version: doc.flujo_version,
-    proyecto_id: doc.proyecto_id,
+    /** Canónico camelCase (alias de entrada: proyecto_id | proyectoId | proyecto). */
+    proyectoId: doc.proyecto_id,
     negocio: doc.negocio,
     estado: doc.estado,
     paso_actual: doc.paso_actual,

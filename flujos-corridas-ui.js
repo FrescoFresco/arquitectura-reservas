@@ -1991,7 +1991,7 @@
     set('corridaInternoId', c.id);
     set('corridaInternoFlujo', c.flujo_id);
     set('corridaInternoFlujoVer', c.flujo_version);
-    set('corridaInternoProyecto', c.proyecto_id);
+    set('corridaInternoProyecto', c.proyectoId || c.proyecto_id);
     set('corridaInternoCreada', formatCuando(c.creada));
     set('corridaInternoActualizada', formatCuando(c.actualizada));
   }

@@ -55,7 +55,7 @@ curl -sS "$API_BASE/v1/clusters"
 curl -sS "$API_BASE/v1/fundamentos"
 curl -sS "$API_BASE/v1/eventos?proyecto=reservas&limit=5"
 curl -sS "$API_BASE/v1/redactor"           # contrato; POST genera (Bearer)
-curl -sS "$API_BASE/v1/ejecutores"         # stub: catálogo pendiente (no es bug)
+curl -sS "$API_BASE/v1/ejecutores"
 
 # 5) Mutar (Bearer = acceso completo; lee/escribe no filtran rutas)
 AUTH=(-H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json')
@@ -258,7 +258,7 @@ Ejemplos:
 | Colecciones | `GET /v1/colecciones?proyecto=` | (vía BD padre) | vía `PUT` BD `{ colecciones }` | igual | quitar del array en `PUT` BD |
 | Fundamentos | `GET /v1/fundamentos` | `GET …/:id` | `POST` | `PUT` | `DELETE` |
 | Agentes | `GET /v1/agentes` | — | invite + registro | `PUT` | `DELETE` |
-| Ejecutores | `GET /v1/ejecutores` → stub | — | — | — | pendiente `instrucciones-motor-ejecutores.md` |
+| Ejecutores | `GET /v1/ejecutores` | `GET /v1/ejecutores/:id` | `POST` | `PUT` | `DELETE` |
 
 Prefijo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
 
@@ -299,9 +299,51 @@ Todas las entidades de catálogo con fila (`catalogo-fila`) admiten `color`: hex
 - Colecciones: `color` en cada ítem de `proyectos.colecciones[]`; PUT con solo `{ "colecciones": […] }` actualiza el JSON sin bump de versión.
 - Generar color (UI): max-min ΔE76 vs colores ya usados en el **mismo** catálogo; `null`/default no cuentan.
 
-Tablas D1: `skills`, `anclas`, `campos_mongo`, `proyectos`, `clusters`, `system_prompts`, `fundamentos`, `agentes`, `flujos`, `disparadores`.
+Tablas D1: `skills`, `anclas`, `campos_mongo`, `proyectos`, `clusters`, `system_prompts`, `fundamentos`, `agentes`, `flujos`, `disparadores`, `ejecutores`.
 
-Al crear/editar skill puedes enviar `systemPromptId` (string o `null`) o `systemPrompts` (array de 0 o 1 id). Si el PUT solo lleva ese campo (sin markdown/I/O), **no** crea versión nueva de MD: solo actualiza el vínculo.
+Al crear/editar skill puedes enviar `systemPromptId` (string o `null`) o `systemPrompts` (array de 0 o 1 id), y `ejecutorId` (string o `null`). Si el PUT solo lleva esos vínculos (sin markdown/I/O), **no** crea versión nueva de MD: solo actualiza el vínculo. Sin `ejecutorId` → implícito `agente_externo` (el agente hace polling de `/siguiente`).
+
+### Ejecutores
+
+Quién hace la skill. Tipos: `modelo` | `herramienta` | `integracion` | `humano` | `agente_externo`. Campos: `config` (JSON según tipo), `timeout_s` (def 60), `reintentos` (def 2), `espera_reintento_s` (def 10), `activo`, `version` (bump en PUT).
+
+```
+POST {API_BASE}/v1/ejecutores
+Authorization: Bearer inv_…
+Content-Type: application/json
+
+{
+  "id": "openai-texto",
+  "nombre": "OpenAI texto",
+  "tipo": "modelo",
+  "config": {
+    "proveedor": "openai",
+    "modelo": "gpt-4o-mini",
+    "secret": "OPENAI_API_KEY",
+    "temperatura": 0,
+    "salida_json": true
+  },
+  "timeout_s": 60,
+  "reintentos": 2,
+  "espera_reintento_s": 10,
+  "activo": true
+}
+```
+
+`config` por tipo:
+- `modelo`: `{ proveedor: xai|openai|anthropic, modelo, secret, temperatura?, salida_json? }`
+- `herramienta`: `{ funcion }`
+- `integracion`: `{ url, metodo?, secret?, asincrono? }`
+- `humano`: `{ rol, instrucciones? }`
+- `agente_externo`: `{ agente_id }`
+
+UI: Catálogos → **Ejecutores** (Resumen | Skills | Ejecuciones | Interno). En la ficha skill → Asociados → **Ejecutor**. La pestaña Ejecuciones queda stub hasta Fase 2 (log Mongo).
+
+Skill:
+```
+PUT {API_BASE}/v1/skills/:id
+{ "ejecutorId": "openai-texto" }   # o null → implícito agente_externo
+```
 
 ### System prompts
 
@@ -442,7 +484,7 @@ GET  {API_BASE}/v1/flujos?proyecto=reservas
 GET  {API_BASE}/v1/flujos/:id[?version=N]
      → { ok, flujo: { …, nodos, aristas, mermaid, versiones:[{numero,fecha,hash}] } }
 POST {API_BASE}/v1/flujos   Authorization: Bearer inv_…
-     { id, nombre, proyecto_id, nodos[], aristas[], descripcion? }
+     { id, nombre, proyectoId, nodos[], aristas[], descripcion? }   # alias entrada: proyecto_id|proyectoId|proyecto
 PUT  {API_BASE}/v1/flujos/:id   Authorization: Bearer inv_…
      { nodos[], aristas[], nombre?, descripcion? }  → nueva versión (bump)
 DELETE {API_BASE}/v1/flujos/:id   Authorization: Bearer inv_…
@@ -853,7 +895,7 @@ curl -sS -X POST "$API_BASE/v1/corridas" \
 |--------|---------|
 | `lee`/`escribe` no filtran rutas | Mecanismo primero; ACL después. Registro deja `["*"]` |
 | Sin `POST/DELETE /v1/colecciones` | Colecciones = JSON de la BD (`PUT /v1/proyectos/:id`) |
-| Sin CRUD `/v1/ejecutores` | Esperando `instrucciones-motor-ejecutores.md` (CA-29). `GET` = stub |
+| Motor de cola / log `ejecuciones` | Fase 2 (`instrucciones-motor-ejecutores.md`); catálogo Ejecutores ya existe |
 | URI Mongo nunca en respuestas | Seguridad; configurar en Cluster → Conexión |
 | `POST/DELETE /v1/mongo/config` → 410 | URI global deprecada; usar Cluster |
 | `POST /v1/invites` abierto | UI/humanos crean invites sin Bearer |

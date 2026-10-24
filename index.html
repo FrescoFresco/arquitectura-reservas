@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Arquitectura de acoplamiento a reservas web</title>
-<meta name="description" content="Catálogos Clusters, Base de datos, Colecciones, Campos, Campos ancla, Skills, Flujos y System prompts.">
+<meta name="description" content="Catálogos Clusters, Base de datos, Colecciones, Campos, Campos ancla, Skills, Ejecutores, Flujos y System prompts.">
 <script>
 (function () {
   try {
@@ -476,6 +476,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div role="tabpanel" id="panel-skills" data-catalogo="skills" hidden>
 <div id="skills-root"></div>
 </div>
+<div role="tabpanel" id="panel-ejecutores" data-catalogo="ejecutores" hidden>
+<div id="ejecutores-root"></div>
+</div>
 <div role="tabpanel" id="panel-flujos" data-catalogo="flujos" hidden>
 <div class="catalogo-toolbar">
 <button type="button" class="btn primary btn-anadir" id="btnNuevoFlujoCatalogo" title="Crear flujo">
@@ -545,6 +548,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="readerAsociadosSubtabs" role="tablist" aria-label="Vínculos de la skill">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" data-reader-asoc-sub="anclas" aria-selected="true">Anclas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-reader-asoc-sub="system-prompt" aria-selected="false">System prompt</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-reader-asoc-sub="ejecutor" aria-selected="false">Ejecutor</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-reader-asoc-sub="bases" aria-selected="false">Bases de datos</button>
 </div>
 <div class="asociados-subpane" id="readerAsocPaneAnclas" data-reader-asoc-pane="anclas">
@@ -568,6 +572,17 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ajustes-hint" id="readerSystemPromptsHint">Una skill tiene como máximo un system prompt.</p>
 <div id="readerSystemPromptsLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="readerSystemPromptsVacio" hidden>Ningún system prompt asociado.</p>
+</div>
+<div class="asociados-subpane" id="readerAsocPaneEjecutor" data-reader-asoc-pane="ejecutor" hidden>
+<div class="editar-anclas-top" style="margin-bottom:0.75rem">
+<span class="historial-titulo">Ejecutor</span>
+<button type="button" class="icon-btn" id="btnEditarSkillEjecutor" aria-label="Elegir ejecutor" title="Elegir ejecutor">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+</div>
+<p class="ajustes-hint" id="readerEjecutorHint">Quién ejecuta la skill. Sin asignar → implícito agente_externo.</p>
+<div id="readerEjecutorLista" class="proy-tab-catalogo"></div>
+<p class="ancla-ficha-vacio" id="readerEjecutorVacio" hidden>Implícito: agente_externo</p>
 </div>
 <div class="asociados-subpane" id="readerAsocPaneBases" data-reader-asoc-pane="bases" hidden>
 <div id="readerBasesLista" class="proy-tab-catalogo"></div>
@@ -1808,6 +1823,185 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </form>
 </dialog>
+
+<dialog id="dlgEjecutor" class="dlg-wide ficha-pane" aria-labelledby="ejReaderNombre">
+<article class="reader dlg-reader" id="ejReader">
+<div class="ficha-atras-bar"><button type="button" class="ficha-atras-btn" id="btnAtrasEjecutor"><span class="ficha-atras-flecha" aria-hidden="true">←</span> Atrás</button></div>
+<div class="reader-top">
+<div class="reader-top-titulo">
+<span class="ficha-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></span>
+<div>
+<h3 id="ejReaderNombre" tabindex="-1"></h3>
+<p class="bloque-ver" id="ejReaderVersion" aria-live="polite"></p>
+</div>
+</div>
+<div class="reader-top-acciones">
+<button type="button" class="icon-btn" id="btnEditarEjecutor" aria-label="Editar ejecutor" title="Editar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+</button>
+<button type="button" class="icon-btn" id="btnEliminarEjecutor" aria-label="Eliminar ejecutor" title="Eliminar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+</button>
+</div>
+</div>
+<div class="ancla-ficha-tabs reader-tabs" id="ejReaderTabs" role="tablist" aria-label="Secciones del ejecutor">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-ej-tab="resumen" aria-selected="true">Resumen</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-ej-tab="skills" aria-selected="false">Skills</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-ej-tab="ejecuciones" aria-selected="false">Ejecuciones</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-ej-tab="interno" aria-selected="false">Interno</button>
+</div>
+<div class="reader-panel ancla-ficha-body" data-ej-panel="resumen" role="tabpanel">
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Tipo</dt><dd id="ejResumenTipo">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Activo</dt><dd id="ejResumenActivo">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Timeout</dt><dd id="ejResumenTimeout">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Reintentos</dt><dd id="ejResumenReintentos">—</dd></div>
+</dl>
+<p class="historial-titulo" style="margin-top:1rem">Config</p>
+<pre id="ejResumenConfig" class="md" style="white-space:pre-wrap;font-size:0.85em"></pre>
+</div>
+<div class="reader-panel ancla-ficha-body" data-ej-panel="skills" role="tabpanel" hidden>
+<div id="ejSkillsLista" class="proy-tab-catalogo"></div>
+<p class="ancla-ficha-vacio" id="ejSkillsVacio" hidden>Ninguna skill usa este ejecutor.</p>
+</div>
+<div class="reader-panel ancla-ficha-body" data-ej-panel="ejecuciones" role="tabpanel" hidden>
+<p class="ajustes-hint">Log de ejecuciones (Mongo) — disponible en Fase 2 del motor.</p>
+<p class="ancla-ficha-vacio">Sin ejecuciones todavía.</p>
+</div>
+<div class="reader-panel ancla-ficha-body" data-ej-panel="interno" role="tabpanel" hidden>
+<dl class="ancla-ficha-dl">
+<div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="ejReaderId">—</code></dd></div>
+<div class="ancla-ficha-fila"><dt>Versión</dt><dd id="ejInternoVersion">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Creado</dt><dd id="ejInternoCreated">—</dd></div>
+<div class="ancla-ficha-fila"><dt>Actualizado</dt><dd id="ejInternoUpdated">—</dd></div>
+</dl>
+</div>
+</article>
+</dialog>
+
+<dialog id="dlgNuevoEjecutor" class="dlg-wide" aria-labelledby="dlgNuevoEjecutorTitulo">
+<form class="dlg" id="formNuevoEjecutor">
+<h3 id="dlgNuevoEjecutorTitulo">Añadir ejecutor</h3>
+<p class="nota">Se guarda en D1. El motor (cola) llega en Fase 2; aquí solo el catálogo.</p>
+<p class="form-error" id="nuevoEjecutorError" role="alert"></p>
+<label>Id (opcional)<input type="text" name="id" maxlength="61" autocomplete="off" placeholder="grok-texto"></label>
+<label>Nombre<input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Nombre"></label>
+<label>Tipo
+<select name="tipo" required>
+<option value="modelo">modelo</option>
+<option value="herramienta">herramienta</option>
+<option value="integracion">integracion</option>
+<option value="humano">humano</option>
+<option value="agente_externo">agente_externo</option>
+</select>
+</label>
+
+<div data-ej-tipo="modelo">
+<label>Proveedor
+<select name="proveedor"><option value="openai">openai</option><option value="xai">xai</option><option value="anthropic">anthropic</option></select>
+</label>
+<label>Modelo<input type="text" name="modelo" placeholder="gpt-4o-mini" autocomplete="off"></label>
+<label>Secret (nombre CF)<input type="text" name="secret" placeholder="OPENAI_API_KEY" autocomplete="off"></label>
+<label>Temperatura<input type="number" name="temperatura" min="0" max="2" step="0.1" value="0"></label>
+<label class="chk"><input type="checkbox" name="salida_json" checked> salida_json</label>
+</div>
+<div data-ej-tipo="herramienta" hidden>
+<label>Función<input type="text" name="funcion" placeholder="consultar-datos" autocomplete="off"></label>
+</div>
+<div data-ej-tipo="integracion" hidden>
+<label>URL<input type="url" name="url" placeholder="https://…/webhook/…" autocomplete="off"></label>
+<label>Método
+<select name="metodo"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+</label>
+<label>Secret (nombre CF)<input type="text" name="secret_int" placeholder="N8N_TOKEN" autocomplete="off"></label>
+<label class="chk"><input type="checkbox" name="asincrono" checked> asíncrono</label>
+</div>
+<div data-ej-tipo="humano" hidden>
+<label>Rol<input type="text" name="rol" placeholder="admin" autocomplete="off"></label>
+<label>Instrucciones<textarea name="instrucciones" rows="3" placeholder="texto"></textarea></label>
+</div>
+<div data-ej-tipo="agente_externo" hidden>
+<label>Agente id<input type="text" name="agente_id" placeholder="reservas-pagweb" autocomplete="off"></label>
+</div>
+
+<label>timeout_s<input type="number" name="timeout_s" min="1" max="3600" value="60"></label>
+<label>reintentos<input type="number" name="reintentos" min="0" max="20" value="2"></label>
+<label>espera_reintento_s<input type="number" name="espera_reintento_s" min="0" max="3600" value="10"></label>
+<label class="chk"><input type="checkbox" name="activo" checked> activo</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="nuevoEjecutorCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Crear</button>
+</div>
+</form>
+</dialog>
+
+<dialog id="dlgEditarEjecutor" class="dlg-wide" aria-labelledby="dlgEditarEjecutorTitulo">
+<form class="dlg" id="formEditarEjecutor">
+<h3 id="dlgEditarEjecutorTitulo">Editar ejecutor</h3>
+<p class="form-error" id="editarEjecutorError" role="alert"></p>
+<label>Nombre<input type="text" name="nombre" maxlength="120" autocomplete="off" required></label>
+<label>Tipo
+<select name="tipo" required>
+<option value="modelo">modelo</option>
+<option value="herramienta">herramienta</option>
+<option value="integracion">integracion</option>
+<option value="humano">humano</option>
+<option value="agente_externo">agente_externo</option>
+</select>
+</label>
+
+<div data-ej-tipo="modelo">
+<label>Proveedor
+<select name="proveedor"><option value="openai">openai</option><option value="xai">xai</option><option value="anthropic">anthropic</option></select>
+</label>
+<label>Modelo<input type="text" name="modelo" placeholder="gpt-4o-mini" autocomplete="off"></label>
+<label>Secret (nombre CF)<input type="text" name="secret" placeholder="OPENAI_API_KEY" autocomplete="off"></label>
+<label>Temperatura<input type="number" name="temperatura" min="0" max="2" step="0.1" value="0"></label>
+<label class="chk"><input type="checkbox" name="salida_json" checked> salida_json</label>
+</div>
+<div data-ej-tipo="herramienta" hidden>
+<label>Función<input type="text" name="funcion" placeholder="consultar-datos" autocomplete="off"></label>
+</div>
+<div data-ej-tipo="integracion" hidden>
+<label>URL<input type="url" name="url" placeholder="https://…/webhook/…" autocomplete="off"></label>
+<label>Método
+<select name="metodo"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+</label>
+<label>Secret (nombre CF)<input type="text" name="secret_int" placeholder="N8N_TOKEN" autocomplete="off"></label>
+<label class="chk"><input type="checkbox" name="asincrono" checked> asíncrono</label>
+</div>
+<div data-ej-tipo="humano" hidden>
+<label>Rol<input type="text" name="rol" placeholder="admin" autocomplete="off"></label>
+<label>Instrucciones<textarea name="instrucciones" rows="3" placeholder="texto"></textarea></label>
+</div>
+<div data-ej-tipo="agente_externo" hidden>
+<label>Agente id<input type="text" name="agente_id" placeholder="reservas-pagweb" autocomplete="off"></label>
+</div>
+
+<label>timeout_s<input type="number" name="timeout_s" min="1" max="3600" value="60"></label>
+<label>reintentos<input type="number" name="reintentos" min="0" max="20" value="2"></label>
+<label>espera_reintento_s<input type="number" name="espera_reintento_s" min="0" max="3600" value="10"></label>
+<label class="chk"><input type="checkbox" name="activo" checked> activo</label>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarEjecutorCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
+
+<dialog id="dlgEditarSkillEjecutor" class="dlg-wide" aria-labelledby="dlgEditarSkillEjecutorTitulo">
+<form class="dlg" id="formEditarSkillEjecutor">
+<h3 id="dlgEditarSkillEjecutorTitulo">Ejecutor de la skill</h3>
+<p class="nota">Elige uno o déjalo implícito (agente_externo).</p>
+<p class="form-error" id="editarSkillEjecutorError" role="alert"></p>
+<div id="editarSkillEjecutorPicker" class="proy-skills-picker"></div>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="editarSkillEjecutorCancelar">Cancelar</button>
+<button type="submit" class="btn primary">Guardar</button>
+</div>
+</form>
+</dialog>
+
 <dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
 <div class="dlg" id="panelDarAcceso">
 <h3 id="dlgDarAccesoTitulo">Nuevo agente</h3>
@@ -1908,8 +2102,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="fundamentos-ui.js?v=20261023deadClean1"></script>
 <script src="system-prompts-ui.js?v=20261023deadClean1"></script>
 <script src="system-prompts-catalog.js?v=20261023deadClean1"></script>
-<script src="catalogo-ui.js?v=20261023gapsMotor1"></script>
-<script src="flujos-corridas-ui.js?v=20261023gapsMotor1"></script>
+<script src="ejecutores-ui.js?v=20261024fase1ej1"></script>
+<script src="ejecutores-catalog.js?v=20261024fase1ej1"></script>
+<script src="catalogo-ui.js?v=20261024fase1ej1"></script>
+<script src="flujos-corridas-ui.js?v=20261024fase1ej1"></script>
 <script src="ajustes-ui.js?v=20261023deadClean1"></script>
 
 </body>
