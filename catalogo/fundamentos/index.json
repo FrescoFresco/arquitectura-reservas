@@ -106,6 +106,20 @@
           "hash": "4c4e86b0b086188edab7bd3d17afdef8e5372d2eadae9e060d505ba294c5bdd9"
         }
       ]
+    },
+    {
+      "id": "catalogo-objetos",
+      "nombre": "Catálogo de objetos y conexiones",
+      "descripcion": "Plantilla uniforme de 6 puntos (qué es, dónde vive, campos, conexiones, cuándo actúa y ejemplo real) para los 14 objetos de Campos ancla.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/catalogo-objetos/v1.md",
+          "nombreArchivo": "catalogo-objetos.md",
+          "hash": "52d736bb71e877dd8b596a66458a468b62235594bf2c395b4710d00d12de8e91"
+        }
+      ]
     }
   ]
 }
