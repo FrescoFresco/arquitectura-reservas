@@ -24,6 +24,8 @@ const files = [
   'skills-ui.js',
   'system-prompts-ui.js',
   'system-prompts-catalog.js',
+  'ejecutores-ui.js',
+  'ejecutores-catalog.js',
   'flujos-corridas-ui.js',
 ];
 

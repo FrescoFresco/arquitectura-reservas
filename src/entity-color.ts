@@ -17,6 +17,7 @@ export const ENTITY_COLOR_TABLES = [
   'fundamentos',
   'agentes',
   'flujos',
+  'ejecutores',
 ] as const;
 
 export type EntityColorTable = (typeof ENTITY_COLOR_TABLES)[number];

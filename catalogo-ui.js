@@ -7,6 +7,7 @@ const CATALOGOS = [
   { id: 'campos-mongodb', nombre: 'Campos', icono: 'mongo' },
   { id: 'campos-ancla', nombre: 'Campos ancla', icono: 'ancla' },
   { id: 'skills', nombre: 'Skills', icono: 'skills' },
+  { id: 'ejecutores', nombre: 'Ejecutores', icono: 'ejecutor' },
   { id: 'flujos', nombre: 'Flujos', icono: 'flujo' },
   { id: 'system-prompts', nombre: 'System prompts', icono: 'system-prompt' }
 ];
@@ -37,6 +38,7 @@ const FICHA_PANE_IDS = [
   'dlgAgenteFicha',
   'dlgFundamento',
   'dlgSystemPrompt',
+  'dlgEjecutor',
   'dlgFlujo',
   'dlgCorrida'
 ];
@@ -328,6 +330,18 @@ function registrarColorEntidadKinds() {
         window.SystemPromptsUI.refrescar();
       }
     }
+  });
+
+  window.ColorEntidad.registerKind('ejecutor', {
+    listItems: function () { return (window.EjecutoresCatalog && window.EjecutoresCatalog.state && window.EjecutoresCatalog.state.lista) || []; },
+    applyLocal: function (id, color) {
+      var lista = window.EjecutoresCatalog && window.EjecutoresCatalog.state && window.EjecutoresCatalog.state.lista;
+      if (!lista) return;
+      for (var i = 0; i < lista.length; i++) {
+        if (lista[i].id === id) { lista[i].color = color; break; }
+      }
+    },
+    refresh: function () { if (window.EjecutoresCatalog) window.EjecutoresCatalog.pintar(); }
   });
   window.ColorEntidad.registerKind('fundamento', {
     listItems: function () { return (state.fundamentos && state.fundamentos.lista) || []; },
@@ -755,6 +769,13 @@ function normalizeInstruccion(item, versionFn) {
     }).filter(Boolean);
   } else {
     out.systemPrompts = [];
+  }
+  if (Object.prototype.hasOwnProperty.call(item, 'ejecutorId')) {
+    out.ejecutorId = item.ejecutorId == null || item.ejecutorId === '' ? null : String(item.ejecutorId);
+  } else if (Object.prototype.hasOwnProperty.call(item, 'ejecutor_id')) {
+    out.ejecutorId = item.ejecutor_id == null || item.ejecutor_id === '' ? null : String(item.ejecutor_id);
+  } else {
+    out.ejecutorId = null;
   }
   return out;
 }
@@ -1280,6 +1301,12 @@ function svgPestanaCatalogo(tipo) {
       svgPath('M12 7v14'),
       svgPath('M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z')
     );
+  } else if (tipo === 'ejecutor') {
+    // Lucide: cog / settings
+    svg.append(
+      svgPath('M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'),
+      svgPath('M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z')
+    );
   } else if (tipo === 'system-prompt') {
     // Lucide: message-square
     svg.append(svgPath('M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'));
@@ -1436,6 +1463,9 @@ function iconoDePestanaFicha(tabId) {
     skills: 'skills',
     'system-prompts': 'system-prompt',
     'system-prompt': 'system-prompt',
+    ejecutores: 'ejecutor',
+    ejecutor: 'ejecutor',
+    ejecuciones: 'pasos',
     conexion: 'conexion',
     bases: 'proyecto',
     'base-datos': 'proyecto',
@@ -2971,6 +3001,9 @@ function renderReader() {
   if (window.SystemPromptsCatalog) {
     window.SystemPromptsCatalog.pintarSkillSystemPromptsTab(ins);
   }
+  if (window.EjecutoresCatalog) {
+    window.EjecutoresCatalog.pintarSkillEjecutorTab(ins);
+  }
   openFichaPane(dlg);
   cablearColorFicha(dlg, {
     kind: 'skill',
@@ -2991,7 +3024,7 @@ function readerAsocSubActual() {
 }
 
 function seleccionarReaderAsocSub(id) {
-  if (id !== 'anclas' && id !== 'system-prompt' && id !== 'bases') id = 'anclas';
+  if (id !== 'anclas' && id !== 'system-prompt' && id !== 'ejecutor' && id !== 'bases') id = 'anclas';
   skillAsocSub = id;
   const tabs = document.querySelectorAll('#readerAsociadosSubtabs [data-reader-asoc-sub]');
   tabs.forEach(function (btn) {
@@ -3008,11 +3041,21 @@ function seleccionarReaderAsocSub(id) {
   if (id === 'system-prompt' && window.SystemPromptsCatalog) {
     window.SystemPromptsCatalog.pintarSkillSystemPromptsTab(ins);
   }
+  if (id === 'ejecutor' && window.EjecutoresCatalog) {
+    window.EjecutoresCatalog.pintarSkillEjecutorTab(ins);
+  }
 }
 
 function seleccionarReaderTab(id) {
-  if (id === 'anclas' || id === 'bases' || id === 'system-prompts' || id === 'system-prompt') {
-    const sub = id === 'system-prompts' ? 'system-prompt' : id;
+  if (
+    id === 'anclas' ||
+    id === 'bases' ||
+    id === 'system-prompts' ||
+    id === 'system-prompt' ||
+    id === 'ejecutor' ||
+    id === 'ejecutores'
+  ) {
+    const sub = id === 'system-prompts' || id === 'ejecutores' ? (id === 'ejecutores' ? 'ejecutor' : 'system-prompt') : id;
     id = 'asociados';
     skillAsocSub = sub;
   }
@@ -3293,6 +3336,15 @@ function abrirDialogoEliminar(opts) {
     if (!f) return;
     if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el system prompt?';
   }
+  if (opts.tipo === 'ejecutor') {
+    const list = (window.EjecutoresCatalog && window.EjecutoresCatalog.state.lista) || [];
+    const f = list.find(function (x) { return x.id === opts.id; });
+    if (!f) return;
+    if (!opts.titulo) opts.titulo = '¿Estás seguro de eliminar el ejecutor?';
+    if (opts.aviso == null) {
+      opts.aviso = 'Las skills que lo usaban pasan a implícito agente_externo.';
+    }
+  }
   const dlg = document.getElementById('dlgEliminar');
   const form = document.getElementById('formEliminar');
   if (!dlg || !form) return;
@@ -3506,6 +3558,7 @@ async function onSubmitEliminar(e) {
     else if (tipo === 'agente') eliminarAgente(id);
     else if (tipo === 'fundamento') eliminarFundamento(id);
     else if (tipo === 'system-prompt' && window.SystemPromptsCatalog) window.SystemPromptsCatalog.eliminar(id);
+    else if (tipo === 'ejecutor' && window.EjecutoresCatalog) await window.EjecutoresCatalog.eliminar(id);
     else throw new Error('Tipo desconocido.');
     document.getElementById('dlgEliminar').close();
   } catch (err) {
@@ -3580,6 +3633,7 @@ function seleccionarCatalogo(id) {
     window.FlujosCorridasUI.cargarCatalogo();
   }
   if (id === 'system-prompts' && window.SystemPromptsCatalog) window.SystemPromptsCatalog.cargar();
+  if (id === 'ejecutores' && window.EjecutoresCatalog) window.EjecutoresCatalog.cargar();
   if (id === 'campos-ancla') cargarCampos();
   if (id === 'campos-mongodb') cargarMongo();
   if (id === 'clusters') cargarClusters();
@@ -3902,6 +3956,10 @@ function iniciar() {
   if (window.SystemPromptsCatalog) {
     window.SystemPromptsCatalog.wire();
     window.SystemPromptsCatalog.cargar();
+  }
+  if (window.EjecutoresCatalog) {
+    window.EjecutoresCatalog.wire();
+    window.EjecutoresCatalog.cargar();
   }
 }
 

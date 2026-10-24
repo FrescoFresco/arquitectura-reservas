@@ -106,6 +106,15 @@ import {
   validatePipelineStages,
 } from './disparadores';
 import {
+  isEjecutorTipo,
+  normalizeTimeouts,
+  parseConfigJson,
+  resolveSkillEjecutorId,
+  rowToEjecutor,
+  validateEjecutorConfig,
+  type EjecutorRow,
+} from './ejecutores';
+import {
   cloneDoc,
   emitCambioDatos,
   emitWebhook,
@@ -324,6 +333,15 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
 
+/** Acepta proyecto | proyectoId | proyecto_id (query o body) → un solo string. */
+function pickProyectoId(...raws: unknown[]): string {
+  for (const raw of raws) {
+    const s = String(raw ?? '').trim();
+    if (s) return s;
+  }
+  return '';
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -407,21 +425,31 @@ app.get('/v1/docs.json', (c) =>
 );
 app.get('/docs', (c) => c.redirect('/v1/docs', 302));
 
-/**
- * Stub: catálogo de ejecutores aún no existe (CA-29).
- * No inventar CRUD hasta `instrucciones-motor-ejecutores.md`.
- * 200 + ok:false (no 404) para que agentes lean el hint.
- */
-app.get('/v1/ejecutores', (c) =>
-  c.json({
-    ok: false,
-    error: 'no_implementado',
-    recurso: 'ejecutores',
-    hint:
-      'Catálogo de ejecutores pendiente de instrucciones-motor-ejecutores.md (CA-29). Redactor usa modelo/mock directo en POST /v1/redactor; el Worker no ejecuta skills del bucle de corridas.',
-    endpoints: [],
-  })
-);
+/** Catálogo de ejecutores (Fase 1). Skill sin ejecutorId → implícito agente_externo. */
+app.get('/v1/ejecutores', async (c) => {
+  const rows = await c.env.DB.prepare(
+    `SELECT id, nombre, tipo, config_json, timeout_s, reintentos, espera_reintento_s,
+            activo, version, color, created_at, updated_at
+     FROM ejecutores ORDER BY nombre`
+  ).all();
+  const out = [];
+  for (const raw of rows.results || []) {
+    out.push(await hydrateEjecutor(c.env.DB, raw as EjecutorRow));
+  }
+  return c.json({ ok: true, id: 'ejecutores', nombre: 'Ejecutores', ejecutores: out });
+});
+
+app.get('/v1/ejecutores/:id', async (c) => {
+  const row = await c.env.DB.prepare(
+    `SELECT id, nombre, tipo, config_json, timeout_s, reintentos, espera_reintento_s,
+            activo, version, color, created_at, updated_at
+     FROM ejecutores WHERE id = ?`
+  )
+    .bind(c.req.param('id'))
+    .first<EjecutorRow>();
+  if (!row) return jsonError(c, 404, 'Ejecutor no encontrado.');
+  return c.json({ ok: true, ejecutor: await hydrateEjecutor(c.env.DB, row) });
+});
 
 /** Writes require a valid non-revoked invite key. */
 app.use('/v1/*', async (c, next) => {
@@ -453,7 +481,7 @@ app.use('/v1/*', async (c, next) => {
 /** Public catalog reads — no auth. */
 app.get('/v1/skills', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, color, created_at, updated_at FROM skills ORDER BY nombre'
+    'SELECT id, nombre, descripcion, hash, color, ejecutor_id, created_at, updated_at FROM skills ORDER BY nombre'
   ).all();
   const out = [];
   for (const row of rows.results || []) {
@@ -465,7 +493,7 @@ app.get('/v1/skills', async (c) => {
 app.get('/v1/skills/:id', async (c) => {
   const id = c.req.param('id');
   const row = await c.env.DB.prepare(
-    'SELECT id, nombre, descripcion, hash, color, created_at, updated_at FROM skills WHERE id = ?'
+    'SELECT id, nombre, descripcion, hash, color, ejecutor_id, created_at, updated_at FROM skills WHERE id = ?'
   )
     .bind(id)
     .first();
@@ -755,7 +783,11 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
 
 /** Flujos versionados (D1). */
 app.get('/v1/flujos', async (c) => {
-  const proyecto = String(c.req.query('proyecto') || c.req.query('proyecto_id') || '').trim();
+  const proyecto = pickProyectoId(
+    c.req.query('proyecto'),
+    c.req.query('proyectoId'),
+    c.req.query('proyecto_id')
+  );
   let sql = 'SELECT id, nombre, descripcion, proyecto_id, hash, color, created_at, updated_at FROM flujos';
   const binds: string[] = [];
   if (proyecto) {
@@ -807,10 +839,10 @@ app.post('/v1/flujos', async (c) => {
   };
   const id = String(body.id || '').trim();
   const nombre = String(body.nombre || '').trim();
-  const proyectoId = String(body.proyecto_id || body.proyectoId || body.proyecto || '').trim();
+  const proyectoId = pickProyectoId(body.proyectoId, body.proyecto_id, body.proyecto);
   if (!id || !ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
   if (!nombre) return jsonError(c, 400, 'Falta nombre.');
-  if (!proyectoId || !ID_RE.test(proyectoId)) return jsonError(c, 400, 'proyecto_id inválido.');
+  if (!proyectoId || !ID_RE.test(proyectoId)) return jsonError(c, 400, 'proyectoId inválido.');
   const proy = await c.env.DB.prepare('SELECT id FROM proyectos WHERE id = ?').bind(proyectoId).first();
   if (!proy) return jsonError(c, 404, 'Proyecto no encontrado.');
   const exists = await c.env.DB.prepare('SELECT id FROM flujos WHERE id = ?').bind(id).first();
@@ -1465,7 +1497,9 @@ app.post('/v1/disparar/:flujo/:token', async (c) => {
 
 /** Listar eventos recientes (smoke / depuración). */
 app.get('/v1/eventos', async (c) => {
-  const proyectoId = String(c.req.query('proyecto') || c.req.query('proyecto_id') || 'reservas').trim();
+  const proyectoId =
+    pickProyectoId(c.req.query('proyecto'), c.req.query('proyectoId'), c.req.query('proyecto_id')) ||
+    'reservas';
   const coleccion = String(c.req.query('coleccion') || '').trim();
   const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 20) || 20));
   const mongo = await mongoForProyecto(c.env, proyectoId);
@@ -1487,7 +1521,7 @@ app.get('/v1/eventos', async (c) => {
       },
       mongo.dbName
     );
-    return c.json({ ok: true, proyecto_id: proyectoId, eventos });
+    return c.json({ ok: true, proyectoId, eventos });
   } catch (err) {
     return jsonMongoError(c, 502, err);
   }
@@ -1497,7 +1531,7 @@ app.get('/v1/corridas', async (c) => {
   const flujoId = String(c.req.query('flujo_id') || '').trim();
   const negocio = String(c.req.query('negocio') || '').trim();
   const estado = String(c.req.query('estado') || '').trim();
-  const proyectoQ = String(c.req.query('proyecto') || c.req.query('proyecto_id') || '').trim();
+  const proyectoQ = pickProyectoId(c.req.query('proyecto'), c.req.query('proyectoId'), c.req.query('proyecto_id'));
 
   let sql = 'SELECT id, proyecto_id, flujo_id, negocio, estado, updated_at FROM corridas_index WHERE 1=1';
   const binds: string[] = [];
@@ -1567,7 +1601,7 @@ app.get('/v1/corridas', async (c) => {
       : {
           id: r.id,
           flujo_id: r.flujo_id,
-          proyecto_id: r.proyecto_id,
+          proyectoId: r.proyecto_id,
           negocio: r.negocio,
           estado: r.estado,
           actualizada: r.updated_at,
@@ -1975,7 +2009,7 @@ app.get('/v1/proyectos', async (c) => {
  * Mutar: PUT /v1/proyectos/:id con colecciones[] (no hay POST/DELETE sueltos).
  */
 app.get('/v1/colecciones', async (c) => {
-  const proyectoQ = String(c.req.query('proyecto') || c.req.query('proyecto_id') || '').trim();
+  const proyectoQ = pickProyectoId(c.req.query('proyecto'), c.req.query('proyectoId'), c.req.query('proyecto_id'));
   let sql = `SELECT id, nombre, base_datos, colecciones, legacy_negocio FROM proyectos`;
   const binds: string[] = [];
   if (proyectoQ) {
@@ -2444,6 +2478,8 @@ app.post('/v1/skills', async (c) => {
     salidas?: string[];
     systemPromptId?: string | null;
     systemPrompts?: unknown;
+    ejecutorId?: string | null;
+    ejecutor_id?: string | null;
   };
   const nombre = String(body.nombre || '').trim();
   if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
@@ -2454,6 +2490,14 @@ app.post('/v1/skills', async (c) => {
   const io = resolveSkillIoFromBody(body);
   const promptLink = resolveSkillSystemPromptId(body);
   if (promptLink.error) return jsonError(c, 400, promptLink.error);
+  const ejecutorLink = resolveSkillEjecutorId(body);
+  if (ejecutorLink.error) return jsonError(c, 400, ejecutorLink.error);
+  if (ejecutorLink.set && ejecutorLink.id) {
+    const ex = await c.env.DB.prepare('SELECT id FROM ejecutores WHERE id = ?')
+      .bind(ejecutorLink.id)
+      .first();
+    if (!ex) return jsonError(c, 400, 'Ejecutor no encontrado.');
+  }
   const ts = nowIso();
   const hash = await sha256Hex(markdown || id + '|1');
   let colorVal: string | null = null;
@@ -2462,11 +2506,12 @@ app.post('/v1/skills', async (c) => {
     if (!parsed.ok) return jsonError(c, 400, parsed.error);
     colorVal = parsed.color;
   }
+  const ejecutorIdVal = ejecutorLink.set ? ejecutorLink.id : null;
   try {
     await c.env.DB.prepare(
-      'INSERT INTO skills (id, nombre, descripcion, hash, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO skills (id, nombre, descripcion, hash, color, ejecutor_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     )
-      .bind(id, nombre, descripcion, hash, colorVal, ts, ts)
+      .bind(id, nombre, descripcion, hash, colorVal, ejecutorIdVal, ts, ts)
       .run();
   } catch {
     return jsonError(c, 409, 'Ya existe esa skill.');
@@ -2515,6 +2560,8 @@ app.put('/v1/skills/:id', async (c) => {
 
   const promptLink = resolveSkillSystemPromptId(body);
   if (promptLink.error) return jsonError(c, 400, promptLink.error);
+  const ejecutorLink = resolveSkillEjecutorId(body);
+  if (ejecutorLink.error) return jsonError(c, 400, ejecutorLink.error);
 
   const hasDocOrIo =
     body.nombre != null ||
@@ -2524,25 +2571,36 @@ app.put('/v1/skills/:id', async (c) => {
     body.salidas != null ||
     body.anclas != null;
 
-  // Solo cambiar el system prompt: actualiza N:M sin nueva versión de MD.
-  if (promptLink.set && !hasDocOrIo) {
-    try {
-      const linkResult = await setSkillSystemPrompt(c.env.DB, id, promptLink.id);
-      const skill = await hydrateSkill(
-        c.env.DB,
-        (await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first()) as Record<
-          string,
-          unknown
-        >
-      );
-      return c.json({
-        ok: true,
-        skill,
-        movedSkill: linkResult.moved,
-      });
-    } catch {
-      return jsonError(c, 400, 'System prompt no encontrado.');
+  // Solo cambiar system prompt y/o ejecutor: sin nueva versión de MD.
+  if ((promptLink.set || ejecutorLink.set) && !hasDocOrIo) {
+    let movedSkill: MovedSkillLink | null = null;
+    if (promptLink.set) {
+      try {
+        const linkResult = await setSkillSystemPrompt(c.env.DB, id, promptLink.id);
+        movedSkill = linkResult.moved;
+      } catch {
+        return jsonError(c, 400, 'System prompt no encontrado.');
+      }
     }
+    if (ejecutorLink.set) {
+      if (ejecutorLink.id) {
+        const ex = await c.env.DB.prepare('SELECT id FROM ejecutores WHERE id = ?')
+          .bind(ejecutorLink.id)
+          .first();
+        if (!ex) return jsonError(c, 400, 'Ejecutor no encontrado.');
+      }
+      await c.env.DB.prepare('UPDATE skills SET ejecutor_id = ?, updated_at = ? WHERE id = ?')
+        .bind(ejecutorLink.id, nowIso(), id)
+        .run();
+    }
+    const skill = await hydrateSkill(
+      c.env.DB,
+      (await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(id).first()) as Record<
+        string,
+        unknown
+      >
+    );
+    return c.json({ ok: true, skill, movedSkill });
   }
 
   const nombre = String(body.nombre ?? (row as { nombre: string }).nombre).trim();
@@ -2591,6 +2649,17 @@ app.put('/v1/skills/:id', async (c) => {
     } catch {
       return jsonError(c, 400, 'System prompt no encontrado.');
     }
+  }
+  if (ejecutorLink.set) {
+    if (ejecutorLink.id) {
+      const ex = await c.env.DB.prepare('SELECT id FROM ejecutores WHERE id = ?')
+        .bind(ejecutorLink.id)
+        .first();
+      if (!ex) return jsonError(c, 400, 'Ejecutor no encontrado.');
+    }
+    await c.env.DB.prepare('UPDATE skills SET ejecutor_id = ? WHERE id = ?')
+      .bind(ejecutorLink.id, id)
+      .run();
   }
   const skill = await hydrateSkill(
     c.env.DB,
@@ -3672,6 +3741,146 @@ app.delete('/v1/proyectos/:id', async (c) => {
   return c.json({ ok: true, deleted: id });
 });
 
+app.post('/v1/ejecutores', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const nombre = String(body.nombre || '').trim();
+  if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
+  const id = String(body.id || slugId(nombre)).trim();
+  if (!ID_RE.test(id)) return jsonError(c, 400, 'id inválido.');
+  if (!isEjecutorTipo(body.tipo)) {
+    return jsonError(c, 400, 'tipo inválido (modelo|herramienta|integracion|humano|agente_externo).');
+  }
+  const cfg = validateEjecutorConfig(body.tipo, body.config ?? {});
+  if (!cfg.ok) return jsonError(c, 400, cfg.error);
+  const timeouts = normalizeTimeouts(body);
+  if (!timeouts.ok) return jsonError(c, 400, timeouts.error);
+  const activo = body.activo === undefined ? true : !!body.activo;
+  let colorVal: string | null = null;
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
+  const ts = nowIso();
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO ejecutores
+        (id, nombre, tipo, config_json, timeout_s, reintentos, espera_reintento_s, activo, version, color, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
+    )
+      .bind(
+        id,
+        nombre,
+        body.tipo,
+        JSON.stringify(cfg.config),
+        timeouts.timeout_s,
+        timeouts.reintentos,
+        timeouts.espera_reintento_s,
+        activo ? 1 : 0,
+        colorVal,
+        ts,
+        ts
+      )
+      .run();
+  } catch {
+    return jsonError(c, 409, 'Ya existe ese ejecutor.');
+  }
+  const row = await c.env.DB.prepare(
+    `SELECT id, nombre, tipo, config_json, timeout_s, reintentos, espera_reintento_s,
+            activo, version, color, created_at, updated_at FROM ejecutores WHERE id = ?`
+  )
+    .bind(id)
+    .first<EjecutorRow>();
+  return c.json({ ok: true, ejecutor: await hydrateEjecutor(c.env.DB, row!) }, 201);
+});
+
+app.put('/v1/ejecutores/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare(
+    `SELECT id, nombre, tipo, config_json, timeout_s, reintentos, espera_reintento_s,
+            activo, version, color, created_at, updated_at FROM ejecutores WHERE id = ?`
+  )
+    .bind(id)
+    .first<EjecutorRow>();
+  if (!row) return jsonError(c, 404, 'Ejecutor no encontrado.');
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  {
+    const colorOnly = await tryColorOnlyUpdate(c.env.DB, 'ejecutores', id, body, nowIso());
+    if (colorOnly && 'error' in colorOnly) return jsonError(c, 400, colorOnly.error);
+    if (colorOnly) {
+      const refreshed = await c.env.DB.prepare(
+        `SELECT id, nombre, tipo, config_json, timeout_s, reintentos, espera_reintento_s,
+                activo, version, color, created_at, updated_at FROM ejecutores WHERE id = ?`
+      )
+        .bind(id)
+        .first<EjecutorRow>();
+      return c.json({ ok: true, ejecutor: await hydrateEjecutor(c.env.DB, refreshed!) });
+    }
+  }
+  const nombre = String(body.nombre ?? row.nombre).trim();
+  if (!nombre) return jsonError(c, 400, 'nombre obligatorio.');
+  const tipoRaw = body.tipo !== undefined ? body.tipo : row.tipo;
+  if (!isEjecutorTipo(tipoRaw)) {
+    return jsonError(c, 400, 'tipo inválido (modelo|herramienta|integracion|humano|agente_externo).');
+  }
+  const configRaw = body.config !== undefined ? body.config : parseConfigJson(row.config_json);
+  const cfg = validateEjecutorConfig(tipoRaw, configRaw);
+  if (!cfg.ok) return jsonError(c, 400, cfg.error);
+  const timeouts = normalizeTimeouts({
+    timeout_s: body.timeout_s !== undefined ? body.timeout_s : row.timeout_s,
+    reintentos: body.reintentos !== undefined ? body.reintentos : row.reintentos,
+    espera_reintento_s:
+      body.espera_reintento_s !== undefined ? body.espera_reintento_s : row.espera_reintento_s,
+  });
+  if (!timeouts.ok) return jsonError(c, 400, timeouts.error);
+  const activo = body.activo !== undefined ? !!body.activo : !!row.activo;
+  let colorVal: string | null = colorFromRow(row as unknown as Record<string, unknown>);
+  if (bodyHasColor(body)) {
+    const parsed = parseEntityColor(body.color);
+    if (!parsed.ok) return jsonError(c, 400, parsed.error);
+    colorVal = parsed.color;
+  }
+  const version = (Number(row.version) || 1) + 1;
+  const ts = nowIso();
+  await c.env.DB.prepare(
+    `UPDATE ejecutores SET
+      nombre = ?, tipo = ?, config_json = ?, timeout_s = ?, reintentos = ?,
+      espera_reintento_s = ?, activo = ?, version = ?, color = ?, updated_at = ?
+     WHERE id = ?`
+  )
+    .bind(
+      nombre,
+      tipoRaw,
+      JSON.stringify(cfg.config),
+      timeouts.timeout_s,
+      timeouts.reintentos,
+      timeouts.espera_reintento_s,
+      activo ? 1 : 0,
+      version,
+      colorVal,
+      ts,
+      id
+    )
+    .run();
+  const refreshed = await c.env.DB.prepare(
+    `SELECT id, nombre, tipo, config_json, timeout_s, reintentos, espera_reintento_s,
+            activo, version, color, created_at, updated_at FROM ejecutores WHERE id = ?`
+  )
+    .bind(id)
+    .first<EjecutorRow>();
+  return c.json({ ok: true, ejecutor: await hydrateEjecutor(c.env.DB, refreshed!) });
+});
+
+app.delete('/v1/ejecutores/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT id FROM ejecutores WHERE id = ?').bind(id).first();
+  if (!row) return jsonError(c, 404, 'Ejecutor no encontrado.');
+  // ON DELETE SET NULL en skills; cleanup explícito por si el FK no está activo en D1.
+  await c.env.DB.prepare('UPDATE skills SET ejecutor_id = NULL WHERE ejecutor_id = ?').bind(id).run();
+  await c.env.DB.prepare('DELETE FROM ejecutores WHERE id = ?').bind(id).run();
+  return c.json({ ok: true, deleted: id });
+});
+
 app.post('/v1/system-prompts', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     id?: string;
@@ -3840,10 +4049,13 @@ app.post('/v1/fundamentos', async (c) => {
   } catch {
     return jsonError(c, 409, 'Ya existe ese fundamento.');
   }
+  const rutaPost =
+    String((body as { ruta?: string }).ruta || '').trim() ||
+    `catalogo/fundamentos/${id}/v1.md`;
   await c.env.DB.prepare(
     'INSERT INTO fundamento_versions (fundamento_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, 1, ?, ?, ?, ?, ?)'
   )
-    .bind(id, todayIso(), markdown, '', id + '.md', hash)
+    .bind(id, todayIso(), markdown, rutaPost, id + '.md', hash)
     .run();
   return c.json({
     ok: true,
@@ -3908,10 +4120,12 @@ app.put('/v1/fundamentos/:id', async (c) => {
   )
     .bind(nombre, descripcion, hash, ts, colorVal, id)
     .run();
+  const rutaPut =
+    String(body.ruta || '').trim() || `catalogo/fundamentos/${id}/v${numero}.md`;
   await c.env.DB.prepare(
     'INSERT INTO fundamento_versions (fundamento_id, numero, fecha, markdown, ruta, nombre_archivo, hash) VALUES (?, ?, ?, ?, ?, ?, ?)'
   )
-    .bind(id, numero, todayIso(), markdown, '', id + '.md', hash)
+    .bind(id, numero, todayIso(), markdown, rutaPut, id + '.md', hash)
     .run();
   return c.json({
     ok: true,
@@ -4135,6 +4349,9 @@ async function hydrateSkill(db: D1Database, row: Record<string, unknown>) {
   }
   const anclas = unionAnclas(entradas, salidas);
   const systemPrompts = await loadSystemPromptsForSkill(db, id, { withMarkdown: false });
+  const ejecutorIdRaw = row.ejecutor_id;
+  const ejecutorId =
+    ejecutorIdRaw == null || ejecutorIdRaw === '' ? null : String(ejecutorIdRaw);
   return {
     id,
     nombre: row.nombre,
@@ -4145,8 +4362,19 @@ async function hydrateSkill(db: D1Database, row: Record<string, unknown>) {
     salidas,
     anclas,
     systemPrompts,
+    /** null = implícito agente_externo (sin fila en catálogo). */
+    ejecutorId,
     versiones: versiones.results || [],
   };
+}
+
+async function hydrateEjecutor(db: D1Database, row: EjecutorRow) {
+  const skillsRows = await db
+    .prepare('SELECT id FROM skills WHERE ejecutor_id = ? ORDER BY id')
+    .bind(row.id)
+    .all();
+  const skills = (skillsRows.results || []).map((r) => String((r as { id: string }).id));
+  return rowToEjecutor(row, { skills, colorFromRow });
 }
 
 function normalizeIdList(list: unknown): string[] {
