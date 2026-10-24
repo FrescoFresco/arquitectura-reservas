@@ -231,7 +231,19 @@ export const API_DOCS_INDEX = {
       path: '/v1/interno/corridas-stale-tick',
       auth: true,
       summary:
-        'Ops: marcar corridas en_curso caducadas (timeout_sin_avance; mismo tick que el cron CF)',
+        'Ops: marcar en_curso sin lease y sin actividad → atascada (alias de corridas-atascadas-tick)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/interno/corridas-atascadas-tick',
+      auth: true,
+      summary: 'Ops: marcar corridas atascadas (10 min sin actividad / sin lease; cron cada 5 min)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/interno/corridas-timeout-tick',
+      auth: true,
+      summary: 'Ops: timeout de esperando_integracion (lease_hasta vencido; cron cada minuto)',
     },
     {
       method: 'GET',
@@ -281,6 +293,36 @@ export const API_DOCS_INDEX = {
       auth: false,
       summary:
         'Paso debido: skill+systemPrompt+entradas | tipo fin | tipo espera (aprobación/subflujo)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/corridas/:id/reintentar',
+      auth: true,
+      summary: 'Fase 3: reencolar paso (solo fallida); body { quien? }',
+    },
+    {
+      method: 'POST',
+      path: '/v1/corridas/:id/aprobar',
+      auth: true,
+      summary: 'Fase 3: aprobar esperando_humano (arista si / única)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/corridas/:id/rechazar',
+      auth: true,
+      summary: 'Fase 3: rechazar esperando_humano (arista no o cancelada)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/corridas/:id/cancelar',
+      auth: true,
+      summary: 'Fase 3: cancelar corrida (estado no final)',
+    },
+    {
+      method: 'POST',
+      path: '/v1/corridas/:id/reanudar',
+      auth: true,
+      summary: 'Fase 3: reanudar atascada o en_curso sin lease',
     },
     { method: 'GET', path: '/v1/anclas', auth: false, summary: 'Listar campos ancla' },
     { method: 'GET', path: '/v1/anclas/resolve', auth: false, query: ['q'], summary: 'Resolver alias → canónico' },
@@ -401,7 +443,7 @@ export const API_DOCS_INDEX = {
     'lee/escribe metadata only — Bearer invite = full hub write',
     'no POST/DELETE /v1/colecciones (mutar vía PUT /v1/proyectos/:id)',
     'skill sin ejecutorId = implícito agente_externo; cola pasos ejecuta modelo/herramienta/integracion',
-    'control de fallos (reintentos/botones/atascadas) = Fase 3',
+    'atascada = en_curso ≥10 min sin lease; reanudar desde panel',
     'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',
     'URI Mongo never in responses',
     'POST /v1/invites open for UI',

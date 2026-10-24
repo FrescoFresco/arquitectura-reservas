@@ -197,6 +197,29 @@ export function pickNextNodo(
   return findNodo(nodos, plain.hacia);
 }
 
+/**
+ * Fase 3 — Aprobar (cuando=true / arista única) o Rechazar (cuando=false).
+ * Devuelve null si no hay arista compatible.
+ */
+export function pickNextPorCuando(
+  nodos: FlujoNodo[],
+  aristas: FlujoArista[],
+  desdeId: string,
+  cuando: boolean
+): FlujoNodo | null {
+  const salientes = aristas.filter((a) => a.desde === desdeId);
+  if (!salientes.length) return null;
+  const match = salientes.find((a) => a.cuando === cuando);
+  if (match) return findNodo(nodos, match.hacia);
+  if (cuando === true) {
+    const plain =
+      salientes.find((a) => a.cuando === undefined) ||
+      (salientes.length === 1 ? salientes[0] : undefined);
+    return plain ? findNodo(nodos, plain.hacia) : null;
+  }
+  return null;
+}
+
 export type AvanceResultado =
   | { kind: 'skill'; nodo: FlujoNodo }
   | { kind: 'espera'; nodo: FlujoNodo }

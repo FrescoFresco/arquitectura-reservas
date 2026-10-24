@@ -250,7 +250,7 @@ Ejemplos:
 | Disparadores | `GET /v1/flujos/:id/disparadores` | `GET /v1/disparadores/:id` | `POST /v1/flujos/:id/disparadores` | `PUT` · `POST …/activar` · `…/pausar` · `…/probar` | `DELETE /v1/disparadores/:id` |
 | Eventos | `GET /v1/eventos?proyecto=&coleccion=` | — | (motor / webhook) | — | TTL 30d |
 | Redactor | `GET /v1/redactor` (contrato) | — | `POST /v1/redactor` (Bearer) | — | — |
-| Corridas | `GET /v1/corridas?…` | `GET /v1/corridas/:id` · `…/siguiente` | `POST /v1/corridas` | (avanza vía salidas) | `DELETE /v1/corridas/:id` |
+| Corridas | `GET /v1/corridas?…` | `GET /v1/corridas/:id` · `…/siguiente` | `POST /v1/corridas` | `…/reintentar` · `…/aprobar` · `…/rechazar` · `…/cancelar` · `…/reanudar` · (avanza vía salidas/cola) | `DELETE /v1/corridas/:id` |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST` | `PUT` · `POST …/observaciones` | `DELETE` |
 | Campos Mongo | `GET /v1/mongo?proyecto=` | `GET /v1/mongo/:id` | `POST` | `PUT` | `DELETE` |
 | Clusters | `GET /v1/clusters` | `GET /v1/clusters/:id` | `POST` | `PUT` · mongo-config | `DELETE` |
@@ -353,6 +353,18 @@ GET {API_BASE}/v1/ejecutores/:id/ejecuciones?limit=20
 ```
 
 **Motor interno (cola `pasos`):** al crear una corrida se encola el primer nodo. El consumidor ejecuta `modelo`/`herramienta`/`decision`/`subflujo`/`fin`; `agente_externo`/`integracion` async dejan la corrida en `esperando_integracion` y el agente sigue con `/siguiente` + `/salidas` (que encola el siguiente). Sin clave de proveedor el ejecutor `modelo` usa mock de salidas (smoke E2E).
+
+**Control de fallos:** timeout por `timeout_s` (sync AbortSignal + cron `esperando_integracion`); reintentos con backoff; estado `atascada` (cron 5 min, ≥10 min sin lease/actividad). Panel / API:
+
+```
+POST {API_BASE}/v1/corridas/:id/reintentar   # solo fallida
+POST {API_BASE}/v1/corridas/:id/aprobar      # esperando_humano
+POST {API_BASE}/v1/corridas/:id/rechazar
+POST {API_BASE}/v1/corridas/:id/cancelar
+POST {API_BASE}/v1/corridas/:id/reanudar     # atascada | en_curso sin lease
+POST {API_BASE}/v1/interno/corridas-atascadas-tick
+POST {API_BASE}/v1/interno/corridas-timeout-tick
+```
 
 ### System prompts
 
@@ -904,7 +916,7 @@ curl -sS -X POST "$API_BASE/v1/corridas" \
 |--------|---------|
 | `lee`/`escribe` no filtran rutas | Mecanismo primero; ACL después. Registro deja `["*"]` |
 | Sin `POST/DELETE /v1/colecciones` | Colecciones = JSON de la BD (`PUT /v1/proyectos/:id`) |
-| Control de fallos (reintentos / botones / atascadas) | Fase 3 (`instrucciones-motor-ejecutores.md`); motor cola `pasos` ya existe |
+| ACL fino `lee`/`escribe` por ruta | Invite Bearer = escritura completa del hub por ahora |
 | URI Mongo nunca en respuestas | Seguridad; configurar en Cluster → Conexión |
 | `POST/DELETE /v1/mongo/config` → 410 | URI global deprecada; usar Cluster |
 | `POST /v1/invites` abierto | UI/humanos crean invites sin Bearer |

@@ -973,9 +973,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <select id="flujoCorridasEstadoFiltro" aria-label="Filtrar corridas por estado">
 <option value="">Todos</option>
 <option value="en_curso">en_curso</option>
-<option value="esperando">esperando</option>
-<option value="terminada">terminada</option>
-<option value="error">error</option>
+<option value="esperando_integracion">esperando_integracion</option>
+<option value="esperando_humano">esperando_humano</option>
+<option value="atascada">atascada</option>
+<option value="completada">completada</option>
+<option value="fallida">fallida</option>
+<option value="cancelada">cancelada</option>
 </select>
 </label>
 <label>Negocio
@@ -1030,7 +1033,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="bloque-ver" id="corridaReaderSub" aria-live="polite"></p>
 </div>
 </div>
-<div class="reader-top-acciones">
+<div class="reader-top-acciones" id="corridaAccionesFallos">
+<button type="button" class="btn" id="btnCorridaReintentar" hidden title="Reencolar el paso fallido">Reintentar</button>
+<button type="button" class="btn primary" id="btnCorridaAprobar" hidden title="Aprobar espera humana">Aprobar</button>
+<button type="button" class="btn ghost" id="btnCorridaRechazar" hidden title="Rechazar espera humana">Rechazar</button>
+<button type="button" class="btn" id="btnCorridaReanudar" hidden title="Reanudar corrida atascada">Reanudar</button>
+<button type="button" class="btn ghost" id="btnCorridaCancelar" hidden title="Cancelar corrida">Cancelar</button>
 <button type="button" class="btn ghost" id="btnCorridaIrFlujo" title="Abrir flujo">Flujo</button>
 </div>
 </div>
@@ -2098,22 +2106,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261024fase2mot1"></script>
-<script src="skills-ui.js?v=20261024fase2mot1"></script>
-<script src="campos-ancla-ui.js?v=20261024fase2mot1"></script>
-<script src="campos-mongodb-ui.js?v=20261024fase2mot1"></script>
-<script src="clusters-ui.js?v=20261024fase2mot1"></script>
-<script src="proyectos-ui.js?v=20261024fase2mot1"></script>
-<script src="colecciones-ui.js?v=20261024fase2mot1"></script>
-<script src="agentes-ui.js?v=20261024fase2mot1"></script>
-<script src="fundamentos-ui.js?v=20261024fase2mot1"></script>
-<script src="system-prompts-ui.js?v=20261024fase2mot1"></script>
-<script src="system-prompts-catalog.js?v=20261024fase2mot1"></script>
-<script src="ejecutores-ui.js?v=20261024fase2mot1"></script>
-<script src="ejecutores-catalog.js?v=20261024fase2mot1"></script>
-<script src="catalogo-ui.js?v=20261024fase2mot1"></script>
-<script src="flujos-corridas-ui.js?v=20261024fase2mot1"></script>
-<script src="ajustes-ui.js?v=20261024fase2mot1"></script>
+<script src="color-entidad-ui.js?v=20261024fase3fal1"></script>
+<script src="skills-ui.js?v=20261024fase3fal1"></script>
+<script src="campos-ancla-ui.js?v=20261024fase3fal1"></script>
+<script src="campos-mongodb-ui.js?v=20261024fase3fal1"></script>
+<script src="clusters-ui.js?v=20261024fase3fal1"></script>
+<script src="proyectos-ui.js?v=20261024fase3fal1"></script>
+<script src="colecciones-ui.js?v=20261024fase3fal1"></script>
+<script src="agentes-ui.js?v=20261024fase3fal1"></script>
+<script src="fundamentos-ui.js?v=20261024fase3fal1"></script>
+<script src="system-prompts-ui.js?v=20261024fase3fal1"></script>
+<script src="system-prompts-catalog.js?v=20261024fase3fal1"></script>
+<script src="ejecutores-ui.js?v=20261024fase3fal1"></script>
+<script src="ejecutores-catalog.js?v=20261024fase3fal1"></script>
+<script src="catalogo-ui.js?v=20261024fase3fal1"></script>
+<script src="flujos-corridas-ui.js?v=20261024fase3fal1"></script>
+<script src="ajustes-ui.js?v=20261024fase3fal1"></script>
 
 </body>
 </html>

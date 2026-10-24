@@ -87,10 +87,7 @@ import {
   type FlujoVersionDoc,
 } from './flujos';
 import {
-  applyCorridaStaleTimeout,
-  DEFAULT_CORRIDA_STALE_MS,
   ensurePasoPendiente,
-  isCorridaStaleByUpdatedAt,
   isEsperandoHumano,
   isEsperandoIntegracion,
   isTerminal,
@@ -110,6 +107,15 @@ import {
   type PasoQueueMsg,
   type MotorDeps as PasosMotorDeps,
 } from './motor-pasos';
+import {
+  accionAprobar,
+  accionCancelar,
+  accionReanudar,
+  accionRechazar,
+  accionReintentar,
+  runAtascadasTick,
+  runEsperandoTimeoutTick,
+} from './motor-fallos';
 import {
   extractAnclaIdsFromPipeline,
   isDisparadorTipo,
@@ -1502,20 +1508,91 @@ app.post('/v1/interno/horario-tick', async (c) => {
   }
 });
 
-/** Ops/smoke: marca corridas en_curso caducadas (mismo código que el Cron Trigger CF).
- * Body opcional: { stale_ms?: number } para override puntual (p. ej. pruebas). */
+/** Ops/smoke: marca corridas en_curso sin lease y sin actividad → atascada (Fase 3).
+ * Body opcional: { stale_ms? | atascada_ms? } para override (p. ej. pruebas). */
 app.post('/v1/interno/corridas-stale-tick', async (c) => {
   try {
-    const body = (await c.req.json().catch(() => ({}))) as { stale_ms?: number };
+    const body = (await c.req.json().catch(() => ({}))) as {
+      stale_ms?: number;
+      atascada_ms?: number;
+    };
     const override =
-      body.stale_ms != null && Number.isFinite(Number(body.stale_ms))
-        ? Number(body.stale_ms)
-        : undefined;
-    const r = await runCorridasStaleTick(c.env, new Date(), override);
+      body.atascada_ms != null && Number.isFinite(Number(body.atascada_ms))
+        ? Number(body.atascada_ms)
+        : body.stale_ms != null && Number.isFinite(Number(body.stale_ms))
+          ? Number(body.stale_ms)
+          : undefined;
+    const r = await runAtascadasTick(pasosMotorDeps(c.env), new Date(), override);
     return c.json({ ok: true, ...r });
   } catch (err) {
-    return jsonError(c, 502, err instanceof Error ? err.message : 'stale tick falló');
+    return jsonError(c, 502, err instanceof Error ? err.message : 'atascadas tick falló');
   }
+});
+
+/** Ops: timeout de pasos en esperando_integracion (lease_hasta vencido). */
+app.post('/v1/interno/corridas-timeout-tick', async (c) => {
+  try {
+    const r = await runEsperandoTimeoutTick(pasosMotorDeps(c.env), new Date());
+    return c.json({ ok: true, ...r });
+  } catch (err) {
+    return jsonError(c, 502, err instanceof Error ? err.message : 'timeout tick falló');
+  }
+});
+
+/** Alias explícito del tick de atascadas. */
+app.post('/v1/interno/corridas-atascadas-tick', async (c) => {
+  try {
+    const body = (await c.req.json().catch(() => ({}))) as { atascada_ms?: number };
+    const override =
+      body.atascada_ms != null && Number.isFinite(Number(body.atascada_ms))
+        ? Number(body.atascada_ms)
+        : undefined;
+    const r = await runAtascadasTick(pasosMotorDeps(c.env), new Date(), override);
+    return c.json({ ok: true, ...r });
+  } catch (err) {
+    return jsonError(c, 502, err instanceof Error ? err.message : 'atascadas tick falló');
+  }
+});
+
+/**
+ * Ops/smoke: deja una corrida en `en_curso` sin lease y con `actualizada` atrasada
+ * para que el tick de atascadas la recoja (p. ej. c-df817b30ebdc4cfe).
+ * Body: { hace_ms?: number } default 15 min.
+ */
+app.post('/v1/interno/corridas/:id/preparar-atascada', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  const body = (await c.req.json().catch(() => ({}))) as { hace_ms?: number };
+  const hace =
+    body.hace_ms != null && Number.isFinite(Number(body.hace_ms)) && Number(body.hace_ms) >= 60_000
+      ? Number(body.hace_ms)
+      : 15 * 60 * 1000;
+  const doc = loaded.doc;
+  const actualizada = new Date(Date.now() - hace).toISOString();
+  const mongo = await mongoForProyecto(c.env, doc.proyecto_id);
+  if (!mongo) return jsonError(c, 503, 'configure MONGODB_URI');
+  await withMongoDb(
+    mongo.env,
+    async (db) => {
+      await db.collection('corridas').updateOne(
+        { _id: doc._id },
+        { $set: { estado: 'en_curso', actualizada } }
+      );
+    },
+    mongo.dbName
+  );
+  await c.env.DB.prepare(
+    `UPDATE corridas_index SET estado = 'en_curso', updated_at = ?, lease_hasta = NULL, lease_nodo_id = NULL WHERE id = ?`
+  )
+    .bind(actualizada, doc._id)
+    .run();
+  return c.json({
+    ok: true,
+    corrida_id: doc._id,
+    estado: 'en_curso',
+    actualizada,
+    nota: 'Llama POST /v1/interno/corridas-atascadas-tick',
+  });
 });
 
 /**
@@ -1787,6 +1864,84 @@ app.delete('/v1/corridas/:id', async (c) => {
   return c.json({ ok: true, deleted: id, mongoDeleted });
 });
 
+function quienDesdeRequest(c: {
+  get: (k: 'inviteClave') => string | undefined;
+  req: { json: () => Promise<unknown> };
+}): Promise<string> {
+  return (async () => {
+    const body = (await c.req.json().catch(() => ({}))) as { quien?: string; actor?: string };
+    const q = String(body.quien || body.actor || '').trim();
+    if (q) return q;
+    const inv = c.get('inviteClave');
+    return inv ? `invite:${inv.slice(0, 12)}…` : 'panel';
+  })();
+}
+
+/** Fase 3 — Reintentar paso (solo fallida). Body opcional: { quien? } */
+app.post('/v1/corridas/:id/reintentar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionReintentar(pasosMotorDeps(c.env), loaded.doc, loaded.flujo, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'reintentar falló');
+  }
+});
+
+/** Fase 3 — Aprobar (esperando_humano). */
+app.post('/v1/corridas/:id/aprobar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionAprobar(pasosMotorDeps(c.env), loaded.doc, loaded.flujo, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'aprobar falló');
+  }
+});
+
+/** Fase 3 — Rechazar (esperando_humano → arista no o cancelada). */
+app.post('/v1/corridas/:id/rechazar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionRechazar(pasosMotorDeps(c.env), loaded.doc, loaded.flujo, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'rechazar falló');
+  }
+});
+
+/** Fase 3 — Cancelar corrida (cualquier estado no final). */
+app.post('/v1/corridas/:id/cancelar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionCancelar(pasosMotorDeps(c.env), loaded.doc, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'cancelar falló');
+  }
+});
+
+/** Fase 3 — Reanudar atascada / en_curso sin lease. */
+app.post('/v1/corridas/:id/reanudar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionReanudar(pasosMotorDeps(c.env), loaded.doc, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'reanudar falló');
+  }
+});
+
 /**
  * Paso debido para n8n: skill + systemPrompt + entradas (datos corrida → Mongo).
  * terminada → { tipo: "fin" }; esperando → { tipo: "espera" }.
@@ -1850,6 +2005,17 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
       tipo: 'error',
       negocio: doc.negocio,
       errores: doc.errores,
+    });
+  }
+  if (doc.estado === 'atascada') {
+    return c.json({
+      ok: true,
+      corrida_id: doc._id,
+      tipo: 'atascada',
+      negocio: doc.negocio,
+      paso_actual: doc.paso_actual,
+      errores: doc.errores,
+      nota: 'Usa POST /v1/corridas/:id/reanudar',
     });
   }
   if (isEsperandoHumano(doc.estado) || doc.estado === 'esperando_hijo') {
@@ -4321,7 +4487,18 @@ export default {
         motorDeps(env)
       ).catch((err) => console.error('horario tick', err))
     );
-    ctx.waitUntil(runCorridasStaleTick(env).catch((err) => console.error('corridas stale tick', err)));
+    // Cada minuto: timeouts de esperando_integracion
+    ctx.waitUntil(
+      runEsperandoTimeoutTick(pasosMotorDeps(env)).catch((err) =>
+        console.error('esperando timeout tick', err)
+      )
+    );
+    // Cada 5 minutos: marcar atascadas
+    if (new Date().getUTCMinutes() % 5 === 0) {
+      ctx.waitUntil(
+        runAtascadasTick(pasosMotorDeps(env)).catch((err) => console.error('atascadas tick', err))
+      );
+    }
   },
   async queue(batch: MessageBatch<PasoQueueMsg>, env: Env, ctx: ExecutionContext): Promise<void> {
     const deps = pasosMotorDeps(env);
@@ -5129,56 +5306,6 @@ async function upsertCorridasIndex(db: D1Database, doc: CorridaDoc) {
     )
     .bind(doc._id, doc.proyecto_id, doc.flujo_id, doc.negocio, doc.estado, doc.actualizada)
     .run();
-}
-
-function corridaStaleMs(env: Env): number {
-  const raw = env.CORRIDA_STALE_MS != null ? Number(env.CORRIDA_STALE_MS) : NaN;
-  if (Number.isFinite(raw) && raw >= 60_000) return raw;
-  return DEFAULT_CORRIDA_STALE_MS;
-}
-
-/**
- * Cron: corridas `en_curso` sin actualización ≥ CORRIDA_STALE_MS → estado `error`
- * (timeout_sin_avance). No borra documentos; no toca `esperando`.
- */
-async function runCorridasStaleTick(
-  env: Env,
-  at: Date = new Date(),
-  staleMsOverride?: number
-): Promise<{ scanned: number; marked: string[]; stale_ms: number }> {
-  const staleMs =
-    staleMsOverride != null && Number.isFinite(staleMsOverride) && staleMsOverride >= 60_000
-      ? staleMsOverride
-      : corridaStaleMs(env);
-  const cutoff = new Date(at.getTime() - staleMs).toISOString();
-  const rows = await env.DB.prepare(
-    `SELECT id, proyecto_id, updated_at FROM corridas_index
-     WHERE estado = 'en_curso' AND updated_at < ?
-     ORDER BY updated_at ASC LIMIT 50`
-  )
-    .bind(cutoff)
-    .all<{ id: string; proyecto_id: string; updated_at: string }>();
-  const list = rows.results || [];
-  const marked: string[] = [];
-  const nowMs = at.getTime();
-  const ts = at.toISOString();
-
-  for (const row of list) {
-    if (!isCorridaStaleByUpdatedAt(row.updated_at, nowMs, staleMs)) continue;
-    const loaded = await loadCorridaDoc(env, row.id);
-    if (!loaded.ok) continue;
-    const doc = loaded.doc;
-    if (doc.estado !== 'en_curso') {
-      await upsertCorridasIndex(env.DB, doc);
-      continue;
-    }
-    if (!isCorridaStaleByUpdatedAt(doc.actualizada, nowMs, staleMs)) continue;
-    const next = applyCorridaStaleTimeout(doc, ts);
-    await saveCorridaDoc(env, next);
-    marked.push(doc._id);
-  }
-
-  return { scanned: list.length, marked, stale_ms: staleMs };
 }
 
 async function saveCorridaDoc(env: Env, doc: CorridaDoc): Promise<void> {
