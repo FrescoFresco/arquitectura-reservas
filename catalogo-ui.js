@@ -1519,6 +1519,8 @@ function iconizarPestanasFicha(root) {
         || btn.getAttribute('data-cluster-asoc-sub')
         || btn.getAttribute('data-sp-asoc-sub')
         || btn.getAttribute('data-flujo-asoc-sub')
+        || btn.getAttribute('data-flujo-corr-sub')
+        || btn.getAttribute('data-ej-tab')
         || btn.getAttribute('data-skill-io-sub');
     }
     const tipo = iconoDePestanaFicha(tabId) || tabId;
@@ -3111,24 +3113,37 @@ async function pintarSkillEjecuciones(ins) {
     }
     if (vacio) vacio.hidden = true;
     list.forEach(function (ej) {
-      const row = document.createElement('div');
-      row.className = 'catalogo-fila';
-      const estado = String(ej.estado != null ? ej.estado : ej.ok === false ? 'error' : ej.ok ? 'ok' : '—');
+      const estado = String(
+        ej.estado != null ? ej.estado : ej.ok === false ? 'error' : ej.ok ? 'ok' : '—'
+      );
       const cuando = String(ej.creado || '');
       const fuente = ej.fuente ? String(ej.fuente) : '';
       const ms = ej.duracion_ms != null ? String(ej.duracion_ms) + ' ms' : '';
-      row.innerHTML =
-        '<div><strong>' +
-        estado +
-        '</strong>' +
-        (ms ? ' · ' + ms : '') +
-        (fuente ? ' · ' + fuente : '') +
-        '</div><div class="ajustes-hint">' +
-        cuando +
-        (ej.corrida_id ? ' · ' + ej.corrida_id : '') +
-        (ej.ejecutor_id ? ' · ' + ej.ejecutor_id : '') +
-        '</div>';
-      mount.appendChild(row);
+      const secundario = [
+        cuando,
+        ej.corrida_id ? String(ej.corrida_id) : '',
+        ej.ejecutor_id ? String(ej.ejecutor_id) : '',
+        fuente
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      const titulo = estado + (ms ? ' · ' + ms : '');
+      if (typeof filaCatalogoLista === 'function') {
+        mount.appendChild(
+          filaCatalogoLista({
+            icono: 'pasos',
+            titulo: titulo,
+            secundario: secundario || '—',
+            static: true,
+            ariaLabel: 'Ejecución ' + estado
+          })
+        );
+      } else {
+        const row = document.createElement('div');
+        row.className = 'catalogo-fila catalogo-fila-static';
+        row.textContent = titulo + (secundario ? ' · ' + secundario : '');
+        mount.appendChild(row);
+      }
     });
   } catch (err) {
     mount.replaceChildren();
@@ -5982,6 +5997,76 @@ function svgCatalogoEnlace() {
   svg.append(svgPath('M15 3h6v6'), svgPath('M10 14L21 3'), svgPath('M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'));
   return svg;
 }
+
+/**
+ * Fila de lista/navegación con el mismo aspecto catalogo-fila que Catálogos.
+ * opts: { icono, titulo, secundario, color, open, static, title, ariaLabel, onClick, acciones }
+ * acciones: Node[] opcionales a la derecha (sustituyen el ↗ si se pasan).
+ */
+function filaCatalogoLista(opts) {
+  opts = opts || {};
+  const btn = el(
+    'button',
+    'catalogo-fila'
+      + (opts.open ? ' is-open' : '')
+      + (opts.static ? ' catalogo-fila-static' : ''),
+    null
+  );
+  btn.type = 'button';
+  btn.setAttribute('role', 'listitem');
+  btn.title = opts.title || opts.titulo || '';
+  if (opts.ariaLabel) btn.setAttribute('aria-label', opts.ariaLabel);
+  if (opts.dataset && typeof opts.dataset === 'object') {
+    Object.keys(opts.dataset).forEach(function (k) {
+      btn.dataset[k] = opts.dataset[k] == null ? '' : String(opts.dataset[k]);
+    });
+  }
+
+  const icon = el('span', 'catalogo-fila-icon', null);
+  icon.setAttribute('aria-hidden', 'true');
+  if (window.ColorEntidad && opts.color) window.ColorEntidad.applyToEl(icon, opts.color);
+  if (opts.icono && typeof svgPestanaCatalogo === 'function') {
+    const svg = svgPestanaCatalogo(opts.icono);
+    svg.setAttribute('class', 'catalogo-fila-svg');
+    icon.append(svg);
+  }
+
+  const main = el('span', 'catalogo-fila-main', null);
+  main.append(el('span', 'catalogo-fila-titulo', opts.titulo || ''));
+  if (opts.secundario != null && opts.secundario !== '') {
+    const cod = el('span', 'catalogo-fila-codigo', null);
+    if (typeof opts.secundario === 'string') cod.textContent = opts.secundario;
+    else if (opts.secundario && opts.secundario.nodeType) cod.append(opts.secundario);
+    else cod.textContent = String(opts.secundario);
+    main.append(cod);
+  }
+
+  btn.append(icon, main);
+
+  if (Array.isArray(opts.acciones) && opts.acciones.length) {
+    const acc = el('span', 'catalogo-fila-acciones', null);
+    opts.acciones.forEach(function (n) {
+      if (n) acc.append(n);
+    });
+    btn.append(acc);
+  } else if (!opts.static) {
+    const enlace = el('span', 'catalogo-fila-enlace', null);
+    enlace.setAttribute('aria-hidden', 'true');
+    enlace.append(svgCatalogoEnlace());
+    btn.append(enlace);
+  }
+
+  if (typeof opts.onClick === 'function' && !opts.static) {
+    btn.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('.catalogo-fila-acciones')) return;
+      opts.onClick(e, btn);
+    });
+  }
+  return btn;
+}
+
+window.filaCatalogoLista = filaCatalogoLista;
+window.svgCatalogoEnlace = svgCatalogoEnlace;
 
 /**
  * Fila seleccionable con el mismo aspecto catalogo-fila que Catálogos.

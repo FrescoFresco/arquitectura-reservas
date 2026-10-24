@@ -309,6 +309,13 @@ button.ficha-titulo-icon{appearance:none;border:0;padding:0;font:inherit}
 .catalogo-fila-codigo{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.35;color:#315eb6;overflow-wrap:anywhere}
 .catalogo-fila-enlace{flex:none;display:grid;place-items:center;width:28px;height:28px;color:#1c63d5}
 .catalogo-fila-enlace-svg{width:16px;height:16px;display:block}
+.catalogo-fila-acciones{flex:none;display:flex;align-items:center;gap:4px}
+.catalogo-fila-acciones .btn{padding:5px 8px;font-size:12px;line-height:1.2}
+.catalogo-fila .corrida-badge{margin-right:4px;vertical-align:middle}
+.ficha-catalogo-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+.ficha-catalogo-toolbar .proy-historial-filtros{margin:0;margin-right:auto}
+.ficha-catalogo-toolbar .proy-historial-filtros input[type="text"]{font:inherit;font-size:13px;font-weight:500;padding:6px 8px;border:1px solid #d5dde8;border-radius:8px;background:#fff;color:#17212f;min-width:8rem}
+.reader-top-acciones .btn.compact{margin-top:0}
 @media(max-width:800px){.catalogo-lista{grid-template-columns:1fr}}
 dialog.dlg-wide{width:min(760px,calc(100vw - 24px));max-height:min(90vh,900px);padding:0;border:0;border-radius:16px;box-shadow:0 20px 60px #17212f33;overflow:auto}
 dialog.dlg-wide::backdrop{background:#17212f66}
@@ -802,7 +809,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="icon-btn" id="btnEditarFlujo" aria-label="Editar flujo" title="Editar nodos/aristas (nueva versión)">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
 </button>
-<button type="button" class="btn ghost" id="btnFlujoVerCorridas" title="Ver corridas de este flujo">Corridas</button>
+<button type="button" class="btn ghost compact" id="btnFlujoVerCorridas" title="Ver corridas de este flujo">Corridas</button>
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="flujoReaderTabs" role="tablist" aria-label="Secciones del flujo">
@@ -881,27 +888,23 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelDisparadores" role="tabpanel" aria-labelledby="flujoTabDisparadores" hidden>
 <p class="ajustes-hint">Cuándo arranca este flujo. Varios disparadores = «o». Probar no crea corridas; Guardar escribe en D1.</p>
-<div class="editar-anclas-top" style="margin-bottom:0.75rem">
-<span class="historial-titulo">Disparadores</span>
-<button type="button" class="btn" id="btnFlujoLanzarManual" title="Crear corrida (disparador manual)">▶ Lanzar</button>
-<button type="button" class="btn" id="btnFlujoAddDisparador" title="Añadir disparador">+ Añadir disparador</button>
+<div class="catalogo-toolbar ficha-catalogo-toolbar">
+<button type="button" class="btn ghost" id="btnFlujoLanzarManual" title="Crear corrida (disparador manual)">Lanzar</button>
+<button type="button" class="btn primary btn-anadir" id="btnFlujoAddDisparador" title="Añadir disparador">
+<span class="btn-anadir-plus" aria-hidden="true">+</span>
+<span class="btn-anadir-svg-wrap" aria-hidden="true"><svg class="btn-anadir-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
+<span>Añadir disparador</span>
+</button>
 </div>
 <p class="ancla-ficha-vacio" id="flujoDisparadoresEstado" hidden>Cargando…</p>
-<div class="tabla-scroll" id="flujoDisparadoresTablaWrap" hidden>
-<table class="proy-historial-tabla" id="flujoDisparadoresTabla">
-<thead>
-<tr><th>Tipo</th><th>Resumen</th><th>Estado</th><th>Última vez</th><th></th></tr>
-</thead>
-<tbody id="flujoDisparadoresBody"></tbody>
-</table>
-</div>
+<div id="flujoDisparadoresLista" class="proy-tab-catalogo catalogo-lista" role="list" hidden></div>
 <div id="flujoDisparadorFormWrap" hidden style="margin-top:1rem">
 <p class="historial-titulo" id="flujoDisparadorFormTitulo">Nuevo disparador</p>
 <div class="redactor-grid" id="dispRedactorGrid" data-redactor-for="disparador">
 <div class="redactor-pane">
 <p class="historial-titulo">REDACTOR · escribe</p>
 <textarea id="dispRedactorIntencion" class="flujo-json-edit" style="min-height:7rem" spellcheck="true" placeholder='p. ej. cada hora, reservas sin confirmar de hace más de 2 horas'></textarea>
-<button type="button" class="btn" id="btnDispRedactorGenerar" style="margin-top:8px">Generar</button>
+<button type="button" class="btn primary" id="btnDispRedactorGenerar" style="margin-top:8px">Generar</button>
 </div>
 <div class="redactor-pane">
 <p class="historial-titulo">DEFINICIÓN (JSON, editable)</p>
@@ -951,23 +954,20 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="proy-crear-bd-msg" id="flujoDispFormMsg" role="status" hidden></p>
 <pre class="flujo-grafo-ascii" id="flujoDispProbarOut" hidden style="max-height:12rem;overflow:auto"></pre>
 <div class="ajustes-actions" style="margin-top:8px;flex-wrap:wrap;gap:8px">
-<button type="button" class="btn" id="btnFlujoDispProbar">Probar</button>
+<button type="button" class="btn ghost" id="btnFlujoDispProbar">Probar</button>
 <button type="button" class="btn primary" id="btnFlujoDispGuardar" disabled title="Valida con Generar o Probar antes de guardar">Guardar</button>
 <button type="button" class="btn ghost" id="btnFlujoDispCancelar">Cancelar</button>
 </div>
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelCorridas" role="tabpanel" aria-labelledby="flujoTabCorridas" hidden>
-<p class="ajustes-hint">Una ejecución de este flujo (por negocio). Clic en una fila para pasos, datos y errores. «+ Corrida» arranca el bucle; n8n u otro agente solo orquesta (/siguiente + salidas).</p>
+<p class="ajustes-hint">Pasadas de este flujo por negocio. Clic abre pasos, datos y errores. «+ Corrida» arranca el bucle; n8n u otro solo orquesta (/siguiente + salidas).</p>
 <div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="flujoCorridasSubtabs" role="tablist" aria-label="Corridas y eventos" style="margin-bottom:0.75rem">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" data-flujo-corr-sub="corridas" aria-selected="true">Corridas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-flujo-corr-sub="eventos" aria-selected="false">Eventos</button>
 </div>
 <div id="flujoCorridasSubpaneCorridas" data-flujo-corr-pane="corridas">
-<div class="editar-anclas-top" style="margin-bottom:0.75rem">
-<span class="historial-titulo">Corridas</span>
-<button type="button" class="btn" id="btnFlujoNuevaCorrida" title="Crear corrida de este flujo">+ Corrida</button>
-</div>
+<div class="catalogo-toolbar ficha-catalogo-toolbar" id="flujoCorridasToolbar">
 <div class="proy-historial-filtros" id="flujoCorridasFiltros">
 <label>Estado
 <select id="flujoCorridasEstadoFiltro" aria-label="Filtrar corridas por estado">
@@ -984,34 +984,26 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <label>Negocio
 <input type="text" id="flujoCorridasNegocio" aria-label="Filtrar por negocio" placeholder="pelo-sur" autocomplete="off">
 </label>
-<button type="button" class="btn" id="btnFlujoCorridasFiltrar">Filtrar</button>
+<button type="button" class="btn ghost" id="btnFlujoCorridasFiltrar">Filtrar</button>
+</div>
+<button type="button" class="btn primary btn-anadir" id="btnFlujoNuevaCorrida" title="Crear corrida de este flujo">
+<span class="btn-anadir-plus" aria-hidden="true">+</span>
+<span class="btn-anadir-svg-wrap" aria-hidden="true"><svg class="btn-anadir-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+<span>Corrida</span>
+</button>
 </div>
 <p class="ancla-ficha-vacio" id="flujoCorridasEstado" hidden>Cargando corridas…</p>
-<div class="tabla-scroll" id="flujoCorridasTablaWrap" hidden>
-<table class="proy-historial-tabla" id="flujoCorridasTabla">
-<thead>
-<tr><th>Negocio</th><th>Estado</th><th>Creada</th><th>Paso</th></tr>
-</thead>
-<tbody id="flujoCorridasBody"></tbody>
-</table>
-</div>
+<div id="flujoCorridasLista" class="proy-tab-catalogo catalogo-lista" role="list" hidden></div>
 <div class="proy-historial-pager" id="flujoCorridasPager" hidden>
-<button type="button" class="btn" id="btnFlujoCorridasPrev" hidden>Anterior</button>
+<button type="button" class="btn ghost" id="btnFlujoCorridasPrev" hidden>Anterior</button>
 <span id="flujoCorridasPagerInfo" class="ajustes-hint" style="margin:0"></span>
-<button type="button" class="btn" id="btnFlujoCorridasNext" hidden>Siguiente</button>
+<button type="button" class="btn ghost" id="btnFlujoCorridasNext" hidden>Siguiente</button>
 </div>
 </div>
 <div id="flujoCorridasSubpaneEventos" data-flujo-corr-pane="eventos" hidden>
 <p class="ajustes-hint">Eventos Mongo evaluados por disparadores de este flujo (TTL 30 días).</p>
 <p class="ancla-ficha-vacio" id="flujoEventosEstado" hidden>Cargando eventos…</p>
-<div class="tabla-scroll" id="flujoEventosTablaWrap" hidden>
-<table class="proy-historial-tabla" id="flujoEventosTabla">
-<thead>
-<tr><th>Fecha</th><th>Tipo</th><th>Colección / doc</th><th>Resultado</th></tr>
-</thead>
-<tbody id="flujoEventosBody"></tbody>
-</table>
-</div>
+<div id="flujoEventosLista" class="proy-tab-catalogo catalogo-lista" role="list" hidden></div>
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelInterno" role="tabpanel" aria-labelledby="flujoTabInterno" hidden>
@@ -1033,13 +1025,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="bloque-ver" id="corridaReaderSub" aria-live="polite"></p>
 </div>
 </div>
-<div class="reader-top-acciones" id="corridaAccionesFallos">
-<button type="button" class="btn" id="btnCorridaReintentar" hidden title="Reencolar el paso fallido">Reintentar</button>
-<button type="button" class="btn primary" id="btnCorridaAprobar" hidden title="Aprobar espera humana">Aprobar</button>
-<button type="button" class="btn ghost" id="btnCorridaRechazar" hidden title="Rechazar espera humana">Rechazar</button>
-<button type="button" class="btn" id="btnCorridaReanudar" hidden title="Reanudar corrida atascada">Reanudar</button>
-<button type="button" class="btn ghost" id="btnCorridaCancelar" hidden title="Cancelar corrida">Cancelar</button>
-<button type="button" class="btn ghost" id="btnCorridaIrFlujo" title="Abrir flujo">Flujo</button>
+<div class="reader-top-acciones ancla-ficha-acciones" id="corridaAccionesFallos">
+<button type="button" class="btn compact ghost" id="btnCorridaReintentar" hidden title="Reencolar el paso fallido">Reintentar</button>
+<button type="button" class="btn compact primary" id="btnCorridaAprobar" hidden title="Aprobar espera humana">Aprobar</button>
+<button type="button" class="btn compact ghost" id="btnCorridaRechazar" hidden title="Rechazar espera humana">Rechazar</button>
+<button type="button" class="btn compact ghost" id="btnCorridaReanudar" hidden title="Reanudar corrida atascada">Reanudar</button>
+<button type="button" class="btn compact ghost" id="btnCorridaCancelar" hidden title="Cancelar corrida">Cancelar</button>
+<button type="button" class="btn compact ghost" id="btnCorridaIrFlujo" title="Abrir flujo">Flujo</button>
 </div>
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="corridaReaderTabs" role="tablist" aria-label="Secciones de la corrida">
@@ -2106,22 +2098,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261024cierremot1"></script>
-<script src="skills-ui.js?v=20261024cierremot1"></script>
-<script src="campos-ancla-ui.js?v=20261024cierremot1"></script>
-<script src="campos-mongodb-ui.js?v=20261024cierremot1"></script>
-<script src="clusters-ui.js?v=20261024cierremot1"></script>
-<script src="proyectos-ui.js?v=20261024cierremot1"></script>
-<script src="colecciones-ui.js?v=20261024cierremot1"></script>
-<script src="agentes-ui.js?v=20261024cierremot1"></script>
-<script src="fundamentos-ui.js?v=20261024cierremot1"></script>
-<script src="system-prompts-ui.js?v=20261024cierremot1"></script>
-<script src="system-prompts-catalog.js?v=20261024cierremot1"></script>
-<script src="ejecutores-ui.js?v=20261024cierremot1"></script>
-<script src="ejecutores-catalog.js?v=20261024cierremot1"></script>
-<script src="catalogo-ui.js?v=20261024cierremot1"></script>
-<script src="flujos-corridas-ui.js?v=20261024cierremot1"></script>
-<script src="ajustes-ui.js?v=20261024cierremot1"></script>
+<script src="color-entidad-ui.js?v=20261024fichaui1"></script>
+<script src="skills-ui.js?v=20261024fichaui1"></script>
+<script src="campos-ancla-ui.js?v=20261024fichaui1"></script>
+<script src="campos-mongodb-ui.js?v=20261024fichaui1"></script>
+<script src="clusters-ui.js?v=20261024fichaui1"></script>
+<script src="proyectos-ui.js?v=20261024fichaui1"></script>
+<script src="colecciones-ui.js?v=20261024fichaui1"></script>
+<script src="agentes-ui.js?v=20261024fichaui1"></script>
+<script src="fundamentos-ui.js?v=20261024fichaui1"></script>
+<script src="system-prompts-ui.js?v=20261024fichaui1"></script>
+<script src="system-prompts-catalog.js?v=20261024fichaui1"></script>
+<script src="ejecutores-ui.js?v=20261024fichaui1"></script>
+<script src="ejecutores-catalog.js?v=20261024fichaui1"></script>
+<script src="catalogo-ui.js?v=20261024fichaui1"></script>
+<script src="flujos-corridas-ui.js?v=20261024fichaui1"></script>
+<script src="ajustes-ui.js?v=20261024fichaui1"></script>
 
 </body>
 </html>

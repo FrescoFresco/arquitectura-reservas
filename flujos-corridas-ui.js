@@ -628,7 +628,7 @@
     var o = opts || {};
     var f = st.flujoAbierto;
     var estado = document.getElementById('flujoCorridasEstado');
-    var wrap = document.getElementById('flujoCorridasTablaWrap');
+    var lista = document.getElementById('flujoCorridasLista');
     var pager = document.getElementById('flujoCorridasPager');
     if (!f) return;
     if (o.resetPage !== false) st.flujoCorridasPage = 0;
@@ -645,7 +645,10 @@
       estado.hidden = false;
       estado.textContent = 'Cargando corridas…';
     }
-    if (wrap) wrap.hidden = true;
+    if (lista) {
+      lista.hidden = true;
+      lista.replaceChildren();
+    }
     if (pager) pager.hidden = true;
     var qs = new URLSearchParams();
     qs.set('flujo_id', f.id);
@@ -689,18 +692,17 @@
   }
 
   function pintarTablaFlujoCorridas() {
-    var body = document.getElementById('flujoCorridasBody');
-    var wrap = document.getElementById('flujoCorridasTablaWrap');
+    var lista = document.getElementById('flujoCorridasLista');
     var vacio = document.getElementById('flujoCorridasEstado');
     var pager = document.getElementById('flujoCorridasPager');
     var btnPrev = document.getElementById('btnFlujoCorridasPrev');
     var btnNext = document.getElementById('btnFlujoCorridasNext');
     var info = document.getElementById('flujoCorridasPagerInfo');
-    if (!body) return;
-    body.replaceChildren();
+    if (!lista) return;
+    lista.replaceChildren();
     var all = st.flujoCorridas || [];
     if (!all.length) {
-      if (wrap) wrap.hidden = true;
+      lista.hidden = true;
       if (pager) pager.hidden = true;
       if (vacio) {
         vacio.hidden = false;
@@ -709,28 +711,47 @@
       return;
     }
     if (vacio) vacio.hidden = true;
-    if (wrap) wrap.hidden = false;
+    lista.hidden = false;
     var totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
     if (st.flujoCorridasPage >= totalPages) st.flujoCorridasPage = totalPages - 1;
     if (st.flujoCorridasPage < 0) st.flujoCorridasPage = 0;
     var start = st.flujoCorridasPage * PAGE_SIZE;
     var slice = all.slice(start, start + PAGE_SIZE);
+    var mkFila =
+      typeof window.filaCatalogoLista === 'function'
+        ? window.filaCatalogoLista
+        : null;
     slice.forEach(function (c) {
-      var tr = document.createElement('tr');
-      tr.dataset.corridaId = c.id;
-      var tdNeg = document.createElement('td');
-      tdNeg.textContent = c.negocio || '—';
-      var tdEst = document.createElement('td');
-      var badge = document.createElement('span');
-      badge.className = 'corrida-badge is-' + (c.estado || '');
-      badge.textContent = c.estado || '—';
-      tdEst.append(badge);
-      var tdCre = document.createElement('td');
-      tdCre.textContent = formatCuando(c.creada || c.actualizada);
-      var tdPaso = document.createElement('td');
-      tdPaso.textContent = c.paso_actual || '—';
-      tr.append(tdNeg, tdEst, tdCre, tdPaso);
-      body.append(tr);
+      var secundario =
+        (c.estado || '—') +
+        ' · ' +
+        (c.paso_actual || '—') +
+        ' · ' +
+        formatCuando(c.creada || c.actualizada);
+      var opts = {
+        icono: 'corrida',
+        titulo: c.negocio || c.id || 'Corrida',
+        secundario: secundario,
+        title: c.id || '',
+        ariaLabel: 'Abrir corrida ' + (c.negocio || c.id || ''),
+        dataset: { corridaId: c.id },
+        onClick: function () {
+          abrirCorrida(c.id);
+        }
+      };
+      var fila = mkFila
+        ? mkFila(opts)
+        : (function () {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'catalogo-fila';
+            b.textContent = (c.negocio || c.id) + ' · ' + secundario;
+            b.addEventListener('click', function () {
+              abrirCorrida(c.id);
+            });
+            return b;
+          })();
+      lista.append(fila);
     });
     if (pager) pager.hidden = all.length <= PAGE_SIZE;
     if (info) {
@@ -852,14 +873,17 @@
   function cargarFlujoDisparadores() {
     var f = st.flujoAbierto;
     var estado = document.getElementById('flujoDisparadoresEstado');
-    var wrap = document.getElementById('flujoDisparadoresTablaWrap');
+    var lista = document.getElementById('flujoDisparadoresLista');
     if (!f) return;
     var token = ++st.flujoDisparadoresToken;
+    if (lista) {
+      lista.hidden = true;
+      lista.replaceChildren();
+    }
     if (estado) {
       estado.hidden = false;
       estado.textContent = 'Cargando…';
     }
-    if (wrap) wrap.hidden = true;
     fetch(apiBase() + '/v1/flujos/' + encodeURIComponent(f.id) + '/disparadores', { cache: 'no-store' })
       .then(function (res) {
         return res.json().then(function (data) {
@@ -885,63 +909,23 @@
 
   function pintarTablaDisparadores() {
     var estado = document.getElementById('flujoDisparadoresEstado');
-    var wrap = document.getElementById('flujoDisparadoresTablaWrap');
-    var body = document.getElementById('flujoDisparadoresBody');
-    if (!body) return;
-    body.replaceChildren();
+    var lista = document.getElementById('flujoDisparadoresLista');
+    if (!lista) return;
+    lista.replaceChildren();
     var list = st.flujoDisparadores || [];
     if (!list.length) {
       if (estado) {
         estado.hidden = false;
         estado.textContent = 'Sin disparadores. Usa «+ Añadir disparador».';
       }
-      if (wrap) wrap.hidden = true;
+      lista.hidden = true;
       return;
     }
     if (estado) estado.hidden = true;
-    if (wrap) wrap.hidden = false;
+    lista.hidden = false;
+    var mkFila =
+      typeof window.filaCatalogoLista === 'function' ? window.filaCatalogoLista : null;
     list.forEach(function (d) {
-      var tr = document.createElement('tr');
-      tr.dataset.dispId = d.id;
-      tr.style.cursor = 'pointer';
-      function td(text) {
-        var c = document.createElement('td');
-        c.textContent = text;
-        return c;
-      }
-      tr.append(td(labelTipoDisp(d.tipo)));
-      var tdRes = document.createElement('td');
-      tdRes.textContent = resumenDisp(d);
-      if (d.tipo === 'webhook' && d.token && st.flujoAbierto) {
-        var url = webhookUrlPublica(st.flujoAbierto.id, d.token);
-        var small = document.createElement('div');
-        small.className = 'ajustes-hint';
-        small.style.margin = '4px 0 0';
-        small.style.wordBreak = 'break-all';
-        small.textContent = url;
-        var copy = document.createElement('button');
-        copy.type = 'button';
-        copy.className = 'btn ghost';
-        copy.textContent = 'Copiar URL';
-        copy.style.marginTop = '4px';
-        copy.addEventListener('click', function (e) {
-          e.stopPropagation();
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(
-              function () { copy.textContent = 'Copiado'; },
-              function () { window.prompt('Copia la URL', url); }
-            );
-          } else {
-            window.prompt('Copia la URL', url);
-          }
-        });
-        tdRes.append(document.createElement('br'), small, copy);
-      }
-      tr.append(tdRes);
-      tr.append(td(d.activo ? 'Activo' : 'Pausado'));
-      tr.append(td(formatHoraCorta(d.ultima_vez)));
-      var tdAcc = document.createElement('td');
-      tdAcc.style.whiteSpace = 'nowrap';
       var tog = document.createElement('button');
       tog.type = 'button';
       tog.className = 'btn ghost';
@@ -958,12 +942,58 @@
         e.stopPropagation();
         borrarDisparador(d);
       });
-      tdAcc.append(tog, del);
-      tr.append(tdAcc);
-      tr.addEventListener('click', function () {
-        abrirFormDisparador(d);
-      });
-      body.append(tr);
+      var acciones = [tog, del];
+      if (d.tipo === 'webhook' && d.token && st.flujoAbierto) {
+        var url = webhookUrlPublica(st.flujoAbierto.id, d.token);
+        var copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'btn ghost';
+        copy.textContent = 'Copiar URL';
+        copy.title = url;
+        copy.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(
+              function () { copy.textContent = 'Copiado'; },
+              function () { window.prompt('Copia la URL', url); }
+            );
+          } else {
+            window.prompt('Copia la URL', url);
+          }
+        });
+        acciones.unshift(copy);
+      }
+      var secundario =
+        resumenDisp(d) +
+        ' · ' +
+        (d.activo ? 'activo' : 'pausado') +
+        ' · ' +
+        formatHoraCorta(d.ultima_vez);
+      var opts = {
+        icono: 'disparadores',
+        titulo: labelTipoDisp(d.tipo) + (d.id ? ' · ' + d.id : ''),
+        secundario: secundario,
+        title: d.id || '',
+        ariaLabel: 'Editar disparador ' + (d.id || d.tipo || ''),
+        dataset: { dispId: d.id },
+        acciones: acciones,
+        onClick: function () {
+          abrirFormDisparador(d);
+        }
+      };
+      var fila = mkFila
+        ? mkFila(opts)
+        : (function () {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'catalogo-fila';
+            b.textContent = opts.titulo + ' · ' + secundario;
+            b.addEventListener('click', function () {
+              abrirFormDisparador(d);
+            });
+            return b;
+          })();
+      lista.append(fila);
     });
   }
 
@@ -1566,14 +1596,17 @@
   function cargarFlujoEventos() {
     var f = st.flujoAbierto;
     var estado = document.getElementById('flujoEventosEstado');
-    var wrap = document.getElementById('flujoEventosTablaWrap');
+    var lista = document.getElementById('flujoEventosLista');
     if (!f) return;
     var token = ++st.flujoEventosToken;
     if (estado) {
       estado.hidden = false;
       estado.textContent = 'Cargando eventos…';
     }
-    if (wrap) wrap.hidden = true;
+    if (lista) {
+      lista.hidden = true;
+      lista.replaceChildren();
+    }
     var proy = f.proyectoId || st.proyectoId || 'reservas';
     fetch(
       apiBase() + '/v1/eventos?proyecto=' + encodeURIComponent(proy) + '&limit=40',
@@ -1617,38 +1650,48 @@
 
   function pintarTablaEventos() {
     var estado = document.getElementById('flujoEventosEstado');
-    var wrap = document.getElementById('flujoEventosTablaWrap');
-    var body = document.getElementById('flujoEventosBody');
-    if (!body) return;
-    body.replaceChildren();
+    var lista = document.getElementById('flujoEventosLista');
+    if (!lista) return;
+    lista.replaceChildren();
     var list = st.flujoEventos || [];
     if (!list.length) {
       if (estado) {
         estado.hidden = false;
         estado.textContent = 'Sin eventos recientes.';
       }
-      if (wrap) wrap.hidden = true;
+      lista.hidden = true;
       return;
     }
     if (estado) estado.hidden = true;
-    if (wrap) wrap.hidden = false;
+    lista.hidden = false;
+    var mkFila =
+      typeof window.filaCatalogoLista === 'function' ? window.filaCatalogoLista : null;
     list.forEach(function (ev) {
-      var tr = document.createElement('tr');
-      function td(t) {
-        var c = document.createElement('td');
-        c.textContent = t;
-        return c;
-      }
-      tr.append(td(formatCuando(ev.creado)));
-      tr.append(td(ev.tipo || '—'));
       var colDoc = (ev.coleccion || '—') + (ev.documento_id ? ' / ' + ev.documento_id : '');
-      tr.append(td(colDoc));
       var resBits = (ev.resultado || []).map(function (r) {
         if (r.lanzo) return r.disparador_id + ' → ' + (r.corrida_id || 'ok');
         return r.disparador_id + ' · ' + (r.motivo || 'no');
       });
-      tr.append(td(resBits.join('; ') || '—'));
-      body.append(tr);
+      var secundario =
+        colDoc + ' · ' + (resBits.join('; ') || '—') + ' · ' + formatCuando(ev.creado);
+      var opts = {
+        icono: 'eventos',
+        titulo: ev.tipo || 'evento',
+        secundario: secundario,
+        title: ev.id || '',
+        ariaLabel: 'Evento ' + (ev.tipo || ''),
+        static: true
+      };
+      var fila = mkFila
+        ? mkFila(opts)
+        : (function () {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'catalogo-fila catalogo-fila-static';
+            b.textContent = opts.titulo + ' · ' + secundario;
+            return b;
+          })();
+      lista.append(fila);
     });
   }
 
@@ -2371,12 +2414,13 @@
         pintarTablaFlujoCorridas();
       });
     }
-    var body = document.getElementById('flujoCorridasBody');
-    if (body) {
-      body.addEventListener('click', function (e) {
-        var tr = e.target.closest('tr[data-corrida-id]');
-        if (!tr) return;
-        abrirCorrida(tr.getAttribute('data-corrida-id'));
+    var listaCorr = document.getElementById('flujoCorridasLista');
+    if (listaCorr) {
+      listaCorr.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('.catalogo-fila-acciones')) return;
+        var fila = e.target.closest('[data-corrida-id]');
+        if (!fila) return;
+        abrirCorrida(fila.getAttribute('data-corrida-id'));
       });
     }
     var btnAtrasCorrida = document.getElementById('btnAtrasCorrida');
