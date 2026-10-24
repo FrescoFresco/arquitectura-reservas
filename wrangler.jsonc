@@ -38,5 +38,22 @@
   // Motor de disparadores horario (Atlantic/Canary se aplica en código al matchear cron).
   "triggers": {
     "crons": ["* * * * *"]
+  },
+  // Motor interno Fase 2: cola de pasos de corrida.
+  "queues": {
+    "producers": [
+      {
+        "binding": "PASOS",
+        "queue": "pasos"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "pasos",
+        "max_batch_size": 5,
+        "max_batch_timeout": 2,
+        "max_retries": 3
+      }
+    ]
   }
 }

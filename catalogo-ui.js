@@ -3063,6 +3063,7 @@ function seleccionarReaderTab(id) {
   const panelDoc = document.getElementById('readerPanelDoc');
   const panelAsociados = document.getElementById('readerPanelAsociados');
   const panelConexion = document.getElementById('readerPanelConexion');
+  const panelEjecuciones = document.getElementById('readerPanelEjecuciones');
   const panelInterno = document.getElementById('readerPanelInterno');
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-reader-tab') === id;
@@ -3072,9 +3073,70 @@ function seleccionarReaderTab(id) {
   if (panelDoc) panelDoc.hidden = id !== 'documento';
   if (panelAsociados) panelAsociados.hidden = id !== 'asociados';
   if (panelConexion) panelConexion.hidden = id !== 'conexion';
+  if (panelEjecuciones) panelEjecuciones.hidden = id !== 'ejecuciones';
   if (panelInterno) panelInterno.hidden = id !== 'interno';
   if (id === 'asociados') seleccionarReaderAsocSub(skillAsocSub || readerAsocSubActual());
   if (id === 'conexion') pintarSkillConexion(instruccionAbierta());
+  if (id === 'ejecuciones') pintarSkillEjecuciones(instruccionAbierta());
+}
+
+async function pintarSkillEjecuciones(ins) {
+  const mount = document.getElementById('readerEjecucionesLista');
+  const vacio = document.getElementById('readerEjecucionesVacio');
+  if (!mount) return;
+  mount.replaceChildren();
+  if (!ins || !ins.id) {
+    if (vacio) {
+      vacio.hidden = false;
+      vacio.textContent = 'Abre una skill para ver ejecuciones.';
+    }
+    return;
+  }
+  if (vacio) {
+    vacio.hidden = false;
+    vacio.textContent = 'Cargando…';
+  }
+  try {
+    const data = await apiFetch(
+      '/v1/skills/' + encodeURIComponent(ins.id) + '/ejecuciones?limit=30'
+    );
+    const list = (data && data.ejecuciones) || [];
+    mount.replaceChildren();
+    if (!list.length) {
+      if (vacio) {
+        vacio.hidden = false;
+        vacio.textContent = 'Sin ejecuciones todavía.';
+      }
+      return;
+    }
+    if (vacio) vacio.hidden = true;
+    list.forEach(function (ej) {
+      const row = document.createElement('div');
+      row.className = 'catalogo-fila';
+      const estado = String(ej.estado != null ? ej.estado : ej.ok === false ? 'error' : ej.ok ? 'ok' : '—');
+      const cuando = String(ej.creado || '');
+      const fuente = ej.fuente ? String(ej.fuente) : '';
+      const ms = ej.duracion_ms != null ? String(ej.duracion_ms) + ' ms' : '';
+      row.innerHTML =
+        '<div><strong>' +
+        estado +
+        '</strong>' +
+        (ms ? ' · ' + ms : '') +
+        (fuente ? ' · ' + fuente : '') +
+        '</div><div class="ajustes-hint">' +
+        cuando +
+        (ej.corrida_id ? ' · ' + ej.corrida_id : '') +
+        (ej.ejecutor_id ? ' · ' + ej.ejecutor_id : '') +
+        '</div>';
+      mount.appendChild(row);
+    });
+  } catch (err) {
+    mount.replaceChildren();
+    if (vacio) {
+      vacio.hidden = false;
+      vacio.textContent = 'No se pudieron cargar las ejecuciones.';
+    }
+  }
 }
 
 function pintarSkillBases(ins) {

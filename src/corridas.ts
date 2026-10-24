@@ -2,7 +2,24 @@
  * Corridas: instancias de ejecución de un flujo en Mongo (colección `corridas` por BD).
  */
 
-export type CorridaEstado = 'en_curso' | 'esperando' | 'terminada' | 'error';
+/** Estados Fase 2–3 (+ aliases legados). */
+export type CorridaEstado =
+  | 'pendiente'
+  | 'en_curso'
+  | 'esperando_integracion'
+  | 'esperando_humano'
+  | 'esperando_hijo'
+  | 'atascada'
+  | 'completada'
+  | 'fallida'
+  | 'cancelada'
+  /** @deprecated usar esperando_* */
+  | 'esperando'
+  /** @deprecated usar completada */
+  | 'terminada'
+  /** @deprecated usar fallida */
+  | 'error';
+
 export type PasoEstado = 'pendiente' | 'hecho' | 'error';
 
 export type CorridaPaso = {
@@ -12,6 +29,18 @@ export type CorridaPaso = {
   inicio: string | null;
   fin: string | null;
   salidas: Record<string, unknown> | null;
+  /** Fase 2 */
+  ejecutor_id?: string | null;
+  ejecutor_version?: number | null;
+  prompt_version?: number | null;
+  duracion_ms?: number | null;
+  intento?: number | null;
+  entradas?: Record<string, unknown> | null;
+  error?: string | null;
+  coste?: unknown;
+  /** Fase 3: acción de panel (reintentar, aprobar, …) */
+  accion?: string | null;
+  quien?: string | null;
 };
 
 export type CorridaDoc = {
@@ -27,15 +56,10 @@ export type CorridaDoc = {
   errores: Array<{ at: string; nodo_id?: string; error: string }>;
   creada: string;
   actualizada: string;
-  /** Corrida padre (si esta es hija de un subflujo) */
   padre_id?: string | null;
-  /** Hijo en curso (si el padre espera un subflujo) */
   hijo_id?: string | null;
-  /** Nodo subflujo del padre que disparó al hijo */
   subflujo_nodo_id?: string | null;
-  /** Disparador que arrancó la corrida (Fase 2) */
   disparador_id?: string | null;
-  /** Evento Mongo que la originó (Fase 2) */
   evento_id?: string | null;
 };
 
@@ -47,6 +71,14 @@ export function newCorridaId(): string {
   return `c-${rand}`;
 }
 
+/** Normaliza estado legado → canónico F2 para respuestas. */
+export function normalizeCorridaEstado(estado: string): string {
+  if (estado === 'terminada') return 'completada';
+  if (estado === 'error') return 'fallida';
+  if (estado === 'esperando') return 'esperando_humano';
+  return estado;
+}
+
 export function publicCorrida(doc: CorridaDoc) {
   return {
     id: doc._id,
@@ -55,7 +87,7 @@ export function publicCorrida(doc: CorridaDoc) {
     /** Canónico camelCase (alias de entrada: proyecto_id | proyectoId | proyecto). */
     proyectoId: doc.proyecto_id,
     negocio: doc.negocio,
-    estado: doc.estado,
+    estado: normalizeCorridaEstado(doc.estado),
     paso_actual: doc.paso_actual,
     pasos: doc.pasos,
     datos: doc.datos,
@@ -108,32 +140,38 @@ export function ensurePasoPendiente(
   ];
 }
 
-/** Default: 3h sin avance (actualizada) → marcar error. Override con env CORRIDA_STALE_MS. */
-export const DEFAULT_CORRIDA_STALE_MS = 3 * 60 * 60 * 1000;
+/** Fase 3: en_curso sin lease y sin actividad → atascada (default 10 min). */
+export const DEFAULT_ATASCADA_MS = 10 * 60 * 1000;
 
-export const CORRIDA_STALE_REASON = 'timeout_sin_avance';
+/** @deprecated usar DEFAULT_ATASCADA_MS; se mantiene por override legacy CORRIDA_STALE_MS. */
+export const DEFAULT_CORRIDA_STALE_MS = DEFAULT_ATASCADA_MS;
+
+export const CORRIDA_STALE_REASON = 'atascada';
+export const CORRIDA_TIMEOUT_REASON = 'timeout';
 
 /**
- * Corridas pull-based: el Worker no ejecuta skills; un agente/n8n debe
- * GET /siguiente → POST salidas. Sin orquestador (o si se cae), quedan en_curso.
- * Este helper marca la corrida y pasos pendientes como error sin borrar datos.
+ * Marca corrida como atascada (recuperable con Reanudar).
  */
+export function applyCorridaAtascada(
+  doc: CorridaDoc,
+  ts: string,
+  reason: string = CORRIDA_STALE_REASON
+): CorridaDoc {
+  return {
+    ...doc,
+    estado: 'atascada',
+    errores: [...(doc.errores || []), { at: ts, nodo_id: doc.paso_actual, error: reason }],
+    actualizada: ts,
+  };
+}
+
+/** @deprecated alias → applyCorridaAtascada */
 export function applyCorridaStaleTimeout(
   doc: CorridaDoc,
   ts: string,
   reason: string = CORRIDA_STALE_REASON
 ): CorridaDoc {
-  const pasos = doc.pasos.map((p) => {
-    if (p.estado !== 'pendiente') return p;
-    return { ...p, estado: 'error' as const, fin: ts };
-  });
-  return {
-    ...doc,
-    estado: 'error',
-    pasos,
-    errores: [...(doc.errores || []), { at: ts, nodo_id: doc.paso_actual, error: reason }],
-    actualizada: ts,
-  };
+  return applyCorridaAtascada(doc, ts, reason);
 }
 
 export function isCorridaStaleByUpdatedAt(
@@ -144,4 +182,27 @@ export function isCorridaStaleByUpdatedAt(
   const t = Date.parse(actualizada);
   if (!Number.isFinite(t)) return false;
   return nowMs - t >= staleMs;
+}
+
+/** ¿La corrida está esperando agente externo / integración? */
+export function isEsperandoIntegracion(estado: string): boolean {
+  return estado === 'esperando_integracion';
+}
+
+export function isEsperandoHumano(estado: string): boolean {
+  return estado === 'esperando_humano' || estado === 'esperando';
+}
+
+export function isTerminal(estado: string): boolean {
+  return (
+    estado === 'completada' ||
+    estado === 'terminada' ||
+    estado === 'fallida' ||
+    estado === 'error' ||
+    estado === 'cancelada'
+  );
+}
+
+export function isAtascada(estado: string): boolean {
+  return estado === 'atascada';
 }

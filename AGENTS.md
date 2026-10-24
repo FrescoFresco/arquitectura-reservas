@@ -22,7 +22,7 @@ Los JSON de `catalogo/` son semilla/fallback de la UI. **No uses `GITHUB_TOKEN` 
 
 ## Qué puedes modificar (vía API)
 
-Skills (I/O + `ejecutorId`), ejecutores (CRUD `/v1/ejecutores`), system prompts, anclas, campos Mongo, clusters (+ URI), bases (`/v1/proyectos` · `/v1/esquemas`), colecciones (vía PUT BD o `GET /v1/colecciones`), flujos (CRUD incl. DELETE), disparadores (CRUD + motor: eventos, webhook `/v1/disparar`, cron horario), corridas (crear/listar/siguiente/DELETE; `disparador_id`/`evento_id`; `proyectoId` canónico), fundamentos, Empujar (`…/crear-bd`), sync Mongo, color de entidades. Ejecutar salidas: Bearer + anclas ∈ `salidas` + URI en el Cluster.
+Skills (I/O + `ejecutorId`), ejecutores (CRUD `/v1/ejecutores` + `…/ejecuciones`), system prompts, anclas, campos Mongo, clusters (+ URI), bases (`/v1/proyectos` · `/v1/esquemas`), colecciones (vía PUT BD o `GET /v1/colecciones`), flujos (CRUD incl. DELETE), disparadores (CRUD + motor: eventos, webhook `/v1/disparar`, cron horario), corridas (crear/listar/siguiente/DELETE + `reintentar`/`aprobar`/`rechazar`/`cancelar`/`reanudar`; cola `pasos`; estados `atascada`/`esperando_*`; `proyectoId` canónico), fundamentos, Empujar (`…/crear-bd`), sync Mongo, color de entidades. Ejecutar salidas: Bearer + anclas ∈ `salidas` + URI en el Cluster (encola el siguiente paso).
 
 No hay cola de comentarios / Metricool todavía.
 

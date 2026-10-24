@@ -1919,6 +1919,50 @@
     });
   }
 
+  function pintarCorridaAcciones() {
+    var c = st.corridaAbierta;
+    var est = c && c.estado ? String(c.estado) : '';
+    var set = function (id, show) {
+      var el = document.getElementById(id);
+      if (el) el.hidden = !show;
+    };
+    var terminal =
+      est === 'completada' ||
+      est === 'terminada' ||
+      est === 'fallida' ||
+      est === 'error' ||
+      est === 'cancelada';
+    set('btnCorridaReintentar', est === 'fallida' || est === 'error');
+    set('btnCorridaAprobar', est === 'esperando_humano' || est === 'esperando');
+    set('btnCorridaRechazar', est === 'esperando_humano' || est === 'esperando');
+    set('btnCorridaReanudar', est === 'atascada' || est === 'en_curso');
+    set('btnCorridaCancelar', !!c && !terminal);
+  }
+
+  function corridaAccion(path) {
+    var c = st.corridaAbierta;
+    if (!c || !c.id) return;
+    var url = '/v1/corridas/' + encodeURIComponent(c.id) + '/' + path;
+    var run = window.apiFetchAuth
+      ? window.apiFetchAuth(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quien: 'panel' })
+        })
+      : Promise.reject(new Error('apiFetchAuth no disponible'));
+    run
+      .then(function (data) {
+        if (data.corrida) {
+          st.corridaAbierta = data.corrida;
+          pintarCorridaFicha();
+        }
+        if (typeof cargarFlujoCorridas === 'function') cargarFlujoCorridas({ resetPage: false });
+      })
+      .catch(function (err) {
+        alert(err.message || 'Acción falló');
+      });
+  }
+
   function pintarCorridaFicha() {
     var c = st.corridaAbierta;
     if (!c) return;
@@ -1933,6 +1977,7 @@
       sub.append(badge);
       sub.append(document.createTextNode(' · ' + (c.negocio || '—') + ' · ' + (c.flujo_id || '—')));
     }
+    pintarCorridaAcciones();
     var lista = document.getElementById('corridaPasosLista');
     if (lista) {
       lista.replaceChildren();
@@ -2357,6 +2402,21 @@
         var ver = c.flujo_version;
         cerrarCorrida();
         abrirFlujo(c.flujo_id, ver);
+      });
+    }
+    var btnReint = document.getElementById('btnCorridaReintentar');
+    if (btnReint) btnReint.addEventListener('click', function () { corridaAccion('reintentar'); });
+    var btnApr = document.getElementById('btnCorridaAprobar');
+    if (btnApr) btnApr.addEventListener('click', function () { corridaAccion('aprobar'); });
+    var btnRec = document.getElementById('btnCorridaRechazar');
+    if (btnRec) btnRec.addEventListener('click', function () { corridaAccion('rechazar'); });
+    var btnRea = document.getElementById('btnCorridaReanudar');
+    if (btnRea) btnRea.addEventListener('click', function () { corridaAccion('reanudar'); });
+    var btnCan = document.getElementById('btnCorridaCancelar');
+    if (btnCan) {
+      btnCan.addEventListener('click', function () {
+        if (!confirm('¿Cancelar esta corrida?')) return;
+        corridaAccion('cancelar');
       });
     }
 

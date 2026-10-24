@@ -83,6 +83,27 @@
           "ruta": "catalogo/fundamentos/motor-flujos/v7.md",
           "nombreArchivo": "motor-flujos.md",
           "hash": "a3ffe83156a7d5a24c3ec403a7fa43f77b0c15078ddf189728df5856c00779e9"
+        },
+        {
+          "numero": 8,
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/motor-flujos/v8.md",
+          "nombreArchivo": "motor-flujos.md",
+          "hash": "6af75921cbf9ad255ff2d153f1f0f95670ff8b8d17dd9c51a03f2dd72361f4ec"
+        },
+        {
+          "numero": 9,
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/motor-flujos/v9.md",
+          "nombreArchivo": "motor-flujos.md",
+          "hash": "4088f53d9d099899631d46b074d00bdc5e06537e5f9d79268259dda23d02f8e7"
+        },
+        {
+          "numero": 10,
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/motor-flujos/v10.md",
+          "nombreArchivo": "motor-flujos.md",
+          "hash": "4c4e86b0b086188edab7bd3d17afdef8e5372d2eadae9e060d505ba294c5bdd9"
         }
       ]
     }

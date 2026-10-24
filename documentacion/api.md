@@ -250,7 +250,7 @@ Ejemplos:
 | Disparadores | `GET /v1/flujos/:id/disparadores` | `GET /v1/disparadores/:id` | `POST /v1/flujos/:id/disparadores` | `PUT` · `POST …/activar` · `…/pausar` · `…/probar` | `DELETE /v1/disparadores/:id` |
 | Eventos | `GET /v1/eventos?proyecto=&coleccion=` | — | (motor / webhook) | — | TTL 30d |
 | Redactor | `GET /v1/redactor` (contrato) | — | `POST /v1/redactor` (Bearer) | — | — |
-| Corridas | `GET /v1/corridas?…` | `GET /v1/corridas/:id` · `…/siguiente` | `POST /v1/corridas` | (avanza vía salidas) | `DELETE /v1/corridas/:id` |
+| Corridas | `GET /v1/corridas?…` | `GET /v1/corridas/:id` · `…/siguiente` | `POST /v1/corridas` | `…/reintentar` · `…/aprobar` · `…/rechazar` · `…/cancelar` · `…/reanudar` · (avanza vía salidas/cola) | `DELETE /v1/corridas/:id` |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST` | `PUT` · `POST …/observaciones` | `DELETE` |
 | Campos Mongo | `GET /v1/mongo?proyecto=` | `GET /v1/mongo/:id` | `POST` | `PUT` | `DELETE` |
 | Clusters | `GET /v1/clusters` | `GET /v1/clusters/:id` | `POST` | `PUT` · mongo-config | `DELETE` |
@@ -258,7 +258,8 @@ Ejemplos:
 | Colecciones | `GET /v1/colecciones?proyecto=` | (vía BD padre) | vía `PUT` BD `{ colecciones }` | igual | quitar del array en `PUT` BD |
 | Fundamentos | `GET /v1/fundamentos` | `GET …/:id` | `POST` | `PUT` | `DELETE` |
 | Agentes | `GET /v1/agentes` | — | invite + registro | `PUT` | `DELETE` |
-| Ejecutores | `GET /v1/ejecutores` | `GET /v1/ejecutores/:id` | `POST` | `PUT` | `DELETE` |
+| Ejecutores | `GET /v1/ejecutores` | `GET /v1/ejecutores/:id` · `…/ejecuciones` | `POST` | `PUT` | `DELETE` |
+| Ejecuciones | `GET /v1/skills/:id/ejecuciones` · `GET /v1/ejecutores/:id/ejecuciones` | — | (motor / redactor) | — | Mongo `ejecuciones` + D1 |
 
 Prefijo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
 
@@ -337,12 +338,36 @@ Content-Type: application/json
 - `humano`: `{ rol, instrucciones? }`
 - `agente_externo`: `{ agente_id }`
 
-UI: Catálogos → **Ejecutores** (Resumen | Skills | Ejecuciones | Interno). En la ficha skill → Asociados → **Ejecutor**. La pestaña Ejecuciones queda stub hasta Fase 2 (log Mongo).
+UI: Catálogos → **Ejecutores** (Resumen | Skills | Ejecuciones | Interno). En la ficha skill → Asociados → **Ejecutor** y pestaña **Ejecuciones** (D1 + Mongo).
 
 Skill:
 ```
 PUT {API_BASE}/v1/skills/:id
 { "ejecutorId": "openai-texto" }   # o null → implícito agente_externo
+```
+
+Log de ejecuciones (Mongo `ejecuciones` + D1 `skill_ejecuciones` para el Redactor):
+```
+GET {API_BASE}/v1/skills/:id/ejecuciones?limit=20&proyecto=reservas
+GET {API_BASE}/v1/ejecutores/:id/ejecuciones?limit=20
+```
+
+**Motor interno (cola `pasos`):** al crear una corrida se encola el primer nodo. El consumidor ejecuta `modelo`/`herramienta`/`decision`/`subflujo`/`fin`; `agente_externo`/`integracion` async dejan la corrida en `esperando_integracion` y el agente sigue con `/siguiente` + `/salidas` (que encola el siguiente). Sin clave de proveedor el ejecutor `modelo` usa mock de salidas (E2E).
+
+**Skill `consultar-datos`** (ejecutor `herramienta-consultar-datos`, `config.funcion = "consultar-datos"`): Aggregation Pipeline de solo lectura en la BD Mongo del proyecto. Entradas `_consulta.coleccion_` + `_consulta.pipeline_`; salidas `_consulta.resultado_` + `_consulta.total_`. Misma allowlist que disparadores (`$out`/`$merge`/`$function` prohibidos); si el pipeline no trae `$limit`, se añade `$limit: 100`. Log en `ejecuciones` con `coste: 0`.
+
+Ejecutores canónicos del hub: `modelo-por-defecto`, `herramienta-consultar-datos`, `aprobacion-humana`, `agente-reservas-pagweb`.
+
+**Control de fallos:** timeout por `timeout_s` (sync AbortSignal + cron `esperando_integracion`); reintentos con backoff; estado `atascada` (cron 5 min, ≥10 min sin lease/actividad). Panel / API:
+
+```
+POST {API_BASE}/v1/corridas/:id/reintentar   # solo fallida
+POST {API_BASE}/v1/corridas/:id/aprobar      # esperando_humano
+POST {API_BASE}/v1/corridas/:id/rechazar
+POST {API_BASE}/v1/corridas/:id/cancelar
+POST {API_BASE}/v1/corridas/:id/reanudar     # atascada | en_curso sin lease
+POST {API_BASE}/v1/interno/corridas-atascadas-tick
+POST {API_BASE}/v1/interno/corridas-timeout-tick
 ```
 
 ### System prompts
@@ -895,7 +920,7 @@ curl -sS -X POST "$API_BASE/v1/corridas" \
 |--------|---------|
 | `lee`/`escribe` no filtran rutas | Mecanismo primero; ACL después. Registro deja `["*"]` |
 | Sin `POST/DELETE /v1/colecciones` | Colecciones = JSON de la BD (`PUT /v1/proyectos/:id`) |
-| Motor de cola / log `ejecuciones` | Fase 2 (`instrucciones-motor-ejecutores.md`); catálogo Ejecutores ya existe |
+| ACL fino `lee`/`escribe` por ruta | Invite Bearer = escritura completa del hub por ahora |
 | URI Mongo nunca en respuestas | Seguridad; configurar en Cluster → Conexión |
 | `POST/DELETE /v1/mongo/config` → 410 | URI global deprecada; usar Cluster |
 | `POST /v1/invites` abierto | UI/humanos crean invites sin Bearer |

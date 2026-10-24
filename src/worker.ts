@@ -87,15 +87,35 @@ import {
   type FlujoVersionDoc,
 } from './flujos';
 import {
-  applyCorridaStaleTimeout,
-  DEFAULT_CORRIDA_STALE_MS,
   ensurePasoPendiente,
-  isCorridaStaleByUpdatedAt,
+  isEsperandoHumano,
+  isEsperandoIntegracion,
+  isTerminal,
   markPasoHecho,
   newCorridaId,
   publicCorrida,
   type CorridaDoc,
 } from './corridas';
+import {
+  afterExternalSalidas,
+  enqueueFirstPaso,
+  enqueuePaso,
+  listEjecucionesMongo,
+  loadEjecutorForSkill,
+  logEjecucion,
+  processPasoMessage,
+  type PasoQueueMsg,
+  type MotorDeps as PasosMotorDeps,
+} from './motor-pasos';
+import {
+  accionAprobar,
+  accionCancelar,
+  accionReanudar,
+  accionRechazar,
+  accionReintentar,
+  runAtascadasTick,
+  runEsperandoTimeoutTick,
+} from './motor-fallos';
 import {
   extractAnclaIdsFromPipeline,
   isDisparadorTipo,
@@ -159,6 +179,11 @@ export type Env = {
    * Default 10800000 (3h). Solo afecta en_curso; no toca esperando (humano/subflujo).
    */
   CORRIDA_STALE_MS?: string;
+  /** Cola de pasos del motor (Fase 2). */
+  PASOS?: Queue<PasoQueueMsg>;
+  XAI_API_KEY?: string;
+  ANTHROPIC_API_KEY?: string;
+  N8N_TOKEN?: string;
 };
 
 type ResolvedMongo = {
@@ -632,7 +657,7 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
         corrida_negocio: doc.negocio,
       });
     }
-    if (doc.estado === 'terminada' || doc.estado === 'error') {
+    if (isTerminal(doc.estado)) {
       return jsonError(c, 409, `Corrida en estado ${doc.estado}; no acepta salidas.`);
     }
     if (doc.paso_actual !== nodoId) {
@@ -756,14 +781,38 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
   let corridaOut: ReturnType<typeof publicCorrida> | null = null;
   if (corridaCtx) {
     try {
-      const advanced = await advanceCorridaAfterSkill(
-        c.env,
-        corridaCtx.doc,
-        corridaCtx.flujo,
-        nodoId,
-        normalizedValores,
-        ts
-      );
+      // Fase 2: /salidas encola el siguiente nodo (motor); sin cola → avance síncrono legado.
+      let advanced: CorridaDoc;
+      if (c.env.PASOS) {
+        advanced = await afterExternalSalidas(
+          pasosMotorDeps(c.env),
+          corridaCtx.doc,
+          corridaCtx.flujo,
+          nodoId,
+          normalizedValores
+        );
+        await logEjecucion(pasosMotorDeps(c.env), advanced.proyecto_id, {
+          skill: skillId,
+          ejecutor_id: null,
+          ejecutor_version: null,
+          prompt_version: null,
+          entradas: null,
+          salidas: normalizedValores,
+          duracion_ms: 0,
+          coste: null,
+          estado: 'ok',
+          corrida_id: advanced._id,
+        });
+      } else {
+        advanced = await advanceCorridaAfterSkill(
+          c.env,
+          corridaCtx.doc,
+          corridaCtx.flujo,
+          nodoId,
+          normalizedValores,
+          ts
+        );
+      }
       corridaOut = publicCorrida(advanced);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'avance de corrida falló';
@@ -1251,13 +1300,34 @@ app.post('/v1/redactor', async (c) => {
     contexto.colecciones = ['negocios', 'reservas', 'procesos', 'versiones', 'ejecuciones'];
   }
 
+  // Fase 2: si la skill generar-definicion tiene ejecutor modelo, usar su secret/modelo.
+  let openaiKey = c.env.OPENAI_API_KEY;
+  let openaiModel = c.env.OPENAI_MODEL;
+  let redactorEj: Awaited<ReturnType<typeof loadEjecutorForSkill>> | null = null;
+  try {
+    const skillEj = await c.env.DB.prepare(
+      'SELECT ejecutor_id FROM skills WHERE id = ?'
+    )
+      .bind(REDACTOR_SKILL_ID)
+      .first<{ ejecutor_id: string | null }>();
+    redactorEj = await loadEjecutorForSkill(c.env.DB, skillEj || {});
+    if (redactorEj.tipo === 'modelo') {
+      const secretName = String(redactorEj.config.secret || 'OPENAI_API_KEY');
+      const fromSecret = (c.env as Record<string, unknown>)[secretName];
+      if (typeof fromSecret === 'string' && fromSecret.trim()) openaiKey = fromSecret.trim();
+      if (redactorEj.config.modelo) openaiModel = String(redactorEj.config.modelo);
+    }
+  } catch {
+    /* keep env defaults */
+  }
+
   const result = await generarDefinicion({
     intencion,
     tipo: tipoRaw,
     contexto,
     definicionActual: body.definicion_actual !== undefined ? body.definicion_actual : body.definicionActual,
-    openaiKey: c.env.OPENAI_API_KEY,
-    openaiModel: c.env.OPENAI_MODEL,
+    openaiKey,
+    openaiModel,
   });
 
   const entrada = {
@@ -1286,6 +1356,28 @@ app.post('/v1/redactor', async (c) => {
     console.warn('skill_ejecuciones insert failed', err instanceof Error ? err.message : err);
   }
 
+  // Fase 2: también en Mongo `ejecuciones` (haya o no corrida).
+  try {
+    const proy = await defaultProyectoIdForLogs(c.env);
+    const mongoId = await logEjecucion(pasosMotorDeps(c.env), proy, {
+      skill: REDACTOR_SKILL_ID,
+      ejecutor_id: redactorEj && redactorEj.tipo === 'modelo' ? redactorEj.id : null,
+      ejecutor_version: redactorEj && redactorEj.tipo === 'modelo' ? redactorEj.version : null,
+      prompt_version: null,
+      entradas: entrada as Record<string, unknown>,
+      salidas: salida as Record<string, unknown>,
+      duracion_ms: 0,
+      coste: null,
+      estado: result.validacion.ok ? 'ok' : 'error',
+      corrida_id: null,
+      origen,
+      modo: result.modo,
+    });
+    if (mongoId) ejecucionId = ejecucionId || mongoId;
+  } catch (err) {
+    console.warn('ejecuciones mongo insert failed', err instanceof Error ? err.message : err);
+  }
+
   return c.json({
     ok: true,
     skill: REDACTOR_SKILL_ID,
@@ -1305,13 +1397,18 @@ app.post('/v1/redactor', async (c) => {
 app.get('/v1/skills/:id/ejecuciones', async (c) => {
   const skillId = c.req.param('id');
   const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 20) || 20));
+  const proyectoId =
+    String(c.req.query('proyecto') || c.req.query('proyectoId') || '').trim() ||
+    (await defaultProyectoIdForLogs(c.env));
+
+  const d1: Array<Record<string, unknown>> = [];
   try {
     const rows = await c.env.DB.prepare(
       'SELECT id, skill_id, origen, modo, ok, entrada_json, salida_json, creado FROM skill_ejecuciones WHERE skill_id = ? ORDER BY creado DESC LIMIT ?'
     )
       .bind(skillId, limit)
       .all();
-    const ejecuciones = (rows.results || []).map((r) => {
+    for (const r of rows.results || []) {
       const row = r as Record<string, unknown>;
       let entrada: unknown = {};
       let salida: unknown = {};
@@ -1325,26 +1422,73 @@ app.get('/v1/skills/:id/ejecuciones', async (c) => {
       } catch {
         /* ignore */
       }
-      return {
+      d1.push({
         id: row.id,
+        skill: row.skill_id,
         skill_id: row.skill_id,
         origen: row.origen,
         modo: row.modo,
         ok: Number(row.ok) === 1,
+        estado: Number(row.ok) === 1 ? 'ok' : 'error',
+        entradas: entrada,
+        salidas: salida,
         entrada,
         salida,
+        fuente: 'd1',
         creado: row.creado,
-      };
-    });
-    return c.json({ ok: true, skill_id: skillId, ejecuciones });
+      });
+    }
   } catch {
-    return c.json({
-      ok: true,
-      skill_id: skillId,
-      ejecuciones: [],
-      nota: 'tabla skill_ejecuciones no disponible',
-    });
+    /* tabla ausente */
   }
+
+  const mongo = await listEjecucionesMongo(
+    pasosMotorDeps(c.env),
+    proyectoId,
+    { skill: skillId },
+    limit
+  ).catch(() => [] as Array<Record<string, unknown>>);
+
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const e of d1) byId.set(String(e.id), e);
+  for (const e of mongo) {
+    const id = String(e.id);
+    if (!byId.has(id)) byId.set(id, { ...e, fuente: 'mongo' });
+  }
+  const ejecuciones = [...byId.values()]
+    .sort((a, b) => String(b.creado || '').localeCompare(String(a.creado || '')))
+    .slice(0, limit);
+
+  return c.json({
+    ok: true,
+    skill_id: skillId,
+    proyectoId,
+    ejecuciones,
+  });
+});
+
+app.get('/v1/ejecutores/:id/ejecuciones', async (c) => {
+  const ejecutorId = c.req.param('id');
+  const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 20) || 20));
+  const row = await c.env.DB.prepare('SELECT id FROM ejecutores WHERE id = ?')
+    .bind(ejecutorId)
+    .first();
+  if (!row) return jsonError(c, 404, 'Ejecutor no encontrado.');
+  const proyectoId =
+    String(c.req.query('proyecto') || c.req.query('proyectoId') || '').trim() ||
+    (await defaultProyectoIdForLogs(c.env));
+  const ejecuciones = await listEjecucionesMongo(
+    pasosMotorDeps(c.env),
+    proyectoId,
+    { ejecutor_id: ejecutorId },
+    limit
+  );
+  return c.json({
+    ok: true,
+    ejecutor_id: ejecutorId,
+    proyectoId,
+    ejecuciones,
+  });
 });
 
 /** Ops/smoke: ejecuta el tick horario ahora (mismo código que el Cron Trigger CF). */
@@ -1364,20 +1508,91 @@ app.post('/v1/interno/horario-tick', async (c) => {
   }
 });
 
-/** Ops/smoke: marca corridas en_curso caducadas (mismo código que el Cron Trigger CF).
- * Body opcional: { stale_ms?: number } para override puntual (p. ej. pruebas). */
+/** Ops/smoke: marca corridas en_curso sin lease y sin actividad → atascada (Fase 3).
+ * Body opcional: { stale_ms? | atascada_ms? } para override (p. ej. pruebas). */
 app.post('/v1/interno/corridas-stale-tick', async (c) => {
   try {
-    const body = (await c.req.json().catch(() => ({}))) as { stale_ms?: number };
+    const body = (await c.req.json().catch(() => ({}))) as {
+      stale_ms?: number;
+      atascada_ms?: number;
+    };
     const override =
-      body.stale_ms != null && Number.isFinite(Number(body.stale_ms))
-        ? Number(body.stale_ms)
-        : undefined;
-    const r = await runCorridasStaleTick(c.env, new Date(), override);
+      body.atascada_ms != null && Number.isFinite(Number(body.atascada_ms))
+        ? Number(body.atascada_ms)
+        : body.stale_ms != null && Number.isFinite(Number(body.stale_ms))
+          ? Number(body.stale_ms)
+          : undefined;
+    const r = await runAtascadasTick(pasosMotorDeps(c.env), new Date(), override);
     return c.json({ ok: true, ...r });
   } catch (err) {
-    return jsonError(c, 502, err instanceof Error ? err.message : 'stale tick falló');
+    return jsonError(c, 502, err instanceof Error ? err.message : 'atascadas tick falló');
   }
+});
+
+/** Ops: timeout de pasos en esperando_integracion (lease_hasta vencido). */
+app.post('/v1/interno/corridas-timeout-tick', async (c) => {
+  try {
+    const r = await runEsperandoTimeoutTick(pasosMotorDeps(c.env), new Date());
+    return c.json({ ok: true, ...r });
+  } catch (err) {
+    return jsonError(c, 502, err instanceof Error ? err.message : 'timeout tick falló');
+  }
+});
+
+/** Alias explícito del tick de atascadas. */
+app.post('/v1/interno/corridas-atascadas-tick', async (c) => {
+  try {
+    const body = (await c.req.json().catch(() => ({}))) as { atascada_ms?: number };
+    const override =
+      body.atascada_ms != null && Number.isFinite(Number(body.atascada_ms))
+        ? Number(body.atascada_ms)
+        : undefined;
+    const r = await runAtascadasTick(pasosMotorDeps(c.env), new Date(), override);
+    return c.json({ ok: true, ...r });
+  } catch (err) {
+    return jsonError(c, 502, err instanceof Error ? err.message : 'atascadas tick falló');
+  }
+});
+
+/**
+ * Ops/smoke: deja una corrida en `en_curso` sin lease y con `actualizada` atrasada
+ * para que el tick de atascadas la recoja (p. ej. c-df817b30ebdc4cfe).
+ * Body: { hace_ms?: number } default 15 min.
+ */
+app.post('/v1/interno/corridas/:id/preparar-atascada', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  const body = (await c.req.json().catch(() => ({}))) as { hace_ms?: number };
+  const hace =
+    body.hace_ms != null && Number.isFinite(Number(body.hace_ms)) && Number(body.hace_ms) >= 60_000
+      ? Number(body.hace_ms)
+      : 15 * 60 * 1000;
+  const doc = loaded.doc;
+  const actualizada = new Date(Date.now() - hace).toISOString();
+  const mongo = await mongoForProyecto(c.env, doc.proyecto_id);
+  if (!mongo) return jsonError(c, 503, 'configure MONGODB_URI');
+  await withMongoDb(
+    mongo.env,
+    async (db) => {
+      await db.collection('corridas').updateOne(
+        { _id: doc._id },
+        { $set: { estado: 'en_curso', actualizada } }
+      );
+    },
+    mongo.dbName
+  );
+  await c.env.DB.prepare(
+    `UPDATE corridas_index SET estado = 'en_curso', updated_at = ?, lease_hasta = NULL, lease_nodo_id = NULL WHERE id = ?`
+  )
+    .bind(actualizada, doc._id)
+    .run();
+  return c.json({
+    ok: true,
+    corrida_id: doc._id,
+    estado: 'en_curso',
+    actualizada,
+    nota: 'Llama POST /v1/interno/corridas-atascadas-tick',
+  });
 });
 
 /**
@@ -1649,6 +1864,84 @@ app.delete('/v1/corridas/:id', async (c) => {
   return c.json({ ok: true, deleted: id, mongoDeleted });
 });
 
+function quienDesdeRequest(c: {
+  get: (k: 'inviteClave') => string | undefined;
+  req: { json: () => Promise<unknown> };
+}): Promise<string> {
+  return (async () => {
+    const body = (await c.req.json().catch(() => ({}))) as { quien?: string; actor?: string };
+    const q = String(body.quien || body.actor || '').trim();
+    if (q) return q;
+    const inv = c.get('inviteClave');
+    return inv ? `invite:${inv.slice(0, 12)}…` : 'panel';
+  })();
+}
+
+/** Fase 3 — Reintentar paso (solo fallida). Body opcional: { quien? } */
+app.post('/v1/corridas/:id/reintentar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionReintentar(pasosMotorDeps(c.env), loaded.doc, loaded.flujo, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'reintentar falló');
+  }
+});
+
+/** Fase 3 — Aprobar (esperando_humano). */
+app.post('/v1/corridas/:id/aprobar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionAprobar(pasosMotorDeps(c.env), loaded.doc, loaded.flujo, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'aprobar falló');
+  }
+});
+
+/** Fase 3 — Rechazar (esperando_humano → arista no o cancelada). */
+app.post('/v1/corridas/:id/rechazar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionRechazar(pasosMotorDeps(c.env), loaded.doc, loaded.flujo, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'rechazar falló');
+  }
+});
+
+/** Fase 3 — Cancelar corrida (cualquier estado no final). */
+app.post('/v1/corridas/:id/cancelar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionCancelar(pasosMotorDeps(c.env), loaded.doc, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'cancelar falló');
+  }
+});
+
+/** Fase 3 — Reanudar atascada / en_curso sin lease. */
+app.post('/v1/corridas/:id/reanudar', async (c) => {
+  const loaded = await loadCorridaWithFlujo(c.env, c.req.param('id'));
+  if (!loaded.ok) return jsonError(c, loaded.status, loaded.error);
+  try {
+    const quien = await quienDesdeRequest(c);
+    const r = await accionReanudar(pasosMotorDeps(c.env), loaded.doc, quien);
+    return c.json({ ok: true, accion: r.accion, corrida: publicCorrida(r.corrida) });
+  } catch (err) {
+    return jsonError(c, 400, err instanceof Error ? err.message : 'reanudar falló');
+  }
+});
+
 /**
  * Paso debido para n8n: skill + systemPrompt + entradas (datos corrida → Mongo).
  * terminada → { tipo: "fin" }; esperando → { tipo: "espera" }.
@@ -1660,17 +1953,30 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
   let { doc, flujo } = loaded;
 
   // Si espera hijo de subflujo, reanudar al terminar el hijo.
-  if (doc.estado === 'esperando' && doc.hijo_id) {
+  if ((doc.estado === 'esperando_hijo' || doc.estado === 'esperando') && doc.hijo_id) {
     const child = await loadCorridaDoc(c.env, doc.hijo_id);
-    if (child.ok && child.doc.estado === 'terminada') {
+    if (
+      child.ok &&
+      (child.doc.estado === 'completada' || child.doc.estado === 'terminada')
+    ) {
       const ts = nowIso();
       try {
         doc = await resumeParentAfterChild(c.env, doc, flujo, child.doc, ts);
+        if (c.env.PASOS && doc.paso_actual && !isTerminal(doc.estado)) {
+          await enqueuePaso(c.env, {
+            corrida_id: doc._id,
+            nodo_id: doc.paso_actual,
+            intento: 0,
+          });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'No se pudo reanudar tras subflujo.';
         return jsonError(c, 502, msg);
       }
-    } else if (child.ok && child.doc.estado === 'error') {
+    } else if (
+      child.ok &&
+      (child.doc.estado === 'fallida' || child.doc.estado === 'error')
+    ) {
       await failCorrida(c.env, doc, doc.paso_actual, `Subflujo en error: ${doc.hijo_id}`);
       return c.json({
         ok: true,
@@ -1683,7 +1989,7 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
     }
   }
 
-  if (doc.estado === 'terminada') {
+  if (doc.estado === 'completada' || doc.estado === 'terminada') {
     return c.json({
       ok: true,
       corrida_id: doc._id,
@@ -1692,7 +1998,7 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
       paso_actual: doc.paso_actual,
     });
   }
-  if (doc.estado === 'error') {
+  if (doc.estado === 'fallida' || doc.estado === 'error' || doc.estado === 'cancelada') {
     return c.json({
       ok: true,
       corrida_id: doc._id,
@@ -1701,7 +2007,18 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
       errores: doc.errores,
     });
   }
-  if (doc.estado === 'esperando') {
+  if (doc.estado === 'atascada') {
+    return c.json({
+      ok: true,
+      corrida_id: doc._id,
+      tipo: 'atascada',
+      negocio: doc.negocio,
+      paso_actual: doc.paso_actual,
+      errores: doc.errores,
+      nota: 'Usa POST /v1/corridas/:id/reanudar',
+    });
+  }
+  if (isEsperandoHumano(doc.estado) || doc.estado === 'esperando_hijo') {
     const nodo = findNodo(flujo.nodos, doc.paso_actual);
     return c.json({
       ok: true,
@@ -1713,9 +2030,11 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
       entradas: {},
       negocio: doc.negocio,
       hijo_id: doc.hijo_id || null,
-      motivo: nodo?.tipo === 'subflujo' ? 'subflujo' : 'aprobacion',
+      motivo:
+        doc.estado === 'esperando_hijo' || nodo?.tipo === 'subflujo' ? 'subflujo' : 'aprobacion',
     });
   }
+  // esperando_integracion / en_curso: devolver skill para agente_externo (polling).
 
   const nodo = findNodo(flujo.nodos, doc.paso_actual);
   if (!nodo) {
@@ -4168,7 +4487,32 @@ export default {
         motorDeps(env)
       ).catch((err) => console.error('horario tick', err))
     );
-    ctx.waitUntil(runCorridasStaleTick(env).catch((err) => console.error('corridas stale tick', err)));
+    // Cada minuto: timeouts de esperando_integracion
+    ctx.waitUntil(
+      runEsperandoTimeoutTick(pasosMotorDeps(env)).catch((err) =>
+        console.error('esperando timeout tick', err)
+      )
+    );
+    // Cada 5 minutos: marcar atascadas
+    if (new Date().getUTCMinutes() % 5 === 0) {
+      ctx.waitUntil(
+        runAtascadasTick(pasosMotorDeps(env)).catch((err) => console.error('atascadas tick', err))
+      );
+    }
+  },
+  async queue(batch: MessageBatch<PasoQueueMsg>, env: Env, ctx: ExecutionContext): Promise<void> {
+    const deps = pasosMotorDeps(env);
+    for (const message of batch.messages) {
+      try {
+        const body = message.body || ({} as PasoQueueMsg);
+        const result = await processPasoMessage(deps, body);
+        if (result === 'retry') message.retry();
+        else message.ack();
+      } catch (err) {
+        console.error('queue pasos', err);
+        message.retry();
+      }
+    }
   },
 };
 
@@ -4760,6 +5104,100 @@ function motorDeps(env: Env): MotorDeps {
   };
 }
 
+function pasosMotorDeps(env: Env): PasosMotorDeps {
+  return {
+    env,
+    nowIso,
+    loadCorridaWithFlujo: (id) => loadCorridaWithFlujo(env, id),
+    saveCorridaDoc: (doc) => saveCorridaDoc(env, doc),
+    mongoForProyecto: (proyectoId) => mongoForProyecto(env, proyectoId),
+    resolveEntradasValores: (entradas, negocio, datos) =>
+      resolveEntradasValores(env, entradas, negocio, datos),
+    writeSalidasMongo: (skillId, negocio, valores, corridaId) =>
+      writeSkillSalidasToMongo(env, skillId, negocio, valores, corridaId),
+    loadFlujoVersion: (flujoId, version) => loadFlujoVersion(env.DB, flujoId, version),
+    newCorridaId,
+  };
+}
+
+/** Escritura Mongo de salidas de skill (motor + /salidas). */
+async function writeSkillSalidasToMongo(
+  env: Env,
+  skillId: string,
+  negocio: string,
+  valores: Record<string, unknown>,
+  corridaId: string | null
+): Promise<string[]> {
+  const keys = Object.keys(valores);
+  const maps = await loadAnclaMongoMaps(env.DB, keys);
+  const baseDatos =
+    maps.find((m) => m.baseDatos)?.baseDatos ||
+    (await catalogMongoDbHint(env.DB)) ||
+    'software_reservas';
+  const proyectoId = await proyectoIdForBaseDatos(env.DB, baseDatos);
+  const resolved = await resolveRuntimeMongo(env, baseDatos, proyectoId || undefined);
+  if (!mongoUriConfigured(resolved.env)) throw new Error('configure MONGODB_URI');
+  const escritos: string[] = [];
+  const origenEscritura = corridaId ? `corrida:${corridaId}` : 'motor';
+  await withMongoDb(
+    resolved.env,
+    async (db) => {
+      const docCache = new Map<string, Record<string, unknown> | null>();
+      const antesCache = new Map<string, Record<string, unknown> | null>();
+      for (const m of maps) {
+        const cacheKey = m.coleccion + '|' + m.baseDatos;
+        if (!docCache.has(cacheKey)) {
+          let existing = await findDocForColeccion(db, m.coleccion, negocio);
+          antesCache.set(cacheKey, cloneDoc(existing));
+          let doc = existing ? ({ ...existing } as Record<string, unknown>) : null;
+          if (!doc) {
+            if (m.coleccion === 'negocios') doc = { _id: negocio };
+            else if (m.coleccion === 'procesos') doc = { _id: negocio + '-proceso', negocio_id: negocio };
+            else doc = { _id: negocio + '-' + m.coleccion, negocio_id: negocio };
+          }
+          docCache.set(cacheKey, doc);
+        }
+        const doc = docCache.get(cacheKey);
+        if (!doc) continue;
+        if (!(m.ancla in valores)) continue;
+        setByPath(doc, m.claveMongo, valores[m.ancla]);
+        escritos.push(m.ancla);
+      }
+      const proyId = proyectoId || '';
+      for (const [cacheKey, doc] of docCache) {
+        if (!doc) continue;
+        const coleccion = cacheKey.split('|')[0]!;
+        const id = doc._id;
+        const { _id, ...rest } = doc;
+        const antes = antesCache.get(cacheKey) || null;
+        const operacion = antes ? ('actualizar' as const) : ('crear' as const);
+        await db.collection(coleccion).updateOne(
+          { _id: id ?? negocio },
+          { $set: { ...rest, _id: id ?? negocio } },
+          { upsert: true }
+        );
+        if (SYSTEM_COLLECTIONS.has(coleccion) || !proyId) continue;
+        try {
+          await emitCambioDatos(db, motorDeps(env), {
+            proyectoId: proyId,
+            coleccion,
+            documentoId: String(id ?? negocio),
+            operacion,
+            antes,
+            despues: cloneDoc(doc),
+            origen: origenEscritura,
+            negocio,
+          });
+        } catch (emitErr) {
+          console.error('emitCambioDatos motor', emitErr);
+        }
+      }
+    },
+    baseDatos
+  );
+  return escritos;
+}
+
 async function responderProbarDisparador(
   c: { env: Env; json: (b: unknown, s?: number) => Response },
   proyectoId: string,
@@ -4825,7 +5263,7 @@ async function startCorridaForDisparo(
     flujo_version: flujo.version,
     proyecto_id: flujo.proyectoId,
     negocio: args.negocio,
-    estado: 'en_curso',
+    estado: 'pendiente',
     paso_actual: '',
     pasos: [],
     datos,
@@ -4845,6 +5283,12 @@ async function startCorridaForDisparo(
     primerPasoEjecutable(flujo.nodos, flujo.aristas, datos),
     ts
   );
+  // Fase 2: encolar primer paso (tras inicio) para el consumidor de la cola.
+  if (doc.paso_actual && !isTerminal(doc.estado)) {
+    if (doc.estado === 'pendiente') doc.estado = 'en_curso';
+    await saveCorridaDoc(env, doc);
+    await enqueueFirstPaso(pasosMotorDeps(env), doc);
+  }
   return doc;
 }
 
@@ -4862,56 +5306,6 @@ async function upsertCorridasIndex(db: D1Database, doc: CorridaDoc) {
     )
     .bind(doc._id, doc.proyecto_id, doc.flujo_id, doc.negocio, doc.estado, doc.actualizada)
     .run();
-}
-
-function corridaStaleMs(env: Env): number {
-  const raw = env.CORRIDA_STALE_MS != null ? Number(env.CORRIDA_STALE_MS) : NaN;
-  if (Number.isFinite(raw) && raw >= 60_000) return raw;
-  return DEFAULT_CORRIDA_STALE_MS;
-}
-
-/**
- * Cron: corridas `en_curso` sin actualización ≥ CORRIDA_STALE_MS → estado `error`
- * (timeout_sin_avance). No borra documentos; no toca `esperando`.
- */
-async function runCorridasStaleTick(
-  env: Env,
-  at: Date = new Date(),
-  staleMsOverride?: number
-): Promise<{ scanned: number; marked: string[]; stale_ms: number }> {
-  const staleMs =
-    staleMsOverride != null && Number.isFinite(staleMsOverride) && staleMsOverride >= 60_000
-      ? staleMsOverride
-      : corridaStaleMs(env);
-  const cutoff = new Date(at.getTime() - staleMs).toISOString();
-  const rows = await env.DB.prepare(
-    `SELECT id, proyecto_id, updated_at FROM corridas_index
-     WHERE estado = 'en_curso' AND updated_at < ?
-     ORDER BY updated_at ASC LIMIT 50`
-  )
-    .bind(cutoff)
-    .all<{ id: string; proyecto_id: string; updated_at: string }>();
-  const list = rows.results || [];
-  const marked: string[] = [];
-  const nowMs = at.getTime();
-  const ts = at.toISOString();
-
-  for (const row of list) {
-    if (!isCorridaStaleByUpdatedAt(row.updated_at, nowMs, staleMs)) continue;
-    const loaded = await loadCorridaDoc(env, row.id);
-    if (!loaded.ok) continue;
-    const doc = loaded.doc;
-    if (doc.estado !== 'en_curso') {
-      await upsertCorridasIndex(env.DB, doc);
-      continue;
-    }
-    if (!isCorridaStaleByUpdatedAt(doc.actualizada, nowMs, staleMs)) continue;
-    const next = applyCorridaStaleTimeout(doc, ts);
-    await saveCorridaDoc(env, next);
-    marked.push(doc._id);
-  }
-
-  return { scanned: list.length, marked, stale_ms: staleMs };
 }
 
 async function saveCorridaDoc(env: Env, doc: CorridaDoc): Promise<void> {
@@ -4982,7 +5376,7 @@ async function loadCorridaWithFlujo(
 
 async function failCorrida(env: Env, doc: CorridaDoc, nodoId: string, error: string) {
   const ts = nowIso();
-  doc.estado = 'error';
+  doc.estado = 'fallida';
   doc.errores = [...(doc.errores || []), { at: ts, nodo_id: nodoId, error }];
   doc.pasos = (doc.pasos || []).map((p) =>
     p.nodo_id === nodoId && p.estado === 'pendiente' ? { ...p, estado: 'error' as const, fin: ts } : p
@@ -5003,7 +5397,7 @@ async function applyAvanceToCorrida(
   ts: string
 ): Promise<CorridaDoc> {
   if (avance.kind === 'error') {
-    doc.estado = 'error';
+    doc.estado = 'fallida';
     doc.errores = [...(doc.errores || []), { at: ts, error: avance.error }];
     doc.actualizada = ts;
     await saveCorridaDoc(env, doc);
@@ -5012,18 +5406,15 @@ async function applyAvanceToCorrida(
 
   if (avance.kind === 'fin') {
     doc.paso_actual = avance.nodo.id;
-    doc.estado = 'terminada';
+    doc.estado = 'completada';
     doc.actualizada = ts;
     await saveCorridaDoc(env, doc);
-    if (doc.padre_id) {
-      // El padre se reanuda en GET /siguiente o al guardar; marcamos hijo listo.
-    }
     return doc;
   }
 
   if (avance.kind === 'espera') {
     doc.paso_actual = avance.nodo.id;
-    doc.estado = 'esperando';
+    doc.estado = 'esperando_humano';
     doc.hijo_id = null;
     doc.subflujo_nodo_id = null;
     doc.actualizada = ts;
@@ -5034,7 +5425,7 @@ async function applyAvanceToCorrida(
   if (avance.kind === 'subflujo') {
     const childFlujo = await loadFlujoVersion(env.DB, avance.flujoId);
     if (!childFlujo) {
-      doc.estado = 'error';
+      doc.estado = 'fallida';
       doc.errores = [
         ...(doc.errores || []),
         { at: ts, nodo_id: avance.nodo.id, error: `Subflujo «${avance.flujoId}» no existe.` },
@@ -5050,7 +5441,7 @@ async function applyAvanceToCorrida(
       flujo_version: childFlujo.version,
       proyecto_id: childFlujo.proyectoId,
       negocio: doc.negocio,
-      estado: 'en_curso',
+      estado: 'pendiente',
       paso_actual: '',
       pasos: [],
       datos: { ...doc.datos },
@@ -5068,8 +5459,13 @@ async function applyAvanceToCorrida(
       primerPasoEjecutable(childFlujo.nodos, childFlujo.aristas, child.datos),
       ts
     );
+    if (child.paso_actual && !isTerminal(child.estado)) {
+      if (child.estado === 'pendiente') child.estado = 'en_curso';
+      await saveCorridaDoc(env, child);
+      await enqueueFirstPaso(pasosMotorDeps(env), child);
+    }
     doc.paso_actual = avance.nodo.id;
-    doc.estado = 'esperando';
+    doc.estado = 'esperando_hijo';
     doc.hijo_id = childId;
     doc.subflujo_nodo_id = avance.nodo.id;
     doc.actualizada = ts;
@@ -5211,6 +5607,21 @@ async function proyectoIdForBaseDatos(db: D1Database, baseDatos: string): Promis
     .bind(bd)
     .first<{ id: string }>();
   return row?.id || null;
+}
+
+/** Preferir BD de catálogo (p. ej. software_reservas → reservas) para logs ejecuciones. */
+async function defaultProyectoIdForLogs(env: Env): Promise<string> {
+  const hint = (await catalogMongoDbHint(env.DB)) || 'software_reservas';
+  const fromBd = await proyectoIdForBaseDatos(env.DB, hint);
+  if (fromBd) return fromBd;
+  const reservas = await env.DB.prepare(`SELECT id FROM proyectos WHERE id = 'reservas'`).first<{
+    id: string;
+  }>();
+  if (reservas?.id) return reservas.id;
+  const any = await env.DB.prepare(
+    `SELECT id FROM proyectos WHERE legacy_negocio = 0 ORDER BY id LIMIT 1`
+  ).first<{ id: string }>();
+  return any?.id || 'reservas';
 }
 
 async function mayRevealSensitive(c: {
