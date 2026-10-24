@@ -801,7 +801,7 @@ Authorization: Bearer inv_…
 
 POST {API_BASE}/v1/mongo/sync/proyecto
 Authorization: Bearer inv_…
-{ "proyecto_id": "reservas", "negocio_id"? }
+{ "proyecto_id": "reservas", "negocio_id"? }   # alias: proyecto | proyectoId
 → mismo upsert; usa URI del cluster del esquema; `negocio_id` por defecto = `proyecto_id`
 ```
 

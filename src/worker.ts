@@ -2916,11 +2916,12 @@ app.post('/v1/mongo/sync/proyecto', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     proyecto_id?: string;
     proyectoId?: string;
+    proyecto?: string;
     negocio_id?: string;
     negocioId?: string;
   };
-  const proyectoId = String(body.proyecto_id || body.proyectoId || '').trim();
-  if (!proyectoId) return jsonError(c, 400, 'Falta proyecto_id.');
+  const proyectoId = String(body.proyecto_id || body.proyectoId || body.proyecto || '').trim();
+  if (!proyectoId) return jsonError(c, 400, 'Falta proyecto_id (o proyecto / proyectoId).');
   if (!ID_RE.test(proyectoId)) return jsonError(c, 400, 'proyecto_id inválido.');
 
   const proyecto = await c.env.DB.prepare(
