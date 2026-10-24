@@ -438,11 +438,19 @@ export const API_DOCS_INDEX = {
       query: ['limit?', 'proyecto?', 'proyectoId?'],
       summary: 'Log Mongo ejecuciones de este ejecutor',
     },
+    {
+      method: 'GET',
+      path: '/v1/integraciones/n8n/workflows',
+      auth: false,
+      summary:
+        'Listar workflows n8n (N8N_BASE_URL + N8N_API_KEY; sin secrets → configured:false + hint)',
+    },
   ],
   intentionalLimits: [
     'lee/escribe metadata only — Bearer invite = full hub write',
     'no POST/DELETE /v1/colecciones (mutar vía PUT /v1/proyectos/:id)',
     'skill sin ejecutorId = implícito agente_externo; cola pasos ejecuta modelo/herramienta/integracion',
+    'integracion config: url + metodo/secret/asincrono + editor_url/workflow_id/workflow_nombre/proveedor',
     'consultar-datos = herramienta interna (pipeline allowlist + $limit 100; coste 0)',
     'atascada = en_curso ≥10 min sin lease; reanudar desde panel',
     'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',

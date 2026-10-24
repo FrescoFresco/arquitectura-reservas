@@ -124,7 +124,7 @@
     {
       "id": "conexion-n8n",
       "nombre": "Conexión con n8n",
-      "descripcion": "Cómo conectar n8n con Campos ancla en ambos sentidos: ejecutor integracion (síncrono y asíncrono), disparador webhook y agente_externo.",
+      "descripcion": "Cómo conectar n8n con Campos ancla: ejecutor integracion (enlace editor_url/workflow + selector API), disparador webhook y agente_externo.",
       "versiones": [
         {
           "numero": 1,
@@ -132,6 +132,13 @@
           "ruta": "catalogo/fundamentos/conexion-n8n/v1.md",
           "nombreArchivo": "conexion-n8n.md",
           "hash": "2f5f11202e712634852d1a47e2bc9270de35e95d8a1a0f48628ccb08c13819fa"
+        },
+        {
+          "numero": 2,
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/conexion-n8n/v2.md",
+          "nombreArchivo": "conexion-n8n.md",
+          "hash": "594b0a33a847e86f84465db356292e9e70fd4ba33e18aba0ec282651f957bf9f"
         }
       ]
     }
