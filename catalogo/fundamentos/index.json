@@ -120,6 +120,20 @@
           "hash": "52d736bb71e877dd8b596a66458a468b62235594bf2c395b4710d00d12de8e91"
         }
       ]
+    },
+    {
+      "id": "conexion-n8n",
+      "nombre": "Conexión con n8n",
+      "descripcion": "Cómo conectar n8n con Campos ancla en ambos sentidos: ejecutor integracion (síncrono y asíncrono), disparador webhook y agente_externo.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/conexion-n8n/v1.md",
+          "nombreArchivo": "conexion-n8n.md",
+          "hash": "2f5f11202e712634852d1a47e2bc9270de35e95d8a1a0f48628ccb08c13819fa"
+        }
+      ]
     }
   ]
 }
