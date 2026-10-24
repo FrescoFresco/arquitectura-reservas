@@ -212,12 +212,26 @@ export const API_DOCS_INDEX = {
       summary: 'Dry-run de un disparador existente (opcional override body)',
     },
     {
+      method: 'GET',
+      path: '/v1/redactor',
+      auth: false,
+      summary:
+        'Contrato Redactor (público). Generar = POST + Bearer; sin auth en POST → 401 (no 404)',
+    },
+    {
       method: 'POST',
       path: '/v1/redactor',
       auth: true,
       body: ['intencion', 'tipo_definicion', 'definicion_actual?', 'origen?'],
       summary:
         'Redactor: intención → definición (skill generar-definicion); mock si no hay OPENAI_API_KEY',
+    },
+    {
+      method: 'POST',
+      path: '/v1/interno/corridas-stale-tick',
+      auth: true,
+      summary:
+        'Ops: marcar corridas en_curso caducadas (timeout_sin_avance; mismo tick que el cron CF)',
     },
     {
       method: 'GET',
@@ -282,7 +296,13 @@ export const API_DOCS_INDEX = {
     { method: 'PUT', path: '/v1/mongo/:id', auth: true, summary: 'Actualizar campo Mongo' },
     { method: 'DELETE', path: '/v1/mongo/:id', auth: true, summary: 'Borrar campo Mongo' },
     { method: 'POST', path: '/v1/mongo/sync/negocio', auth: true, summary: 'Upsert negocios (ops URI)' },
-    { method: 'POST', path: '/v1/mongo/sync/proyecto', auth: true, summary: 'Upsert vía URI cluster del esquema' },
+    {
+      method: 'POST',
+      path: '/v1/mongo/sync/proyecto',
+      auth: true,
+      body: ['proyecto_id|proyecto|proyectoId', 'negocio_id?'],
+      summary: 'Upsert vía URI cluster del esquema',
+    },
     { method: 'GET', path: '/v1/clusters', auth: false, summary: 'Listar clusters' },
     { method: 'GET', path: '/v1/clusters/:id', auth: false, summary: 'Ficha cluster' },
     { method: 'GET', path: '/v1/clusters/:id/mongo-config', auth: false, summary: 'Estado URI (nunca uri)' },
@@ -342,6 +362,21 @@ export const API_DOCS_INDEX = {
       auth: true,
       summary: 'Proyectar flat N→array Mongo',
     },
+    {
+      method: 'GET',
+      path: '/v1/ejecutores',
+      auth: false,
+      summary:
+        'Stub: catálogo no implementado (CA-29 / instrucciones-motor-ejecutores.md). Responde 200 + ok:false + hint — no inventar CRUD',
+    },
+  ],
+  intentionalLimits: [
+    'lee/escribe metadata only — Bearer invite = full hub write',
+    'no POST/DELETE /v1/colecciones (mutar vía PUT /v1/proyectos/:id)',
+    'no CRUD /v1/ejecutores until instrucciones-motor-ejecutores.md',
+    'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',
+    'URI Mongo never in responses',
+    'POST /v1/invites open for UI',
   ],
   security: [
     'Nunca loguees ni pegues URIs Mongo, passwords ni invites en chats/repos.',
