@@ -352,13 +352,16 @@
     var picker = form.querySelector('[data-n8n-picker]');
     var hint = form.querySelector('[data-n8n-hint]');
     var sel = form.n8n_workflow;
-    if (picker) picker.hidden = true;
+    if (picker) {
+      picker.hidden = true;
+      picker.style.display = 'none';
+    }
     if (hint) {
       hint.hidden = true;
       hint.textContent = '';
     }
     if (sel) {
-      sel.innerHTML = '<option value="">— Manual —</option>';
+      sel.innerHTML = '<option value="">— Elegir workflow —</option>';
       sel.value = '';
     }
   }
@@ -404,13 +407,14 @@
     var list = (data && data.workflows) || [];
     if (!configured) {
       picker.hidden = true;
+      picker.style.display = 'none';
       if (hint) {
         hint.hidden = false;
         hint.textContent =
           (data && data.hint) ||
           'Configura N8N_BASE_URL y N8N_API_KEY en los secrets del Worker para listar los workflows automáticamente.';
       }
-      sel.innerHTML = '<option value="">— Manual —</option>';
+      sel.innerHTML = '<option value="">— Elegir workflow —</option>';
       return;
     }
     if (hint) {
@@ -418,6 +422,7 @@
       hint.textContent = '';
     }
     picker.hidden = false;
+    picker.style.display = '';
     var currentId = form.workflow_id ? form.workflow_id.value.trim() : '';
     sel.innerHTML = '<option value="">— Elegir workflow —</option>';
     list.forEach(function (wf) {
