@@ -134,6 +134,7 @@ import {
   validateEjecutorConfig,
   type EjecutorRow,
 } from './ejecutores';
+import { listN8nWorkflows } from './n8n-integracion';
 import {
   cloneDoc,
   emitCambioDatos,
@@ -184,6 +185,10 @@ export type Env = {
   XAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
   N8N_TOKEN?: string;
+  /** Base URL del n8n autohospedado (p. ej. https://n8n.ejemplo.com). Opcional. */
+  N8N_BASE_URL?: string;
+  /** API key pública de n8n (`X-N8N-API-KEY`). Opcional; con N8N_BASE_URL habilita el listado. */
+  N8N_API_KEY?: string;
 };
 
 type ResolvedMongo = {
@@ -449,6 +454,16 @@ app.get('/v1/docs.json', (c) =>
   })
 );
 app.get('/docs', (c) => c.redirect('/v1/docs', 302));
+
+/** Listado opcional de workflows n8n (secrets N8N_BASE_URL + N8N_API_KEY). */
+app.get('/v1/integraciones/n8n/workflows', async (c) => {
+  try {
+    const out = await listN8nWorkflows(c.env);
+    return c.json(out);
+  } catch (err) {
+    return jsonError(c, 502, err instanceof Error ? err.message : 'Error al consultar n8n.');
+  }
+});
 
 /** Catálogo de ejecutores (Fase 1). Skill sin ejecutorId → implícito agente_externo. */
 app.get('/v1/ejecutores', async (c) => {

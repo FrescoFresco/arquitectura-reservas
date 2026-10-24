@@ -20,7 +20,16 @@ const PROVEEDORES_MODELO = new Set(['xai', 'openai', 'anthropic']);
 export type EjecutorConfig =
   | { proveedor: string; modelo: string; secret: string; temperatura?: number; salida_json?: boolean }
   | { funcion: string }
-  | { url: string; metodo?: string; secret?: string; asincrono?: boolean }
+  | {
+      url: string;
+      metodo?: string;
+      secret?: string;
+      asincrono?: boolean;
+      proveedor?: 'n8n' | 'otro';
+      workflow_id?: string;
+      workflow_nombre?: string;
+      editor_url?: string;
+    }
   | { rol: string; instrucciones?: string }
   | { agente_id: string }
   | Record<string, unknown>;
@@ -136,6 +145,31 @@ export function validateEjecutorConfig(
     if (c.secret != null && String(c.secret).trim()) {
       out.secret = String(c.secret).trim();
     }
+    const editorUrl =
+      c.editor_url != null && String(c.editor_url).trim() ? String(c.editor_url).trim() : '';
+    if (editorUrl) {
+      if (!/^https?:\/\//i.test(editorUrl)) {
+        return { ok: false, error: 'config.editor_url debe ser http(s).' };
+      }
+      out.editor_url = editorUrl;
+    }
+    const workflowId =
+      c.workflow_id != null && String(c.workflow_id).trim() ? String(c.workflow_id).trim() : '';
+    if (workflowId) out.workflow_id = workflowId;
+    const workflowNombre =
+      c.workflow_nombre != null && String(c.workflow_nombre).trim()
+        ? String(c.workflow_nombre).trim()
+        : '';
+    if (workflowNombre) out.workflow_nombre = workflowNombre;
+    let proveedor =
+      c.proveedor != null && String(c.proveedor).trim()
+        ? String(c.proveedor).trim().toLowerCase()
+        : '';
+    if (proveedor && proveedor !== 'n8n' && proveedor !== 'otro') {
+      return { ok: false, error: 'config.proveedor debe ser n8n|otro.' };
+    }
+    if (!proveedor && (editorUrl || workflowId)) proveedor = 'n8n';
+    if (proveedor) out.proveedor = proveedor;
     return { ok: true, config: out };
   }
 

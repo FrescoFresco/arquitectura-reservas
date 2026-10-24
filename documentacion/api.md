@@ -334,11 +334,22 @@ Content-Type: application/json
 `config` por tipo:
 - `modelo`: `{ proveedor: xai|openai|anthropic, modelo, secret, temperatura?, salida_json? }`
 - `herramienta`: `{ funcion }`
-- `integracion`: `{ url, metodo?, secret?, asincrono? }`
+- `integracion`: `{ url, metodo?, secret?, asincrono?, proveedor?: n8n|otro, workflow_id?, workflow_nombre?, editor_url? }` — si hay `editor_url` o `workflow_id` y no mandas `proveedor`, se asume `"n8n"`. En la ficha Resumen, con `editor_url` aparece **Abrir workflow en n8n ↗**.
 - `humano`: `{ rol, instrucciones? }`
 - `agente_externo`: `{ agente_id }`
 
 UI: Catálogos → **Ejecutores** (Resumen | Skills | Ejecuciones | Interno). En la ficha skill → Asociados → **Ejecutor** y pestaña **Ejecuciones** (D1 + Mongo).
+
+#### Integración n8n (listado opcional)
+
+Si el Worker tiene secrets `N8N_BASE_URL` (p. ej. `https://n8n.tudominio.com`) y `N8N_API_KEY` (`X-N8N-API-KEY`), el panel puede rellenar el formulario de ejecutor `integracion` desde un desplegable.
+
+```
+GET {API_BASE}/v1/integraciones/n8n/workflows
+```
+
+- Sin secrets → `{ ok: true, configured: false, workflows: [], hint: "…" }`
+- Con secrets → proxy a `GET {N8N_BASE_URL}/api/v1/workflows`; cada ítem: `id`, `nombre`, `activo`, `editor_url` (`…/workflow/{id}`), `webhook_url` (desde nodo `n8n-nodes-base.webhook` → `…/webhook/{path}`, o `null`).
 
 Skill:
 ```

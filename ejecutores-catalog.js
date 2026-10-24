@@ -177,10 +177,38 @@
       reEl.textContent =
         String(item.reintentos) + ' · espera ' + String(item.espera_reintento_s) + ' s';
     }
+    var cfg = item.config || {};
+    var wfNombreFila = document.getElementById('ejResumenWorkflowNombreFila');
+    var wfNombreEl = document.getElementById('ejResumenWorkflowNombre');
+    var wfIdFila = document.getElementById('ejResumenWorkflowIdFila');
+    var wfIdEl = document.getElementById('ejResumenWorkflowId');
+    var n8nAcciones = document.getElementById('ejResumenN8nAcciones');
+    var n8nLink = document.getElementById('ejResumenAbrirN8n');
+    var esIntegracion = item.tipo === 'integracion';
+    var wfNombre = cfg.workflow_nombre ? String(cfg.workflow_nombre) : '';
+    var wfId = cfg.workflow_id != null && String(cfg.workflow_id) ? String(cfg.workflow_id) : '';
+    var editorUrl = cfg.editor_url ? String(cfg.editor_url) : '';
+    if (wfNombreFila) {
+      wfNombreFila.hidden = !(esIntegracion && wfNombre);
+      if (wfNombreEl) wfNombreEl.textContent = wfNombre || '—';
+    }
+    if (wfIdFila) {
+      wfIdFila.hidden = !(esIntegracion && wfId);
+      if (wfIdEl) wfIdEl.textContent = wfId || '—';
+    }
+    if (n8nAcciones && n8nLink) {
+      if (esIntegracion && editorUrl) {
+        n8nAcciones.hidden = false;
+        n8nLink.href = editorUrl;
+      } else {
+        n8nAcciones.hidden = true;
+        n8nLink.removeAttribute('href');
+      }
+    }
     var cfgEl = document.getElementById('ejResumenConfig');
     if (cfgEl) {
       try {
-        cfgEl.textContent = JSON.stringify(item.config || {}, null, 2);
+        cfgEl.textContent = JSON.stringify(cfg, null, 2);
       } catch (e) {
         cfgEl.textContent = String(item.config);
       }
@@ -284,12 +312,19 @@
       return { funcion: form.funcion.value.trim() };
     }
     if (tipo === 'integracion') {
-      return {
+      var out = {
         url: form.url.value.trim(),
         metodo: (form.metodo.value || 'POST').trim(),
-        secret: form.secret_int.value.trim() || undefined,
         asincrono: !!form.asincrono.checked
       };
+      if (form.secret_int && form.secret_int.value.trim()) out.secret = form.secret_int.value.trim();
+      if (form.editor_url && form.editor_url.value.trim()) out.editor_url = form.editor_url.value.trim();
+      if (form.workflow_id && form.workflow_id.value.trim()) out.workflow_id = form.workflow_id.value.trim();
+      if (form.workflow_nombre && form.workflow_nombre.value.trim()) {
+        out.workflow_nombre = form.workflow_nombre.value.trim();
+      }
+      if (out.editor_url || out.workflow_id) out.proveedor = 'n8n';
+      return out;
     }
     if (tipo === 'humano') {
       return {
@@ -305,6 +340,116 @@
     form.querySelectorAll('[data-ej-tipo]').forEach(function (el) {
       el.hidden = el.getAttribute('data-ej-tipo') !== tipo;
     });
+    if (tipo === 'integracion') cargarN8nWorkflowsEnForm(form);
+    else resetN8nPicker(form);
+  }
+
+  var n8nWorkflowsCache = null;
+  var n8nWorkflowsLoading = null;
+
+  function resetN8nPicker(form) {
+    if (!form) return;
+    var picker = form.querySelector('[data-n8n-picker]');
+    var hint = form.querySelector('[data-n8n-hint]');
+    var sel = form.n8n_workflow;
+    if (picker) picker.hidden = true;
+    if (hint) {
+      hint.hidden = true;
+      hint.textContent = '';
+    }
+    if (sel) {
+      sel.innerHTML = '<option value="">— Manual —</option>';
+      sel.value = '';
+    }
+  }
+
+  function aplicarWorkflowN8n(form, wf) {
+    if (!form || !wf) return;
+    if (form.url && wf.webhook_url) form.url.value = wf.webhook_url;
+    if (form.editor_url && wf.editor_url) form.editor_url.value = wf.editor_url;
+    if (form.workflow_id) form.workflow_id.value = wf.id != null ? String(wf.id) : '';
+    if (form.workflow_nombre) form.workflow_nombre.value = wf.nombre || '';
+  }
+
+  async function fetchN8nWorkflows() {
+    if (n8nWorkflowsCache) return n8nWorkflowsCache;
+    if (n8nWorkflowsLoading) return n8nWorkflowsLoading;
+    n8nWorkflowsLoading = apiFetch('/v1/integraciones/n8n/workflows')
+      .then(function (data) {
+        n8nWorkflowsCache = data || { ok: true, configured: false, workflows: [] };
+        return n8nWorkflowsCache;
+      })
+      .catch(function () {
+        return {
+          ok: true,
+          configured: false,
+          workflows: [],
+          hint: 'No se pudo consultar /v1/integraciones/n8n/workflows.'
+        };
+      })
+      .finally(function () {
+        n8nWorkflowsLoading = null;
+      });
+    return n8nWorkflowsLoading;
+  }
+
+  async function cargarN8nWorkflowsEnForm(form) {
+    if (!form) return;
+    var picker = form.querySelector('[data-n8n-picker]');
+    var hint = form.querySelector('[data-n8n-hint]');
+    var sel = form.n8n_workflow;
+    if (!picker || !sel) return;
+    var data = await fetchN8nWorkflows();
+    var configured = !!(data && data.configured);
+    var list = (data && data.workflows) || [];
+    if (!configured) {
+      picker.hidden = true;
+      if (hint) {
+        hint.hidden = false;
+        hint.textContent =
+          (data && data.hint) ||
+          'Configura N8N_BASE_URL y N8N_API_KEY en los secrets del Worker para listar los workflows automáticamente.';
+      }
+      sel.innerHTML = '<option value="">— Manual —</option>';
+      return;
+    }
+    if (hint) {
+      hint.hidden = true;
+      hint.textContent = '';
+    }
+    picker.hidden = false;
+    var currentId = form.workflow_id ? form.workflow_id.value.trim() : '';
+    sel.innerHTML = '<option value="">— Elegir workflow —</option>';
+    list.forEach(function (wf) {
+      if (!wf || wf.id == null) return;
+      var opt = document.createElement('option');
+      opt.value = String(wf.id);
+      opt.textContent =
+        (wf.nombre || wf.id) +
+        (wf.activo === false ? ' (inactivo)' : '') +
+        (wf.webhook_url ? '' : ' · sin webhook');
+      opt.dataset.webhookUrl = wf.webhook_url || '';
+      opt.dataset.editorUrl = wf.editor_url || '';
+      opt.dataset.nombre = wf.nombre || '';
+      sel.appendChild(opt);
+    });
+    if (currentId) sel.value = currentId;
+  }
+
+  function onN8nWorkflowChange(e) {
+    var sel = e.target;
+    if (!sel || sel.name !== 'n8n_workflow') return;
+    var form = sel.form;
+    if (!form) return;
+    var id = sel.value;
+    if (!id) return;
+    var opt = sel.options[sel.selectedIndex];
+    aplicarWorkflowN8n(form, {
+      id: id,
+      nombre: (opt && opt.dataset.nombre) || '',
+      editor_url: (opt && opt.dataset.editorUrl) || '',
+      webhook_url: (opt && opt.dataset.webhookUrl) || ''
+    });
   }
 
   function abrirDialogoNuevo() {
@@ -319,6 +464,9 @@
     form.activo.checked = true;
     if (form.salida_json) form.salida_json.checked = true;
     if (form.asincrono) form.asincrono.checked = true;
+    if (form.editor_url) form.editor_url.value = '';
+    if (form.workflow_id) form.workflow_id.value = '';
+    if (form.workflow_nombre) form.workflow_nombre.value = '';
     var err = document.getElementById('nuevoEjecutorError');
     if (err) err.textContent = '';
     syncTipoCampos(form);
@@ -346,6 +494,9 @@
     if (form.salida_json) form.salida_json.checked = c.salida_json !== false;
     if (form.funcion) form.funcion.value = c.funcion || '';
     if (form.url) form.url.value = c.url || '';
+    if (form.editor_url) form.editor_url.value = c.editor_url || '';
+    if (form.workflow_id) form.workflow_id.value = c.workflow_id != null ? String(c.workflow_id) : '';
+    if (form.workflow_nombre) form.workflow_nombre.value = c.workflow_nombre || '';
     if (form.metodo) form.metodo.value = c.metodo || 'POST';
     if (form.secret_int) form.secret_int.value = c.secret || '';
     if (form.asincrono) form.asincrono.checked = c.asincrono !== false;
@@ -605,6 +756,7 @@
     if (formNuevo) {
       formNuevo.addEventListener('submit', onSubmitNuevo);
       formNuevo.tipo.addEventListener('change', function () { syncTipoCampos(formNuevo); });
+      if (formNuevo.n8n_workflow) formNuevo.n8n_workflow.addEventListener('change', onN8nWorkflowChange);
     }
     var nuevoCancelar = document.getElementById('nuevoEjecutorCancelar');
     if (nuevoCancelar) {
@@ -616,6 +768,7 @@
     if (formEditar) {
       formEditar.addEventListener('submit', onSubmitEditar);
       formEditar.tipo.addEventListener('change', function () { syncTipoCampos(formEditar); });
+      if (formEditar.n8n_workflow) formEditar.n8n_workflow.addEventListener('change', onN8nWorkflowChange);
     }
     var editarCancelar = document.getElementById('editarEjecutorCancelar');
     if (editarCancelar) {
