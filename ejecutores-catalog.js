@@ -125,23 +125,29 @@
       }
       if (vacio) vacio.hidden = true;
       list.forEach(function (ej) {
-        var row = document.createElement('div');
-        row.className = 'catalogo-fila';
         var estado = String(ej.estado || '—');
         var skill = ej.skill ? String(ej.skill) : '—';
         var cuando = String(ej.creado || '');
         var ms = ej.duracion_ms != null ? String(ej.duracion_ms) + ' ms' : '';
-        row.innerHTML =
-          '<div><strong>' +
-          skill +
-          '</strong> · ' +
-          estado +
-          (ms ? ' · ' + ms : '') +
-          '</div><div class="ajustes-hint">' +
-          cuando +
-          (ej.corrida_id ? ' · ' + ej.corrida_id : '') +
-          '</div>';
-        mount.appendChild(row);
+        var secundario = [estado + (ms ? ' · ' + ms : ''), cuando, ej.corrida_id ? String(ej.corrida_id) : '']
+          .filter(Boolean)
+          .join(' · ');
+        if (typeof window.filaCatalogoLista === 'function') {
+          mount.appendChild(
+            window.filaCatalogoLista({
+              icono: 'pasos',
+              titulo: skill,
+              secundario: secundario || '—',
+              static: true,
+              ariaLabel: 'Ejecución ' + skill
+            })
+          );
+        } else {
+          var row = document.createElement('div');
+          row.className = 'catalogo-fila catalogo-fila-static';
+          row.textContent = skill + ' · ' + secundario;
+          mount.appendChild(row);
+        }
       });
     } catch (err) {
       mount.replaceChildren();
