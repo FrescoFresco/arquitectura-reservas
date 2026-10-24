@@ -407,6 +407,22 @@ app.get('/v1/docs.json', (c) =>
 );
 app.get('/docs', (c) => c.redirect('/v1/docs', 302));
 
+/**
+ * Stub: catálogo de ejecutores aún no existe (CA-29).
+ * No inventar CRUD hasta `instrucciones-motor-ejecutores.md`.
+ * 200 + ok:false (no 404) para que agentes lean el hint.
+ */
+app.get('/v1/ejecutores', (c) =>
+  c.json({
+    ok: false,
+    error: 'no_implementado',
+    recurso: 'ejecutores',
+    hint:
+      'Catálogo de ejecutores pendiente de instrucciones-motor-ejecutores.md (CA-29). Redactor usa modelo/mock directo en POST /v1/redactor; el Worker no ejecuta skills del bucle de corridas.',
+    endpoints: [],
+  })
+);
+
 /** Writes require a valid non-revoked invite key. */
 app.use('/v1/*', async (c, next) => {
   if (c.req.method === 'GET' || c.req.method === 'OPTIONS' || c.req.method === 'HEAD') {

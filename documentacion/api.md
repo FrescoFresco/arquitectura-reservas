@@ -1,6 +1,6 @@
 # API — contrato para agentes (Campos ancla)
 
-Documento canónico. Un agente con invite Bearer puede **conectar y modificar todo el hub** (catálogos, ejecutar, corridas, Empujar/sync). Auth simple ahora; ACL fino después.
+Documento canónico. Un agente con invite Bearer puede **conectar y modificar todo el hub** (catálogos, disparadores, ejecutar, corridas, Empujar/sync, redactor). Auth simple ahora; ACL fino después.
 
 **No uses** `localhost`, `127.0.0.1`, GitHub Pages ni `GITHUB_TOKEN`. Fuente viva: esta API + D1.
 
@@ -43,41 +43,48 @@ curl -sS -X POST "$API_BASE/v1/agentes/latido" \
   -H 'Content-Type: application/json' \
   -d "{\"id\":\"eco-mesa\",\"clave\":\"$AGENTE_CLAVE\"}"
 
-# 4) Leer (público)
+# 4) Leer (público) — todos los catálogos
 curl -sS "$API_BASE/v1/skills"
+curl -sS "$API_BASE/v1/system-prompts"
 curl -sS "$API_BASE/v1/anclas"
-curl -sS "$API_BASE/v1/proyectos"
+curl -sS "$API_BASE/v1/mongo"
+curl -sS "$API_BASE/v1/proyectos"          # alias: /v1/esquemas
 curl -sS "$API_BASE/v1/colecciones"
 curl -sS "$API_BASE/v1/flujos"
 curl -sS "$API_BASE/v1/clusters"
+curl -sS "$API_BASE/v1/fundamentos"
+curl -sS "$API_BASE/v1/eventos?proyecto=reservas&limit=5"
+curl -sS "$API_BASE/v1/redactor"           # contrato; POST genera (Bearer)
+curl -sS "$API_BASE/v1/ejecutores"         # stub: catálogo pendiente (no es bug)
 
-# 5) Mutar (Bearer = acceso completo al hub)
-curl -sS -X POST "$API_BASE/v1/skills" \
-  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+# 5) Mutar (Bearer = acceso completo; lee/escribe no filtran rutas)
+AUTH=(-H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json')
+curl -sS -X POST "$API_BASE/v1/skills" "${AUTH[@]}" \
   -d '{"id":"mi-skill","nombre":"Mi skill","markdown":"# Hi\n","entradas":[],"salidas":[]}'
-curl -sS -X PUT "$API_BASE/v1/anclas/negocio.nombre" \
-  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+curl -sS -X PUT "$API_BASE/v1/anclas/negocio.nombre" "${AUTH[@]}" \
   -d '{"descripcion":"Nombre del local"}'
-curl -sS -X POST "$API_BASE/v1/proyectos/reservas/crear-bd" \
-  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' -d '{}'
+curl -sS -X POST "$API_BASE/v1/proyectos/llamadas/crear-bd" "${AUTH[@]}" -d '{}'
+# Empujar de prueba: proyecto id=llamadas (baseDatos software_llamadas); no tocar reservas
 
 # 6) Ejecutar skill suelta
 curl -sS "$API_BASE/v1/ejecutar/mapear-recorrido"
 curl -sS "$API_BASE/v1/ejecutar/mapear-recorrido/entradas?negocio=pelo-sur"
-curl -sS -X POST "$API_BASE/v1/ejecutar/mapear-recorrido/salidas" \
-  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
+curl -sS -X POST "$API_BASE/v1/ejecutar/mapear-recorrido/salidas" "${AUTH[@]}" \
   -d '{"negocio":"pelo-sur","valores":{"_version.recorrido.campos_":[]}}'
 
 # 7) Bucle corrida (n8n solo orquesta)
-curl -sS -X POST "$API_BASE/v1/corridas" \
-  -H "Authorization: Bearer $AGENTE_CLAVE" -H 'Content-Type: application/json' \
-  -d '{"flujo_id":"reservas-descubrir-mapear","negocio":"pelo-sur"}'
-# → guarda CORRIDA_ID
+CORRIDA_ID=$(curl -sS -X POST "$API_BASE/v1/corridas" "${AUTH[@]}" \
+  -d '{"flujo_id":"reservas-descubrir-mapear","negocio":"pelo-sur"}' | jq -r .corrida.id)
 curl -sS "$API_BASE/v1/corridas/$CORRIDA_ID/siguiente"
 # si tipo=skill → IA → POST …/salidas con corrida_id + nodo_id; repetir hasta tipo=fin
+
+# 8) Disparadores + redactor
+curl -sS "$API_BASE/v1/flujos/reservas-descubrir-mapear/disparadores"
+curl -sS -X POST "$API_BASE/v1/redactor" "${AUTH[@]}" \
+  -d '{"intencion":"disparador manual de prueba","tipo_definicion":"disparador","origen":"api"}'
 ```
 
-La clave **no caduca** (solo revocación humana). Sin rate limit de producto: latidos ≤1/30 s; no spamees escrituras.
+La clave **no caduca** (solo revocación humana). Sin rate limit de producto: latidos ≤1/30 s; no spamees escrituras. `lee`/`escribe` = `["*"]` tras registro (metadatos UI; **no** ACL).
 
 ---
 
@@ -87,9 +94,11 @@ La clave **no caduca** (solo revocación humana). Sin rate limit de producto: la
 2. `GET /health` → `GET /v1/docs` o `/v1/docs.json`.
 3. `POST /v1/agentes/registro` → guarda `id`.
 4. Latido ~30 s: `POST /v1/agentes/latido`.
-5. `GET` catálogos (público). `POST`/`PUT`/`DELETE` + salidas con Bearer.
+5. `GET` catálogos (público). `POST`/`PUT`/`DELETE` + salidas / Empujar / sync / redactor con Bearer.
 6. Skill suelta: `GET /v1/ejecutar/:skillId` → entradas / salidas.
 7. Cadena: `POST /v1/corridas` → `GET …/siguiente` → salidas con `corrida_id`+`nodo_id` → `fin`.
+8. Disparadores: CRUD bajo flujo + `probar` / webhook `/v1/disparar/:flujo/:token` / `GET /v1/eventos`.
+9. Redactor: `GET /v1/redactor` (contrato) → `POST /v1/redactor` (Bearer).
 
 ---
 
@@ -238,7 +247,9 @@ Ejemplos:
 | System prompts | `GET /v1/system-prompts` | `GET /v1/system-prompts/:id` | `POST` | `PUT` | `DELETE` |
 | Ejecutar | — | `GET /v1/ejecutar/:skillId` · `GET …/entradas?negocio=` | — | `POST …/salidas` (Bearer; +`corrida_id`?) | — |
 | Flujos | `GET /v1/flujos?proyecto=` | `GET /v1/flujos/:id` | `POST /v1/flujos` | `PUT /v1/flujos/:id` | `DELETE /v1/flujos/:id` |
-| Disparadores | `GET /v1/flujos/:id/disparadores` | `GET /v1/disparadores/:id` | `POST /v1/flujos/:id/disparadores` | `PUT` · `POST …/activar` · `…/pausar` | `DELETE /v1/disparadores/:id` |
+| Disparadores | `GET /v1/flujos/:id/disparadores` | `GET /v1/disparadores/:id` | `POST /v1/flujos/:id/disparadores` | `PUT` · `POST …/activar` · `…/pausar` · `…/probar` | `DELETE /v1/disparadores/:id` |
+| Eventos | `GET /v1/eventos?proyecto=&coleccion=` | — | (motor / webhook) | — | TTL 30d |
+| Redactor | `GET /v1/redactor` (contrato) | — | `POST /v1/redactor` (Bearer) | — | — |
 | Corridas | `GET /v1/corridas?…` | `GET /v1/corridas/:id` · `…/siguiente` | `POST /v1/corridas` | (avanza vía salidas) | `DELETE /v1/corridas/:id` |
 | Anclas | `GET /v1/anclas` | `GET /v1/anclas/:id` | `POST` | `PUT` · `POST …/observaciones` | `DELETE` |
 | Campos Mongo | `GET /v1/mongo?proyecto=` | `GET /v1/mongo/:id` | `POST` | `PUT` | `DELETE` |
@@ -247,6 +258,7 @@ Ejemplos:
 | Colecciones | `GET /v1/colecciones?proyecto=` | (vía BD padre) | vía `PUT` BD `{ colecciones }` | igual | quitar del array en `PUT` BD |
 | Fundamentos | `GET /v1/fundamentos` | `GET …/:id` | `POST` | `PUT` | `DELETE` |
 | Agentes | `GET /v1/agentes` | — | invite + registro | `PUT` | `DELETE` |
+| Ejecutores | `GET /v1/ejecutores` → stub | — | — | — | pendiente `instrucciones-motor-ejecutores.md` |
 
 Prefijo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
 
@@ -839,12 +851,15 @@ curl -sS -X POST "$API_BASE/v1/corridas" \
 
 | Límite | Por qué |
 |--------|---------|
-| `lee`/`escribe` no filtran rutas | Mecanismo primero; ACL después |
+| `lee`/`escribe` no filtran rutas | Mecanismo primero; ACL después. Registro deja `["*"]` |
 | Sin `POST/DELETE /v1/colecciones` | Colecciones = JSON de la BD (`PUT /v1/proyectos/:id`) |
+| Sin CRUD `/v1/ejecutores` | Esperando `instrucciones-motor-ejecutores.md` (CA-29). `GET` = stub |
 | URI Mongo nunca en respuestas | Seguridad; configurar en Cluster → Conexión |
+| `POST/DELETE /v1/mongo/config` → 410 | URI global deprecada; usar Cluster |
 | `POST /v1/invites` abierto | UI/humanos crean invites sin Bearer |
 | Sin rate limit de producto | Añadir después si hace falta |
 | n8n no lleva reglas | Solo orquesta el bucle HTTP de corridas |
+| Redactor sin `OPENAI_API_KEY` | Responde `modo: mock` (válido para smoke) |
 
 ---
 

@@ -356,6 +356,21 @@ export const API_DOCS_INDEX = {
       auth: true,
       summary: 'Proyectar flat N→array Mongo',
     },
+    {
+      method: 'GET',
+      path: '/v1/ejecutores',
+      auth: false,
+      summary:
+        'Stub: catálogo no implementado (CA-29 / instrucciones-motor-ejecutores.md). Responde 200 + ok:false + hint — no inventar CRUD',
+    },
+  ],
+  intentionalLimits: [
+    'lee/escribe metadata only — Bearer invite = full hub write',
+    'no POST/DELETE /v1/colecciones (mutar vía PUT /v1/proyectos/:id)',
+    'no CRUD /v1/ejecutores until instrucciones-motor-ejecutores.md',
+    'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',
+    'URI Mongo never in responses',
+    'POST /v1/invites open for UI',
   ],
   security: [
     'Nunca loguees ni pegues URIs Mongo, passwords ni invites en chats/repos.',
