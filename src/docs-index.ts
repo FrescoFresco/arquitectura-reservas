@@ -237,8 +237,9 @@ export const API_DOCS_INDEX = {
       method: 'GET',
       path: '/v1/skills/:id/ejecuciones',
       auth: false,
-      query: ['limit?'],
-      summary: 'Historial de ejecuciones hub (D1 skill_ejecuciones; p. ej. generar-definicion)',
+      query: ['limit?', 'proyecto?', 'proyectoId?'],
+      summary:
+        'Historial de ejecuciones (D1 skill_ejecuciones + Mongo ejecuciones; p. ej. generar-definicion / motor)',
     },
     {
       method: 'POST',
@@ -388,11 +389,19 @@ export const API_DOCS_INDEX = {
       auth: true,
       summary: 'Borrar ejecutor (skills.ejecutorId → null)',
     },
+    {
+      method: 'GET',
+      path: '/v1/ejecutores/:id/ejecuciones',
+      auth: false,
+      query: ['limit?', 'proyecto?', 'proyectoId?'],
+      summary: 'Log Mongo ejecuciones de este ejecutor',
+    },
   ],
   intentionalLimits: [
     'lee/escribe metadata only — Bearer invite = full hub write',
     'no POST/DELETE /v1/colecciones (mutar vía PUT /v1/proyectos/:id)',
-    'ejecutor sin motor de cola aún (Fase 2); skill sin ejecutorId = implícito agente_externo',
+    'skill sin ejecutorId = implícito agente_externo; cola pasos ejecuta modelo/herramienta/integracion',
+    'control de fallos (reintentos/botones/atascadas) = Fase 3',
     'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',
     'URI Mongo never in responses',
     'POST /v1/invites open for UI',

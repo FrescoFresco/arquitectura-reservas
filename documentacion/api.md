@@ -258,7 +258,8 @@ Ejemplos:
 | Colecciones | `GET /v1/colecciones?proyecto=` | (vía BD padre) | vía `PUT` BD `{ colecciones }` | igual | quitar del array en `PUT` BD |
 | Fundamentos | `GET /v1/fundamentos` | `GET …/:id` | `POST` | `PUT` | `DELETE` |
 | Agentes | `GET /v1/agentes` | — | invite + registro | `PUT` | `DELETE` |
-| Ejecutores | `GET /v1/ejecutores` | `GET /v1/ejecutores/:id` | `POST` | `PUT` | `DELETE` |
+| Ejecutores | `GET /v1/ejecutores` | `GET /v1/ejecutores/:id` · `…/ejecuciones` | `POST` | `PUT` | `DELETE` |
+| Ejecuciones | `GET /v1/skills/:id/ejecuciones` · `GET /v1/ejecutores/:id/ejecuciones` | — | (motor / redactor) | — | Mongo `ejecuciones` + D1 |
 
 Prefijo: `{API_BASE}` + ruta. Ids: `^[a-z0-9][a-z0-9-]{0,60}$`.
 
@@ -337,13 +338,21 @@ Content-Type: application/json
 - `humano`: `{ rol, instrucciones? }`
 - `agente_externo`: `{ agente_id }`
 
-UI: Catálogos → **Ejecutores** (Resumen | Skills | Ejecuciones | Interno). En la ficha skill → Asociados → **Ejecutor**. La pestaña Ejecuciones queda stub hasta Fase 2 (log Mongo).
+UI: Catálogos → **Ejecutores** (Resumen | Skills | Ejecuciones | Interno). En la ficha skill → Asociados → **Ejecutor** y pestaña **Ejecuciones** (D1 + Mongo).
 
 Skill:
 ```
 PUT {API_BASE}/v1/skills/:id
 { "ejecutorId": "openai-texto" }   # o null → implícito agente_externo
 ```
+
+Log de ejecuciones (Mongo `ejecuciones` + D1 `skill_ejecuciones` para el Redactor):
+```
+GET {API_BASE}/v1/skills/:id/ejecuciones?limit=20&proyecto=reservas
+GET {API_BASE}/v1/ejecutores/:id/ejecuciones?limit=20
+```
+
+**Motor interno (cola `pasos`):** al crear una corrida se encola el primer nodo. El consumidor ejecuta `modelo`/`herramienta`/`decision`/`subflujo`/`fin`; `agente_externo`/`integracion` async dejan la corrida en `esperando_integracion` y el agente sigue con `/siguiente` + `/salidas` (que encola el siguiente). Sin clave de proveedor el ejecutor `modelo` usa mock de salidas (smoke E2E).
 
 ### System prompts
 
@@ -895,7 +904,7 @@ curl -sS -X POST "$API_BASE/v1/corridas" \
 |--------|---------|
 | `lee`/`escribe` no filtran rutas | Mecanismo primero; ACL después. Registro deja `["*"]` |
 | Sin `POST/DELETE /v1/colecciones` | Colecciones = JSON de la BD (`PUT /v1/proyectos/:id`) |
-| Motor de cola / log `ejecuciones` | Fase 2 (`instrucciones-motor-ejecutores.md`); catálogo Ejecutores ya existe |
+| Control de fallos (reintentos / botones / atascadas) | Fase 3 (`instrucciones-motor-ejecutores.md`); motor cola `pasos` ya existe |
 | URI Mongo nunca en respuestas | Seguridad; configurar en Cluster → Conexión |
 | `POST/DELETE /v1/mongo/config` → 410 | URI global deprecada; usar Cluster |
 | `POST /v1/invites` abierto | UI/humanos crean invites sin Bearer |

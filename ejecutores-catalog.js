@@ -100,6 +100,56 @@
     });
     var item = abierto();
     if (item && id === 'skills') pintarSkillsTab(item);
+    if (item && id === 'ejecuciones') pintarEjecucionesTab(item);
+  }
+
+  async function pintarEjecucionesTab(item) {
+    var mount = document.getElementById('ejEjecucionesLista');
+    var vacio = document.getElementById('ejEjecucionesVacio');
+    if (!mount || !item) return;
+    mount.replaceChildren();
+    if (vacio) {
+      vacio.hidden = false;
+      vacio.textContent = 'Cargando…';
+    }
+    try {
+      var data = await apiFetch('/v1/ejecutores/' + encodeURIComponent(item.id) + '/ejecuciones?limit=30');
+      var list = (data && data.ejecuciones) || [];
+      mount.replaceChildren();
+      if (!list.length) {
+        if (vacio) {
+          vacio.hidden = false;
+          vacio.textContent = 'Sin ejecuciones todavía.';
+        }
+        return;
+      }
+      if (vacio) vacio.hidden = true;
+      list.forEach(function (ej) {
+        var row = document.createElement('div');
+        row.className = 'catalogo-fila';
+        var estado = String(ej.estado || '—');
+        var skill = ej.skill ? String(ej.skill) : '—';
+        var cuando = String(ej.creado || '');
+        var ms = ej.duracion_ms != null ? String(ej.duracion_ms) + ' ms' : '';
+        row.innerHTML =
+          '<div><strong>' +
+          skill +
+          '</strong> · ' +
+          estado +
+          (ms ? ' · ' + ms : '') +
+          '</div><div class="ajustes-hint">' +
+          cuando +
+          (ej.corrida_id ? ' · ' + ej.corrida_id : '') +
+          '</div>';
+        mount.appendChild(row);
+      });
+    } catch (err) {
+      mount.replaceChildren();
+      if (vacio) {
+        vacio.hidden = false;
+        vacio.textContent = 'No se pudieron cargar las ejecuciones.';
+      }
+    }
   }
 
   function renderFicha(item) {

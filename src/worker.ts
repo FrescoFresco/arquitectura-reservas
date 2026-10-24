@@ -91,11 +91,25 @@ import {
   DEFAULT_CORRIDA_STALE_MS,
   ensurePasoPendiente,
   isCorridaStaleByUpdatedAt,
+  isEsperandoHumano,
+  isEsperandoIntegracion,
+  isTerminal,
   markPasoHecho,
   newCorridaId,
   publicCorrida,
   type CorridaDoc,
 } from './corridas';
+import {
+  afterExternalSalidas,
+  enqueueFirstPaso,
+  enqueuePaso,
+  listEjecucionesMongo,
+  loadEjecutorForSkill,
+  logEjecucion,
+  processPasoMessage,
+  type PasoQueueMsg,
+  type MotorDeps as PasosMotorDeps,
+} from './motor-pasos';
 import {
   extractAnclaIdsFromPipeline,
   isDisparadorTipo,
@@ -159,6 +173,11 @@ export type Env = {
    * Default 10800000 (3h). Solo afecta en_curso; no toca esperando (humano/subflujo).
    */
   CORRIDA_STALE_MS?: string;
+  /** Cola de pasos del motor (Fase 2). */
+  PASOS?: Queue<PasoQueueMsg>;
+  XAI_API_KEY?: string;
+  ANTHROPIC_API_KEY?: string;
+  N8N_TOKEN?: string;
 };
 
 type ResolvedMongo = {
@@ -632,7 +651,7 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
         corrida_negocio: doc.negocio,
       });
     }
-    if (doc.estado === 'terminada' || doc.estado === 'error') {
+    if (isTerminal(doc.estado)) {
       return jsonError(c, 409, `Corrida en estado ${doc.estado}; no acepta salidas.`);
     }
     if (doc.paso_actual !== nodoId) {
@@ -756,14 +775,38 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
   let corridaOut: ReturnType<typeof publicCorrida> | null = null;
   if (corridaCtx) {
     try {
-      const advanced = await advanceCorridaAfterSkill(
-        c.env,
-        corridaCtx.doc,
-        corridaCtx.flujo,
-        nodoId,
-        normalizedValores,
-        ts
-      );
+      // Fase 2: /salidas encola el siguiente nodo (motor); sin cola → avance síncrono legado.
+      let advanced: CorridaDoc;
+      if (c.env.PASOS) {
+        advanced = await afterExternalSalidas(
+          pasosMotorDeps(c.env),
+          corridaCtx.doc,
+          corridaCtx.flujo,
+          nodoId,
+          normalizedValores
+        );
+        await logEjecucion(pasosMotorDeps(c.env), advanced.proyecto_id, {
+          skill: skillId,
+          ejecutor_id: null,
+          ejecutor_version: null,
+          prompt_version: null,
+          entradas: null,
+          salidas: normalizedValores,
+          duracion_ms: 0,
+          coste: null,
+          estado: 'ok',
+          corrida_id: advanced._id,
+        });
+      } else {
+        advanced = await advanceCorridaAfterSkill(
+          c.env,
+          corridaCtx.doc,
+          corridaCtx.flujo,
+          nodoId,
+          normalizedValores,
+          ts
+        );
+      }
       corridaOut = publicCorrida(advanced);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'avance de corrida falló';
@@ -1251,13 +1294,34 @@ app.post('/v1/redactor', async (c) => {
     contexto.colecciones = ['negocios', 'reservas', 'procesos', 'versiones', 'ejecuciones'];
   }
 
+  // Fase 2: si la skill generar-definicion tiene ejecutor modelo, usar su secret/modelo.
+  let openaiKey = c.env.OPENAI_API_KEY;
+  let openaiModel = c.env.OPENAI_MODEL;
+  let redactorEj: Awaited<ReturnType<typeof loadEjecutorForSkill>> | null = null;
+  try {
+    const skillEj = await c.env.DB.prepare(
+      'SELECT ejecutor_id FROM skills WHERE id = ?'
+    )
+      .bind(REDACTOR_SKILL_ID)
+      .first<{ ejecutor_id: string | null }>();
+    redactorEj = await loadEjecutorForSkill(c.env.DB, skillEj || {});
+    if (redactorEj.tipo === 'modelo') {
+      const secretName = String(redactorEj.config.secret || 'OPENAI_API_KEY');
+      const fromSecret = (c.env as Record<string, unknown>)[secretName];
+      if (typeof fromSecret === 'string' && fromSecret.trim()) openaiKey = fromSecret.trim();
+      if (redactorEj.config.modelo) openaiModel = String(redactorEj.config.modelo);
+    }
+  } catch {
+    /* keep env defaults */
+  }
+
   const result = await generarDefinicion({
     intencion,
     tipo: tipoRaw,
     contexto,
     definicionActual: body.definicion_actual !== undefined ? body.definicion_actual : body.definicionActual,
-    openaiKey: c.env.OPENAI_API_KEY,
-    openaiModel: c.env.OPENAI_MODEL,
+    openaiKey,
+    openaiModel,
   });
 
   const entrada = {
@@ -1286,6 +1350,28 @@ app.post('/v1/redactor', async (c) => {
     console.warn('skill_ejecuciones insert failed', err instanceof Error ? err.message : err);
   }
 
+  // Fase 2: también en Mongo `ejecuciones` (haya o no corrida).
+  try {
+    const proy = await defaultProyectoIdForLogs(c.env);
+    const mongoId = await logEjecucion(pasosMotorDeps(c.env), proy, {
+      skill: REDACTOR_SKILL_ID,
+      ejecutor_id: redactorEj && redactorEj.tipo === 'modelo' ? redactorEj.id : null,
+      ejecutor_version: redactorEj && redactorEj.tipo === 'modelo' ? redactorEj.version : null,
+      prompt_version: null,
+      entradas: entrada as Record<string, unknown>,
+      salidas: salida as Record<string, unknown>,
+      duracion_ms: 0,
+      coste: null,
+      estado: result.validacion.ok ? 'ok' : 'error',
+      corrida_id: null,
+      origen,
+      modo: result.modo,
+    });
+    if (mongoId) ejecucionId = ejecucionId || mongoId;
+  } catch (err) {
+    console.warn('ejecuciones mongo insert failed', err instanceof Error ? err.message : err);
+  }
+
   return c.json({
     ok: true,
     skill: REDACTOR_SKILL_ID,
@@ -1305,13 +1391,18 @@ app.post('/v1/redactor', async (c) => {
 app.get('/v1/skills/:id/ejecuciones', async (c) => {
   const skillId = c.req.param('id');
   const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 20) || 20));
+  const proyectoId =
+    String(c.req.query('proyecto') || c.req.query('proyectoId') || '').trim() ||
+    (await defaultProyectoIdForLogs(c.env));
+
+  const d1: Array<Record<string, unknown>> = [];
   try {
     const rows = await c.env.DB.prepare(
       'SELECT id, skill_id, origen, modo, ok, entrada_json, salida_json, creado FROM skill_ejecuciones WHERE skill_id = ? ORDER BY creado DESC LIMIT ?'
     )
       .bind(skillId, limit)
       .all();
-    const ejecuciones = (rows.results || []).map((r) => {
+    for (const r of rows.results || []) {
       const row = r as Record<string, unknown>;
       let entrada: unknown = {};
       let salida: unknown = {};
@@ -1325,26 +1416,73 @@ app.get('/v1/skills/:id/ejecuciones', async (c) => {
       } catch {
         /* ignore */
       }
-      return {
+      d1.push({
         id: row.id,
+        skill: row.skill_id,
         skill_id: row.skill_id,
         origen: row.origen,
         modo: row.modo,
         ok: Number(row.ok) === 1,
+        estado: Number(row.ok) === 1 ? 'ok' : 'error',
+        entradas: entrada,
+        salidas: salida,
         entrada,
         salida,
+        fuente: 'd1',
         creado: row.creado,
-      };
-    });
-    return c.json({ ok: true, skill_id: skillId, ejecuciones });
+      });
+    }
   } catch {
-    return c.json({
-      ok: true,
-      skill_id: skillId,
-      ejecuciones: [],
-      nota: 'tabla skill_ejecuciones no disponible',
-    });
+    /* tabla ausente */
   }
+
+  const mongo = await listEjecucionesMongo(
+    pasosMotorDeps(c.env),
+    proyectoId,
+    { skill: skillId },
+    limit
+  ).catch(() => [] as Array<Record<string, unknown>>);
+
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const e of d1) byId.set(String(e.id), e);
+  for (const e of mongo) {
+    const id = String(e.id);
+    if (!byId.has(id)) byId.set(id, { ...e, fuente: 'mongo' });
+  }
+  const ejecuciones = [...byId.values()]
+    .sort((a, b) => String(b.creado || '').localeCompare(String(a.creado || '')))
+    .slice(0, limit);
+
+  return c.json({
+    ok: true,
+    skill_id: skillId,
+    proyectoId,
+    ejecuciones,
+  });
+});
+
+app.get('/v1/ejecutores/:id/ejecuciones', async (c) => {
+  const ejecutorId = c.req.param('id');
+  const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || 20) || 20));
+  const row = await c.env.DB.prepare('SELECT id FROM ejecutores WHERE id = ?')
+    .bind(ejecutorId)
+    .first();
+  if (!row) return jsonError(c, 404, 'Ejecutor no encontrado.');
+  const proyectoId =
+    String(c.req.query('proyecto') || c.req.query('proyectoId') || '').trim() ||
+    (await defaultProyectoIdForLogs(c.env));
+  const ejecuciones = await listEjecucionesMongo(
+    pasosMotorDeps(c.env),
+    proyectoId,
+    { ejecutor_id: ejecutorId },
+    limit
+  );
+  return c.json({
+    ok: true,
+    ejecutor_id: ejecutorId,
+    proyectoId,
+    ejecuciones,
+  });
 });
 
 /** Ops/smoke: ejecuta el tick horario ahora (mismo código que el Cron Trigger CF). */
@@ -1660,17 +1798,30 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
   let { doc, flujo } = loaded;
 
   // Si espera hijo de subflujo, reanudar al terminar el hijo.
-  if (doc.estado === 'esperando' && doc.hijo_id) {
+  if ((doc.estado === 'esperando_hijo' || doc.estado === 'esperando') && doc.hijo_id) {
     const child = await loadCorridaDoc(c.env, doc.hijo_id);
-    if (child.ok && child.doc.estado === 'terminada') {
+    if (
+      child.ok &&
+      (child.doc.estado === 'completada' || child.doc.estado === 'terminada')
+    ) {
       const ts = nowIso();
       try {
         doc = await resumeParentAfterChild(c.env, doc, flujo, child.doc, ts);
+        if (c.env.PASOS && doc.paso_actual && !isTerminal(doc.estado)) {
+          await enqueuePaso(c.env, {
+            corrida_id: doc._id,
+            nodo_id: doc.paso_actual,
+            intento: 0,
+          });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'No se pudo reanudar tras subflujo.';
         return jsonError(c, 502, msg);
       }
-    } else if (child.ok && child.doc.estado === 'error') {
+    } else if (
+      child.ok &&
+      (child.doc.estado === 'fallida' || child.doc.estado === 'error')
+    ) {
       await failCorrida(c.env, doc, doc.paso_actual, `Subflujo en error: ${doc.hijo_id}`);
       return c.json({
         ok: true,
@@ -1683,7 +1834,7 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
     }
   }
 
-  if (doc.estado === 'terminada') {
+  if (doc.estado === 'completada' || doc.estado === 'terminada') {
     return c.json({
       ok: true,
       corrida_id: doc._id,
@@ -1692,7 +1843,7 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
       paso_actual: doc.paso_actual,
     });
   }
-  if (doc.estado === 'error') {
+  if (doc.estado === 'fallida' || doc.estado === 'error' || doc.estado === 'cancelada') {
     return c.json({
       ok: true,
       corrida_id: doc._id,
@@ -1701,7 +1852,7 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
       errores: doc.errores,
     });
   }
-  if (doc.estado === 'esperando') {
+  if (isEsperandoHumano(doc.estado) || doc.estado === 'esperando_hijo') {
     const nodo = findNodo(flujo.nodos, doc.paso_actual);
     return c.json({
       ok: true,
@@ -1713,9 +1864,11 @@ app.get('/v1/corridas/:id/siguiente', async (c) => {
       entradas: {},
       negocio: doc.negocio,
       hijo_id: doc.hijo_id || null,
-      motivo: nodo?.tipo === 'subflujo' ? 'subflujo' : 'aprobacion',
+      motivo:
+        doc.estado === 'esperando_hijo' || nodo?.tipo === 'subflujo' ? 'subflujo' : 'aprobacion',
     });
   }
+  // esperando_integracion / en_curso: devolver skill para agente_externo (polling).
 
   const nodo = findNodo(flujo.nodos, doc.paso_actual);
   if (!nodo) {
@@ -4170,6 +4323,20 @@ export default {
     );
     ctx.waitUntil(runCorridasStaleTick(env).catch((err) => console.error('corridas stale tick', err)));
   },
+  async queue(batch: MessageBatch<PasoQueueMsg>, env: Env, ctx: ExecutionContext): Promise<void> {
+    const deps = pasosMotorDeps(env);
+    for (const message of batch.messages) {
+      try {
+        const body = message.body || ({} as PasoQueueMsg);
+        const result = await processPasoMessage(deps, body);
+        if (result === 'retry') message.retry();
+        else message.ack();
+      } catch (err) {
+        console.error('queue pasos', err);
+        message.retry();
+      }
+    }
+  },
 };
 
 /* ——— helpers ——— */
@@ -4760,6 +4927,100 @@ function motorDeps(env: Env): MotorDeps {
   };
 }
 
+function pasosMotorDeps(env: Env): PasosMotorDeps {
+  return {
+    env,
+    nowIso,
+    loadCorridaWithFlujo: (id) => loadCorridaWithFlujo(env, id),
+    saveCorridaDoc: (doc) => saveCorridaDoc(env, doc),
+    mongoForProyecto: (proyectoId) => mongoForProyecto(env, proyectoId),
+    resolveEntradasValores: (entradas, negocio, datos) =>
+      resolveEntradasValores(env, entradas, negocio, datos),
+    writeSalidasMongo: (skillId, negocio, valores, corridaId) =>
+      writeSkillSalidasToMongo(env, skillId, negocio, valores, corridaId),
+    loadFlujoVersion: (flujoId, version) => loadFlujoVersion(env.DB, flujoId, version),
+    newCorridaId,
+  };
+}
+
+/** Escritura Mongo de salidas de skill (motor + /salidas). */
+async function writeSkillSalidasToMongo(
+  env: Env,
+  skillId: string,
+  negocio: string,
+  valores: Record<string, unknown>,
+  corridaId: string | null
+): Promise<string[]> {
+  const keys = Object.keys(valores);
+  const maps = await loadAnclaMongoMaps(env.DB, keys);
+  const baseDatos =
+    maps.find((m) => m.baseDatos)?.baseDatos ||
+    (await catalogMongoDbHint(env.DB)) ||
+    'software_reservas';
+  const proyectoId = await proyectoIdForBaseDatos(env.DB, baseDatos);
+  const resolved = await resolveRuntimeMongo(env, baseDatos, proyectoId || undefined);
+  if (!mongoUriConfigured(resolved.env)) throw new Error('configure MONGODB_URI');
+  const escritos: string[] = [];
+  const origenEscritura = corridaId ? `corrida:${corridaId}` : 'motor';
+  await withMongoDb(
+    resolved.env,
+    async (db) => {
+      const docCache = new Map<string, Record<string, unknown> | null>();
+      const antesCache = new Map<string, Record<string, unknown> | null>();
+      for (const m of maps) {
+        const cacheKey = m.coleccion + '|' + m.baseDatos;
+        if (!docCache.has(cacheKey)) {
+          let existing = await findDocForColeccion(db, m.coleccion, negocio);
+          antesCache.set(cacheKey, cloneDoc(existing));
+          let doc = existing ? ({ ...existing } as Record<string, unknown>) : null;
+          if (!doc) {
+            if (m.coleccion === 'negocios') doc = { _id: negocio };
+            else if (m.coleccion === 'procesos') doc = { _id: negocio + '-proceso', negocio_id: negocio };
+            else doc = { _id: negocio + '-' + m.coleccion, negocio_id: negocio };
+          }
+          docCache.set(cacheKey, doc);
+        }
+        const doc = docCache.get(cacheKey);
+        if (!doc) continue;
+        if (!(m.ancla in valores)) continue;
+        setByPath(doc, m.claveMongo, valores[m.ancla]);
+        escritos.push(m.ancla);
+      }
+      const proyId = proyectoId || '';
+      for (const [cacheKey, doc] of docCache) {
+        if (!doc) continue;
+        const coleccion = cacheKey.split('|')[0]!;
+        const id = doc._id;
+        const { _id, ...rest } = doc;
+        const antes = antesCache.get(cacheKey) || null;
+        const operacion = antes ? ('actualizar' as const) : ('crear' as const);
+        await db.collection(coleccion).updateOne(
+          { _id: id ?? negocio },
+          { $set: { ...rest, _id: id ?? negocio } },
+          { upsert: true }
+        );
+        if (SYSTEM_COLLECTIONS.has(coleccion) || !proyId) continue;
+        try {
+          await emitCambioDatos(db, motorDeps(env), {
+            proyectoId: proyId,
+            coleccion,
+            documentoId: String(id ?? negocio),
+            operacion,
+            antes,
+            despues: cloneDoc(doc),
+            origen: origenEscritura,
+            negocio,
+          });
+        } catch (emitErr) {
+          console.error('emitCambioDatos motor', emitErr);
+        }
+      }
+    },
+    baseDatos
+  );
+  return escritos;
+}
+
 async function responderProbarDisparador(
   c: { env: Env; json: (b: unknown, s?: number) => Response },
   proyectoId: string,
@@ -4825,7 +5086,7 @@ async function startCorridaForDisparo(
     flujo_version: flujo.version,
     proyecto_id: flujo.proyectoId,
     negocio: args.negocio,
-    estado: 'en_curso',
+    estado: 'pendiente',
     paso_actual: '',
     pasos: [],
     datos,
@@ -4845,6 +5106,12 @@ async function startCorridaForDisparo(
     primerPasoEjecutable(flujo.nodos, flujo.aristas, datos),
     ts
   );
+  // Fase 2: encolar primer paso (tras inicio) para el consumidor de la cola.
+  if (doc.paso_actual && !isTerminal(doc.estado)) {
+    if (doc.estado === 'pendiente') doc.estado = 'en_curso';
+    await saveCorridaDoc(env, doc);
+    await enqueueFirstPaso(pasosMotorDeps(env), doc);
+  }
   return doc;
 }
 
@@ -4982,7 +5249,7 @@ async function loadCorridaWithFlujo(
 
 async function failCorrida(env: Env, doc: CorridaDoc, nodoId: string, error: string) {
   const ts = nowIso();
-  doc.estado = 'error';
+  doc.estado = 'fallida';
   doc.errores = [...(doc.errores || []), { at: ts, nodo_id: nodoId, error }];
   doc.pasos = (doc.pasos || []).map((p) =>
     p.nodo_id === nodoId && p.estado === 'pendiente' ? { ...p, estado: 'error' as const, fin: ts } : p
@@ -5003,7 +5270,7 @@ async function applyAvanceToCorrida(
   ts: string
 ): Promise<CorridaDoc> {
   if (avance.kind === 'error') {
-    doc.estado = 'error';
+    doc.estado = 'fallida';
     doc.errores = [...(doc.errores || []), { at: ts, error: avance.error }];
     doc.actualizada = ts;
     await saveCorridaDoc(env, doc);
@@ -5012,18 +5279,15 @@ async function applyAvanceToCorrida(
 
   if (avance.kind === 'fin') {
     doc.paso_actual = avance.nodo.id;
-    doc.estado = 'terminada';
+    doc.estado = 'completada';
     doc.actualizada = ts;
     await saveCorridaDoc(env, doc);
-    if (doc.padre_id) {
-      // El padre se reanuda en GET /siguiente o al guardar; marcamos hijo listo.
-    }
     return doc;
   }
 
   if (avance.kind === 'espera') {
     doc.paso_actual = avance.nodo.id;
-    doc.estado = 'esperando';
+    doc.estado = 'esperando_humano';
     doc.hijo_id = null;
     doc.subflujo_nodo_id = null;
     doc.actualizada = ts;
@@ -5034,7 +5298,7 @@ async function applyAvanceToCorrida(
   if (avance.kind === 'subflujo') {
     const childFlujo = await loadFlujoVersion(env.DB, avance.flujoId);
     if (!childFlujo) {
-      doc.estado = 'error';
+      doc.estado = 'fallida';
       doc.errores = [
         ...(doc.errores || []),
         { at: ts, nodo_id: avance.nodo.id, error: `Subflujo «${avance.flujoId}» no existe.` },
@@ -5050,7 +5314,7 @@ async function applyAvanceToCorrida(
       flujo_version: childFlujo.version,
       proyecto_id: childFlujo.proyectoId,
       negocio: doc.negocio,
-      estado: 'en_curso',
+      estado: 'pendiente',
       paso_actual: '',
       pasos: [],
       datos: { ...doc.datos },
@@ -5068,8 +5332,13 @@ async function applyAvanceToCorrida(
       primerPasoEjecutable(childFlujo.nodos, childFlujo.aristas, child.datos),
       ts
     );
+    if (child.paso_actual && !isTerminal(child.estado)) {
+      if (child.estado === 'pendiente') child.estado = 'en_curso';
+      await saveCorridaDoc(env, child);
+      await enqueueFirstPaso(pasosMotorDeps(env), child);
+    }
     doc.paso_actual = avance.nodo.id;
-    doc.estado = 'esperando';
+    doc.estado = 'esperando_hijo';
     doc.hijo_id = childId;
     doc.subflujo_nodo_id = avance.nodo.id;
     doc.actualizada = ts;
@@ -5211,6 +5480,21 @@ async function proyectoIdForBaseDatos(db: D1Database, baseDatos: string): Promis
     .bind(bd)
     .first<{ id: string }>();
   return row?.id || null;
+}
+
+/** Preferir BD de catálogo (p. ej. software_reservas → reservas) para logs ejecuciones. */
+async function defaultProyectoIdForLogs(env: Env): Promise<string> {
+  const hint = (await catalogMongoDbHint(env.DB)) || 'software_reservas';
+  const fromBd = await proyectoIdForBaseDatos(env.DB, hint);
+  if (fromBd) return fromBd;
+  const reservas = await env.DB.prepare(`SELECT id FROM proyectos WHERE id = 'reservas'`).first<{
+    id: string;
+  }>();
+  if (reservas?.id) return reservas.id;
+  const any = await env.DB.prepare(
+    `SELECT id FROM proyectos WHERE legacy_negocio = 0 ORDER BY id LIMIT 1`
+  ).first<{ id: string }>();
+  return any?.id || 'reservas';
 }
 
 async function mayRevealSensitive(c: {
