@@ -1521,6 +1521,13 @@ function svgPestanaCatalogo(tipo) {
     svg.append(svgPath('m15 18-6-6 6-6'));
   } else if (tipo === 'siguiente' || tipo === 'chevron-right') {
     svg.append(svgPath('m9 18 6-6-6-6'));
+  } else if (tipo === 'ayuda' || tipo === 'help' || tipo === 'circle-help' || tipo === 'info') {
+    // Lucide: circle-help
+    svg.append(
+      svgCircle('12', '12', '10'),
+      svgPath('M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3'),
+      svgPath('M12 17h.01')
+    );
   }
   return svg;
 }
@@ -1714,12 +1721,145 @@ function iconizarAccionesPanel(root) {
   });
 }
 
+/**
+ * Popup de ayuda de ficha (ADN #dlg): título «Pestaña · Subtab» + cuerpo.
+ * cuerpoHtml admite markup breve (strong/code/span); sin lorem.
+ */
+function abrirAyudaFicha(titulo, cuerpoHtml) {
+  const dlg = document.getElementById('dlgAyuda');
+  const h = document.getElementById('dlgAyudaTitulo');
+  const cuerpo = document.getElementById('dlgAyudaCuerpo');
+  if (!dlg || !h || !cuerpo) return;
+  h.textContent = titulo || 'Ayuda';
+  iconizarTituloDlg(h, 'ayuda');
+  cuerpo.innerHTML = cuerpoHtml || '';
+  if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+  else dlg.setAttribute('open', '');
+}
+
+/**
+ * Monta una sola (i) por vista: a la derecha de la fila de subtabs, o arriba-derecha del panel.
+ * opts: { titulo, html }
+ */
+function montarAyudaFicha(host, opts) {
+  opts = opts || {};
+  if (typeof host === 'string') host = document.querySelector(host);
+  if (!host) return null;
+  let bar = host.classList && host.classList.contains('ficha-ayuda-bar')
+    ? host
+    : (host.closest && host.closest('.ficha-ayuda-bar'));
+  const esTablist = host.getAttribute && (
+    host.getAttribute('role') === 'tablist'
+    || host.classList.contains('ancla-ficha-tabs')
+    || host.classList.contains('reader-tabs')
+  );
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'ficha-ayuda-bar';
+    if (esTablist && host.parentNode) {
+      host.parentNode.insertBefore(bar, host);
+      bar.appendChild(host);
+    } else {
+      bar.classList.add('ficha-ayuda-bar--solo');
+      if (host.firstChild) host.insertBefore(bar, host.firstChild);
+      else host.appendChild(bar);
+    }
+  }
+  let btn = bar.querySelector(':scope > .ficha-ayuda-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn ficha-ayuda-btn';
+    btn.setAttribute('aria-label', 'Ayuda de esta vista');
+    btn.title = 'Ayuda';
+    btn.append(svgPestanaCatalogo('ayuda'));
+    btn.addEventListener('click', function () {
+      abrirAyudaFicha(btn._ayudaTitulo, btn._ayudaHtml);
+    });
+    bar.appendChild(btn);
+  }
+  btn._ayudaTitulo = opts.titulo || 'Ayuda';
+  btn._ayudaHtml = opts.html || '';
+  btn.hidden = !String(btn._ayudaHtml || '').trim();
+  return btn;
+}
+
+/** Cambia el texto de la (i) de un grupo de subtabs (p. ej. Operativa · Mapa/Huecos/Atajos). */
+function actualizarAyudaGrupo(group, sub) {
+  if (!group) return;
+  const bar = document.querySelector('.ficha-ayuda-bar[data-ayuda-group="' + group + '"]');
+  if (!bar || !bar._ayudaItems) return;
+  const item = bar._ayudaItems[sub] || bar._ayudaItems[''] || null;
+  const btn = bar.querySelector(':scope > .ficha-ayuda-btn');
+  if (!btn) return;
+  if (!item || !String(item.html || '').trim()) {
+    btn.hidden = true;
+    return;
+  }
+  btn.hidden = false;
+  btn._ayudaTitulo = item.titulo || 'Ayuda';
+  btn._ayudaHtml = item.html;
+}
+
+/**
+ * Lee <template data-ficha-ayuda data-titulo data-host [data-group data-sub]>
+ * y monta la (i). Un data-group = una sola i que rota con actualizarAyudaGrupo.
+ */
+function inicializarAyudasFicha(root) {
+  const scope = root || document;
+  const templates = scope.querySelectorAll('template[data-ficha-ayuda]');
+  const groups = Object.create(null);
+  templates.forEach(function (tpl) {
+    const titulo = tpl.getAttribute('data-titulo') || 'Ayuda';
+    const hostSel = tpl.getAttribute('data-host');
+    const group = tpl.getAttribute('data-group') || '';
+    const sub = tpl.getAttribute('data-sub') || '';
+    const html = String(tpl.innerHTML || '').trim();
+    if (!hostSel || !html) return;
+    if (group) {
+      if (!groups[group]) groups[group] = { host: hostSel, items: Object.create(null), order: [] };
+      groups[group].items[sub] = { titulo: titulo, html: html };
+      groups[group].order.push(sub);
+      return;
+    }
+    montarAyudaFicha(hostSel, { titulo: titulo, html: html });
+  });
+  Object.keys(groups).forEach(function (g) {
+    const info = groups[g];
+    const firstSub = info.order[0] || '';
+    const first = info.items[firstSub] || info.items[''];
+    const btn = montarAyudaFicha(info.host, first || { titulo: 'Ayuda', html: '' });
+    if (!btn) return;
+    const bar = btn.closest('.ficha-ayuda-bar');
+    if (!bar) return;
+    bar.setAttribute('data-ayuda-group', g);
+    bar._ayudaItems = info.items;
+    const hostEl = typeof info.host === 'string' ? document.querySelector(info.host) : info.host;
+    let activeSub = firstSub;
+    if (hostEl) {
+      const on = hostEl.querySelector('.is-on[data-proy-op-sub], .is-on[data-reader-asoc-sub], .is-on[data-flujo-asoc-sub], .is-on[data-flujo-corr-sub], [aria-selected="true"]');
+      if (on) {
+        activeSub = on.getAttribute('data-proy-op-sub')
+          || on.getAttribute('data-reader-asoc-sub')
+          || on.getAttribute('data-flujo-asoc-sub')
+          || on.getAttribute('data-flujo-corr-sub')
+          || firstSub;
+      }
+    }
+    actualizarAyudaGrupo(g, activeSub);
+  });
+}
+
 window.svgPestanaCatalogo = svgPestanaCatalogo;
 window.iconoDePestanaFicha = iconoDePestanaFicha;
 window.pintarEstadoVacio = pintarEstadoVacio;
 window.iconizarBotonAccion = iconizarBotonAccion;
 window.iconizarTituloDlg = iconizarTituloDlg;
 window.iconizarAccionesPanel = iconizarAccionesPanel;
+window.abrirAyudaFicha = abrirAyudaFicha;
+window.montarAyudaFicha = montarAyudaFicha;
+window.actualizarAyudaGrupo = actualizarAyudaGrupo;
+window.inicializarAyudasFicha = inicializarAyudasFicha;
 
 function skillsBridge() {
   return {
@@ -3086,8 +3226,17 @@ function seleccionarReaderIoSub(id) {
     btn.classList.toggle('is-on', on);
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
-  const hintVerb = document.getElementById('readerAnclasHintVerb');
-  if (hintVerb) hintVerb.textContent = id === 'salidas' ? 'escribe' : 'lee';
+  if (typeof actualizarAyudaGrupo === 'function') {
+    const bar = document.querySelector('.ficha-ayuda-bar[data-ayuda-group="reader-asociados"]');
+    if (bar && bar._ayudaItems) {
+      const verb = id === 'salidas' ? 'escribe' : 'lee';
+      bar._ayudaItems.anclas = {
+        titulo: 'Asociados · Anclas',
+        html: 'Anclas que la skill <strong>' + verb + '</strong>.'
+      };
+      if (readerAsocSubActual() === 'anclas') actualizarAyudaGrupo('reader-asociados', 'anclas');
+    }
+  }
   pintarReaderAnclas(instruccionAbierta());
 }
 
@@ -3223,6 +3372,7 @@ function seleccionarReaderAsocSub(id) {
   document.querySelectorAll('#readerPanelAsociados [data-reader-asoc-pane]').forEach(function (pane) {
     pane.hidden = pane.getAttribute('data-reader-asoc-pane') !== id;
   });
+  if (typeof actualizarAyudaGrupo === 'function') actualizarAyudaGrupo('reader-asociados', id);
   const ins = instruccionAbierta();
   if (id === 'anclas') seleccionarReaderIoSub(readerIoSubActual());
   if (id === 'bases') pintarSkillBases(ins);
@@ -4204,6 +4354,7 @@ function iniciar() {
   });
   iconizarPestanasFicha();
   iconizarAccionesPanel();
+  inicializarAyudasFicha();
   render();
   cargarSkills();
   cargarCampos();
@@ -4536,6 +4687,7 @@ function seleccionarProyOpSub(id) {
   document.querySelectorAll('#proyPanelOperativa [data-proy-op-pane]').forEach(function (pane) {
     pane.hidden = pane.getAttribute('data-proy-op-pane') !== id;
   });
+  if (typeof actualizarAyudaGrupo === 'function') actualizarAyudaGrupo('proy-operativa', id);
 }
 
 function actualizarOperativaHuecosBadge(n) {
@@ -8751,11 +8903,6 @@ function renderAgenteReader() {
   pintarListaAclAgente('agenteReaderProyectos', ag.proyectos, 'Ninguna base de datos en el alcance.');
   pintarListaAclAgente('agenteReaderLee', ag.lee, 'Sin anclas de lectura.');
   pintarListaAclAgente('agenteReaderEscribe', ag.escribe, 'Sin anclas de escritura.');
-  const hubNota = document.getElementById('agenteReaderHubNota');
-  if (hubNota) {
-    hubNota.hidden = false;
-    hubNota.textContent = 'Quién entra en Campos ancla (API + invite). No son los bots del software de la Base de datos.';
-  }
   const desc = document.getElementById('agenteReaderDesc');
   if (desc) {
     if (ag.descripcion) {

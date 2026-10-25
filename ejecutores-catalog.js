@@ -635,22 +635,34 @@
   function pintarSkillEjecutorTab(ins) {
     var mount = document.getElementById('readerEjecutorLista');
     var vacio = document.getElementById('readerEjecutorVacio');
-    var hint = document.getElementById('readerEjecutorHint');
     if (!mount) return;
     mount.replaceChildren();
     var eid = ins && ins.ejecutorId ? String(ins.ejecutorId) : '';
-    if (!eid) {
-      if (hint) {
-        hint.textContent =
-          'Sin ejecutor explícito → implícito agente_externo (el agente hace polling de /siguiente).';
+    function syncAyudaEjecutor(html) {
+      var bar = document.querySelector('.ficha-ayuda-bar[data-ayuda-group="reader-asociados"]');
+      if (!bar || !bar._ayudaItems) return;
+      bar._ayudaItems.ejecutor = {
+        titulo: 'Asociados · Ejecutor',
+        html: html
+      };
+      if (typeof window.actualizarAyudaGrupo === 'function') {
+        var on = document.querySelector('#readerAsociadosSubtabs [data-reader-asoc-sub].is-on');
+        if (on && on.getAttribute('data-reader-asoc-sub') === 'ejecutor') {
+          window.actualizarAyudaGrupo('reader-asociados', 'ejecutor');
+        }
       }
+    }
+    if (!eid) {
+      syncAyudaEjecutor(
+        'Sin ejecutor explícito → implícito <code>agente_externo</code> (polling de <code>/siguiente</code>).'
+      );
       if (vacio) {
         vacio.hidden = false;
         vacio.textContent = 'Implícito: agente_externo';
       }
       return;
     }
-    if (hint) hint.textContent = 'Ejecutor asignado a esta skill.';
+    syncAyudaEjecutor('Ejecutor asignado a esta skill.');
     var item = ejState.lista.find(function (x) { return x.id === eid; });
     if (!item) {
       item = { id: eid, nombre: eid, tipo: '?', version: 1, skills: [], activo: true };

@@ -202,6 +202,14 @@ dialog::backdrop{background:#17212f66}
 .dlg .reader-tabs{margin:12px 0 0}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
 .skill-io-subtabs,.asociados-subtabs,.operativa-subtabs{margin:0 0 10px;gap:4px}
+.ficha-ayuda-bar{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.ficha-ayuda-bar>.ancla-ficha-tabs,.ficha-ayuda-bar>.reader-tabs,.ficha-ayuda-bar>.skill-io-subtabs,.ficha-ayuda-bar>.asociados-subtabs,.ficha-ayuda-bar>.operativa-subtabs{flex:1;min-width:0;margin:0;gap:4px}
+.ficha-ayuda-bar .ficha-ayuda-btn{flex:none;margin-left:auto;color:#5f6f84}
+.ficha-ayuda-bar .ficha-ayuda-btn:hover{color:#1c63d5}
+.ficha-ayuda-bar--solo{justify-content:flex-end;min-height:36px;margin:0 0 8px}
+.dlg-ayuda-cuerpo{margin:0 0 16px;color:#5f6f84;font-size:14px;line-height:1.55}
+.dlg-ayuda-cuerpo p{margin:0 0 .55em}
+.dlg-ayuda-cuerpo p:last-child{margin:0}
 .asociados-subpane[hidden]{display:none!important}
 .ancla-ficha-tab .pestana-count{display:inline-flex;align-items:center;justify-content:center;min-width:1.35em;height:1.35em;padding:0 5px;margin-left:2px;border-radius:999px;font-size:10px;font-weight:800;line-height:1;background:#fdeceb;color:#b42318;border:1px solid #f0c4c4}
 .ancla-ficha-tab .pestana-count[hidden]{display:none!important}
@@ -567,13 +575,16 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" data-reader-asoc-sub="ejecutor" aria-selected="false">Ejecutor</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-reader-asoc-sub="bases" aria-selected="false">Bases de datos</button>
 </div>
+<template data-ficha-ayuda data-group="reader-asociados" data-sub="anclas" data-titulo="Asociados · Anclas" data-host="#readerAsociadosSubtabs">Anclas que la skill <strong>lee</strong>.</template>
+<template data-ficha-ayuda data-group="reader-asociados" data-sub="system-prompt" data-titulo="Asociados · System prompt" data-host="#readerAsociadosSubtabs">Una skill tiene como máximo un system prompt.</template>
+<template data-ficha-ayuda data-group="reader-asociados" data-sub="ejecutor" data-titulo="Asociados · Ejecutor" data-host="#readerAsociadosSubtabs">Quién ejecuta la skill. Sin asignar → implícito <code>agente_externo</code>.</template>
+<template data-ficha-ayuda data-group="reader-asociados" data-sub="bases" data-titulo="Asociados · Bases de datos" data-host="#readerAsociadosSubtabs">Bases de datos que incluyen esta skill.</template>
 <div class="asociados-subpane" id="readerAsocPaneAnclas" data-reader-asoc-pane="anclas">
 <div id="readerAnclas">
 <div class="ancla-ficha-tabs reader-tabs skill-io-subtabs" id="readerAnclasSubtabs" role="tablist" aria-label="Entradas o salidas">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" data-skill-io-sub="entradas" aria-selected="true">Entradas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-skill-io-sub="salidas" aria-selected="false">Salidas</button>
 </div>
-<p class="ajustes-hint" id="readerAnclasHint">Anclas que la skill <strong id="readerAnclasHintVerb">lee</strong>.</p>
 <div class="proy-tab-catalogo catalogo-lista" id="readerAnclasLista" role="list"></div>
 <p class="ancla-ficha-vacio" id="readerAnclasVacio" hidden>Ninguna ancla en esta lista.</p>
 </div>
@@ -585,7 +596,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
 </button>
 </div>
-<p class="ajustes-hint" id="readerSystemPromptsHint">Una skill tiene como máximo un system prompt.</p>
 <div id="readerSystemPromptsLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="readerSystemPromptsVacio" hidden>Ningún system prompt asociado.</p>
 </div>
@@ -596,7 +606,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
 </button>
 </div>
-<p class="ajustes-hint" id="readerEjecutorHint">Quién ejecuta la skill. Sin asignar → implícito agente_externo.</p>
 <div id="readerEjecutorLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="readerEjecutorVacio" hidden>Implícito: agente_externo</p>
 </div>
@@ -606,11 +615,11 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelConexion" role="tabpanel" aria-labelledby="readerTabConexion" hidden>
-<p class="ajustes-hint">Las dos llamadas que hará el agente al ejecutar esta skill (solo lectura; se generan solas).</p>
+<template data-ficha-ayuda data-titulo="Conexión" data-host="#readerPanelConexion">Las dos llamadas que hará el agente al ejecutar esta skill (solo lectura; se generan solas).</template>
 <div id="readerConexionBox" class="skill-conexion"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelEjecuciones" role="tabpanel" aria-labelledby="readerTabEjecuciones" hidden>
-<p class="ajustes-hint">Historial de ejecuciones (D1 + Mongo <code>ejecuciones</code>).</p>
+<template data-ficha-ayuda data-titulo="Ejecuciones" data-host="#readerPanelEjecuciones">Historial de ejecuciones (D1 + Mongo <code>ejecuciones</code>).</template>
 <div id="readerEjecucionesLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="readerEjecucionesVacio" hidden>Sin ejecuciones todavía.</p>
 </div>
@@ -683,13 +692,13 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dl>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelAsociados" role="tabpanel" aria-labelledby="proyTabAsociados" hidden>
-<p class="ajustes-hint">Quién está relacionado (estructura): Cluster, colecciones, campos y skills. No incluye Operativa, Flujos ni Corridas.</p>
 <div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="proyAsociadosSubtabs" role="tablist" aria-label="Vínculos estructurales de la base de datos">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" data-proy-asoc-sub="cluster" aria-selected="true">Cluster</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-proy-asoc-sub="colecciones" aria-selected="false">Colecciones</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-proy-asoc-sub="campos" aria-selected="false">Campos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-proy-asoc-sub="skills" aria-selected="false">Skills</button>
 </div>
+<template data-ficha-ayuda data-titulo="Asociados" data-host="#proyAsociadosSubtabs">Quién está relacionado (estructura): Cluster, colecciones, campos y skills. No incluye Operativa, Flujos ni Corridas.</template>
 <div class="asociados-subpane" id="proyAsocPaneCluster" data-proy-asoc-pane="cluster">
 <div id="proyClusterLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="proyClusterVacio" hidden>Sin cluster asignado. La URI Atlas vive en el Cluster.</p>
@@ -716,8 +725,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" data-proy-op-sub="huecos" aria-selected="false">Huecos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-proy-op-sub="atajos" aria-selected="false">Atajos</button>
 </div>
+<template data-ficha-ayuda data-group="proy-operativa" data-sub="mapa" data-titulo="Operativa · Mapa" data-host="#proyOperativaSubtabs">Cableado I/O de skills: salidas → entradas por ancla compartida. En <span style="color:#b91c1c;font-weight:600">rojo</span>: entradas sin productor. <strong>No</strong> es la lista de flujos.</template>
+<template data-ficha-ayuda data-group="proy-operativa" data-sub="huecos" data-titulo="Operativa · Huecos" data-host="#proyOperativaSubtabs">Entradas sin skill productora en esta base. Revisa Anclas o trátalas como entrada externa.</template>
+<template data-ficha-ayuda data-group="proy-operativa" data-sub="atajos" data-titulo="Operativa · Atajos" data-host="#proyOperativaSubtabs">Orquestación ejecutable en <strong>Flujos</strong>; cada <strong>Corrida</strong> vive en la ficha del Flujo. Operativa no lista flujos.</template>
 <div class="asociados-subpane" id="proyOpPaneMapa" data-proy-op-pane="mapa">
-<p class="ajustes-hint">Cableado I/O de skills: salidas → entradas por ancla compartida. En <span style="color:#b91c1c;font-weight:600">rojo</span>: entradas sin productor. <strong>No</strong> es la lista de flujos.</p>
 <p class="ancla-ficha-vacio" id="proyOperativaEstado">Cargando operativa…</p>
 <div class="proy-diagrama-render" id="proyOperativaRender" hidden></div>
 </div>
@@ -725,7 +736,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="operativa-huecos proy-tab-catalogo catalogo-lista" id="proyOperativaHuecos" role="list"></div>
 </div>
 <div class="asociados-subpane" id="proyOpPaneAtajos" data-proy-op-pane="atajos" hidden>
-<p class="ajustes-hint">Orquestación ejecutable en <strong>Flujos</strong>; cada <strong>Corrida</strong> vive en la ficha del Flujo. Operativa no lista flujos.</p>
 <p class="operativa-flujo-link" id="proyOperativaFlujosLink">
 <button type="button" class="btn ghost compact" id="btnOperativaIrFlujos" data-accion-icon="flujo">Ver Flujos</button>
 <button type="button" class="btn ghost compact" id="btnOperativaIrCorridas" data-accion-icon="corrida">Corridas del Flujo</button>
@@ -733,7 +743,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelFlujos" role="tabpanel" aria-labelledby="proyTabFlujos" hidden>
-<p class="ajustes-hint">Grafos de orquestación de esta BD (Inicio / Skill / Decisión / Espera / Subflujo / Fin). Abre un flujo para ver y arrancar sus <strong>Corridas</strong>. El cableado I/O de skills está en <strong>Operativa</strong>.</p>
+<template data-ficha-ayuda data-titulo="Flujos" data-host="#proyPanelFlujos">Grafos de orquestación de esta BD (Inicio / Skill / Decisión / Espera / Subflujo / Fin). Abre un flujo para ver y arrancar sus <strong>Corridas</strong>. El cableado I/O de skills está en <strong>Operativa</strong>.</template>
 <div class="catalogo-toolbar ficha-catalogo-toolbar">
 <button type="button" class="btn primary btn-anadir" id="btnNuevoFlujo" title="Crear flujo">
 <span class="btn-anadir-plus" aria-hidden="true">+</span>
@@ -748,7 +758,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="md-wrap"><div class="md" id="proyMd"></div></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelDiagrama" role="tabpanel" aria-labelledby="proyTabDiagrama" hidden>
-<p class="limite" id="proyDiagramaAyuda">Esquema Mongo: colecciones de esta base y sus relaciones (ER). La cadena de skills está en <strong>Operativa</strong>; la orquestación ejecutable, en <strong>Flujos</strong>.</p>
+<template data-ficha-ayuda data-titulo="Diagrama" data-host="#proyPanelDiagrama">Esquema Mongo: colecciones de esta base y sus relaciones (ER). La cadena de skills está en <strong>Operativa</strong>; la orquestación ejecutable, en <strong>Flujos</strong>.</template>
 <p class="ancla-ficha-vacio" id="proyDiagramaEstado">Cargando diagrama…</p>
 <div class="col-diagrama-split" id="proyDiagramaSplit" hidden>
 <aside class="col-diagrama-campos" aria-label="Colecciones de esta base">
@@ -761,7 +771,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelEmpujar" role="tabpanel" aria-labelledby="proyTabEmpujar" hidden>
-<p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run). Usa el botón <strong>Empujar esquema</strong> arriba o el de esta pestaña.</p>
+<template data-ficha-ayuda data-titulo="Empujar" data-host="#proyPanelEmpujar">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run). Usa <strong>Empujar esquema</strong> arriba o en esta pestaña.</template>
 <p class="proy-empujar-auto-nota" id="proyEmpujarAutoNota" hidden></p>
 <div class="catalogo-toolbar ficha-catalogo-toolbar" style="justify-content:flex-start;margin:12px 0">
 <button type="button" class="btn primary btn-anadir" id="btnEmpujarEsquemaTab" title="Empuja colecciones, validators e índices a Mongo Atlas (o muestra el plan si no hay URI)">
@@ -774,7 +784,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="cluster-last-sync" id="proyEmpujarLastSync" hidden></p>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelHistorial" role="tabpanel" aria-labelledby="proyTabHistorial" hidden>
-<p class="ajustes-hint">Log de cada empuje de esquema de esta base (manual, dry-run y auto-sync). Clic en una fila para ver el JSON crudo.</p>
+<template data-ficha-ayuda data-titulo="Historial" data-host="#proyPanelHistorial">Log de cada empuje de esquema de esta base (manual, dry-run y auto-sync). Clic en una fila para ver el JSON crudo.</template>
 <div class="catalogo-toolbar ficha-catalogo-toolbar" id="proyHistorialToolbar">
 <div class="proy-historial-filtros" id="proyHistorialFiltros">
 <label>Estado
@@ -852,17 +862,17 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Descripción</dt><dd id="flujoReaderDesc">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Nodos</dt><dd id="flujoReaderNodosCount">—</dd></div>
 </dl>
-<p class="ajustes-hint" style="margin-top:12px">Grafo (Mermaid) de la versión abierta:</p>
+<template data-ficha-ayuda data-titulo="Resumen" data-host="#flujoPanelResumen">Grafo (Mermaid) de la versión abierta del flujo.</template>
 <div class="proy-diagrama-render" id="flujoGrafoResumen"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelAsociados" role="tabpanel" aria-labelledby="flujoTabAsociados" hidden>
-<p class="ajustes-hint">Vínculos estructurales: BD padre y skills del grafo. Las <strong>Corridas</strong> no son asociados (pestaña propia).</p>
 <div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="flujoAsociadosSubtabs" role="tablist" aria-label="Vínculos estructurales del flujo">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" data-flujo-asoc-sub="base-datos" aria-selected="true">Base de datos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-flujo-asoc-sub="skills" aria-selected="false">Skills del grafo</button>
 </div>
+<template data-ficha-ayuda data-group="flujo-asociados" data-sub="base-datos" data-titulo="Asociados · Base de datos" data-host="#flujoAsociadosSubtabs">Base de datos a la que pertenece este flujo. Las <strong>Corridas</strong> no son asociados (pestaña propia).</template>
+<template data-ficha-ayuda data-group="flujo-asociados" data-sub="skills" data-titulo="Asociados · Skills del grafo" data-host="#flujoAsociadosSubtabs">Skills referenciadas en nodos del grafo. Las <strong>Corridas</strong> no son asociados (pestaña propia).</template>
 <div class="asociados-subpane" id="flujoAsocPaneBaseDatos" data-flujo-asoc-pane="base-datos">
-<p class="ajustes-hint">Base de datos a la que pertenece este flujo.</p>
 <div id="flujoBaseDatosLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="flujoBaseDatosVacio" hidden>Sin base de datos vinculada.</p>
 </div>
@@ -872,7 +882,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelDocumento" role="tabpanel" aria-labelledby="flujoTabDocumento" hidden>
-<p class="ajustes-hint">Grafo del flujo (Mermaid) y lista de nodos/aristas. Editar abre el JSON.</p>
+<template data-ficha-ayuda data-titulo="Documento" data-host="#flujoPanelDocumento">Grafo del flujo (Mermaid) y lista de nodos/aristas. Editar abre el JSON (redactor).</template>
 <div class="proy-diagrama-render" id="flujoGrafoRender"></div>
 <pre class="flujo-grafo-ascii" id="flujoGrafoAscii" hidden></pre>
 <div id="flujoNodosLista" class="proy-tab-catalogo catalogo-lista flujo-nodos-lista" role="list"></div>
@@ -907,11 +917,11 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelVersiones" role="tabpanel" aria-labelledby="flujoTabVersiones" hidden>
-<p class="ajustes-hint">Versiones pinneadas en D1 (<code>flujo_versions</code>). Las corridas guardan el número de versión al crearse.</p>
+<template data-ficha-ayuda data-titulo="Versiones" data-host="#flujoPanelVersiones">Versiones pinneadas en D1 (<code>flujo_versions</code>). Las corridas guardan el número de versión al crearse.</template>
 <div id="flujoVersionesLista" class="proy-tab-catalogo catalogo-lista" role="list"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelDisparadores" role="tabpanel" aria-labelledby="flujoTabDisparadores" hidden>
-<p class="ajustes-hint">Cuándo arranca este flujo. Varios disparadores = «o». Probar no crea corridas; Guardar escribe en D1.</p>
+<template data-ficha-ayuda data-titulo="Disparadores" data-host="#flujoPanelDisparadores">Cuándo arranca este flujo. Varios disparadores = «o». Probar no crea corridas; Guardar escribe en D1.</template>
 <div class="catalogo-toolbar ficha-catalogo-toolbar">
 <button type="button" class="btn ghost" id="btnFlujoLanzarManual" title="Crear corrida (disparador manual)" data-accion-icon="lanzar">Lanzar</button>
 <button type="button" class="btn primary btn-anadir" id="btnFlujoAddDisparador" title="Añadir disparador">
@@ -924,11 +934,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div id="flujoDisparadoresLista" class="proy-tab-catalogo catalogo-lista" role="list" hidden></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelCorridas" role="tabpanel" aria-labelledby="flujoTabCorridas" hidden>
-<p class="ajustes-hint">Pasadas de este flujo por negocio. Clic abre pasos, datos y errores. «+ Corrida» arranca el bucle; n8n u otro solo orquesta (/siguiente + salidas).</p>
 <div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="flujoCorridasSubtabs" role="tablist" aria-label="Corridas y eventos" style="margin-bottom:0.75rem">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" data-flujo-corr-sub="corridas" aria-selected="true">Corridas</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-flujo-corr-sub="eventos" aria-selected="false">Eventos</button>
 </div>
+<template data-ficha-ayuda data-group="flujo-corridas" data-sub="corridas" data-titulo="Corridas" data-host="#flujoCorridasSubtabs">Pasadas de este flujo por negocio. Clic abre pasos, datos y errores. «+ Corrida» arranca el bucle; n8n u otro solo orquesta (<code>/siguiente</code> + salidas).</template>
+<template data-ficha-ayuda data-group="flujo-corridas" data-sub="eventos" data-titulo="Corridas · Eventos" data-host="#flujoCorridasSubtabs">Eventos Mongo evaluados por disparadores de este flujo (TTL 30 días).</template>
 <div id="flujoCorridasSubpaneCorridas" data-flujo-corr-pane="corridas">
 <div class="catalogo-toolbar ficha-catalogo-toolbar" id="flujoCorridasToolbar">
 <div class="proy-historial-filtros" id="flujoCorridasFiltros">
@@ -964,7 +975,6 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div id="flujoCorridasSubpaneEventos" data-flujo-corr-pane="eventos" hidden>
-<p class="ajustes-hint">Eventos Mongo evaluados por disparadores de este flujo (TTL 30 días).</p>
 <p class="ancla-ficha-vacio" id="flujoEventosEstado" hidden>Cargando eventos…</p>
 <div id="flujoEventosLista" class="proy-tab-catalogo catalogo-lista" role="list" hidden></div>
 </div>
@@ -1077,7 +1087,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" id="corridaTabInterno" data-corrida-tab="interno" aria-selected="false" aria-controls="corridaPanelInterno">Interno</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="corridaPanelPasos" role="tabpanel" aria-labelledby="corridaTabPasos">
-<p class="ajustes-hint" id="corridaPasosHint">Timeline de <code>pasos[]</code>.</p>
+<template data-ficha-ayuda data-titulo="Pasos" data-host="#corridaPanelPasos">Timeline de <code>pasos[]</code> de la corrida.</template>
 <div class="corrida-timeline proy-tab-catalogo catalogo-lista" id="corridaPasosLista" role="list"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="corridaPanelDatos" role="tabpanel" aria-labelledby="corridaTabDatos" hidden>
@@ -1276,7 +1286,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dl>
 </div>
 <div class="reader-panel ancla-ficha-body" id="colPanelDiagrama" role="tabpanel" aria-labelledby="colTabDiagrama" hidden>
-<p class="limite" id="colDiagramaAyuda">Vista del cajón y sus campos, y las relaciones con otras colecciones de la misma base (estilo diagrama entidad-relación).</p>
+<template data-ficha-ayuda data-titulo="Diagrama" data-host="#colPanelDiagrama">Vista del cajón y sus campos, y las relaciones con otras colecciones de la misma base (estilo diagrama entidad-relación).</template>
 <p class="ancla-ficha-vacio" id="colDiagramaEstado">Cargando diagrama…</p>
 <div class="col-diagrama-split" id="colDiagramaSplit" hidden>
 <aside class="col-diagrama-campos" aria-label="Campos de esta colección">
@@ -1622,7 +1632,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" id="agenteTabAcl" data-agente-tab="acl" aria-selected="false" aria-controls="agentePanelAcl">ACL</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="agentePanelResumen" role="tabpanel" aria-labelledby="agenteTabResumen">
-<p class="ajustes-hint" id="agenteReaderHubNota">Quién entra en Campos ancla (API + invite). No son los bots del software de la Base de datos.</p>
+<template data-ficha-ayuda data-titulo="Resumen" data-host="#agentePanelResumen">Quién entra en Campos ancla (API + invite). No son los bots del software de la Base de datos.</template>
 <dl class="ancla-ficha-dl">
 <div class="ancla-ficha-fila"><dt>Id</dt><dd><code id="agenteReaderId">—</code></dd></div>
 <div class="ancla-ficha-fila"><dt>Estado</dt><dd id="agenteReaderEstadoDetalle">—</dd></div>
@@ -1632,7 +1642,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="origen" id="agenteReaderDesc" hidden></p>
 </div>
 <div class="reader-panel ancla-ficha-body" id="agentePanelAcl" role="tabpanel" aria-labelledby="agenteTabAcl" hidden>
-<p class="ajustes-hint">Alcance declarado en el hub (metadato; la API aún no lo aplica como autorización en cada ruta).</p>
+<template data-ficha-ayuda data-titulo="ACL" data-host="#agentePanelAcl">Alcance declarado en el hub (metadato; la API aún no lo aplica como autorización en cada ruta).</template>
 <dl class="ancla-ficha-dl">
 <div class="ancla-ficha-fila"><dt>Bases de datos</dt><dd id="agenteReaderProyectos">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Lee</dt><dd id="agenteReaderLee">—</dd></div>
@@ -1911,8 +1921,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div id="ejSkillsLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="ejSkillsVacio" hidden>Ninguna skill usa este ejecutor.</p>
 </div>
-<div class="reader-panel ancla-ficha-body" data-ej-panel="ejecuciones" role="tabpanel" hidden>
-<p class="ajustes-hint">Últimas llamadas a este ejecutor (Mongo <code>ejecuciones</code>).</p>
+<div class="reader-panel ancla-ficha-body" id="ejPanelEjecuciones" data-ej-panel="ejecuciones" role="tabpanel" hidden>
+<template data-ficha-ayuda data-titulo="Ejecuciones" data-host="#ejPanelEjecuciones">Últimas llamadas a este ejecutor (Mongo <code>ejecuciones</code>).</template>
 <div id="ejEjecucionesLista" class="proy-tab-catalogo"></div>
 <p class="ancla-ficha-vacio" id="ejEjecucionesVacio" hidden>Sin ejecuciones todavía.</p>
 </div>
@@ -2068,6 +2078,16 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </form>
 </dialog>
 
+<dialog id="dlgAyuda" aria-labelledby="dlgAyudaTitulo">
+<form class="dlg" method="dialog" id="formDlgAyuda">
+<h3 id="dlgAyudaTitulo" data-dlg-icon="ayuda">Ayuda</h3>
+<div class="dlg-ayuda-cuerpo" id="dlgAyudaCuerpo"></div>
+<div class="dlg-actions">
+<button type="submit" class="btn primary" value="ok">Entendido</button>
+</div>
+</form>
+</dialog>
+
 <dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
 <div class="dlg" id="panelDarAcceso">
 <h3 id="dlgDarAccesoTitulo" data-dlg-icon="agente">Nuevo agente</h3>
@@ -2157,22 +2177,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261025opsub1"></script>
-<script src="skills-ui.js?v=20261025opsub1"></script>
-<script src="campos-ancla-ui.js?v=20261025opsub1"></script>
-<script src="campos-mongodb-ui.js?v=20261025opsub1"></script>
-<script src="clusters-ui.js?v=20261025opsub1"></script>
-<script src="proyectos-ui.js?v=20261025opsub1"></script>
-<script src="colecciones-ui.js?v=20261025opsub1"></script>
-<script src="agentes-ui.js?v=20261025opsub1"></script>
-<script src="fundamentos-ui.js?v=20261025opsub1"></script>
-<script src="system-prompts-ui.js?v=20261025opsub1"></script>
-<script src="system-prompts-catalog.js?v=20261025opsub1"></script>
-<script src="ejecutores-ui.js?v=20261025opsub1"></script>
-<script src="ejecutores-catalog.js?v=20261025opsub1"></script>
-<script src="catalogo-ui.js?v=20261025opsub1"></script>
-<script src="flujos-corridas-ui.js?v=20261025opsub1"></script>
-<script src="ajustes-ui.js?v=20261025opsub1"></script>
+<script src="color-entidad-ui.js?v=20261025ayuda1"></script>
+<script src="skills-ui.js?v=20261025ayuda1"></script>
+<script src="campos-ancla-ui.js?v=20261025ayuda1"></script>
+<script src="campos-mongodb-ui.js?v=20261025ayuda1"></script>
+<script src="clusters-ui.js?v=20261025ayuda1"></script>
+<script src="proyectos-ui.js?v=20261025ayuda1"></script>
+<script src="colecciones-ui.js?v=20261025ayuda1"></script>
+<script src="agentes-ui.js?v=20261025ayuda1"></script>
+<script src="fundamentos-ui.js?v=20261025ayuda1"></script>
+<script src="system-prompts-ui.js?v=20261025ayuda1"></script>
+<script src="system-prompts-catalog.js?v=20261025ayuda1"></script>
+<script src="ejecutores-ui.js?v=20261025ayuda1"></script>
+<script src="ejecutores-catalog.js?v=20261025ayuda1"></script>
+<script src="catalogo-ui.js?v=20261025ayuda1"></script>
+<script src="flujos-corridas-ui.js?v=20261025ayuda1"></script>
+<script src="ajustes-ui.js?v=20261025ayuda1"></script>
 
 </body>
 </html>
