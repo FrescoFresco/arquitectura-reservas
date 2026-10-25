@@ -444,6 +444,24 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .col-diagrama-er .proy-diagrama-render{min-height:120px}
 .col-diagrama-er .proy-diagrama-render svg{max-width:100%;height:auto;display:block}
 @media(max-width:800px){.col-diagrama-split{grid-template-columns:1fr}.col-diagrama-campos-lista{max-height:none}}
+.col-datos-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,340px);gap:16px;align-items:start;margin-top:4px;min-height:0}
+.col-datos-tabla{min-width:0}
+.col-datos-tabla-wrap{max-height:min(62vh,560px);overflow:auto;border:1px solid #e5eaf1;border-radius:10px}
+.col-datos-table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.4}
+.col-datos-table th,.col-datos-table td{padding:8px 10px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.col-datos-table th{position:sticky;top:0;background:#f4f7fb;color:#17212f;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;z-index:1}
+.col-datos-table tbody tr{cursor:pointer}
+.col-datos-table tbody tr:hover{background:#f5f8fc}
+.col-datos-table tbody tr.is-selected{background:#f8fbff;outline:1px solid #9db7ea;outline-offset:-1px}
+.col-datos-table td{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#315eb6}
+.col-datos-footer{margin-top:10px}
+.col-datos-detalle{min-width:0;border:1px solid #e5eaf1;border-radius:12px;background:#fbfdff;padding:12px;display:flex;flex-direction:column;gap:10px;max-height:min(62vh,560px)}
+.col-datos-json{margin:0;padding:10px;background:#0f172a;color:#e2e8f0;border-radius:10px;font-size:11px;line-height:1.45;overflow:auto;flex:1;min-height:120px;white-space:pre-wrap;word-break:break-word}
+#dlgColDatosDetalle .col-datos-json{max-height:min(50vh,420px);margin-bottom:4px}
+@media(max-width:800px){
+  .col-datos-split{grid-template-columns:1fr}
+  .col-datos-detalle{display:none!important}
+}
 .proy-agente-card{border:1px solid #e5eaf1;border-radius:12px;padding:12px;margin:0 0 10px;background:#fff}
 .proy-agente-card h4{margin:0 0 6px;font-size:14px}
 .proy-agente-perms{margin:0;font-size:12px;color:#5f6f84;line-height:1.5}
@@ -1334,6 +1352,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="colTabResumen" data-col-tab="resumen" aria-selected="true" aria-controls="colPanelResumen">Resumen</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="colTabDiagrama" data-col-tab="diagrama" aria-selected="false" aria-controls="colPanelDiagrama">Diagrama</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="colTabAsociados" data-col-tab="asociados" aria-selected="false" aria-controls="colPanelAsociados">Asociados</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="colTabDatos" data-col-tab="datos" aria-selected="false" aria-controls="colPanelDatos">Datos</button>
 </div>
 <div class="reader-panel ancla-ficha-body" id="colPanelResumen" role="tabpanel" aria-labelledby="colTabResumen">
 <dl class="ancla-ficha-dl">
@@ -1374,7 +1393,38 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div id="colCamposLista" class="proy-tab-catalogo"></div>
 </div>
 </div>
+<div class="reader-panel ancla-ficha-body" id="colPanelDatos" role="tabpanel" aria-labelledby="colTabDatos" hidden>
+<template data-ficha-ayuda data-titulo="Datos" data-host="#colPanelDatos">Documentos reales de esta colección en Atlas (URI del Cluster). Tabla paginada; clic en una fila para ver el JSON. Sin editar aquí.</template>
+<div class="col-datos-split" id="colDatosSplit">
+<div class="col-datos-tabla" aria-label="Documentos">
+<div id="colDatosEstado" class="catalogo-vacio-host" role="status"></div>
+<div class="tabla-wrap col-datos-tabla-wrap" id="colDatosTablaWrap" hidden>
+<table class="col-datos-table" id="colDatosTable">
+<thead id="colDatosThead"></thead>
+<tbody id="colDatosTbody"></tbody>
+</table>
+</div>
+<div class="col-datos-footer" id="colDatosFooter" hidden>
+<button type="button" class="btn ghost compact" id="colDatosCargarMas" data-accion-icon="cargar">Cargar más</button>
+</div>
+</div>
+<aside class="col-datos-detalle" id="colDatosDetalle" aria-label="Detalle JSON" hidden>
+<pre class="col-datos-json" id="colDatosJson"></pre>
+<button type="button" class="btn ghost compact" id="colDatosCopiar" data-accion-icon="copiar">Copiar JSON</button>
+</aside>
+</div>
+</div>
 </article>
+</dialog>
+<dialog id="dlgColDatosDetalle" aria-labelledby="dlgColDatosDetalleTitulo">
+<form class="dlg" method="dialog">
+<h3 id="dlgColDatosDetalleTitulo" data-dlg-icon="datos">Documento</h3>
+<pre class="col-datos-json" id="dlgColDatosJson"></pre>
+<div class="dlg-actions">
+<button type="button" class="btn ghost" id="dlgColDatosCopiar" data-accion-icon="copiar">Copiar JSON</button>
+<button type="submit" class="btn primary">Cerrar</button>
+</div>
+</form>
 </dialog>
 <dialog id="dlgNuevoProyecto" aria-labelledby="dlgNuevoProyectoTitulo">
 <form class="dlg" id="formNuevoProyecto">
@@ -2247,7 +2297,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="system-prompts-catalog.js?v=20261025tbayi1"></script>
 <script src="ejecutores-ui.js?v=20261025tbayi1"></script>
 <script src="ejecutores-catalog.js?v=20261025tbayi1"></script>
-<script src="catalogo-ui.js?v=20261025tbayi1"></script>
+<script src="catalogo-ui.js?v=20261025coldat1"></script>
 <script src="flujos-corridas-ui.js?v=20261025motoru1"></script>
 <script src="ajustes-ui.js?v=20261025tbayi1"></script>
 

@@ -383,6 +383,23 @@ export const API_DOCS_INDEX = {
       auth: false,
       summary: 'Cadena skills salidas→entradas (huecos)',
     },
+    {
+      method: 'GET',
+      path: '/v1/proyectos/:id/colecciones/:col/documentos',
+      auth: true,
+      alias: '/v1/esquemas/:id/colecciones/:col/documentos',
+      query: ['limit?', 'after?', 'filter?', 'sort?', 'fields?', 'negocio?', 'incluirSensible?'],
+      summary:
+        'Explorador: listar docs Mongo (Bearer; limit≤100; keyset after; proyección catálogo; URI Cluster)',
+    },
+    {
+      method: 'GET',
+      path: '/v1/proyectos/:id/colecciones/:col/documentos/:docId',
+      auth: true,
+      alias: '/v1/esquemas/:id/colecciones/:col/documentos/:docId',
+      query: ['incluirSensible?'],
+      summary: 'Explorador: detalle de un documento (Bearer; redacta anclas sensible)',
+    },
     { method: 'GET', path: '/v1/proyectos/:id/mongo-config', auth: false, summary: 'Estado (lee cluster)' },
     { method: 'POST', path: '/v1/proyectos/:id/crear-bd', auth: true, summary: 'Empujar DDL hub→Atlas' },
     {
@@ -459,10 +476,12 @@ export const API_DOCS_INDEX = {
     'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',
     'URI Mongo never in responses',
     'POST /v1/invites open for UI',
+    'GET …/colecciones/:col/documentos = Bearer + limit≤100 + proyección catálogo (no fields=*)',
   ],
   security: [
     'Nunca loguees ni pegues URIs Mongo, passwords ni invites en chats/repos.',
     'La API nunca reexpone la URI en GET; errores scrubbean mongodb://…',
     'Agentes = operadores ACL del hub (invite Bearer), no bots de software de la BD.',
+    'Explorador de documentos exige Bearer; campos ligados a anclas sensible se redactan salvo incluirSensible=1.',
   ],
 } as const;

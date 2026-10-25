@@ -60,6 +60,13 @@ import {
   type RelacionDef,
 } from './proyecto-schema';
 import {
+  assertResponseSize,
+  getColeccionDocumento,
+  listColeccionDocumentos,
+  parseLimitParam,
+  type CatalogCampo,
+} from './coleccion-documentos';
+import {
   listEsquemaEmpujes,
   parseLastSyncRow,
   recordClusterLastSync,
@@ -2427,6 +2434,137 @@ app.get('/v1/proyectos/:id/diagrama', async (c) => {
     ...(coleccionQ ? { coleccion: coleccionQ } : {}),
     diagrama,
   });
+});
+
+/**
+ * Explorador de datos: listado paginado (keyset `after`) de docs de una colección.
+ * Bearer obligatorio. Alias: /v1/esquemas/:id/colecciones/:col/documentos (middleware).
+ */
+app.get('/v1/proyectos/:id/colecciones/:col/documentos', async (c) => {
+  const authErr = await requireInviteClave(c);
+  if (authErr) return authErr;
+
+  const proyectoId = c.req.param('id');
+  const coleccionId = c.req.param('col');
+  const ctx = await loadColeccionDocsContext(c.env, proyectoId, coleccionId);
+  if ('error' in ctx) return jsonError(c, ctx.status, ctx.error, ctx.extra);
+
+  const lim = parseLimitParam(c.req.query('limit'));
+  if ('error' in lim) return jsonError(c, 400, lim.error);
+
+  const incluirSensible =
+    String(c.req.query('incluirSensible') || '') === '1' ||
+    String(c.req.query('reveal') || '') === '1';
+
+  const mongo = await mongoForProyecto(c.env, proyectoId);
+  if (!mongo) {
+    return c.json(
+      {
+        ...mongoNotConfiguredError(),
+        hint:
+          'Configura la URI en Cluster → Conexión (producto). Sin URI no se pueden listar documentos.',
+        proyecto: proyectoId,
+        coleccion: coleccionId,
+      },
+      503
+    );
+  }
+
+  try {
+    const result = await withMongoDb(
+      mongo.env,
+      (db) =>
+        listColeccionDocumentos(db, coleccionId, ctx.campos, {
+          limit: lim.limit,
+          after: String(c.req.query('after') || '').trim() || undefined,
+          skip: c.req.query('skip') != null ? Number(c.req.query('skip')) : undefined,
+          filterJson: c.req.query('filter') || undefined,
+          sort: c.req.query('sort') || undefined,
+          fields: c.req.query('fields') || undefined,
+          negocio: String(c.req.query('negocio') || '').trim() || undefined,
+          incluirSensible,
+        }),
+      mongo.dbName
+    );
+    if ('error' in result) {
+      return jsonError(c, result.status || 400, result.error);
+    }
+    const body = {
+      ok: true as const,
+      proyecto: proyectoId,
+      coleccion: coleccionId,
+      baseDatos: ctx.baseDatos,
+      limit: result.limit,
+      count: result.count,
+      nextAfter: result.nextAfter,
+      hasMore: result.hasMore,
+      projection: result.projection,
+      documentos: result.documentos,
+      mongo: { configured: true, db: mongo.dbName, source: 'cluster' as const },
+    };
+    const sizeErr = assertResponseSize(body);
+    if (sizeErr) return jsonError(c, 413, sizeErr.error);
+    return c.json(body);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
+    return jsonMongoError(c, 502, err);
+  }
+});
+
+/** Detalle de un documento (panel JSON). Bearer. */
+app.get('/v1/proyectos/:id/colecciones/:col/documentos/:docId', async (c) => {
+  const authErr = await requireInviteClave(c);
+  if (authErr) return authErr;
+
+  const proyectoId = c.req.param('id');
+  const coleccionId = c.req.param('col');
+  const docId = c.req.param('docId');
+  const ctx = await loadColeccionDocsContext(c.env, proyectoId, coleccionId);
+  if ('error' in ctx) return jsonError(c, ctx.status, ctx.error, ctx.extra);
+
+  const incluirSensible =
+    String(c.req.query('incluirSensible') || '') === '1' ||
+    String(c.req.query('reveal') || '') === '1';
+
+  const mongo = await mongoForProyecto(c.env, proyectoId);
+  if (!mongo) {
+    return c.json(
+      {
+        ...mongoNotConfiguredError(),
+        hint:
+          'Configura la URI en Cluster → Conexión (producto). Sin URI no se puede leer el documento.',
+        proyecto: proyectoId,
+        coleccion: coleccionId,
+      },
+      503
+    );
+  }
+
+  try {
+    const result = await withMongoDb(
+      mongo.env,
+      (db) =>
+        getColeccionDocumento(db, coleccionId, docId, ctx.campos, { incluirSensible }),
+      mongo.dbName
+    );
+    if ('error' in result) return jsonError(c, result.status, result.error);
+    const body = {
+      ok: true as const,
+      proyecto: proyectoId,
+      coleccion: coleccionId,
+      baseDatos: ctx.baseDatos,
+      documento: result.documento,
+      mongo: { configured: true, db: mongo.dbName, source: 'cluster' as const },
+    };
+    const sizeErr = assertResponseSize(body);
+    if (sizeErr) return jsonError(c, 413, sizeErr.error);
+    return c.json(body);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
+    return jsonMongoError(c, 502, err);
+  }
 });
 
 /**
@@ -5110,6 +5248,95 @@ async function mongoForProyecto(
   const resolved = await resolveRuntimeMongo(env, baseDatos, proyectoId);
   if (!mongoUriConfigured(resolved.env)) return null;
   return { env: resolved.env, dbName: resolved.meta.db };
+}
+
+/** Bearer invite para GETs que leen datos de negocio (no catálogo público). */
+async function requireInviteClave(c: {
+  req: { header: (n: string) => string | undefined };
+  env: Env;
+  json: (b: unknown, s?: number) => Response;
+  set: (k: string, v: string) => void;
+}): Promise<Response | null> {
+  const clave = extractClave(c);
+  if (!clave) {
+    return jsonError(c, 401, 'Falta AGENTE_CLAVE (Authorization: Bearer inv_… o X-Agente-Clave).');
+  }
+  const inv = await c.env.DB.prepare('SELECT clave, revocada, usada_por FROM invites WHERE clave = ?')
+    .bind(clave)
+    .first<{ clave: string; revocada: number; usada_por: string | null }>();
+  if (!inv || inv.revocada) return jsonError(c, 403, 'Invite inválida o revocada.');
+  c.set('inviteClave', clave);
+  if (inv.usada_por) c.set('agenteId', inv.usada_por);
+  return null;
+}
+
+/**
+ * Resuelve proyecto + colección del schema + campos catálogo (sensible vía ancla).
+ */
+async function loadColeccionDocsContext(
+  env: Env,
+  proyectoId: string,
+  coleccionId: string
+): Promise<
+  | { baseDatos: string; campos: CatalogCampo[] }
+  | { error: string; status: number; extra?: Record<string, unknown> }
+> {
+  const pid = String(proyectoId || '').trim();
+  const cid = String(coleccionId || '').trim();
+  if (!pid || !ID_RE.test(pid)) return { error: 'proyecto inválido.', status: 400 };
+  if (!cid || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(cid)) {
+    return { error: 'colección inválida.', status: 400 };
+  }
+  const row = await env.DB.prepare('SELECT id, base_datos, colecciones FROM proyectos WHERE id = ?')
+    .bind(pid)
+    .first<{ id: string; base_datos: string | null; colecciones: string | null }>();
+  if (!row) return { error: 'Proyecto no encontrado.', status: 404 };
+  const cols = parseColecciones(row.colecciones);
+  if (!cols.some((c) => c.id === cid)) {
+    return {
+      error: `colección «${cid}» no está en el schema del proyecto.`,
+      status: 404,
+      extra: { proyecto: pid, coleccion: cid },
+    };
+  }
+  const baseDatos = String(row.base_datos || '').trim() || resolveMongoDbName(env);
+  const campoRows = await env.DB.prepare(
+    'SELECT clave, ancla FROM campos_mongo WHERE proyecto = ? AND coleccion = ? ORDER BY campo'
+  )
+    .bind(pid, cid)
+    .all();
+  const anclaIds = new Set<string>();
+  for (const r of campoRows.results || []) {
+    const a = String((r as { ancla?: string }).ancla || '').trim();
+    if (a) anclaIds.add(a);
+  }
+  const sensibleAnclas = new Set<string>();
+  if (anclaIds.size) {
+    const anclaRows = await env.DB.prepare(
+      'SELECT id, ancla, sensible FROM anclas WHERE sensible = 1'
+    ).all();
+    for (const r of anclaRows.results || []) {
+      const id = String((r as { id: string }).id || '');
+      const ancla = String((r as { ancla: string }).ancla || '');
+      if (anclaIds.has(id) || anclaIds.has(ancla)) {
+        sensibleAnclas.add(id);
+        if (ancla) sensibleAnclas.add(ancla);
+      }
+    }
+  }
+  const campos: CatalogCampo[] = [];
+  const seen = new Set<string>();
+  for (const r of campoRows.results || []) {
+    const clave = String((r as { clave?: string }).clave || '').trim();
+    if (!clave || seen.has(clave)) continue;
+    seen.add(clave);
+    const ancla = String((r as { ancla?: string }).ancla || '').trim();
+    campos.push({
+      clave,
+      sensible: !!(ancla && sensibleAnclas.has(ancla)),
+    });
+  }
+  return { baseDatos, campos };
 }
 
 function motorDeps(env: Env): MotorDeps {

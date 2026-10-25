@@ -255,7 +255,7 @@ Ejemplos:
 | Campos Mongo | `GET /v1/mongo?proyecto=` | `GET /v1/mongo/:id` | `POST` | `PUT` | `DELETE` |
 | Clusters | `GET /v1/clusters` | `GET /v1/clusters/:id` | `POST` | `PUT` · mongo-config | `DELETE` |
 | Base de datos | `GET /v1/proyectos` · `/v1/esquemas` | `GET …/:id` | `POST` | `PUT` · `POST …/crear-bd` | `DELETE` |
-| Colecciones | `GET /v1/colecciones?proyecto=` | (vía BD padre) | vía `PUT` BD `{ colecciones }` | igual | quitar del array en `PUT` BD |
+| Colecciones | `GET /v1/colecciones?proyecto=` | (vía BD padre) · docs `GET …/colecciones/:col/documentos` (Bearer) | vía `PUT` BD `{ colecciones }` | igual | quitar del array en `PUT` BD |
 | Fundamentos | `GET /v1/fundamentos` | `GET …/:id` | `POST` | `PUT` | `DELETE` |
 | Agentes | `GET /v1/agentes` | — | invite + registro | `PUT` | `DELETE` |
 | Ejecutores | `GET /v1/ejecutores` | `GET /v1/ejecutores/:id` · `…/ejecuciones` | `POST` | `PUT` | `DELETE` |
@@ -704,6 +704,28 @@ GET {API_BASE}/v1/esquemas/:id/empujes
     ] }
   Paginación keyset (`cursor` = `ts~id` del último de la página). `estado=ok|error`.
   `desde` / `hasta` = ISO (filtro opcional por `ts`). `detalle` = JSON crudo del resultado o error.
+```
+
+### Explorador de datos (colección → documentos)
+
+Lectura paginada de documentos reales en Atlas (URI del Cluster). **Bearer obligatorio** (datos de negocio ≠ catálogo público). Soft max `limit=100` (si `>100` → `400`). Keyset `after` = último `_id` de la página. Proyección por defecto = claves de `GET /v1/mongo?proyecto=&coleccion=` (+ `_id`); `fields=*` rechazado. Campos ligados a anclas `sensible` se omiten / redactan salvo `incluirSensible=1`. Sin URI → `503` + hint Cluster. Alias `/v1/esquemas/…`.
+
+```
+GET {API_BASE}/v1/proyectos/:id/colecciones/:col/documentos?limit=50&after=
+GET {API_BASE}/v1/esquemas/:id/colecciones/:col/documentos
+Authorization: Bearer inv_…
+→ { ok, proyecto, coleccion, baseDatos, limit, count, nextAfter, hasMore, projection, documentos, mongo: { configured, db, source } }
+
+GET {API_BASE}/v1/proyectos/:id/colecciones/:col/documentos/:docId
+Authorization: Bearer inv_…
+→ { ok, proyecto, coleccion, baseDatos, documento, mongo }
+```
+
+Query opcionales: `filter` (JSON allowlist `$eq/$in/$gt/…`; sin `$where`), `sort` (`campo` o `-campo`), `fields` (lista), `negocio`, `skip` (desaconsejado), `incluirSensible=1`.
+
+```
+curl -sS "$API_BASE/v1/proyectos/llamadas/colecciones/llamadas/documentos?limit=50" \
+  -H "Authorization: Bearer $AGENTE_CLAVE"
 ```
 
 ### Campos MongoDB ↔ base de datos
