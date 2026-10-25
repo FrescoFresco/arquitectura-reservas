@@ -3399,6 +3399,7 @@ function seleccionarReaderTab(id) {
   }
   const tabs = document.querySelectorAll('#readerTabs [data-reader-tab]');
   const panelDoc = document.getElementById('readerPanelDoc');
+  const panelDiagrama = document.getElementById('readerPanelDiagrama');
   const panelAsociados = document.getElementById('readerPanelAsociados');
   const panelConexion = document.getElementById('readerPanelConexion');
   const panelEjecuciones = document.getElementById('readerPanelEjecuciones');
@@ -3409,11 +3410,13 @@ function seleccionarReaderTab(id) {
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
   if (panelDoc) panelDoc.hidden = id !== 'documento';
+  if (panelDiagrama) panelDiagrama.hidden = id !== 'diagrama';
   if (panelAsociados) panelAsociados.hidden = id !== 'asociados';
   if (panelConexion) panelConexion.hidden = id !== 'conexion';
   if (panelEjecuciones) panelEjecuciones.hidden = id !== 'ejecuciones';
   if (panelInterno) panelInterno.hidden = id !== 'interno';
   if (id === 'asociados') seleccionarReaderAsocSub(skillAsocSub || readerAsocSubActual());
+  if (id === 'diagrama') pintarSkillDiagrama(instruccionAbierta());
   if (id === 'conexion') pintarSkillConexion(instruccionAbierta());
   if (id === 'ejecuciones') pintarSkillEjecuciones(instruccionAbierta());
 }
@@ -4918,18 +4921,25 @@ function pintarColumnaIoSkill(colEl, label, side, anclas, skillId, keepSet, huec
   colEl.append(caps);
 }
 
-function crearNodoSkillOperativa(skill, keepIn, keepOut, huecosSet) {
+function crearNodoSkillOperativa(skill, keepIn, keepOut, huecosSet, opts) {
+  opts = opts || {};
   var node = document.createElement('article');
   node.className = 'op-skill-node';
   node.setAttribute('data-skill-id', skill.id);
   var nombre = document.createElement('button');
   nombre.type = 'button';
-  nombre.className = 'op-skill-nombre';
+  nombre.className = 'op-skill-nombre' + (opts.preview ? ' is-preview' : '');
   nombre.textContent = skill.nombre || skill.id;
-  nombre.title = 'Abrir skill ' + (skill.id || '');
-  nombre.addEventListener('click', function () {
-    if (skill.id && typeof abrirInstruccion === 'function') abrirInstruccion(skill.id);
-  });
+  if (opts.preview) {
+    nombre.title = skill.nombre || skill.id || '';
+    nombre.setAttribute('aria-disabled', 'true');
+    nombre.tabIndex = -1;
+  } else {
+    nombre.title = 'Abrir skill ' + (skill.id || '');
+    nombre.addEventListener('click', function () {
+      if (skill.id && typeof abrirInstruccion === 'function') abrirInstruccion(skill.id);
+    });
+  }
   node.append(nombre);
   var io = document.createElement('div');
   io.className = 'op-skill-io';
@@ -4942,6 +4952,36 @@ function crearNodoSkillOperativa(skill, keepIn, keepOut, huecosSet) {
   io.append(colE, colS);
   node.append(io);
   return node;
+}
+
+/** Preview centrado: misma caja que Operativa · Mapa, una sola skill (sin huecos/grafo). */
+function pintarSkillDiagrama(ins) {
+  var mount = document.getElementById('readerDiagramaPreview');
+  if (!mount) return;
+  mount.replaceChildren();
+  if (!ins || !ins.id) {
+    if (typeof pintarEstadoVacio === 'function') {
+      pintarEstadoVacio(mount, {
+        icono: 'diagrama',
+        texto: 'Abre una skill para ver su nodo.'
+      });
+    } else {
+      mount.textContent = 'Abre una skill para ver su nodo.';
+    }
+    return;
+  }
+  var io = skillIoListas(ins);
+  var skill = {
+    id: ins.id,
+    nombre: ins.nombre || ins.id,
+    entradas: io.entradas,
+    salidas: io.salidas
+  };
+  var keepIn = {};
+  var keepOut = {};
+  (skill.entradas || []).forEach(function (a) { keepIn[a] = true; });
+  (skill.salidas || []).forEach(function (a) { keepOut[a] = true; });
+  mount.append(crearNodoSkillOperativa(skill, keepIn, keepOut, null, { preview: true }));
 }
 
 function findOpCap(root, side, skillId, ancla) {

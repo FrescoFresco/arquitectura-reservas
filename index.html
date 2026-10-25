@@ -228,6 +228,10 @@ dialog::backdrop{background:#17212f66}
 .op-skill-nombre{appearance:none;display:block;width:100%;margin:0;padding:9px 12px;border:0;border-bottom:1px solid #e5eaf1;background:#f5f8fc;font:inherit;font-size:13px;font-weight:800;letter-spacing:-.01em;color:#17212f;text-align:center;cursor:pointer;overflow-wrap:anywhere}
 .op-skill-nombre:hover{background:#edf3ff;color:#1c63d5}
 .op-skill-nombre:focus-visible{outline:2px solid #1c63d5;outline-offset:-2px}
+.op-skill-nombre.is-preview{cursor:default}
+.op-skill-nombre.is-preview:hover{background:#f5f8fc;color:#17212f}
+.skill-diagrama-preview{display:flex;justify-content:center;align-items:flex-start;padding:20px 12px 28px;min-height:180px}
+.skill-diagrama-preview .op-skill-node{flex:none}
 .op-skill-io{display:grid;grid-template-columns:1fr 1fr;min-width:0}
 .op-skill-col{padding:8px 8px 10px;min-width:0}
 .op-skill-entradas{border-right:1px solid #e8eef6}
@@ -581,6 +585,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="ancla-ficha-tabs reader-tabs" id="readerTabs" role="tablist" aria-label="Secciones de la skill">
 <button type="button" class="ancla-ficha-tab is-on" role="tab" id="readerTabDoc" data-reader-tab="documento" aria-selected="true" aria-controls="readerPanelDoc">Documento</button>
+<button type="button" class="ancla-ficha-tab" role="tab" id="readerTabDiagrama" data-reader-tab="diagrama" aria-selected="false" aria-controls="readerPanelDiagrama">Diagrama</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabAsociados" data-reader-tab="asociados" aria-selected="false" aria-controls="readerPanelAsociados">Asociados</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabConexion" data-reader-tab="conexion" aria-selected="false" aria-controls="readerPanelConexion">Conexión</button>
 <button type="button" class="ancla-ficha-tab" role="tab" id="readerTabEjecuciones" data-reader-tab="ejecuciones" aria-selected="false" aria-controls="readerPanelEjecuciones">Ejecuciones</button>
@@ -588,6 +593,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel" id="readerPanelDoc" role="tabpanel" aria-labelledby="readerTabDoc">
 <div class="md-wrap"><div class="md" id="md"></div></div>
+</div>
+<div class="reader-panel ancla-ficha-body" id="readerPanelDiagrama" role="tabpanel" aria-labelledby="readerTabDiagrama" hidden>
+<template data-ficha-ayuda data-titulo="Diagrama" data-host="#readerPanelDiagrama">Cómo se ve esta skill en el <strong>Mapa de Operativa</strong>: nombre arriba y <strong>Entradas | Salidas</strong> en cápsulas de ancla. Preview de una sola caja (sin grafo ni huecos de BD).</template>
+<div class="skill-diagrama-preview" id="readerDiagramaPreview" role="img" aria-label="Vista previa del nodo skill en Operativa"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="readerPanelAsociados" role="tabpanel" aria-labelledby="readerTabAsociados" hidden>
 <div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="readerAsociadosSubtabs" role="tablist" aria-label="Vínculos de la skill">
@@ -2198,22 +2207,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261025mapa1"></script>
-<script src="skills-ui.js?v=20261025mapa1"></script>
-<script src="campos-ancla-ui.js?v=20261025mapa1"></script>
-<script src="campos-mongodb-ui.js?v=20261025mapa1"></script>
-<script src="clusters-ui.js?v=20261025mapa1"></script>
-<script src="proyectos-ui.js?v=20261025mapa1"></script>
-<script src="colecciones-ui.js?v=20261025mapa1"></script>
-<script src="agentes-ui.js?v=20261025mapa1"></script>
-<script src="fundamentos-ui.js?v=20261025mapa1"></script>
-<script src="system-prompts-ui.js?v=20261025mapa1"></script>
-<script src="system-prompts-catalog.js?v=20261025mapa1"></script>
-<script src="ejecutores-ui.js?v=20261025mapa1"></script>
-<script src="ejecutores-catalog.js?v=20261025mapa1"></script>
-<script src="catalogo-ui.js?v=20261025mapa1"></script>
-<script src="flujos-corridas-ui.js?v=20261025mapa1"></script>
-<script src="ajustes-ui.js?v=20261025mapa1"></script>
+<script src="color-entidad-ui.js?v=20261025skdiag1"></script>
+<script src="skills-ui.js?v=20261025skdiag1"></script>
+<script src="campos-ancla-ui.js?v=20261025skdiag1"></script>
+<script src="campos-mongodb-ui.js?v=20261025skdiag1"></script>
+<script src="clusters-ui.js?v=20261025skdiag1"></script>
+<script src="proyectos-ui.js?v=20261025skdiag1"></script>
+<script src="colecciones-ui.js?v=20261025skdiag1"></script>
+<script src="agentes-ui.js?v=20261025skdiag1"></script>
+<script src="fundamentos-ui.js?v=20261025skdiag1"></script>
+<script src="system-prompts-ui.js?v=20261025skdiag1"></script>
+<script src="system-prompts-catalog.js?v=20261025skdiag1"></script>
+<script src="ejecutores-ui.js?v=20261025skdiag1"></script>
+<script src="ejecutores-catalog.js?v=20261025skdiag1"></script>
+<script src="catalogo-ui.js?v=20261025skdiag1"></script>
+<script src="flujos-corridas-ui.js?v=20261025skdiag1"></script>
+<script src="ajustes-ui.js?v=20261025skdiag1"></script>
 
 </body>
 </html>
