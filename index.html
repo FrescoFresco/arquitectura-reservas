@@ -54,6 +54,20 @@
 .btn-anadir{display:inline-flex;align-items:center;gap:8px}
 .btn-anadir-plus{font-weight:800;line-height:1;font-size:15px}
 .btn-anadir-svg{width:16px;height:16px;display:block;flex:none}
+.btn-con-icono{display:inline-flex;align-items:center;gap:7px}
+.btn-accion-svg{width:15px;height:15px;display:block;flex:none}
+.dlg-titulo{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:18px;letter-spacing:-.02em;font-weight:700;color:#17212f}
+.dlg-titulo-icon{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#edf3ff;color:#1c63d5}
+.dlg-titulo-svg,.dlg-titulo-icon .pestana-svg{width:16px;height:16px;display:block}
+.catalogo-vacio{display:flex;align-items:center;gap:12px;margin:4px 0 0;padding:14px 14px;border:1px dashed #d5deec;border-radius:12px;background:#f8fafc}
+.catalogo-vacio-icon{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#edf3ff;color:#1c63d5}
+.catalogo-vacio-icon .catalogo-fila-svg,.catalogo-vacio-icon .pestana-svg{width:18px;height:18px;display:block}
+.catalogo-vacio-texto{margin:0;color:#5f6f84;font-size:14px;line-height:1.45}
+.catalogo-vacio-host{margin:0;padding:0;border:0;background:transparent;color:inherit;font:inherit}
+.catalogo-vacio-host > .catalogo-vacio{margin:0}
+.ficha-catalogo-toolbar{margin:0 0 12px}
+.operativa-flujo-link{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.ancla-ficha-vacio.catalogo-vacio-host{margin:8px 0 0}
 /* Pickers de asociación: mismas filas catalogo-fila que Catálogos */
 .proy-skills-picker,.catalogo-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch;margin:0;max-height:min(50vh,420px);overflow:auto;padding:2px}
 .proy-skills-picker:not(:has(.catalogo-fila)),.catalogo-picker:not(:has(.catalogo-fila)){display:block}
@@ -111,7 +125,8 @@
 dialog{border:0;border-radius:16px;padding:0;width:min(520px,calc(100vw - 32px));box-shadow:0 20px 60px #17212f33}
 dialog::backdrop{background:#17212f66}
 .dlg{padding:20px}
-.dlg h3{margin:0 0 8px;font-size:18px}
+.dlg h3{margin:0 0 8px;font-size:18px;letter-spacing:-.02em}
+.dlg h3.dlg-titulo{margin:0 0 12px}
 .dlg .nota,.dlg .destino{margin:0 0 14px;color:#5f6f84;font-size:13px;line-height:1.5}
 .dlg .destino{color:#17212f;font-weight:700}
 .dlg label{display:block;font-size:13px;font-weight:700;margin:0 0 12px}
@@ -386,9 +401,9 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .cluster-last-sync.is-err{color:#b42318}
 .cluster-last-sync.is-ok{color:#0f7a45}
 .proy-empujar-auto-nota{margin:0 0 12px;padding:10px 12px;border:1px solid #d7e6f8;border-radius:10px;background:#f5f9ff;font-size:13px;color:#31506e;line-height:1.45}
-.proy-historial-filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:0 0 12px}
-.proy-historial-filtros label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#5f6f84}
-.proy-historial-filtros select,.proy-historial-filtros input[type="datetime-local"]{font:inherit;font-size:13px;font-weight:500;padding:6px 8px;border:1px solid #d5dde8;border-radius:8px;background:#fff;color:#17212f;min-width:9rem}
+.proy-historial-filtros{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;margin:0 0 12px}
+.proy-historial-filtros label{display:flex;flex-direction:column;gap:4px;margin:0;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#677488}
+.proy-historial-filtros select,.proy-historial-filtros input[type="datetime-local"],.proy-historial-filtros input[type="text"]{font:inherit;font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;padding:8px 10px;border:1px solid #d5deec;border-radius:10px;background:#fff;color:#17212f;min-width:9rem;min-height:36px}
 .proy-historial-modo,.proy-historial-estado{display:inline-block;font-size:12px;font-weight:600}
 .proy-historial-estado.is-ok{color:#0f7a45}
 .proy-historial-estado.is-err{color:#b42318}
@@ -414,7 +429,6 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .corrida-badge.is-error{background:#fdeceb;color:#b42318}
 .corrida-badge.is-en_curso,.corrida-badge.is-pendiente{background:#edf3ff;color:#1c63d5}
 .corrida-badge.is-esperando{background:#fff6e5;color:#9a6700}
-.operativa-flujo-link{margin:10px 0 0}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
 /* Ficha a panel completo: hub fijo, detalle ocupa el main */
@@ -700,8 +714,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="proy-diagrama-render" id="proyOperativaRender" hidden></div>
 <div class="operativa-huecos proy-tab-catalogo catalogo-lista" id="proyOperativaHuecos" role="list" hidden></div>
 <p class="operativa-flujo-link" id="proyOperativaFlujosLink" hidden>
-<button type="button" class="btn ghost compact" id="btnOperativaIrFlujos">Ver Flujos →</button>
-<button type="button" class="btn ghost compact" id="btnOperativaIrCorridas">Corridas del Flujo →</button>
+<button type="button" class="btn ghost compact" id="btnOperativaIrFlujos" data-accion-icon="flujo">Ver Flujos</button>
+<button type="button" class="btn ghost compact" id="btnOperativaIrCorridas" data-accion-icon="corrida">Corridas del Flujo</button>
 </p>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelFlujos" role="tabpanel" aria-labelledby="proyTabFlujos" hidden>
@@ -762,14 +776,14 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <label>Hasta
 <input type="datetime-local" id="proyHistorialHasta" aria-label="Hasta">
 </label>
-<button type="button" class="btn ghost" id="btnProyHistorialFiltrar">Filtrar</button>
+<button type="button" class="btn ghost" id="btnProyHistorialFiltrar" data-accion-icon="filtrar">Filtrar</button>
 </div>
 </div>
 <p class="ancla-ficha-vacio" id="proyHistorialEstadoMsg" hidden>Cargando historial…</p>
 <div id="proyHistorialLista" class="proy-tab-catalogo catalogo-lista" role="list" hidden></div>
 <pre class="proy-historial-detalle api-error-raw" id="proyHistorialDetalle" hidden></pre>
 <div class="proy-historial-pager" id="proyHistorialPager" hidden>
-<button type="button" class="btn ghost" id="btnProyHistorialMas" hidden>Cargar más</button>
+<button type="button" class="btn ghost" id="btnProyHistorialMas" hidden data-accion-icon="cargar">Cargar más</button>
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelInterno" role="tabpanel" aria-labelledby="proyTabInterno" hidden>
@@ -854,7 +868,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="redactor-pane">
 <p class="historial-titulo">REDACTOR · escribe</p>
 <textarea id="flujoRedactorIntencion" class="flujo-json-edit" style="min-height:7rem" spellcheck="true" placeholder='p. ej. flujo de 3 pasos: descubrir negocio, mapear recorrido y fin'></textarea>
-<button type="button" class="btn primary compact" id="btnFlujoRedactorGenerar" style="margin-top:8px">Generar</button>
+<button type="button" class="btn primary compact" id="btnFlujoRedactorGenerar" style="margin-top:8px" data-accion-icon="generar">Generar</button>
 </div>
 <div class="redactor-pane">
 <p class="historial-titulo">DEFINICIÓN (JSON, editable)</p>
@@ -872,9 +886,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <textarea id="flujoEditAristas" class="flujo-json-edit" spellcheck="false"></textarea>
 <p class="proy-crear-bd-msg" id="flujoEditMsg" role="status" hidden></p>
 <div class="dlg-actions" style="margin-top:8px;flex-wrap:wrap;gap:8px">
-<button type="button" class="btn ghost" id="btnFlujoRedactorProbar">Probar</button>
-<button type="button" class="btn primary" id="btnGuardarFlujoVersion" disabled title="Genera y valida antes de guardar, o edita JSON válido">Guardar versión</button>
-<button type="button" class="btn ghost" id="btnCancelarFlujoEdit">Cancelar</button>
+<button type="button" class="btn ghost" id="btnFlujoRedactorProbar" data-accion-icon="probar">Probar</button>
+<button type="button" class="btn primary" id="btnGuardarFlujoVersion" disabled title="Genera y valida antes de guardar, o edita JSON válido" data-accion-icon="guardar">Guardar versión</button>
+<button type="button" class="btn ghost" id="btnCancelarFlujoEdit" data-accion-icon="cancelar">Cancelar</button>
 </div>
 </div>
 </div>
@@ -885,7 +899,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="reader-panel ancla-ficha-body" id="flujoPanelDisparadores" role="tabpanel" aria-labelledby="flujoTabDisparadores" hidden>
 <p class="ajustes-hint">Cuándo arranca este flujo. Varios disparadores = «o». Probar no crea corridas; Guardar escribe en D1.</p>
 <div class="catalogo-toolbar ficha-catalogo-toolbar">
-<button type="button" class="btn ghost" id="btnFlujoLanzarManual" title="Crear corrida (disparador manual)">Lanzar</button>
+<button type="button" class="btn ghost" id="btnFlujoLanzarManual" title="Crear corrida (disparador manual)" data-accion-icon="lanzar">Lanzar</button>
 <button type="button" class="btn primary btn-anadir" id="btnFlujoAddDisparador" title="Añadir disparador">
 <span class="btn-anadir-plus" aria-hidden="true">+</span>
 <span class="btn-anadir-svg-wrap" aria-hidden="true"><svg class="btn-anadir-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
@@ -919,7 +933,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <label>Negocio
 <input type="text" id="flujoCorridasNegocio" aria-label="Filtrar por negocio" placeholder="pelo-sur" autocomplete="off">
 </label>
-<button type="button" class="btn ghost" id="btnFlujoCorridasFiltrar">Filtrar</button>
+<button type="button" class="btn ghost" id="btnFlujoCorridasFiltrar" data-accion-icon="filtrar">Filtrar</button>
 </div>
 <button type="button" class="btn primary btn-anadir" id="btnFlujoNuevaCorrida" title="Crear corrida de este flujo">
 <span class="btn-anadir-plus" aria-hidden="true">+</span>
@@ -930,9 +944,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ancla-ficha-vacio" id="flujoCorridasEstado" hidden>Cargando corridas…</p>
 <div id="flujoCorridasLista" class="proy-tab-catalogo catalogo-lista" role="list" hidden></div>
 <div class="proy-historial-pager" id="flujoCorridasPager" hidden>
-<button type="button" class="btn ghost" id="btnFlujoCorridasPrev" hidden>Anterior</button>
+<button type="button" class="btn ghost" id="btnFlujoCorridasPrev" hidden data-accion-icon="anterior">Anterior</button>
 <span id="flujoCorridasPagerInfo" class="ajustes-hint" style="margin:0"></span>
-<button type="button" class="btn ghost" id="btnFlujoCorridasNext" hidden>Siguiente</button>
+<button type="button" class="btn ghost" id="btnFlujoCorridasNext" hidden data-accion-icon="siguiente">Siguiente</button>
 </div>
 </div>
 <div id="flujoCorridasSubpaneEventos" data-flujo-corr-pane="eventos" hidden>
@@ -951,12 +965,12 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgDisparador" class="dlg-wide" aria-labelledby="flujoDisparadorFormTitulo">
 <form class="dlg" id="formDisparador" onsubmit="return false">
-<h3 id="flujoDisparadorFormTitulo">Nuevo disparador</h3>
+<h3 id="flujoDisparadorFormTitulo" data-dlg-icon="disparadores">Nuevo disparador</h3>
 <div class="redactor-grid" id="dispRedactorGrid" data-redactor-for="disparador">
 <div class="redactor-pane">
 <p class="historial-titulo">REDACTOR · escribe</p>
 <textarea id="dispRedactorIntencion" rows="5" spellcheck="true" placeholder='p. ej. cada hora, reservas sin confirmar de hace más de 2 horas'></textarea>
-<button type="button" class="btn primary compact" id="btnDispRedactorGenerar" style="margin-top:8px">Generar</button>
+<button type="button" class="btn primary compact" id="btnDispRedactorGenerar" style="margin-top:8px" data-accion-icon="generar">Generar</button>
 </div>
 <div class="redactor-pane">
 <p class="historial-titulo">DEFINICIÓN (JSON, editable)</p>
@@ -995,7 +1009,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ajustes-hint" id="flujoDispWebhookUrlHint">URL (tras guardar):</p>
 <div class="editar-anclas-top" style="gap:8px;align-items:center">
 <code id="flujoDispWebhookUrl" style="flex:1;word-break:break-all">—</code>
-<button type="button" class="btn ghost compact" id="btnFlujoDispCopiarUrl" hidden>Copiar</button>
+<button type="button" class="btn ghost compact" id="btnFlujoDispCopiarUrl" hidden data-accion-icon="copiar">Copiar</button>
 </div>
 </div>
 <label for="flujoDispNegocio">Negocio (vacío = todos)
@@ -1016,9 +1030,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="proy-crear-bd-msg" id="flujoDispFormMsg" role="status" hidden></p>
 <pre class="flujo-grafo-ascii" id="flujoDispProbarOut" hidden style="max-height:12rem;overflow:auto"></pre>
 <div class="dlg-actions">
-<button type="button" class="btn ghost" id="btnFlujoDispProbar">Probar</button>
-<button type="button" class="btn primary" id="btnFlujoDispGuardar" disabled title="Valida con Generar o Probar antes de guardar">Guardar</button>
-<button type="button" class="btn ghost" id="btnFlujoDispCancelar">Cancelar</button>
+<button type="button" class="btn ghost" id="btnFlujoDispProbar" data-accion-icon="probar">Probar</button>
+<button type="button" class="btn primary" id="btnFlujoDispGuardar" disabled title="Valida con Generar o Probar antes de guardar" data-accion-icon="guardar">Guardar</button>
+<button type="button" class="btn ghost" id="btnFlujoDispCancelar" data-accion-icon="cancelar">Cancelar</button>
 </div>
 </form>
 </dialog>
@@ -1072,7 +1086,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgNuevoFlujo" aria-labelledby="dlgNuevoFlujoTitulo">
 <form class="dlg" id="formNuevoFlujo">
-<h3 id="dlgNuevoFlujoTitulo">Añadir flujo</h3>
+<h3 id="dlgNuevoFlujoTitulo" data-dlg-icon="flujo">Añadir flujo</h3>
 <p class="ajustes-hint" id="nuevoFlujoHint">Se crea en la Base de datos abierta. Mínimo: nodos con Inicio y Fin + aristas.</p>
 <label id="nuevoFlujoProyectoWrap" hidden>Base de datos (proyecto)
 <select name="proyecto_id" id="nuevoFlujoProyecto" autocomplete="off">
@@ -1097,7 +1111,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgNuevaCorrida" aria-labelledby="dlgNuevaCorridaTitulo">
 <form class="dlg" id="formNuevaCorrida">
-<h3 id="dlgNuevaCorridaTitulo">Nueva corrida</h3>
+<h3 id="dlgNuevaCorridaTitulo" data-dlg-icon="corrida">Nueva corrida</h3>
 <p class="ajustes-hint">Crea la instancia en Mongo <code>corridas</code> y avanza al primer paso. Luego n8n (u otro) hace <code>GET …/siguiente</code> y <code>POST …/salidas</code>.</p>
 <label>Flujo id <input name="flujo_id" id="nuevaCorridaFlujo" required placeholder="reservas-descubrir-mapear" autocomplete="off"></label>
 <label>Negocio <input name="negocio" required pattern="[a-z0-9][a-z0-9-]{0,60}" placeholder="pelo-sur" autocomplete="off"></label>
@@ -1162,9 +1176,9 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <input type="password" id="clusterConexionUri" name="uri" autocomplete="off" spellcheck="false" placeholder="mongodb+srv://usuario:contraseña@cluster…/" required>
 </label>
 <div class="ajustes-actions">
-<button type="submit" class="btn primary" id="clusterConexionGuardar">Guardar</button>
-<button type="button" class="btn ghost" id="clusterConexionProbar">Probar</button>
-<button type="button" class="btn ghost" id="clusterConexionBorrar">Borrar</button>
+<button type="submit" class="btn primary" id="clusterConexionGuardar" data-accion-icon="guardar">Guardar</button>
+<button type="button" class="btn ghost" id="clusterConexionProbar" data-accion-icon="probar">Probar</button>
+<button type="button" class="btn ghost" id="clusterConexionBorrar" data-accion-icon="cancelar">Borrar</button>
 </div>
 <p id="clusterConexionMsg" class="ajustes-msg" role="status" aria-live="polite"></p>
 </form>
@@ -1190,7 +1204,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgNuevoCluster" aria-labelledby="dlgNuevoClusterTitulo">
 <form class="dlg" id="formNuevoCluster">
-<h3 id="dlgNuevoClusterTitulo">Añadir cluster</h3>
+<h3 id="dlgNuevoClusterTitulo" data-dlg-icon="cluster">Añadir cluster</h3>
 <p class="form-error" id="nuevoClusterError" role="alert"></p>
 <label>Nombre
 <input type="text" name="nombre" maxlength="120" autocomplete="off" required placeholder="Cluster Atlas">
@@ -1209,7 +1223,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgEditarCluster" aria-labelledby="dlgEditarClusterTitulo">
 <form class="dlg" id="formEditarCluster">
-<h3 id="dlgEditarClusterTitulo">Editar cluster</h3>
+<h3 id="dlgEditarClusterTitulo" data-dlg-icon="cluster">Editar cluster</h3>
 <p class="form-error" id="editarClusterError" role="alert"></p>
 <label>Nombre
 <input type="text" name="nombre" maxlength="120" autocomplete="off" required>
@@ -1283,7 +1297,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgNuevoProyecto" aria-labelledby="dlgNuevoProyectoTitulo">
 <form class="dlg" id="formNuevoProyecto">
-<h3 id="dlgNuevoProyectoTitulo">Añadir base de datos</h3>
+<h3 id="dlgNuevoProyectoTitulo" data-dlg-icon="proyecto">Añadir base de datos</h3>
 <p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
 <p class="form-error" id="nuevoProyectoError" role="alert"></p>
 <label>Nombre
@@ -1306,7 +1320,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgEditarProyecto" class="dlg-wide" aria-labelledby="dlgEditarProyectoTitulo">
 <form class="dlg" id="formEditarProyecto">
-<h3 id="dlgEditarProyectoTitulo">Editar base de datos</h3>
+<h3 id="dlgEditarProyectoTitulo" data-dlg-icon="proyecto">Editar base de datos</h3>
 <p class="nota">Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
 <p class="form-error" id="editarProyectoError" role="alert"></p>
 <label>Nombre
@@ -1336,7 +1350,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgEditarProyectoSkills" class="dlg-wide" aria-labelledby="dlgEditarProyectoSkillsTitulo">
 <form class="dlg" id="formEditarProyectoSkills">
-<h3 id="dlgEditarProyectoSkillsTitulo">Skills de la base de datos</h3>
+<h3 id="dlgEditarProyectoSkillsTitulo" data-dlg-icon="skills">Skills de la base de datos</h3>
 <p class="nota">Marca las skills del catálogo asociadas a esta base de datos. Guardar actualiza la lista; no crea una versión del documento.</p>
 <p class="form-error" id="editarProyectoSkillsError" role="alert"></p>
 <div id="editarProyectoSkillsPicker" class="proy-skills-picker"></div>
@@ -1381,7 +1395,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <dialog id="dlgNueva" aria-labelledby="dlgNuevaTitulo">
 <form class="dlg" id="formNueva">
-<h3 id="dlgNuevaTitulo">Añadir skill</h3>
+<h3 id="dlgNuevaTitulo" data-dlg-icon="skills">Añadir skill</h3>
 <p class="nota">Crea una skill nueva. Se guarda en este navegador, encima del índice. No se publica en GitHub. Markdown se lee aquí; otro tipo queda para descargar.</p>
 <p class="form-error" id="nuevaError" role="alert"></p>
 <label>Nombre
@@ -1408,7 +1422,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgVersion" aria-labelledby="dlgVersionTitulo">
 <form class="dlg" id="formVersion">
-<h3 id="dlgVersionTitulo">Subir versión</h3>
+<h3 id="dlgVersionTitulo" data-dlg-icon="versiones">Subir versión</h3>
 <p class="destino" id="versionDestino"></p>
 <p class="nota">Carga un documento completo como versión nueva de esta skill. Distinto de Editar: aquí subes el archivo entero. Se guarda en este navegador; no se publica en GitHub.</p>
 <p class="form-error" id="versionError" role="alert"></p>
@@ -1427,7 +1441,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgEditar" class="dlg-wide" aria-labelledby="dlgEditarTitulo">
 <form class="dlg" id="formEditar">
-<h3 id="dlgEditarTitulo">Editar skill</h3>
+<h3 id="dlgEditarTitulo" data-dlg-icon="skills">Editar skill</h3>
 <p class="nota">Modifica el contenido actual. Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
 <p class="form-error" id="editarError" role="alert"></p>
 <label>Nombre
@@ -1470,7 +1484,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgEditarAnclas" aria-labelledby="dlgEditarAnclasTitulo">
 <form class="dlg" id="formEditarAnclas">
-<h3 id="dlgEditarAnclasTitulo">Editar anclas</h3>
+<h3 id="dlgEditarAnclasTitulo" data-dlg-icon="ancla">Editar anclas</h3>
 <p class="nota" id="editarAnclasNota">Una por línea o separadas por comas. Se asignan a <strong id="editarAnclasDirLabel">entradas</strong> de la skill.</p>
 <p class="form-error" id="editarAnclasError" role="alert"></p>
 <label>Anclas
@@ -1484,7 +1498,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgCampo" aria-labelledby="dlgCampoTitulo">
 <form class="dlg" id="formCampo">
-<h3 id="dlgCampoTitulo">Añadir ancla</h3>
+<h3 id="dlgCampoTitulo" data-dlg-icon="ancla">Añadir ancla</h3>
 <p class="nota">Se guarda en la API viva (Cloudflare D1) cuando hay clave; si no, en este navegador.</p>
 <p class="form-error" id="campoError" role="alert"></p>
 <label>Ancla
@@ -1530,7 +1544,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgMongo" aria-labelledby="dlgMongoTitulo">
 <form class="dlg" id="formMongo">
-<h3 id="dlgMongoTitulo">Añadir campo MongoDB</h3>
+<h3 id="dlgMongoTitulo" data-dlg-icon="mongo">Añadir campo MongoDB</h3>
 <p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
 <p class="form-error" id="mongoError" role="alert"></p>
 <label>Colección
@@ -1661,7 +1675,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgNuevoFundamento" aria-labelledby="dlgNuevoFundamentoTitulo">
 <form class="dlg" id="formNuevoFundamento">
-<h3 id="dlgNuevoFundamentoTitulo">Añadir fundamento</h3>
+<h3 id="dlgNuevoFundamentoTitulo" data-dlg-icon="fundamento">Añadir fundamento</h3>
 <p class="nota">Se guarda en este navegador, encima del índice. No se publica en GitHub.</p>
 <p class="form-error" id="nuevoFundamentoError" role="alert"></p>
 <label>Nombre
@@ -1681,7 +1695,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgEditarFundamento" class="dlg-wide" aria-labelledby="dlgEditarFundamentoTitulo">
 <form class="dlg" id="formEditarFundamento">
-<h3 id="dlgEditarFundamentoTitulo">Editar fundamento</h3>
+<h3 id="dlgEditarFundamentoTitulo" data-dlg-icon="fundamento">Editar fundamento</h3>
 <p class="nota">Al guardar se crea la versión siguiente (no pisa la anterior). Se queda en este navegador.</p>
 <p class="form-error" id="editarFundamentoError" role="alert"></p>
 <label>Nombre
@@ -1762,7 +1776,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgNuevoSystemPrompt" class="dlg-wide" aria-labelledby="dlgNuevoSystemPromptTitulo">
 <form class="dlg" id="formNuevoSystemPrompt">
-<h3 id="dlgNuevoSystemPromptTitulo">Añadir system prompt</h3>
+<h3 id="dlgNuevoSystemPromptTitulo" data-dlg-icon="system-prompt">Añadir system prompt</h3>
 <p class="nota">Se guarda en la API (D1). El markdown se versiona.</p>
 <p class="form-error" id="nuevoSystemPromptError" role="alert"></p>
 <label>Nombre
@@ -1785,7 +1799,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgEditarSystemPrompt" class="dlg-wide" aria-labelledby="dlgEditarSystemPromptTitulo">
 <form class="dlg" id="formEditarSystemPrompt">
-<h3 id="dlgEditarSystemPromptTitulo">Editar system prompt</h3>
+<h3 id="dlgEditarSystemPromptTitulo" data-dlg-icon="system-prompt">Editar system prompt</h3>
 <p class="nota">Al guardar se crea la versión siguiente (no pisa la anterior).</p>
 <p class="form-error" id="editarSystemPromptError" role="alert"></p>
 <div class="ancla-ficha-tabs reader-tabs" id="editarSpTabs" role="tablist" aria-label="Editar system prompt">
@@ -1815,7 +1829,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </dialog>
 <dialog id="dlgEditarSystemPromptSkills" class="dlg-wide" aria-labelledby="dlgEditarSystemPromptSkillsTitulo">
 <form class="dlg" id="formEditarSystemPromptSkills">
-<h3 id="dlgEditarSystemPromptSkillsTitulo">Skills del system prompt</h3>
+<h3 id="dlgEditarSystemPromptSkillsTitulo" data-dlg-icon="skills">Skills del system prompt</h3>
 <p class="nota">Puedes asociar muchas skills. Si una skill ya tiene otro prompt, se <strong>moverá</strong> a este.</p>
 <p class="form-error" id="editarSystemPromptSkillsError" role="alert"></p>
 <div id="editarSystemPromptSkillsPicker" class="proy-skills-picker"></div>
@@ -1874,7 +1888,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila" id="ejResumenWorkflowIdFila" hidden><dt>workflow_id</dt><dd id="ejResumenWorkflowId">—</dd></div>
 </dl>
 <p id="ejResumenN8nAcciones" class="ancla-ficha-acciones" style="margin-top:0.75rem" hidden>
-<a class="btn primary compact" id="ejResumenAbrirN8n" href="#" target="_blank" rel="noopener noreferrer">Abrir workflow en n8n ↗</a>
+<a class="btn primary compact btn-con-icono" id="ejResumenAbrirN8n" href="#" target="_blank" rel="noopener noreferrer" data-accion-icon="n8n">Abrir workflow en n8n</a>
 </p>
 <p class="historial-titulo" style="margin-top:1rem">Config</p>
 <pre id="ejResumenConfig" class="md" style="white-space:pre-wrap;font-size:0.85em"></pre>
@@ -1901,7 +1915,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 
 <dialog id="dlgNuevoEjecutor" class="dlg-wide" aria-labelledby="dlgNuevoEjecutorTitulo">
 <form class="dlg" id="formNuevoEjecutor">
-<h3 id="dlgNuevoEjecutorTitulo">Añadir ejecutor</h3>
+<h3 id="dlgNuevoEjecutorTitulo" data-dlg-icon="ejecutor">Añadir ejecutor</h3>
 <p class="nota">Se guarda en D1. El motor interno usa la cola <code>pasos</code> según el tipo de ejecutor.</p>
 <p class="form-error" id="nuevoEjecutorError" role="alert"></p>
 <label>Id (opcional)<input type="text" name="id" maxlength="61" autocomplete="off" placeholder="grok-texto"></label>
@@ -1966,7 +1980,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 
 <dialog id="dlgEditarEjecutor" class="dlg-wide" aria-labelledby="dlgEditarEjecutorTitulo">
 <form class="dlg" id="formEditarEjecutor">
-<h3 id="dlgEditarEjecutorTitulo">Editar ejecutor</h3>
+<h3 id="dlgEditarEjecutorTitulo" data-dlg-icon="ejecutor">Editar ejecutor</h3>
 <p class="form-error" id="editarEjecutorError" role="alert"></p>
 <label>Nombre<input type="text" name="nombre" maxlength="120" autocomplete="off" required></label>
 <label>Tipo
@@ -2029,7 +2043,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 
 <dialog id="dlgEditarSkillEjecutor" class="dlg-wide" aria-labelledby="dlgEditarSkillEjecutorTitulo">
 <form class="dlg" id="formEditarSkillEjecutor">
-<h3 id="dlgEditarSkillEjecutorTitulo">Ejecutor de la skill</h3>
+<h3 id="dlgEditarSkillEjecutorTitulo" data-dlg-icon="ejecutor">Ejecutor de la skill</h3>
 <p class="nota">Elige uno o déjalo implícito (agente_externo).</p>
 <p class="form-error" id="editarSkillEjecutorError" role="alert"></p>
 <div id="editarSkillEjecutorPicker" class="proy-skills-picker"></div>
@@ -2042,7 +2056,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 
 <dialog id="dlgDarAcceso" class="dlg-wide" aria-labelledby="dlgDarAccesoTitulo">
 <div class="dlg" id="panelDarAcceso">
-<h3 id="dlgDarAccesoTitulo">Nuevo agente</h3>
+<h3 id="dlgDarAccesoTitulo" data-dlg-icon="agente">Nuevo agente</h3>
 <p class="nota">Se crea una clave en Cloudflare. Copia el bloque y pégalo al agente: lee Documentación → API, se registra y late solo. Sin caducidad. Sin GitHub.</p>
 <p class="form-error" id="darAccesoError" role="alert"></p>
 <div class="agente-clave-row">
@@ -2050,14 +2064,14 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <span>Clave</span>
 <code id="darAccesoClave">…</code>
 </div>
-<button type="button" class="btn ghost" id="darAccesoCopiarClave">Copiar clave</button>
+<button type="button" class="btn ghost" id="darAccesoCopiarClave" data-accion-icon="copiar">Copiar clave</button>
 </div>
 <label for="darAccesoTexto">Para pegar en el agente
 <textarea id="darAccesoTexto" class="agente-instrucciones" readonly spellcheck="false"></textarea>
 </label>
 <div class="dlg-actions">
 <button type="button" class="btn ghost" id="darAccesoCerrar">Cerrar</button>
-<button type="button" class="btn primary" id="darAccesoCopiar">Copiar todo</button>
+<button type="button" class="btn primary" id="darAccesoCopiar" data-accion-icon="copiar">Copiar todo</button>
 </div>
 </div>
 </dialog>
@@ -2129,22 +2143,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261025adn1"></script>
-<script src="skills-ui.js?v=20261025adn1"></script>
-<script src="campos-ancla-ui.js?v=20261025adn1"></script>
-<script src="campos-mongodb-ui.js?v=20261025adn1"></script>
-<script src="clusters-ui.js?v=20261025adn1"></script>
-<script src="proyectos-ui.js?v=20261025adn1"></script>
-<script src="colecciones-ui.js?v=20261025adn1"></script>
-<script src="agentes-ui.js?v=20261025adn1"></script>
-<script src="fundamentos-ui.js?v=20261025adn1"></script>
-<script src="system-prompts-ui.js?v=20261025adn1"></script>
-<script src="system-prompts-catalog.js?v=20261025adn1"></script>
-<script src="ejecutores-ui.js?v=20261025adn1"></script>
-<script src="ejecutores-catalog.js?v=20261025adn1"></script>
-<script src="catalogo-ui.js?v=20261025adn1"></script>
-<script src="flujos-corridas-ui.js?v=20261025adn1"></script>
-<script src="ajustes-ui.js?v=20261025adn1"></script>
+<script src="color-entidad-ui.js?v=20261025icon1"></script>
+<script src="skills-ui.js?v=20261025icon1"></script>
+<script src="campos-ancla-ui.js?v=20261025icon1"></script>
+<script src="campos-mongodb-ui.js?v=20261025icon1"></script>
+<script src="clusters-ui.js?v=20261025icon1"></script>
+<script src="proyectos-ui.js?v=20261025icon1"></script>
+<script src="colecciones-ui.js?v=20261025icon1"></script>
+<script src="agentes-ui.js?v=20261025icon1"></script>
+<script src="fundamentos-ui.js?v=20261025icon1"></script>
+<script src="system-prompts-ui.js?v=20261025icon1"></script>
+<script src="system-prompts-catalog.js?v=20261025icon1"></script>
+<script src="ejecutores-ui.js?v=20261025icon1"></script>
+<script src="ejecutores-catalog.js?v=20261025icon1"></script>
+<script src="catalogo-ui.js?v=20261025icon1"></script>
+<script src="flujos-corridas-ui.js?v=20261025icon1"></script>
+<script src="ajustes-ui.js?v=20261025icon1"></script>
 
 </body>
 </html>

@@ -142,7 +142,33 @@
           e('span', null, 'Agente')
         )
       ),
-      estado ? e('p', { className: 'estado', role: 'status' }, estado) : null,
+      estado
+        ? e('div', {
+            className: 'catalogo-vacio',
+            role: 'status',
+            key: 'vacio-' + estado,
+            ref: function (node) {
+              if (!node) return;
+              var fn = typeof window !== 'undefined' && window.svgPestanaCatalogo;
+              if (typeof fn !== 'function') {
+                node.textContent = estado;
+                return;
+              }
+              if (node.dataset.txt === estado && node.querySelector('.catalogo-fila-svg')) return;
+              node.dataset.txt = estado;
+              var tile = document.createElement('span');
+              tile.className = 'catalogo-vacio-icon';
+              tile.setAttribute('aria-hidden', 'true');
+              var svg = fn('agente');
+              svg.setAttribute('class', 'catalogo-fila-svg');
+              tile.append(svg);
+              var p = document.createElement('p');
+              p.className = 'catalogo-vacio-texto';
+              p.textContent = estado;
+              node.replaceChildren(tile, p);
+            }
+          })
+        : null,
       e('div', { className: 'catalogo-lista', role: 'list' },
         agentes.map(function (ag) {
           return e(AgenteFila, {

@@ -119,7 +119,11 @@
       if (!list.length) {
         if (vacio) {
           vacio.hidden = false;
-          vacio.textContent = 'Sin ejecuciones todavía.';
+          if (typeof window.pintarEstadoVacio === 'function') {
+            window.pintarEstadoVacio(vacio, { icono: 'pasos', texto: 'Sin ejecuciones todavía.' });
+          } else {
+            vacio.textContent = 'Sin ejecuciones todavía.';
+          }
         }
         return;
       }

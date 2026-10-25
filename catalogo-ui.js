@@ -67,6 +67,8 @@ function openFichaPane(dlg) {
     } catch (err) {}
   }
   syncFichaPaneClass();
+  if (typeof iconizarPestanasFicha === 'function') iconizarPestanasFicha(dlg);
+  if (typeof iconizarAccionesPanel === 'function') iconizarAccionesPanel(dlg);
 }
 
 function cerrarTodasFichasPane() {
@@ -1442,6 +1444,82 @@ function svgPestanaCatalogo(tipo) {
     svg.append(
       svgPath('M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z')
     );
+  } else if (tipo === 'copiar' || tipo === 'copy') {
+    // Lucide: copy
+    svg.append(
+      (function () {
+        const ns2 = 'http://www.w3.org/2000/svg';
+        const r = document.createElementNS(ns2, 'rect');
+        r.setAttribute('width', '14');
+        r.setAttribute('height', '14');
+        r.setAttribute('x', '8');
+        r.setAttribute('y', '8');
+        r.setAttribute('rx', '2');
+        r.setAttribute('ry', '2');
+        return r;
+      })(),
+      svgPath('M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2')
+    );
+  } else if (tipo === 'probar' || tipo === 'play' || tipo === 'lanzar') {
+    // Lucide: play
+    svg.append(svgPath('M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z'));
+  } else if (tipo === 'generar' || tipo === 'sparkles' || tipo === 'wand') {
+    // Lucide: sparkles
+    svg.append(
+      svgPath('M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z'),
+      svgPath('M20 3v4'),
+      svgPath('M22 5h-4'),
+      svgPath('M4 17v2'),
+      svgPath('M5 18H3')
+    );
+  } else if (tipo === 'filtrar' || tipo === 'filter') {
+    // Lucide: list-filter
+    svg.append(
+      svgPath('M3 6h18'),
+      svgPath('M7 12h10'),
+      svgPath('M10 18h4')
+    );
+  } else if (tipo === 'guardar' || tipo === 'save') {
+    // Lucide: save
+    svg.append(
+      svgPath('M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'),
+      svgPath('M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7'),
+      svgPath('M7 3v4a1 1 0 0 0 1 1h7')
+    );
+  } else if (tipo === 'cancelar' || tipo === 'cerrar' || tipo === 'x') {
+    // Lucide: x
+    svg.append(svgPath('M18 6 6 18'), svgPath('m6 6 12 12'));
+  } else if (tipo === 'n8n' || tipo === 'external' || tipo === 'abrir') {
+    // Lucide: external-link
+    svg.append(
+      svgPath('M15 3h6v6'),
+      svgPath('M10 14 21 3'),
+      svgPath('M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6')
+    );
+  } else if (tipo === 'vacio' || tipo === 'inbox' || tipo === 'empty') {
+    // Lucide: inbox
+    svg.append(
+      svgPolyline('22 12 16 12 14 15 10 15 8 12 2 12'),
+      svgPath('M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z')
+    );
+  } else if (tipo === 'editar' || tipo === 'pencil') {
+    // Lucide: pencil
+    svg.append(
+      svgPath('M12 20h9'),
+      svgPath('M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z')
+    );
+  } else if (tipo === 'cargar' || tipo === 'refresh') {
+    // Lucide: refresh-cw
+    svg.append(
+      svgPath('M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8'),
+      svgPath('M21 3v5h-5'),
+      svgPath('M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16'),
+      svgPath('M8 16H3v5')
+    );
+  } else if (tipo === 'anterior' || tipo === 'chevron-left') {
+    svg.append(svgPath('m15 18-6-6 6-6'));
+  } else if (tipo === 'siguiente' || tipo === 'chevron-right') {
+    svg.append(svgPath('m9 18 6-6-6-6'));
   }
   return svg;
 }
@@ -1489,7 +1567,10 @@ function iconoDePestanaFicha(tabId) {
     versiones: 'versiones',
     acl: 'acl',
     ancla: 'ancla',
-    cluster: 'cluster'
+    cluster: 'cluster',
+    agentes: 'agente',
+    agente: 'agente',
+    redactor: 'generar'
   };
   return mapa[tabId] || null;
 }
@@ -1521,7 +1602,8 @@ function iconizarPestanasFicha(root) {
         || btn.getAttribute('data-flujo-asoc-sub')
         || btn.getAttribute('data-flujo-corr-sub')
         || btn.getAttribute('data-ej-tab')
-        || btn.getAttribute('data-skill-io-sub');
+        || btn.getAttribute('data-skill-io-sub')
+        || btn.getAttribute('data-ajuste');
     }
     const tipo = iconoDePestanaFicha(tabId) || tabId;
     if (!tipo) return;
@@ -1532,8 +1614,95 @@ function iconizarPestanasFicha(root) {
   });
 }
 
+/**
+ * Empty state ADN: tile Lucide + una línea corta (mismo tono que catalogo-fila).
+ * opts: { icono, texto } · monta en el nodo o devuelve el fragmento.
+ */
+function pintarEstadoVacio(target, opts) {
+  opts = opts || {};
+  const texto = opts.texto == null ? '' : String(opts.texto);
+  const icono = opts.icono || 'vacio';
+  const wrap = document.createElement('div');
+  wrap.className = 'catalogo-vacio';
+  wrap.setAttribute('role', 'status');
+  const tile = document.createElement('span');
+  tile.className = 'catalogo-vacio-icon';
+  tile.setAttribute('aria-hidden', 'true');
+  const svg = svgPestanaCatalogo(icono);
+  svg.setAttribute('class', 'catalogo-fila-svg');
+  tile.append(svg);
+  const p = document.createElement('p');
+  p.className = 'catalogo-vacio-texto';
+  p.textContent = texto;
+  wrap.append(tile, p);
+  if (!target) return wrap;
+  if (typeof target === 'string') target = document.getElementById(target);
+  if (!target) return wrap;
+  target.hidden = false;
+  target.classList.add('catalogo-vacio-host');
+  target.replaceChildren(wrap);
+  return wrap;
+}
+
+/** Prefija Lucide en botones con data-accion-icon (CTA Probar/Generar/Copiar/…). */
+function iconizarBotonAccion(btn, tipoForce) {
+  if (!btn || btn.querySelector('.btn-accion-svg, .btn-anadir-svg, .pestana-svg')) return btn;
+  const tipo = tipoForce
+    || btn.getAttribute('data-accion-icon')
+    || btn.getAttribute('data-icon');
+  if (!tipo) return btn;
+  const svg = svgPestanaCatalogo(tipo);
+  svg.setAttribute('class', 'btn-accion-svg');
+  btn.classList.add('btn-con-icono');
+  const label = (btn.textContent || '').trim();
+  // Conserva nodos internos (p.ej. spans de btn-anadir); solo prefix en botones texto plano.
+  if (btn.children.length === 0) {
+    btn.textContent = '';
+    btn.append(svg);
+    if (label) btn.append(document.createTextNode(label));
+  } else {
+    btn.insertBefore(svg, btn.firstChild);
+  }
+  return btn;
+}
+
+/** Título de popup/modal con icono representativo a la izquierda. */
+function iconizarTituloDlg(elOrId, tipoForce) {
+  const h = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+  if (!h || h.querySelector('.dlg-titulo-svg, .pestana-svg')) return h;
+  const tipo = tipoForce || h.getAttribute('data-dlg-icon') || h.getAttribute('data-icon');
+  if (!tipo) return h;
+  const label = (h.textContent || '').trim();
+  const svg = svgPestanaCatalogo(tipo);
+  svg.setAttribute('class', 'dlg-titulo-svg');
+  h.classList.add('dlg-titulo');
+  h.textContent = '';
+  const tile = document.createElement('span');
+  tile.className = 'dlg-titulo-icon';
+  tile.setAttribute('aria-hidden', 'true');
+  tile.append(svg);
+  h.append(tile);
+  if (label) h.append(document.createTextNode(label));
+  return h;
+}
+
+/** Barrido estático: títulos dlg + CTAs con data-*-icon (una vez al boot / al abrir). */
+function iconizarAccionesPanel(root) {
+  const scope = root || document;
+  scope.querySelectorAll('[data-dlg-icon]').forEach(function (h) {
+    iconizarTituloDlg(h);
+  });
+  scope.querySelectorAll('[data-accion-icon]').forEach(function (btn) {
+    iconizarBotonAccion(btn);
+  });
+}
+
 window.svgPestanaCatalogo = svgPestanaCatalogo;
 window.iconoDePestanaFicha = iconoDePestanaFicha;
+window.pintarEstadoVacio = pintarEstadoVacio;
+window.iconizarBotonAccion = iconizarBotonAccion;
+window.iconizarTituloDlg = iconizarTituloDlg;
+window.iconizarAccionesPanel = iconizarAccionesPanel;
 
 function skillsBridge() {
   return {
@@ -4017,6 +4186,7 @@ function iniciar() {
     d.addEventListener('close', syncFichaPaneClass);
   });
   iconizarPestanasFicha();
+  iconizarAccionesPanel();
   render();
   cargarSkills();
   cargarCampos();
@@ -5160,7 +5330,11 @@ function pintarProyectoHistorialTabla() {
     lista.hidden = true;
     if (vacio && !st.loading) {
       vacio.hidden = false;
-      vacio.textContent = 'Sin empujes todavía para esta base.';
+      if (typeof pintarEstadoVacio === 'function') {
+        pintarEstadoVacio(vacio, { icono: 'historial', texto: 'Sin empujes todavía.' });
+      } else {
+        vacio.textContent = 'Sin empujes todavía para esta base.';
+      }
     }
   } else {
     lista.hidden = false;
@@ -6184,7 +6358,14 @@ function pintarCatalogoPicker(containerId, items, opts) {
   const list = Array.isArray(items) ? items : [];
   if (!list.length && opts.emptyMsg) {
     box.classList.remove('catalogo-lista');
-    box.append(el('p', 'ancla-ficha-vacio', opts.emptyMsg));
+    if (typeof pintarEstadoVacio === 'function') {
+      box.append(pintarEstadoVacio(null, {
+        icono: opts.emptyIcono || 'vacio',
+        texto: opts.emptyMsg
+      }));
+    } else {
+      box.append(el('p', 'ancla-ficha-vacio', opts.emptyMsg));
+    }
     return;
   }
   list.forEach(function (item) {
