@@ -5329,7 +5329,14 @@ async function startCorridaForDisparo(
     ts
   );
   // Fase 2: encolar primer paso (tras inicio) para el consumidor de la cola.
-  if (doc.paso_actual && !isTerminal(doc.estado)) {
+  // esperando_tiempo ya encola despertar con delay en applyAvanceToCorrida.
+  if (
+    doc.paso_actual &&
+    !isTerminal(doc.estado) &&
+    doc.estado !== 'esperando_tiempo' &&
+    doc.estado !== 'esperando_humano' &&
+    doc.estado !== 'esperando_hijo'
+  ) {
     if (doc.estado === 'pendiente') doc.estado = 'en_curso';
     await saveCorridaDoc(env, doc);
     await enqueueFirstPaso(pasosMotorDeps(env), doc);
