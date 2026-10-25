@@ -446,9 +446,9 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 @media(max-width:800px){.col-diagrama-split{grid-template-columns:1fr}.col-diagrama-campos-lista{max-height:none}}
 .col-datos-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,340px);gap:16px;align-items:start;margin-top:4px;min-height:0}
 .col-datos-tabla{min-width:0}
-.col-datos-tabla-wrap{max-height:min(62vh,560px);overflow:auto;border:1px solid #e5eaf1;border-radius:10px}
-.col-datos-table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.4}
-.col-datos-table th,.col-datos-table td{padding:8px 10px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.col-datos-tabla-wrap{max-height:min(62vh,560px);overflow:auto;border:1px solid #e5eaf1;border-radius:10px;-webkit-overflow-scrolling:touch}
+.col-datos-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;line-height:1.4}
+.col-datos-table th,.col-datos-table td{padding:8px 10px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top;white-space:nowrap;min-width:96px;max-width:220px;overflow:hidden;text-overflow:ellipsis}
 .col-datos-table th{position:sticky;top:0;background:#f4f7fb;color:#17212f;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;z-index:1}
 .col-datos-table tbody tr{cursor:pointer}
 .col-datos-table tbody tr:hover{background:#f5f8fc}
@@ -2297,7 +2297,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <script src="system-prompts-catalog.js?v=20261025tbayi1"></script>
 <script src="ejecutores-ui.js?v=20261025tbayi1"></script>
 <script src="ejecutores-catalog.js?v=20261025tbayi1"></script>
-<script src="catalogo-ui.js?v=20261025coldat1"></script>
+<script src="catalogo-ui.js?v=20261025coldat2"></script>
 <script src="flujos-corridas-ui.js?v=20261025motoru1"></script>
 <script src="ajustes-ui.js?v=20261025tbayi1"></script>
 

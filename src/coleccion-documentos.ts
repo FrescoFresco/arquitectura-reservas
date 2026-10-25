@@ -142,10 +142,20 @@ export function sanitizeFilter(
   return { filter: out as Filter<Document> };
 }
 
+export type BuiltProjection =
+  | { projection: Record<string, 1>; keys: string[]; fromCatalog: true }
+  | { projection: null; keys: string[]; fromCatalog: false }
+  | { error: string };
+
+/**
+ * Proyección del explorador: claves del catálogo Campos Mongo (+ `_id`).
+ * Si el catálogo no tiene campos (y no hay `fields`), no restringe el find:
+ * la lista de columnas se deriva de la primera página de documentos.
+ */
 export function buildProjection(
   campos: CatalogCampo[],
   opts?: { fields?: string; incluirSensible?: boolean }
-): { projection: Record<string, 1>; keys: string[] } | { error: string } {
+): BuiltProjection {
   const fields = String(opts?.fields || '').trim();
   if (fields === '*') {
     return { error: 'fields=* no permitido en el explorador (usa proyección de catálogo).' };
@@ -155,6 +165,10 @@ export function buildProjection(
   const catalogKeys = campos
     .filter((c) => c.clave && (incluirSensible || !c.sensible))
     .map((c) => c.clave);
+
+  if (!fields && catalogKeys.length === 0) {
+    return { projection: null, keys: ['_id'], fromCatalog: false };
+  }
 
   let keys: string[];
   if (fields) {
@@ -170,7 +184,30 @@ export function buildProjection(
 
   const projection: Record<string, 1> = {};
   for (const k of keys) projection[k] = 1;
-  return { projection, keys };
+  return { projection, keys, fromCatalog: true };
+}
+
+/** Claves top-level de la página (`_id` primero; orden estable por aparición). */
+export function deriveKeysFromDocs(docs: Record<string, unknown>[]): string[] {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const d of docs) {
+    for (const k of Object.keys(d || {})) {
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      keys.push(k);
+    }
+  }
+  if (!seen.has('_id')) {
+    keys.unshift('_id');
+  } else {
+    const i = keys.indexOf('_id');
+    if (i > 0) {
+      keys.splice(i, 1);
+      keys.unshift('_id');
+    }
+  }
+  return keys;
 }
 
 export function parseSort(
@@ -234,9 +271,9 @@ export async function listColeccionDocumentos(
   if (skip > 10_000) return { error: 'skip demasiado alto (máx 10000); usa after.', status: 400 };
 
   const col = db.collection(coleccion);
-  let cursor = col
-    .find(filter)
-    .project(proj.projection)
+  let cursor = col.find(filter);
+  if (proj.projection) cursor = cursor.project(proj.projection);
+  cursor = cursor
     .sort(sortRes.sort)
     .maxTimeMS(DOCS_MAX_TIME_MS)
     .limit(lim + 1);
@@ -250,12 +287,14 @@ export async function listColeccionDocumentos(
   const nextAfter =
     hasMore && last && last._id != null ? String(last._id) : null;
 
+  const projection = proj.fromCatalog ? proj.keys : deriveKeysFromDocs(documentos);
+
   return {
     limit: lim,
     count: documentos.length,
     nextAfter,
     hasMore,
-    projection: proj.keys,
+    projection,
     documentos,
   };
 }
