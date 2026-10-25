@@ -1860,6 +1860,25 @@ window.abrirAyudaFicha = abrirAyudaFicha;
 window.montarAyudaFicha = montarAyudaFicha;
 window.actualizarAyudaGrupo = actualizarAyudaGrupo;
 window.inicializarAyudasFicha = inicializarAyudasFicha;
+window.skillIoListas = skillIoListas;
+window.buscarInstruccionPorId = function (id) {
+  var sid = String(id || '').trim();
+  if (!sid) return null;
+  return (state.instrucciones || []).find(function (ins) { return ins && ins.id === sid; }) || null;
+};
+window.mergeInstruccionRemota = function (raw) {
+  if (!raw || !raw.id) return null;
+  var existing = (state.instrucciones || []).find(function (ins) { return ins && ins.id === raw.id; });
+  if (existing) {
+    if (raw.nombre != null) existing.nombre = raw.nombre;
+    if (raw.entradas != null) existing.entradas = raw.entradas;
+    if (raw.salidas != null) existing.salidas = raw.salidas;
+    if (raw.anclas != null) existing.anclas = raw.anclas;
+    return existing;
+  }
+  state.instrucciones.push(raw);
+  return raw;
+};
 
 function skillsBridge() {
   return {
@@ -4953,6 +4972,8 @@ function crearNodoSkillOperativa(skill, keepIn, keepOut, huecosSet, opts) {
   node.append(io);
   return node;
 }
+
+window.crearNodoSkillOperativa = crearNodoSkillOperativa;
 
 /** Preview centrado: misma caja que Operativa · Mapa, una sola skill (sin huecos/grafo). */
 function pintarSkillDiagrama(ins) {

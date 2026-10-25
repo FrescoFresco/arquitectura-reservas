@@ -244,6 +244,31 @@ dialog::backdrop{background:#17212f66}
 .op-cap:focus-visible{outline:2px solid #1c63d5;outline-offset:1px}
 .operativa-edge{fill:none;stroke:#5b7399;stroke-width:1.85}
 .operativa-mapa-vacio{margin:8px 0 0}
+#flujoGrafoResumen.flujo-diagrama-host,#flujoGrafoRender.flujo-diagrama-host{overflow:visible;background:transparent;border:0;padding:0;min-height:0}
+.flujo-diagrama{position:relative;overflow:auto;max-height:min(72vh,680px);padding:4px 2px 12px;margin:0}
+.flujo-diagrama-edges{position:absolute;left:0;top:0;z-index:3;pointer-events:none;overflow:visible;max-width:none;height:auto}
+.flujo-diagrama-cols{position:relative;z-index:2;display:flex;gap:72px;align-items:center;width:max-content;min-width:100%;padding:18px 12px}
+.flujo-diagrama-col{display:flex;flex-direction:column;gap:28px;flex:none;align-items:center}
+.flujo-diagrama .op-skill-node{flex:none}
+.flujo-nodo{position:relative;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;color:#17212f;background:#fff;border:1px solid #c9d5e8;box-shadow:0 1px 2px rgba(23,33,47,.04)}
+.flujo-nodo-terminal{width:78px;height:78px;border-radius:999px;padding:8px;background:#f5f8fc}
+.flujo-nodo-terminal.is-fin{background:#eef6f1;border-color:#b7e4c7}
+.flujo-nodo-terminal .flujo-nodo-label{font-size:11px;font-weight:800;letter-spacing:.02em;text-transform:uppercase}
+.flujo-nodo-decision{width:118px;height:118px;padding:0;border:0;background:transparent;box-shadow:none}
+.flujo-nodo-decision-diamond{width:82px;height:82px;display:flex;align-items:center;justify-content:center;background:#fff8ef;border:1.5px solid #d9b98a;transform:rotate(45deg);border-radius:10px;box-shadow:0 1px 2px rgba(23,33,47,.04)}
+.flujo-nodo-decision-inner{transform:rotate(-45deg);display:flex;flex-direction:column;align-items:center;gap:2px;max-width:72px;padding:4px}
+.flujo-nodo-decision-inner .flujo-nodo-label{font-size:11px;font-weight:800}
+.flujo-nodo-decision-inner .flujo-nodo-meta{font-size:9px;line-height:1.25;color:#677488;overflow-wrap:anywhere;max-height:2.6em;overflow:hidden}
+.flujo-nodo-espera,.flujo-nodo-subflujo{min-width:132px;max-width:180px;min-height:70px;padding:10px 12px;border-radius:12px}
+.flujo-nodo-espera{background:#f8fafc;border-color:#c5d0e0}
+.flujo-nodo-subflujo{background:#f3faf8;border-color:#b7d9cf}
+.flujo-nodo-icon{width:18px;height:18px;color:#4a5d78;flex:none}
+.flujo-nodo-icon .pestana-svg,.flujo-nodo-icon svg{width:18px;height:18px;display:block}
+.flujo-nodo-label{font-size:12px;font-weight:800;letter-spacing:-.01em;overflow-wrap:anywhere}
+.flujo-nodo-meta{font-size:10px;color:#677488;overflow-wrap:anywhere}
+.flujo-edge{fill:none;stroke:#3d5a80;stroke-width:3.1}
+.flujo-edge-ancla{fill:none;stroke:#7c93b8;stroke-width:1.25;opacity:.75}
+.flujo-edge-label{font-size:11px;font-weight:800;fill:#5f6f84}
 .catalogo-fila.is-warn{border-color:#f0b8b2;background:#fff5f4}
 .catalogo-fila.is-warn .catalogo-fila-titulo{color:#7f1d1d}
 .catalogo-fila.is-ok-tint{border-color:#b7e4c7;background:#f3fbf6}
@@ -892,8 +917,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila"><dt>Descripción</dt><dd id="flujoReaderDesc">—</dd></div>
 <div class="ancla-ficha-fila"><dt>Nodos</dt><dd id="flujoReaderNodosCount">—</dd></div>
 </dl>
-<template data-ficha-ayuda data-titulo="Resumen" data-host="#flujoPanelResumen">Grafo (Mermaid) de la versión abierta del flujo.</template>
-<div class="proy-diagrama-render" id="flujoGrafoResumen"></div>
+<template data-ficha-ayuda data-titulo="Resumen" data-host="#flujoPanelResumen">Plan ejecutable del flujo: nodos tipados (inicio/fin, skill con Entradas|Salidas, decisión, espera, subflujo) y flechas de orden (<code>aristas</code>). No incluye disparadores ni corridas.</template>
+<div class="proy-diagrama-render" id="flujoGrafoResumen" role="img" aria-label="Diagrama del flujo"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelAsociados" role="tabpanel" aria-labelledby="flujoTabAsociados" hidden>
 <div class="ancla-ficha-tabs reader-tabs asociados-subtabs" id="flujoAsociadosSubtabs" role="tablist" aria-label="Vínculos estructurales del flujo">
@@ -912,8 +937,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelDocumento" role="tabpanel" aria-labelledby="flujoTabDocumento" hidden>
-<template data-ficha-ayuda data-titulo="Documento" data-host="#flujoPanelDocumento">Grafo del flujo (Mermaid) y lista de nodos/aristas. Editar abre el JSON (redactor).</template>
-<div class="proy-diagrama-render" id="flujoGrafoRender"></div>
+<template data-ficha-ayuda data-titulo="Documento" data-host="#flujoPanelDocumento">Mismo diagrama visual del plan ejecutable, más lista tipada de nodos y ASCII. Editar abre el JSON (redactor).</template>
+<div class="proy-diagrama-render" id="flujoGrafoRender" role="img" aria-label="Diagrama del flujo"></div>
 <pre class="flujo-grafo-ascii" id="flujoGrafoAscii" hidden></pre>
 <div id="flujoNodosLista" class="proy-tab-catalogo catalogo-lista flujo-nodos-lista" role="list"></div>
 <div id="flujoEditWrap" hidden>
@@ -2207,22 +2232,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261025skdiag1"></script>
-<script src="skills-ui.js?v=20261025skdiag1"></script>
-<script src="campos-ancla-ui.js?v=20261025skdiag1"></script>
-<script src="campos-mongodb-ui.js?v=20261025skdiag1"></script>
-<script src="clusters-ui.js?v=20261025skdiag1"></script>
-<script src="proyectos-ui.js?v=20261025skdiag1"></script>
-<script src="colecciones-ui.js?v=20261025skdiag1"></script>
-<script src="agentes-ui.js?v=20261025skdiag1"></script>
-<script src="fundamentos-ui.js?v=20261025skdiag1"></script>
-<script src="system-prompts-ui.js?v=20261025skdiag1"></script>
-<script src="system-prompts-catalog.js?v=20261025skdiag1"></script>
-<script src="ejecutores-ui.js?v=20261025skdiag1"></script>
-<script src="ejecutores-catalog.js?v=20261025skdiag1"></script>
-<script src="catalogo-ui.js?v=20261025skdiag1"></script>
-<script src="flujos-corridas-ui.js?v=20261025skdiag1"></script>
-<script src="ajustes-ui.js?v=20261025skdiag1"></script>
+<script src="color-entidad-ui.js?v=20261025flujo1"></script>
+<script src="skills-ui.js?v=20261025flujo1"></script>
+<script src="campos-ancla-ui.js?v=20261025flujo1"></script>
+<script src="campos-mongodb-ui.js?v=20261025flujo1"></script>
+<script src="clusters-ui.js?v=20261025flujo1"></script>
+<script src="proyectos-ui.js?v=20261025flujo1"></script>
+<script src="colecciones-ui.js?v=20261025flujo1"></script>
+<script src="agentes-ui.js?v=20261025flujo1"></script>
+<script src="fundamentos-ui.js?v=20261025flujo1"></script>
+<script src="system-prompts-ui.js?v=20261025flujo1"></script>
+<script src="system-prompts-catalog.js?v=20261025flujo1"></script>
+<script src="ejecutores-ui.js?v=20261025flujo1"></script>
+<script src="ejecutores-catalog.js?v=20261025flujo1"></script>
+<script src="catalogo-ui.js?v=20261025flujo1"></script>
+<script src="flujos-corridas-ui.js?v=20261025flujo1"></script>
+<script src="ajustes-ui.js?v=20261025flujo1"></script>
 
 </body>
 </html>

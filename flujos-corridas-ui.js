@@ -524,11 +524,430 @@
     }
   }
 
+  function labelCondicionFlujo(cond) {
+    if (!cond || typeof cond !== 'object') return '';
+    try {
+      if (cond.eq && Array.isArray(cond.eq)) {
+        return String(cond.eq[0] || '') + ' = ' + JSON.stringify(cond.eq[1]);
+      }
+      if (cond.neq && Array.isArray(cond.neq)) {
+        return String(cond.neq[0] || '') + ' ≠ ' + JSON.stringify(cond.neq[1]);
+      }
+      if (cond.exists != null) return '∃ ' + String(cond.exists);
+      if (cond.truthy != null) return String(cond.truthy);
+    } catch (e) { /* ignore */ }
+    return '';
+  }
+
+  function flujoNiveles(nodos, aristas) {
+    var list = Array.isArray(nodos) ? nodos : [];
+    var ids = list.map(function (n) { return n.id; });
+    var idSet = {};
+    ids.forEach(function (id) { idSet[id] = true; });
+    var preds = {};
+    ids.forEach(function (id) { preds[id] = []; });
+    (aristas || []).forEach(function (a) {
+      if (!a || !idSet[a.desde] || !idSet[a.hacia] || a.desde === a.hacia) return;
+      if (preds[a.hacia].indexOf(a.desde) === -1) preds[a.hacia].push(a.desde);
+    });
+    var level = {};
+    ids.forEach(function (id) { level[id] = 0; });
+    var changed = true;
+    var guard = 0;
+    while (changed && guard++ < ids.length + 3) {
+      changed = false;
+      ids.forEach(function (id) {
+        var maxP = -1;
+        preds[id].forEach(function (p) {
+          if ((level[p] || 0) > maxP) maxP = level[p];
+        });
+        var next = maxP + 1;
+        if (next > level[id]) {
+          level[id] = next;
+          changed = true;
+        }
+      });
+    }
+    var maxL = 0;
+    ids.forEach(function (id) {
+      if (level[id] > maxL) maxL = level[id];
+    });
+    var cols = [];
+    for (var i = 0; i <= maxL; i++) cols.push([]);
+    list.forEach(function (n) {
+      cols[level[n.id] || 0].push(n);
+    });
+    return cols;
+  }
+
+  function skillPayloadParaNodo(nodo) {
+    var skillId = nodo && nodo.skill ? String(nodo.skill).trim() : '';
+    var ins = skillId && typeof window.buscarInstruccionPorId === 'function'
+      ? window.buscarInstruccionPorId(skillId)
+      : null;
+    var io = typeof window.skillIoListas === 'function'
+      ? window.skillIoListas(ins || { id: skillId, entradas: [], salidas: [] })
+      : { entradas: (ins && ins.entradas) || [], salidas: (ins && ins.salidas) || [] };
+    return {
+      id: skillId || (nodo && nodo.id) || '',
+      nombre: (ins && (ins.nombre || ins.id)) || skillId || (nodo && nodo.label) || (nodo && nodo.id) || 'skill',
+      entradas: io.entradas || [],
+      salidas: io.salidas || []
+    };
+  }
+
+  function crearNodoFlujoSimple(nodo) {
+    var tipo = String((nodo && nodo.tipo) || '').toLowerCase();
+    if (tipo === 'decisión') tipo = 'decision';
+    var el = document.createElement('div');
+    el.className = 'flujo-nodo';
+    el.setAttribute('data-flujo-nodo-id', nodo.id);
+    el.setAttribute('data-flujo-tipo', tipo);
+
+    function iconWrap(kind) {
+      var wrap = document.createElement('span');
+      wrap.className = 'flujo-nodo-icon';
+      wrap.setAttribute('aria-hidden', 'true');
+      if (typeof window.svgPestanaCatalogo === 'function') {
+        var svg = window.svgPestanaCatalogo(kind);
+        if (svg) {
+          svg.classList.remove('pestana-svg');
+          wrap.append(svg);
+        }
+      }
+      return wrap;
+    }
+
+    if (tipo === 'inicio' || tipo === 'fin') {
+      el.classList.add('flujo-nodo-terminal');
+      if (tipo === 'fin') el.classList.add('is-fin');
+      el.append(iconWrap('pasos'));
+      var lab = document.createElement('span');
+      lab.className = 'flujo-nodo-label';
+      lab.textContent = nodo.label || tipo;
+      el.append(lab);
+      return el;
+    }
+
+    if (tipo === 'decision') {
+      el.classList.add('flujo-nodo-decision');
+      var diamond = document.createElement('div');
+      diamond.className = 'flujo-nodo-decision-diamond';
+      var inner = document.createElement('div');
+      inner.className = 'flujo-nodo-decision-inner';
+      inner.append(iconWrap('diagrama'));
+      var dlab = document.createElement('span');
+      dlab.className = 'flujo-nodo-label';
+      dlab.textContent = nodo.label || 'decisión';
+      inner.append(dlab);
+      var meta = labelCondicionFlujo(nodo.condicion);
+      if (meta) {
+        var m = document.createElement('span');
+        m.className = 'flujo-nodo-meta';
+        m.textContent = meta;
+        m.title = meta;
+        inner.append(m);
+      }
+      diamond.append(inner);
+      el.append(diamond);
+      return el;
+    }
+
+    if (tipo === 'espera') {
+      el.classList.add('flujo-nodo-espera');
+      el.append(iconWrap('historial'));
+      var elab = document.createElement('span');
+      elab.className = 'flujo-nodo-label';
+      elab.textContent = nodo.label || 'espera';
+      el.append(elab);
+      return el;
+    }
+
+    if (tipo === 'subflujo') {
+      el.classList.add('flujo-nodo-subflujo');
+      el.append(iconWrap('flujos'));
+      var slab = document.createElement('span');
+      slab.className = 'flujo-nodo-label';
+      slab.textContent = nodo.label || 'subflujo';
+      el.append(slab);
+      if (nodo.flujo_id) {
+        var sm = document.createElement('span');
+        sm.className = 'flujo-nodo-meta';
+        sm.textContent = nodo.flujo_id;
+        el.append(sm);
+      }
+      return el;
+    }
+
+    el.classList.add('flujo-nodo-espera');
+    var flab = document.createElement('span');
+    flab.className = 'flujo-nodo-label';
+    flab.textContent = nodo.label || nodo.id || tipo || 'nodo';
+    el.append(flab);
+    return el;
+  }
+
+  function crearNodoFlujoSkill(nodo) {
+    var skill = skillPayloadParaNodo(nodo);
+    var keepIn = {};
+    var keepOut = {};
+    (skill.entradas || []).forEach(function (a) { keepIn[a] = true; });
+    (skill.salidas || []).forEach(function (a) { keepOut[a] = true; });
+    var mk = typeof window.crearNodoSkillOperativa === 'function'
+      ? window.crearNodoSkillOperativa
+      : null;
+    var node;
+    if (mk) {
+      node = mk(skill, keepIn, keepOut, null, { preview: false });
+    } else {
+      node = document.createElement('article');
+      node.className = 'op-skill-node';
+      node.textContent = skill.nombre;
+    }
+    node.setAttribute('data-flujo-nodo-id', nodo.id);
+    node.setAttribute('data-flujo-tipo', 'skill');
+    if (skill.id) node.setAttribute('data-skill-id', skill.id);
+    return node;
+  }
+
+  function crearNodoFlujoDom(nodo) {
+    var tipo = String((nodo && nodo.tipo) || '').toLowerCase();
+    if (tipo === 'skill') return crearNodoFlujoSkill(nodo);
+    return crearNodoFlujoSimple(nodo);
+  }
+
+  function findFlujoNodoEl(root, id) {
+    if (!root || !id) return null;
+    return root.querySelector('[data-flujo-nodo-id="' + String(id).replace(/"/g, '') + '"]');
+  }
+
+  function anclasCompartidasSkillArista(nodosById, a) {
+    var desde = nodosById[a.desde];
+    var hacia = nodosById[a.hacia];
+    if (!desde || !hacia || desde.tipo !== 'skill' || hacia.tipo !== 'skill') return [];
+    var out = skillPayloadParaNodo(desde);
+    var inn = skillPayloadParaNodo(hacia);
+    var setOut = {};
+    (out.salidas || []).forEach(function (x) { setOut[x] = true; });
+    return (inn.entradas || []).filter(function (x) { return setOut[x]; });
+  }
+
+  function destruirFlujoDiagrama(root) {
+    if (!root) return;
+    if (root._flujoMapRo && typeof root._flujoMapRo.disconnect === 'function') {
+      root._flujoMapRo.disconnect();
+    }
+    root._flujoMapRo = null;
+    if (root._flujoMapOnResize) {
+      window.removeEventListener('resize', root._flujoMapOnResize);
+      root._flujoMapOnResize = null;
+    }
+    root._flujoAristas = null;
+    root._flujoNodosById = null;
+  }
+
+  function dibujarFlujoEdges(root) {
+    if (!root) return;
+    var svg = root.querySelector('.flujo-diagrama-edges');
+    if (!svg) return;
+    var w = Math.max(root.clientWidth, root.scrollWidth);
+    var h = Math.max(root.clientHeight, root.scrollHeight);
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var token = root._flujoMapToken || 'f';
+    var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    function makeMarker(id, fill) {
+      var marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+      marker.setAttribute('id', id);
+      marker.setAttribute('viewBox', '0 0 10 10');
+      marker.setAttribute('refX', '9');
+      marker.setAttribute('refY', '5');
+      marker.setAttribute('markerWidth', '7');
+      marker.setAttribute('markerHeight', '7');
+      marker.setAttribute('orient', 'auto-start-reverse');
+      var tip = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      tip.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+      tip.setAttribute('fill', fill);
+      marker.appendChild(tip);
+      return marker;
+    }
+    defs.appendChild(makeMarker('flujoArrow' + token, '#3d5a80'));
+    defs.appendChild(makeMarker('flujoArrowThin' + token, '#7c93b8'));
+    svg.appendChild(defs);
+    var rootRect = root.getBoundingClientRect();
+    var aristas = root._flujoAristas || [];
+    var nodosById = root._flujoNodosById || {};
+    var markerUrl = 'url(#flujoArrow' + token + ')';
+    var thinUrl = 'url(#flujoArrowThin' + token + ')';
+
+    function anchorPoint(el, side) {
+      if (!el) return null;
+      var r = el.getBoundingClientRect();
+      var x = side === 'right'
+        ? r.right - rootRect.left + root.scrollLeft
+        : r.left - rootRect.left + root.scrollLeft;
+      var y = r.top + r.height / 2 - rootRect.top + root.scrollTop;
+      return { x: x, y: y };
+    }
+
+    aristas.forEach(function (a) {
+      if (!a) return;
+      var fromEl = findFlujoNodoEl(root, a.desde);
+      var toEl = findFlujoNodoEl(root, a.hacia);
+      if (!fromEl || !toEl) return;
+      var p1 = anchorPoint(fromEl, 'right');
+      var p2 = anchorPoint(toEl, 'left');
+      if (!p1 || !p2) return;
+      var dx = Math.max(40, Math.abs(p2.x - p1.x) * 0.4);
+      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('class', 'flujo-edge');
+      path.setAttribute(
+        'd',
+        'M' + p1.x + ',' + p1.y + ' C' + (p1.x + dx) + ',' + p1.y + ' ' + (p2.x - dx) + ',' + p2.y + ' ' + p2.x + ',' + p2.y
+      );
+      path.setAttribute('marker-end', markerUrl);
+      svg.appendChild(path);
+      if (typeof a.cuando === 'boolean') {
+        var midX = (p1.x + p2.x) / 2;
+        var midY = (p1.y + p2.y) / 2 - 8;
+        var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('class', 'flujo-edge-label');
+        text.setAttribute('x', String(midX));
+        text.setAttribute('y', String(midY));
+        text.setAttribute('text-anchor', 'middle');
+        text.textContent = a.cuando ? 'sí' : 'no';
+        svg.appendChild(text);
+      }
+      var shared = anclasCompartidasSkillArista(nodosById, a);
+      if (shared.length && shared.length <= 6) {
+        shared.forEach(function (ancla, idx) {
+          var fromCap = fromEl.querySelector('[data-op-cap="salida"][data-ancla="' + ancla.replace(/"/g, '') + '"]');
+          var toCap = toEl.querySelector('[data-op-cap="entrada"][data-ancla="' + ancla.replace(/"/g, '') + '"]');
+          if (!fromCap || !toCap) return;
+          var c1 = fromCap.getBoundingClientRect();
+          var c2 = toCap.getBoundingClientRect();
+          var x1 = c1.right - rootRect.left + root.scrollLeft;
+          var y1 = c1.top + c1.height / 2 - rootRect.top + root.scrollTop;
+          var x2 = c2.left - rootRect.left + root.scrollLeft;
+          var y2 = c2.top + c2.height / 2 - rootRect.top + root.scrollTop;
+          var tdx = Math.max(28, Math.abs(x2 - x1) * 0.35);
+          var thin = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          thin.setAttribute('class', 'flujo-edge-ancla');
+          thin.setAttribute(
+            'd',
+            'M' + x1 + ',' + y1 + ' C' + (x1 + tdx) + ',' + y1 + ' ' + (x2 - tdx) + ',' + y2 + ' ' + x2 + ',' + y2
+          );
+          thin.setAttribute('marker-end', thinUrl);
+          thin.setAttribute('data-ancla', ancla);
+          thin.style.opacity = String(Math.max(0.45, 0.85 - idx * 0.08));
+          svg.appendChild(thin);
+        });
+      }
+    });
+  }
+
+  function renderFlujoDiagrama(el, flujo) {
+    if (!el) return;
+    if (el._flujoMapRoot) destruirFlujoDiagrama(el._flujoMapRoot);
+    el._flujoMapRoot = null;
+    el.replaceChildren();
+    el.hidden = false;
+    el.classList.add('flujo-diagrama-host');
+    var nodos = (flujo && Array.isArray(flujo.nodos)) ? flujo.nodos : [];
+    var aristas = (flujo && Array.isArray(flujo.aristas)) ? flujo.aristas : [];
+    if (!nodos.length) {
+      if (typeof window.pintarEstadoVacio === 'function') {
+        window.pintarEstadoVacio(el, {
+          icono: 'flujo',
+          texto: 'Sin nodos en esta versión del flujo.'
+        });
+      } else {
+        el.textContent = 'Sin nodos en esta versión del flujo.';
+      }
+      return;
+    }
+    var byId = {};
+    nodos.forEach(function (n) { if (n && n.id) byId[n.id] = n; });
+
+    var root = document.createElement('div');
+    root.className = 'flujo-diagrama';
+    root.setAttribute('role', 'img');
+    root.setAttribute('aria-label', 'Diagrama del plan ejecutable del flujo');
+    root._flujoMapToken = 't' + String(Date.now());
+    root._flujoAristas = aristas;
+    root._flujoNodosById = byId;
+
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'flujo-diagrama-edges');
+    svg.setAttribute('aria-hidden', 'true');
+    root.appendChild(svg);
+
+    var colsWrap = document.createElement('div');
+    colsWrap.className = 'flujo-diagrama-cols';
+    var niveles = flujoNiveles(nodos, aristas);
+    niveles.forEach(function (colNodos) {
+      var col = document.createElement('div');
+      col.className = 'flujo-diagrama-col';
+      colNodos.forEach(function (n) {
+        col.append(crearNodoFlujoDom(n));
+      });
+      colsWrap.append(col);
+    });
+    root.appendChild(colsWrap);
+    el.append(root);
+    el._flujoMapRoot = root;
+
+    function redraw() {
+      dibujarFlujoEdges(root);
+    }
+    root._flujoMapOnResize = redraw;
+    window.addEventListener('resize', redraw);
+    if (typeof ResizeObserver === 'function') {
+      root._flujoMapRo = new ResizeObserver(function () { redraw(); });
+      root._flujoMapRo.observe(root);
+      root._flujoMapRo.observe(colsWrap);
+    }
+    requestAnimationFrame(function () {
+      requestAnimationFrame(redraw);
+    });
+  }
+
+  function asegurarSkillsFlujoDiagrama(f, done) {
+    var ids = skillsDelGrafo(f);
+    var missing = ids.filter(function (id) {
+      return !(typeof window.buscarInstruccionPorId === 'function' && window.buscarInstruccionPorId(id));
+    });
+    if (!missing.length) {
+      done();
+      return;
+    }
+    var fetchFn = typeof window.apiFetch === 'function' ? window.apiFetch : null;
+    if (!fetchFn) {
+      done();
+      return;
+    }
+    fetchFn('/v1/skills')
+      .then(function (data) {
+        var list = (data && data.skills) || (data && data.instrucciones) || [];
+        if (!Array.isArray(list)) list = [];
+        list.forEach(function (raw) {
+          if (typeof window.mergeInstruccionRemota === 'function') window.mergeInstruccionRemota(raw);
+        });
+      })
+      .catch(function () { /* preview con datos parciales */ })
+      .then(function () { done(); });
+  }
+
   function pintarFlujoResumenGrafo() {
     var f = st.flujoAbierto;
     if (!f) return;
-    var src = f.mermaid || mermaidLocal(f.nodos, f.aristas);
-    renderGrafoEn(document.getElementById('flujoGrafoResumen'), src);
+    var el = document.getElementById('flujoGrafoResumen');
+    asegurarSkillsFlujoDiagrama(f, function () {
+      if (st.flujoAbierto !== f) return;
+      renderFlujoDiagrama(el, f);
+    });
   }
 
   function pintarFlujoDocumento() {
@@ -537,8 +956,10 @@
     var render = document.getElementById('flujoGrafoRender');
     var ascii = document.getElementById('flujoGrafoAscii');
     var lista = document.getElementById('flujoNodosLista');
-    var src = f.mermaid || mermaidLocal(f.nodos, f.aristas);
-    renderGrafoEn(render, src);
+    asegurarSkillsFlujoDiagrama(f, function () {
+      if (st.flujoAbierto !== f) return;
+      renderFlujoDiagrama(render, f);
+    });
     if (ascii) {
       ascii.hidden = false;
       ascii.textContent = asciiGrafo(f.nodos, f.aristas);
