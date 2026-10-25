@@ -797,13 +797,22 @@ export async function processPasoMessage(
     return 'ack';
   }
 
+  const esperaYaHecha =
+    nodo.tipo === 'espera' &&
+    (doc.pasos || []).some((p) => p.nodo_id === nodoId && p.estado === 'hecho');
+
   const despertarEspera =
+    !esperaYaHecha &&
     doc.estado === 'esperando_tiempo' &&
     nodo.tipo === 'espera' &&
     (msg.despertar === true || (await leaseVencido(deps.env.DB, corridaId, deps.nowIso())));
 
   // Si aún espera tiempo y no toca despertar, no re-ejecutar
   if (doc.estado === 'esperando_tiempo' && !despertarEspera) {
+    return 'ack';
+  }
+  // Mensaje tardío tras adelantar/despertar ya consumido
+  if (esperaYaHecha && msg.despertar) {
     return 'ack';
   }
 
@@ -1050,6 +1059,17 @@ export async function processPasoMessage(
     }
 
     if (nodo.tipo === 'espera') {
+      // Si el paso de espera ya está hecho (adelantar / despertar previo), no rearmar.
+      const yaHecho = (doc.pasos || []).some(
+        (p) => p.nodo_id === nodoId && p.estado === 'hecho'
+      );
+      if (yaHecho) {
+        doc.estado = 'en_curso';
+        await deps.saveCorridaDoc(doc);
+        await releaseLease(deps.env.DB, corridaId);
+        await enqueueNext(deps, doc, flujo, nodoId, 0);
+        return 'ack';
+      }
       const tsEspera = deps.nowIso();
       const segundos = Math.max(0, Math.floor(Number(nodo.segundos) || 0));
       if (segundos > 0) {
