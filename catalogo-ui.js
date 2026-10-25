@@ -1737,8 +1737,24 @@ function abrirAyudaFicha(titulo, cuerpoHtml) {
   else dlg.setAttribute('open', '');
 }
 
+/** Primera toolbar de acciones del panel (misma fila que la (i)). */
+function encontrarToolbarAyuda(host) {
+  if (!host || !host.children) return null;
+  for (let i = 0; i < host.children.length; i++) {
+    const el = host.children[i];
+    if (!el || !el.classList) continue;
+    if (el.tagName === 'TEMPLATE') continue;
+    if (el.classList.contains('ficha-ayuda-bar')) continue;
+    if (el.classList.contains('catalogo-toolbar') || el.classList.contains('ficha-catalogo-toolbar')) {
+      return el;
+    }
+  }
+  return null;
+}
+
 /**
- * Monta una sola (i) por vista: a la derecha de la fila de subtabs, o arriba-derecha del panel.
+ * Monta una sola (i) por vista: a la derecha de subtabs, a la derecha de la toolbar
+ * de acciones (Lanzar / Añadir…), o arriba-derecha del panel si no hay fila.
  * opts: { titulo, html }
  */
 function montarAyudaFicha(host, opts) {
@@ -1748,17 +1764,26 @@ function montarAyudaFicha(host, opts) {
   let bar = host.classList && host.classList.contains('ficha-ayuda-bar')
     ? host
     : (host.closest && host.closest('.ficha-ayuda-bar'));
+  if (!bar && host.querySelector) {
+    bar = host.querySelector(':scope > .ficha-ayuda-bar');
+  }
   const esTablist = host.getAttribute && (
     host.getAttribute('role') === 'tablist'
     || host.classList.contains('ancla-ficha-tabs')
     || host.classList.contains('reader-tabs')
   );
+  const esToolbar = !!(host.classList && (
+    host.classList.contains('catalogo-toolbar')
+    || host.classList.contains('ficha-catalogo-toolbar')
+  ));
+  const toolbar = (!esTablist && !esToolbar && !bar) ? encontrarToolbarAyuda(host) : null;
+  const fila = esTablist || esToolbar ? host : toolbar;
   if (!bar) {
     bar = document.createElement('div');
     bar.className = 'ficha-ayuda-bar';
-    if (esTablist && host.parentNode) {
-      host.parentNode.insertBefore(bar, host);
-      bar.appendChild(host);
+    if (fila && fila.parentNode) {
+      fila.parentNode.insertBefore(bar, fila);
+      bar.appendChild(fila);
     } else {
       bar.classList.add('ficha-ayuda-bar--solo');
       if (host.firstChild) host.insertBefore(bar, host.firstChild);
