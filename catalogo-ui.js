@@ -4789,6 +4789,319 @@ window.seleccionarProyReaderTab = seleccionarProyReaderTab;
 window.seleccionarCatalogo = seleccionarCatalogo;
 window.abrirProyecto = abrirProyecto;
 
+/** Máx. cápsulas visibles por columna I/O en el mapa (las cableadas/hueco siempre caben). */
+var OP_MAPA_MAX_CAPS = 6;
+
+function etiquetaAnclaCorta(ancla) {
+  var s = String(ancla || '').replace(/^_|_$/g, '');
+  if (!s) return '—';
+  var parts = s.split('.');
+  var last = parts[parts.length - 1] || s;
+  if (last.length > 18) return last.slice(0, 16) + '…';
+  return last;
+}
+
+function operativaNiveles(skills, enlaces) {
+  var list = Array.isArray(skills) ? skills : [];
+  var ids = list.map(function (s) { return s.id; });
+  var idSet = {};
+  ids.forEach(function (id) { idSet[id] = true; });
+  var preds = {};
+  ids.forEach(function (id) { preds[id] = []; });
+  (enlaces || []).forEach(function (e) {
+    if (!e || !idSet[e.desde] || !idSet[e.hacia] || e.desde === e.hacia) return;
+    if (preds[e.hacia].indexOf(e.desde) === -1) preds[e.hacia].push(e.desde);
+  });
+  var level = {};
+  ids.forEach(function (id) { level[id] = 0; });
+  var changed = true;
+  var guard = 0;
+  while (changed && guard++ < ids.length + 3) {
+    changed = false;
+    ids.forEach(function (id) {
+      var maxP = -1;
+      preds[id].forEach(function (p) {
+        if ((level[p] || 0) > maxP) maxP = level[p];
+      });
+      var next = maxP + 1;
+      if (next > level[id]) {
+        level[id] = next;
+        changed = true;
+      }
+    });
+  }
+  var maxL = 0;
+  ids.forEach(function (id) {
+    if (level[id] > maxL) maxL = level[id];
+  });
+  var cols = [];
+  for (var i = 0; i <= maxL; i++) cols.push([]);
+  list.forEach(function (s) {
+    cols[level[s.id] || 0].push(s);
+  });
+  return cols;
+}
+
+function seleccionarCapsulasMapa(anclas, mustKeep, maxVisible) {
+  var list = Array.isArray(anclas) ? anclas.slice() : [];
+  var keep = mustKeep || {};
+  var max = Math.max(1, maxVisible || OP_MAPA_MAX_CAPS);
+  var priority = [];
+  var rest = [];
+  list.forEach(function (a) {
+    if (keep[a]) priority.push(a);
+    else rest.push(a);
+  });
+  var visible = priority.slice();
+  var i;
+  for (i = 0; i < rest.length && visible.length < max; i++) visible.push(rest[i]);
+  var hidden = rest.slice(i);
+  return { visible: visible, hidden: hidden };
+}
+
+function crearCapsulaOperativa(ancla, side, skillId, opts) {
+  opts = opts || {};
+  var code = document.createElement('code');
+  code.className = 'ancla-pill op-cap' + (opts.hueco ? ' is-hueco' : '');
+  code.setAttribute('data-op-cap', side);
+  code.setAttribute('data-skill', skillId);
+  code.setAttribute('data-ancla', ancla);
+  code.title = ancla + (opts.hueco ? ' (entrada sin productor)' : '');
+  code.textContent = etiquetaAnclaCorta(ancla);
+  code.tabIndex = 0;
+  code.setAttribute('role', 'button');
+  function abrir() {
+    if (typeof abrirFichaAncla === 'function') abrirFichaAncla(ancla);
+  }
+  code.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    abrir();
+  });
+  code.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      abrir();
+    }
+  });
+  return code;
+}
+
+function pintarColumnaIoSkill(colEl, label, side, anclas, skillId, keepSet, huecosSet) {
+  var titulo = document.createElement('p');
+  titulo.className = 'op-skill-col-label';
+  titulo.textContent = label;
+  colEl.append(titulo);
+  var caps = document.createElement('div');
+  caps.className = 'op-skill-caps';
+  var sel = seleccionarCapsulasMapa(anclas, keepSet, OP_MAPA_MAX_CAPS);
+  sel.visible.forEach(function (a) {
+    caps.append(crearCapsulaOperativa(a, side, skillId, {
+      hueco: side === 'entrada' && !!(huecosSet && huecosSet[a])
+    }));
+  });
+  if (sel.hidden.length) {
+    var mas = document.createElement('code');
+    mas.className = 'ancla-pill op-cap is-mas';
+    mas.textContent = '+' + sel.hidden.length + ' más';
+    mas.title = sel.hidden.join('\n');
+    caps.append(mas);
+  }
+  if (!sel.visible.length && !sel.hidden.length) {
+    var vacio = document.createElement('span');
+    vacio.className = 'ancla-ficha-vacio';
+    vacio.style.fontSize = '11px';
+    vacio.style.margin = '0';
+    vacio.textContent = '—';
+    caps.append(vacio);
+  }
+  colEl.append(caps);
+}
+
+function crearNodoSkillOperativa(skill, keepIn, keepOut, huecosSet) {
+  var node = document.createElement('article');
+  node.className = 'op-skill-node';
+  node.setAttribute('data-skill-id', skill.id);
+  var nombre = document.createElement('button');
+  nombre.type = 'button';
+  nombre.className = 'op-skill-nombre';
+  nombre.textContent = skill.nombre || skill.id;
+  nombre.title = 'Abrir skill ' + (skill.id || '');
+  nombre.addEventListener('click', function () {
+    if (skill.id && typeof abrirInstruccion === 'function') abrirInstruccion(skill.id);
+  });
+  node.append(nombre);
+  var io = document.createElement('div');
+  io.className = 'op-skill-io';
+  var colE = document.createElement('div');
+  colE.className = 'op-skill-col op-skill-entradas';
+  pintarColumnaIoSkill(colE, 'Entradas', 'entrada', skill.entradas || [], skill.id, keepIn, huecosSet);
+  var colS = document.createElement('div');
+  colS.className = 'op-skill-col op-skill-salidas';
+  pintarColumnaIoSkill(colS, 'Salidas', 'salida', skill.salidas || [], skill.id, keepOut, null);
+  io.append(colE, colS);
+  node.append(io);
+  return node;
+}
+
+function findOpCap(root, side, skillId, ancla) {
+  var nodes = root.querySelectorAll('[data-op-cap="' + side + '"]');
+  for (var i = 0; i < nodes.length; i++) {
+    if (nodes[i].getAttribute('data-skill') === skillId && nodes[i].getAttribute('data-ancla') === ancla) {
+      return nodes[i];
+    }
+  }
+  return null;
+}
+
+function dibujarOperativaEdges(root) {
+  if (!root) return;
+  var svg = root.querySelector('.operativa-mapa-edges');
+  if (!svg) return;
+  var w = Math.max(root.clientWidth, root.scrollWidth);
+  var h = Math.max(root.clientHeight, root.scrollHeight);
+  svg.setAttribute('width', String(w));
+  svg.setAttribute('height', String(h));
+  svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  var marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', 'opArrow' + (root._opMapToken || ''));
+  marker.setAttribute('viewBox', '0 0 10 10');
+  marker.setAttribute('refX', '9');
+  marker.setAttribute('refY', '5');
+  marker.setAttribute('markerWidth', '7');
+  marker.setAttribute('markerHeight', '7');
+  marker.setAttribute('orient', 'auto-start-reverse');
+  var tip = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  tip.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+  tip.setAttribute('fill', '#7c93b8');
+  marker.appendChild(tip);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+  var rootRect = root.getBoundingClientRect();
+  var edges = root._operativaEnlaces || [];
+  var markerUrl = 'url(#opArrow' + (root._opMapToken || '') + ')';
+  edges.forEach(function (e) {
+    if (!e) return;
+    var from = findOpCap(root, 'salida', e.desde, e.ancla);
+    var to = findOpCap(root, 'entrada', e.hacia, e.ancla);
+    if (!from || !to) return;
+    var fr = from.getBoundingClientRect();
+    var tr = to.getBoundingClientRect();
+    var x1 = fr.right - rootRect.left + root.scrollLeft;
+    var y1 = fr.top + fr.height / 2 - rootRect.top + root.scrollTop;
+    var x2 = tr.left - rootRect.left + root.scrollLeft;
+    var y2 = tr.top + tr.height / 2 - rootRect.top + root.scrollTop;
+    var dx = Math.max(36, Math.abs(x2 - x1) * 0.35);
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('class', 'operativa-edge');
+    path.setAttribute('d', 'M' + x1 + ',' + y1 + ' C' + (x1 + dx) + ',' + y1 + ' ' + (x2 - dx) + ',' + y2 + ' ' + x2 + ',' + y2);
+    path.setAttribute('marker-end', markerUrl);
+    path.setAttribute('data-ancla', e.ancla);
+    svg.appendChild(path);
+  });
+}
+
+function destruirOperativaMapa(root) {
+  if (!root) return;
+  if (root._opMapRo && typeof root._opMapRo.disconnect === 'function') {
+    root._opMapRo.disconnect();
+  }
+  root._opMapRo = null;
+  if (root._opMapOnResize) {
+    window.removeEventListener('resize', root._opMapOnResize);
+    root._opMapOnResize = null;
+  }
+  root._operativaEnlaces = null;
+}
+
+function renderOperativaMapa(el, data) {
+  if (!el) return;
+  destruirOperativaMapa(el);
+  el.replaceChildren();
+  el.hidden = false;
+  el.classList.add('operativa-mapa-host');
+  var skills = (data && Array.isArray(data.skills)) ? data.skills : [];
+  var enlaces = (data && Array.isArray(data.enlaces)) ? data.enlaces : [];
+  var huecos = (data && Array.isArray(data.huecos)) ? data.huecos : [];
+  if (!skills.length) {
+    if (typeof pintarEstadoVacio === 'function') {
+      pintarEstadoVacio(el, {
+        icono: 'skill',
+        texto: 'Sin skills asociadas a esta base.'
+      });
+    } else {
+      el.textContent = 'Sin skills asociadas a esta base.';
+    }
+    return;
+  }
+  var huecosSet = {};
+  huecos.forEach(function (h) { huecosSet[h] = true; });
+  var keepInBySkill = {};
+  var keepOutBySkill = {};
+  skills.forEach(function (s) {
+    keepInBySkill[s.id] = {};
+    keepOutBySkill[s.id] = {};
+    (s.entradas || []).forEach(function (a) {
+      if (huecosSet[a]) keepInBySkill[s.id][a] = true;
+    });
+  });
+  enlaces.forEach(function (e) {
+    if (!e) return;
+    if (!keepOutBySkill[e.desde]) keepOutBySkill[e.desde] = {};
+    if (!keepInBySkill[e.hacia]) keepInBySkill[e.hacia] = {};
+    keepOutBySkill[e.desde][e.ancla] = true;
+    keepInBySkill[e.hacia][e.ancla] = true;
+  });
+
+  var root = document.createElement('div');
+  root.className = 'operativa-mapa';
+  root.setAttribute('role', 'img');
+  root.setAttribute('aria-label', 'Mapa de cableado I/O de skills');
+  root._opMapToken = 't' + String(Date.now());
+  root._operativaEnlaces = enlaces;
+
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'operativa-mapa-edges');
+  svg.setAttribute('aria-hidden', 'true');
+  root.appendChild(svg);
+
+  var colsWrap = document.createElement('div');
+  colsWrap.className = 'operativa-mapa-cols';
+  var niveles = operativaNiveles(skills, enlaces);
+  niveles.forEach(function (colSkills) {
+    var col = document.createElement('div');
+    col.className = 'operativa-mapa-col';
+    colSkills.forEach(function (s) {
+      col.append(crearNodoSkillOperativa(
+        s,
+        keepInBySkill[s.id] || {},
+        keepOutBySkill[s.id] || {},
+        huecosSet
+      ));
+    });
+    colsWrap.append(col);
+  });
+  root.appendChild(colsWrap);
+  el.append(root);
+
+  function redraw() {
+    dibujarOperativaEdges(root);
+  }
+  root._opMapOnResize = redraw;
+  window.addEventListener('resize', redraw);
+  if (typeof ResizeObserver === 'function') {
+    root._opMapRo = new ResizeObserver(function () { redraw(); });
+    root._opMapRo.observe(root);
+    root._opMapRo.observe(colsWrap);
+  }
+  requestAnimationFrame(function () {
+    requestAnimationFrame(redraw);
+  });
+  el._opMapRoot = root;
+}
+
 function cargarProyectoOperativa(proy) {
   const estado = document.getElementById('proyOperativaEstado');
   const render = document.getElementById('proyOperativaRender');
@@ -4801,6 +5114,8 @@ function cargarProyectoOperativa(proy) {
   }
   if (render) {
     render.hidden = true;
+    if (render._opMapRoot) destruirOperativaMapa(render._opMapRoot);
+    render._opMapRoot = null;
     render.replaceChildren();
   }
   if (huecosEl) huecosEl.replaceChildren();
@@ -4811,7 +5126,7 @@ function cargarProyectoOperativa(proy) {
       if (estado) estado.hidden = true;
       if (render) {
         render.hidden = false;
-        renderMermaidEn(render, data.mermaid || 'flowchart LR\n  vacio["Sin skills"]');
+        renderOperativaMapa(render, data);
       }
       const huecos = data.huecos || [];
       actualizarOperativaHuecosBadge(huecos.length);
