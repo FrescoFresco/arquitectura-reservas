@@ -7854,25 +7854,55 @@ function celdaDatosTexto(val) {
   return String(val);
 }
 
+/** Valor de celda: soporta claves planas y rutas `a.b` del catálogo Campos Mongo. */
+function valorDatosPorClave(doc, clave) {
+  if (!doc || !clave) return null;
+  if (Object.prototype.hasOwnProperty.call(doc, clave)) return doc[clave];
+  if (clave.indexOf('.') === -1) return null;
+  const parts = clave.split('.');
+  let cur = doc;
+  for (let i = 0; i < parts.length; i++) {
+    if (cur == null || typeof cur !== 'object') return null;
+    cur = cur[parts[i]];
+  }
+  return cur;
+}
+
+/**
+ * Columnas de la tabla Datos: proyección/campos del catálogo (orden API) + `_id`.
+ * Si no hay catálogo (projection vacía o solo `_id`), claves del primer page de docs.
+ * Sin tope fijo de ~4/8 columnas.
+ */
 function columnasDatos(projection, docs) {
   const cols = [];
   const seen = new Set();
-  (projection || []).forEach(function (k) {
+  const proj = projection || [];
+  const catalogCols = proj.filter(function (k) { return k && k !== '_id'; });
+
+  function pushCol(k) {
     if (!k || seen.has(k)) return;
     seen.add(k);
     cols.push(k);
-  });
-  if (!cols.length) {
-    (docs || []).slice(0, 5).forEach(function (d) {
-      Object.keys(d || {}).forEach(function (k) {
-        if (seen.has(k)) return;
-        seen.add(k);
-        cols.push(k);
-      });
-    });
   }
-  if (!cols.includes('_id')) cols.unshift('_id');
-  return cols.slice(0, 8);
+
+  if (catalogCols.length) {
+    pushCol('_id');
+    proj.forEach(pushCol);
+    return cols;
+  }
+
+  (docs || []).forEach(function (d) {
+    Object.keys(d || {}).forEach(pushCol);
+  });
+  if (!seen.has('_id')) cols.unshift('_id');
+  else {
+    const i = cols.indexOf('_id');
+    if (i > 0) {
+      cols.splice(i, 1);
+      cols.unshift('_id');
+    }
+  }
+  return cols;
 }
 
 function pintarColeccionDatosTabla() {
@@ -7916,7 +7946,7 @@ function pintarColeccionDatosTabla() {
     if (id && datos.selectedId === id) tr.classList.add('is-selected');
     cols.forEach(function (k) {
       const td = document.createElement('td');
-      td.textContent = celdaDatosTexto(doc ? doc[k] : null);
+      td.textContent = celdaDatosTexto(valorDatosPorClave(doc, k));
       td.title = td.textContent;
       tr.append(td);
     });

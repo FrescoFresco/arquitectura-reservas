@@ -476,7 +476,7 @@ export const API_DOCS_INDEX = {
     'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',
     'URI Mongo never in responses',
     'POST /v1/invites open for UI',
-    'GET …/colecciones/:col/documentos = Bearer + limit≤100 + proyección catálogo (no fields=*)',
+    'GET …/colecciones/:col/documentos = Bearer + limit≤100 + projection=catálogo o claves 1ª página si sin campos (no fields=*)',
   ],
   security: [
     'Nunca loguees ni pegues URIs Mongo, passwords ni invites en chats/repos.',

@@ -708,7 +708,7 @@ GET {API_BASE}/v1/esquemas/:id/empujes
 
 ### Explorador de datos (colección → documentos)
 
-Lectura paginada de documentos reales en Atlas (URI del Cluster). **Bearer obligatorio** (datos de negocio ≠ catálogo público). Soft max `limit=100` (si `>100` → `400`). Keyset `after` = último `_id` de la página. Proyección por defecto = claves de `GET /v1/mongo?proyecto=&coleccion=` (+ `_id`); `fields=*` rechazado. Campos ligados a anclas `sensible` se omiten / redactan salvo `incluirSensible=1`. Sin URI → `503` + hint Cluster. Alias `/v1/esquemas/…`.
+Lectura paginada de documentos reales en Atlas (URI del Cluster). **Bearer obligatorio** (datos de negocio ≠ catálogo público). Soft max `limit=100` (si `>100` → `400`). Keyset `after` = último `_id` de la página. Proyección por defecto = claves de `GET /v1/mongo?proyecto=&coleccion=` (+ `_id` al inicio, orden del catálogo); la UI usa `projection` como columnas (sin set fijo). Si la colección no tiene Campos Mongo, no se restringe el `find` y `projection` se deriva de las claves top-level de la primera página. `fields=*` rechazado. Campos ligados a anclas `sensible` se omiten / redactan salvo `incluirSensible=1`. Sin URI → `503` + hint Cluster. Alias `/v1/esquemas/…`.
 
 ```
 GET {API_BASE}/v1/proyectos/:id/colecciones/:col/documentos?limit=50&after=
