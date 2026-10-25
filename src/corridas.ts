@@ -8,6 +8,7 @@ export type CorridaEstado =
   | 'en_curso'
   | 'esperando_integracion'
   | 'esperando_humano'
+  | 'esperando_tiempo'
   | 'esperando_hijo'
   | 'atascada'
   | 'completada'
@@ -191,6 +192,10 @@ export function isEsperandoIntegracion(estado: string): boolean {
 
 export function isEsperandoHumano(estado: string): boolean {
   return estado === 'esperando_humano' || estado === 'esperando';
+}
+
+export function isEsperandoTiempo(estado: string): boolean {
+  return estado === 'esperando_tiempo';
 }
 
 export function isTerminal(estado: string): boolean {

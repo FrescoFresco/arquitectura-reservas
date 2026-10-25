@@ -69,37 +69,64 @@ async function loadEjecutorTimeoutForNodo(
   return { timeout_s: 60, reintentos: 0, espera_reintento_s: 10 };
 }
 
-/** Cron cada minuto: esperando_integracion con lease_hasta vencido → timeout (+ reintento). */
+/** Cron cada minuto: esperando_integracion timeout; esperando_tiempo → despertar. */
 export async function runEsperandoTimeoutTick(
   deps: MotorDeps,
   at: Date = new Date()
-): Promise<{ scanned: number; timed_out: string[]; retried: string[]; fallidas: string[] }> {
+): Promise<{
+  scanned: number;
+  timed_out: string[];
+  retried: string[];
+  fallidas: string[];
+  despertadas: string[];
+}> {
   const now = at.toISOString();
   const rows = await deps.env.DB.prepare(
-    `SELECT id, proyecto_id, lease_nodo_id, lease_hasta FROM corridas_index
-     WHERE estado = 'esperando_integracion'
-       AND lease_hasta IS NOT NULL AND lease_hasta != '' AND lease_hasta < ?
+    `SELECT id, proyecto_id, lease_nodo_id, lease_hasta, estado FROM corridas_index
+     WHERE estado IN ('esperando_integracion', 'esperando_tiempo')
+       AND lease_hasta IS NOT NULL AND lease_hasta != '' AND lease_hasta <= ?
      ORDER BY lease_hasta ASC LIMIT 40`
   )
     .bind(now)
-    .all<{ id: string; proyecto_id: string; lease_nodo_id: string | null; lease_hasta: string }>();
+    .all<{
+      id: string;
+      proyecto_id: string;
+      lease_nodo_id: string | null;
+      lease_hasta: string;
+      estado: string;
+    }>();
 
   const list = rows.results || [];
   const timed_out: string[] = [];
   const retried: string[] = [];
   const fallidas: string[] = [];
+  const despertadas: string[] = [];
 
   for (const row of list) {
     const loaded = await deps.loadCorridaWithFlujo(row.id);
     if (!loaded.ok) continue;
     let { doc, flujo } = loaded;
-    if (doc.estado !== 'esperando_integracion') continue;
     const nodoId = row.lease_nodo_id || doc.paso_actual;
+    const ts = deps.nowIso();
+
+    // Reloj de espera: encolar despertar (processPasoMessage completa el paso)
+    if (doc.estado === 'esperando_tiempo' || row.estado === 'esperando_tiempo') {
+      if (doc.estado !== 'esperando_tiempo') continue;
+      await enqueuePaso(deps.env, {
+        corrida_id: doc._id,
+        nodo_id: nodoId,
+        intento: 0,
+        despertar: true,
+      });
+      despertadas.push(doc._id);
+      continue;
+    }
+
+    if (doc.estado !== 'esperando_integracion') continue;
     const ej = await loadEjecutorTimeoutForNodo(deps, flujo, nodoId);
     const intento =
       [...(doc.pasos || [])].reverse().find((p) => p.nodo_id === nodoId)?.intento ?? 0;
     const errMsg = 'timeout';
-    const ts = deps.nowIso();
     doc.pasos = appendAccionPaso(doc.pasos || [], {
       nodo_id: nodoId,
       skill: findNodo(flujo.nodos, nodoId)?.skill || null,
@@ -132,7 +159,7 @@ export async function runEsperandoTimeoutTick(
     }
   }
 
-  return { scanned: list.length, timed_out, retried, fallidas };
+  return { scanned: list.length, timed_out, retried, fallidas, despertadas };
 }
 
 /** Cron cada 5 min: en_curso sin lease activo y sin actividad → atascada. */
@@ -210,31 +237,39 @@ export async function accionAprobar(
   flujo: FlujoVersionDoc,
   quien: string
 ): Promise<FallosActionResult> {
-  if (doc.estado !== 'esperando_humano' && doc.estado !== 'esperando') {
-    throw new Error('La corrida no está esperando_humano.');
+  if (
+    doc.estado !== 'esperando_humano' &&
+    doc.estado !== 'esperando' &&
+    doc.estado !== 'esperando_tiempo'
+  ) {
+    throw new Error('La corrida no está esperando_humano ni esperando_tiempo.');
   }
   const nodoId = doc.paso_actual;
   const next = pickNextPorCuando(flujo.nodos, flujo.aristas, nodoId, true);
   if (!next) throw new Error('No hay arista «si» (ni única) para aprobar.');
   const ts = deps.nowIso();
+  const adelantar = doc.estado === 'esperando_tiempo';
   doc.pasos = appendAccionPaso(doc.pasos || [], {
     nodo_id: nodoId,
     skill: findNodo(flujo.nodos, nodoId)?.skill || null,
     estado: 'hecho',
-    accion: 'aprobar',
+    accion: adelantar ? 'adelantar' : 'aprobar',
     quien,
     inicio: ts,
     fin: ts,
-    salidas: { _aprobado_: true },
+    salidas: adelantar ? { _despertado_: true, _adelantado_: true } : { _aprobado_: true },
   });
-  doc.datos = { ...(doc.datos || {}), _aprobado_: true };
+  doc.datos = {
+    ...(doc.datos || {}),
+    ...(adelantar ? { _despertado_: true } : { _aprobado_: true }),
+  };
   doc.estado = 'en_curso';
   doc.paso_actual = next.id;
   await deps.saveCorridaDoc(doc);
   await releaseLease(deps.env.DB, doc._id);
   await enqueuePaso(deps.env, { corrida_id: doc._id, nodo_id: next.id, intento: 0 });
   const again = await deps.loadCorridaWithFlujo(doc._id);
-  return { ok: true, corrida: again.ok ? again.doc : doc, accion: 'aprobar' };
+  return { ok: true, corrida: again.ok ? again.doc : doc, accion: adelantar ? 'adelantar' : 'aprobar' };
 }
 
 export async function accionRechazar(

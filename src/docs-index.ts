@@ -243,7 +243,8 @@ export const API_DOCS_INDEX = {
       method: 'POST',
       path: '/v1/interno/corridas-timeout-tick',
       auth: true,
-      summary: 'Ops: timeout de esperando_integracion (lease_hasta vencido; cron cada minuto)',
+      summary:
+        'Ops: timeout esperando_integracion + despertar esperando_tiempo (lease_hasta vencido; cron cada minuto)',
     },
     {
       method: 'GET',
@@ -452,6 +453,8 @@ export const API_DOCS_INDEX = {
     'skill sin ejecutorId = implícito agente_externo; cola pasos ejecuta modelo/herramienta/integracion',
     'integracion config: url + metodo/secret/asincrono + editor_url/workflow_id/workflow_nombre/proveedor',
     'consultar-datos = herramienta interna (pipeline allowlist + $limit 100; coste 0)',
+    'transformar-datos = $addFields/$project en memoria (coste 0)',
+    'esperando_tiempo = nodo espera con segundos; _documentos_ = identidad 1:N',
     'atascada = en_curso ≥10 min sin lease; reanudar desde panel',
     'POST/DELETE /v1/mongo/config → 410 (use cluster mongo-config)',
     'URI Mongo never in responses',

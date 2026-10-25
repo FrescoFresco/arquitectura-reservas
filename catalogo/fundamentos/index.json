@@ -104,6 +104,13 @@
           "ruta": "catalogo/fundamentos/motor-flujos/v10.md",
           "nombreArchivo": "motor-flujos.md",
           "hash": "4c4e86b0b086188edab7bd3d17afdef8e5372d2eadae9e060d505ba294c5bdd9"
+        },
+        {
+          "numero": 11,
+          "fecha": "2026-10-25",
+          "ruta": "catalogo/fundamentos/motor-flujos/v11.md",
+          "nombreArchivo": "motor-flujos.md",
+          "hash": "2c1e450c7296e5bcf17cb77b3d31ac1e4f8368cc3a11b7f47732d60c374b77f4"
         }
       ]
     },

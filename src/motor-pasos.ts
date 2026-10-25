@@ -25,6 +25,8 @@ export type PasoQueueMsg = {
   corrida_id: string;
   nodo_id: string;
   intento: number;
+  /** Despertar tras `espera` con reloj (`esperando_tiempo`). */
+  despertar?: boolean;
 };
 
 export type MotorEnv = {
@@ -60,7 +62,9 @@ export type MotorDeps = {
     skillId: string,
     negocio: string,
     valores: Record<string, unknown>,
-    corridaId: string | null
+    corridaId: string | null,
+    /** Mutado in-place con `_documentos_` al crear docs 1:N. */
+    datos?: Record<string, unknown>
   ) => Promise<string[]>;
   loadFlujoVersion: (flujoId: string, version?: number) => Promise<FlujoVersionDoc | null>;
   newCorridaId: () => string;
@@ -85,6 +89,7 @@ export async function enqueuePaso(
     nodo_id: String(msg.nodo_id || '').trim(),
     intento: Math.max(0, Number(msg.intento) || 0),
   };
+  if (msg.despertar) body.despertar = true;
   if (!body.corrida_id || !body.nodo_id) return false;
   const delay = opts?.delaySeconds != null ? Math.max(0, Number(opts.delaySeconds) || 0) : 0;
   if (delay > 0) {
@@ -152,6 +157,15 @@ export async function hasActiveLease(
     .first<{ lease_hasta: string | null }>();
   const hasta = row?.lease_hasta ? String(row.lease_hasta) : '';
   return !!hasta && hasta >= now;
+}
+
+async function leaseVencido(db: D1Database, corridaId: string, now: string): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT lease_hasta FROM corridas_index WHERE id = ?`)
+    .bind(corridaId)
+    .first<{ lease_hasta: string | null }>();
+  const hasta = row?.lease_hasta ? String(row.lease_hasta) : '';
+  return !!hasta && hasta <= now;
 }
 
 /** Clasifica error para política de reintentos F3. */
@@ -542,8 +556,83 @@ function parseConsultaPipeline(raw: unknown): Record<string, unknown>[] {
 }
 
 /**
+ * Evalúa expresiones simples de `$addFields`/`$project`:
+ * literales, `$campo` / `$a.b` sobre el doc, o objeto passthrough.
+ */
+function evalExpr(expr: unknown, doc: Record<string, unknown>): unknown {
+  if (typeof expr === 'string' && expr.startsWith('$')) {
+    const path = expr.slice(1);
+    if (!path) return undefined;
+    const parts = path.split('.').filter(Boolean);
+    let cur: unknown = doc;
+    for (const p of parts) {
+      if (cur == null || typeof cur !== 'object') return undefined;
+      cur = (cur as Record<string, unknown>)[p];
+    }
+    return cur;
+  }
+  if (Array.isArray(expr)) return expr.map((x) => evalExpr(x, doc));
+  if (expr && typeof expr === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(expr as Record<string, unknown>)) {
+      out[k] = evalExpr(v, doc);
+    }
+    return out;
+  }
+  return expr;
+}
+
+/** Aplica `$addFields` / `$project` en memoria sobre un documento. */
+export function applyTransformStages(
+  doc: Record<string, unknown>,
+  stages: Record<string, unknown>[]
+): Record<string, unknown> {
+  let cur: Record<string, unknown> = { ...doc };
+  for (const stage of stages) {
+    if (!stage || typeof stage !== 'object') continue;
+    if ('$addFields' in stage && stage.$addFields && typeof stage.$addFields === 'object') {
+      const fields = stage.$addFields as Record<string, unknown>;
+      const next = { ...cur };
+      for (const [k, expr] of Object.entries(fields)) {
+        next[k] = evalExpr(expr, cur);
+      }
+      cur = next;
+      continue;
+    }
+    if ('$project' in stage && stage.$project && typeof stage.$project === 'object') {
+      const proj = stage.$project as Record<string, unknown>;
+      const next: Record<string, unknown> = {};
+      const inclusion = Object.values(proj).some((v) => v === 1 || v === true || (v !== 0 && v !== false));
+      if (inclusion) {
+        for (const [k, v] of Object.entries(proj)) {
+          if (v === 0 || v === false) continue;
+          if (v === 1 || v === true) {
+            if (Object.prototype.hasOwnProperty.call(cur, k)) next[k] = cur[k];
+          } else {
+            next[k] = evalExpr(v, cur);
+          }
+        }
+        if (Object.prototype.hasOwnProperty.call(proj, '_id') ? proj._id !== 0 && proj._id !== false : true) {
+          if (cur._id !== undefined && next._id === undefined) next._id = cur._id;
+        }
+      } else {
+        Object.assign(next, cur);
+        for (const [k, v] of Object.entries(proj)) {
+          if (v === 0 || v === false) delete next[k];
+        }
+      }
+      cur = next;
+      continue;
+    }
+    throw new Error(`transformar-datos: etapa no soportada (solo $addFields/$project).`);
+  }
+  return cur;
+}
+
+/**
  * Funciones internas tipo `herramienta`.
  * `consultar-datos`: aggregate de solo lectura (allowlist = disparadores) + `$limit` 100 por defecto.
+ * `transformar-datos`: `$addFields`/`$project` en memoria (coste 0).
  */
 async function ejecutarHerramienta(
   deps: MotorDeps,
@@ -570,6 +659,15 @@ async function ejecutarHerramienta(
       '_consulta.resultado_': resultado,
       '_consulta.total_': resultado.length,
     };
+  }
+  if (funcion === 'transformar-datos') {
+    const pipeline = parseConsultaPipeline(
+      entradas['_consulta.pipeline_'] ?? datos['_consulta.pipeline_']
+    );
+    const base: Record<string, unknown> = { ...datos, ...entradas };
+    const transformed = applyTransformStages(base, pipeline);
+    // Devolver objeto completo para que el motor copie salidas declaradas
+    return transformed;
   }
   // Registro mínimo; funciones desconocidas → eco
   return { ...datos, ...entradas, _herramienta_: funcion, _ok_: true };
@@ -639,6 +737,7 @@ async function enqueueNext(
   } else if (
     doc.estado !== 'esperando_integracion' &&
     doc.estado !== 'esperando_humano' &&
+    doc.estado !== 'esperando_tiempo' &&
     doc.estado !== 'esperando_hijo'
   ) {
     doc.estado = 'en_curso';
@@ -675,10 +774,11 @@ export async function processPasoMessage(
     return 'ack';
   }
 
-  // Si espera integración/humano y este nodo ya no es el actual, ack
+  // Si espera integración/humano/tiempo/hijo y este nodo ya no es el actual, ack
   if (
     (doc.estado === 'esperando_integracion' ||
       doc.estado === 'esperando_humano' ||
+      doc.estado === 'esperando_tiempo' ||
       doc.estado === 'esperando' ||
       doc.estado === 'esperando_hijo') &&
     doc.paso_actual !== nodoId
@@ -697,6 +797,16 @@ export async function processPasoMessage(
     return 'ack';
   }
 
+  const despertarEspera =
+    doc.estado === 'esperando_tiempo' &&
+    nodo.tipo === 'espera' &&
+    (msg.despertar === true || (await leaseVencido(deps.env.DB, corridaId, deps.nowIso())));
+
+  // Si aún espera tiempo y no toca despertar, no re-ejecutar
+  if (doc.estado === 'esperando_tiempo' && !despertarEspera) {
+    return 'ack';
+  }
+
   // Timeout lease: usar timeout del ejecutor si skill; default 60
   let timeoutS = 60;
   if (nodo.tipo === 'skill' && nodo.skill) {
@@ -705,15 +815,39 @@ export async function processPasoMessage(
       .first<{ ejecutor_id: string | null }>();
     const ej = await loadEjecutorForSkill(deps.env.DB, srow || {});
     timeoutS = ej.timeout_s || 60;
+  } else if (despertarEspera) {
+    timeoutS = 30;
   }
 
   const now = deps.nowIso();
+  // Liberar deadline de espera para poder adquirir lease de despertar
+  if (despertarEspera) {
+    await releaseLease(deps.env.DB, corridaId);
+  }
   const got = await tryAcquireLease(deps.env.DB, corridaId, nodoId, timeoutS, now);
   if (!got) return 'ack'; // otro worker
 
   try {
     doc.paso_actual = nodoId;
     if (doc.estado === 'pendiente') doc.estado = 'en_curso';
+
+    // Despertar espera por tiempo (Queue delay o tick)
+    if (despertarEspera) {
+      const ts = deps.nowIso();
+      doc.pasos = upsertPaso(doc.pasos || [], {
+        nodo_id: nodoId,
+        skill: null,
+        estado: 'hecho',
+        fin: ts,
+        intento,
+        salidas: { _despertado_: true },
+      });
+      doc.estado = 'en_curso';
+      await deps.saveCorridaDoc(doc);
+      await releaseLease(deps.env.DB, corridaId);
+      await enqueueNext(deps, doc, flujo, nodoId, 0);
+      return 'ack';
+    }
 
     if (nodo.tipo === 'fin') {
       doc.estado = 'completada';
@@ -780,6 +914,84 @@ export async function processPasoMessage(
         return 'ack';
       }
       const ts = deps.nowIso();
+      const sobreAncla = String(nodo.sobre_ancla || '').trim();
+      const sobreVal = sobreAncla ? (doc.datos || {})[sobreAncla] : undefined;
+
+      // Fan-out: una corrida hija por elemento del array (máx. 50); avanza sin esperar.
+      if (sobreAncla && Array.isArray(sobreVal)) {
+        const items = sobreVal.slice(0, 50);
+        const hijosIds: string[] = [];
+        for (const item of items) {
+          const childId = deps.newCorridaId();
+          const itemObj =
+            item && typeof item === 'object' && !Array.isArray(item)
+              ? (item as Record<string, unknown>)
+              : { _item_: item };
+          const childDatos: Record<string, unknown> = {
+            ...(doc.datos || {}),
+            ...itemObj,
+          };
+          if (itemObj._id != null) childDatos._documento_id = String(itemObj._id);
+          const child: CorridaDoc = {
+            _id: childId,
+            flujo_id: childFlujo.id,
+            flujo_version: childFlujo.version,
+            proyecto_id: childFlujo.proyectoId,
+            negocio: doc.negocio,
+            estado: 'pendiente',
+            paso_actual: '',
+            pasos: [],
+            datos: childDatos,
+            errores: [],
+            creada: ts,
+            actualizada: ts,
+            padre_id: doc._id,
+            hijo_id: null,
+            subflujo_nodo_id: null,
+          };
+          const first = primerPasoEjecutable(childFlujo.nodos, childFlujo.aristas, child.datos);
+          if (first.kind === 'error') continue;
+          if (first.kind === 'fin') {
+            child.paso_actual = first.nodo.id;
+            child.estado = 'completada';
+          } else {
+            child.paso_actual = first.nodo.id;
+            child.estado = 'en_curso';
+          }
+          await deps.saveCorridaDoc(child);
+          if (child.paso_actual && child.estado !== 'completada') {
+            await enqueuePaso(deps.env, {
+              corrida_id: child._id,
+              nodo_id: child.paso_actual,
+              intento: 0,
+            });
+          }
+          hijosIds.push(childId);
+        }
+        doc.pasos = upsertPaso(doc.pasos || [], {
+          nodo_id: nodoId,
+          skill: null,
+          estado: 'hecho',
+          inicio: ts,
+          fin: deps.nowIso(),
+          intento,
+          salidas: {
+            _subflujos_lanzados_: hijosIds.length,
+            _hijos_ids_: hijosIds,
+          },
+        });
+        doc.datos = {
+          ...(doc.datos || {}),
+          _subflujos_lanzados_: hijosIds.length,
+          _hijos_ids_: hijosIds,
+        };
+        doc.estado = 'en_curso';
+        await deps.saveCorridaDoc(doc);
+        await releaseLease(deps.env.DB, corridaId);
+        await enqueueNext(deps, doc, flujo, nodoId, 0);
+        return 'ack';
+      }
+
       const childId = deps.newCorridaId();
       const child: CorridaDoc = {
         _id: childId,
@@ -839,6 +1051,29 @@ export async function processPasoMessage(
 
     if (nodo.tipo === 'espera') {
       const tsEspera = deps.nowIso();
+      const segundos = Math.max(0, Math.floor(Number(nodo.segundos) || 0));
+      if (segundos > 0) {
+        const despertarEn = new Date(Date.now() + segundos * 1000).toISOString();
+        doc.estado = 'esperando_tiempo';
+        doc.pasos = upsertPaso(doc.pasos || [], {
+          nodo_id: nodoId,
+          skill: null,
+          estado: 'pendiente',
+          inicio: tsEspera,
+          intento,
+          salidas: { _espera_segundos_: segundos, _despertar_en_: despertarEn },
+        });
+        await deps.saveCorridaDoc(doc);
+        await setLeaseDeadline(deps.env.DB, corridaId, nodoId, segundos, tsEspera);
+        if (segundos <= 900) {
+          await enqueuePaso(
+            deps.env,
+            { corrida_id: doc._id, nodo_id: nodoId, intento, despertar: true },
+            { delaySeconds: segundos }
+          );
+        }
+        return 'ack';
+      }
       doc.estado = 'esperando_humano';
       doc.pasos = upsertPaso(doc.pasos || [], {
         nodo_id: nodoId,
@@ -1004,6 +1239,12 @@ export async function processPasoMessage(
         if (!Object.keys(salidas).length && salidasDecl.length) {
           for (const a of salidasDecl) salidas[a] = raw[a] ?? null;
         }
+        // transformar-datos: si no hay salidas declaradas, volcar anclas `_…_` del resultado
+        if (funcion === 'transformar-datos' && !salidasDecl.length) {
+          for (const [k, v] of Object.entries(raw)) {
+            if (typeof k === 'string' && k.startsWith('_') && k.endsWith('_')) salidas[k] = v;
+          }
+        }
       } else if (ejecutor.tipo === 'integracion') {
         const payload = {
           corrida_id: doc._id,
@@ -1152,7 +1393,7 @@ export async function processPasoMessage(
 
     // Persistir salidas en Mongo + corrida.datos
     try {
-      await deps.writeSalidasMongo(skillId, doc.negocio, salidas, doc._id);
+      await deps.writeSalidasMongo(skillId, doc.negocio, salidas, doc._id, doc.datos || {});
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'escritura Mongo falló';
       doc.estado = 'fallida';

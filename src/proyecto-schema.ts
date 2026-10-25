@@ -3,7 +3,13 @@
  * diagrama Mermaid y $jsonSchema desde campos Mongo del catálogo.
  */
 
-export type ColeccionDef = { id: string; descripcion?: string; color?: string | null };
+export type ColeccionDef = {
+  id: string;
+  descripcion?: string;
+  color?: string | null;
+  /** `unico_por_negocio` (1:1) | `multiple` (1:N). Default: negocios/procesos=unico; resto=multiple. */
+  modo_escritura?: 'unico_por_negocio' | 'multiple';
+};
 export type RelacionDef = { desde: string; hacia: string; tipo?: string };
 
 export type ProyectoSoftwareShape = {
@@ -53,6 +59,8 @@ export function parseColecciones(raw: unknown): ColeccionDef[] {
         if (COLOR_HEX_RE.test(c)) col.color = c.toLowerCase();
       }
     }
+    const modo = String(o.modo_escritura || '').trim();
+    if (modo === 'unico_por_negocio' || modo === 'multiple') col.modo_escritura = modo;
     out.push(col);
   }
   return out;
