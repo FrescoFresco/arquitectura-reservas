@@ -366,6 +366,9 @@
     document.querySelectorAll('#flujoPanelAsociados [data-flujo-asoc-pane]').forEach(function (pane) {
       pane.hidden = pane.getAttribute('data-flujo-asoc-pane') !== id;
     });
+    if (typeof window.actualizarAyudaGrupo === 'function') {
+      window.actualizarAyudaGrupo('flujo-asociados', id);
+    }
     var f = st.flujoAbierto;
     if (!f) return;
     if (id === 'base-datos') pintarFlujoBaseDatos();
@@ -384,6 +387,9 @@
     document.querySelectorAll('#flujoPanelCorridas [data-flujo-corr-pane]').forEach(function (pane) {
       pane.hidden = pane.getAttribute('data-flujo-corr-pane') !== id;
     });
+    if (typeof window.actualizarAyudaGrupo === 'function') {
+      window.actualizarAyudaGrupo('flujo-corridas', id);
+    }
     if (id === 'corridas') cargarFlujoCorridas();
     if (id === 'eventos') cargarFlujoEventos();
   }
