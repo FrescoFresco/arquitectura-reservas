@@ -534,7 +534,10 @@ function jsonSafeDocs(docs: unknown[]): Record<string, unknown>[] {
   ) as Record<string, unknown>[];
 }
 
-function parseConsultaPipeline(raw: unknown): Record<string, unknown>[] {
+function parseConsultaPipeline(
+  raw: unknown,
+  opts?: { injectLimit?: boolean }
+): Record<string, unknown>[] {
   let pipeline: unknown = raw;
   if (typeof pipeline === 'string') {
     const s = pipeline.trim();
@@ -551,6 +554,8 @@ function parseConsultaPipeline(raw: unknown): Record<string, unknown>[] {
   const stages = pipeline as Record<string, unknown>[];
   const stageErr = validatePipelineStages(stages);
   if (stageErr) throw new Error(stageErr);
+  const injectLimit = opts?.injectLimit !== false;
+  if (!injectLimit) return stages;
   const hasLimit = stages.some((s) => Object.prototype.hasOwnProperty.call(s, '$limit'));
   return hasLimit ? stages : [...stages, { $limit: CONSULTA_DEFAULT_LIMIT }];
 }
@@ -590,6 +595,8 @@ export function applyTransformStages(
   let cur: Record<string, unknown> = { ...doc };
   for (const stage of stages) {
     if (!stage || typeof stage !== 'object') continue;
+    // parseConsultaPipeline inyecta `$limit: 100`; no aplica a transformar-datos en memoria
+    if ('$limit' in stage) continue;
     if ('$addFields' in stage && stage.$addFields && typeof stage.$addFields === 'object') {
       const fields = stage.$addFields as Record<string, unknown>;
       const next = { ...cur };
@@ -661,8 +668,10 @@ async function ejecutarHerramienta(
     };
   }
   if (funcion === 'transformar-datos') {
+    // Sin inyectar `$limit` (solo útil en consultar-datos / Mongo aggregate)
     const pipeline = parseConsultaPipeline(
-      entradas['_consulta.pipeline_'] ?? datos['_consulta.pipeline_']
+      entradas['_consulta.pipeline_'] ?? datos['_consulta.pipeline_'],
+      { injectLimit: false }
     );
     const base: Record<string, unknown> = { ...datos, ...entradas };
     const transformed = applyTransformStages(base, pipeline);
@@ -1493,6 +1502,8 @@ export async function afterExternalSalidas(
   });
   doc.estado = 'en_curso';
   await deps.saveCorridaDoc(doc);
+  // Liberar lease del nodo externo antes de encolar el siguiente (si no, tryAcquireLease ACK y la corrida queda en_curso)
+  await releaseLease(deps.env.DB, doc._id);
   await enqueueNext(deps, doc, flujo, nodoId, 0);
   // reload
   const again = await deps.loadCorridaWithFlujo(doc._id);
