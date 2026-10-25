@@ -11,7 +11,28 @@ import {
   type OperacionCambio,
 } from './disparadores';
 import type { CorridaDoc } from './corridas';
+import { parseColecciones } from './proyecto-schema';
 import { getByPath, normalizeAnclaToken } from './skill-io';
+
+/** Claves de control del documento `eventos` (no son datos de negocio / anclas). */
+const EVENTO_SOBRE_KEYS = new Set([
+  '_id',
+  'tipo',
+  'coleccion',
+  'documento_id',
+  'operacion',
+  'antes',
+  'despues',
+  'body',
+  'headers',
+  'origen',
+  'negocio',
+  'proyecto_id',
+  'flujo_id',
+  'disparador_id',
+  'creado',
+  'resultado',
+]);
 
 export const EVENTOS_COLLECTION = 'eventos';
 export const SYSTEM_COLLECTIONS = new Set(['corridas', 'eventos']);
@@ -210,12 +231,18 @@ type AnclaCatalogRow = {
   id: string;
   clave_mongo: string;
   coleccion: string;
+  base_datos: string;
   aliases: string[];
+};
+
+type ProyectoAnclaScope = {
+  baseDatos: string;
+  colecciones: Set<string>;
 };
 
 async function loadAnclasCatalog(d1: D1Database): Promise<AnclaCatalogRow[]> {
   const rows = await d1
-    .prepare('SELECT ancla, id, clave_mongo, coleccion, aliases FROM anclas')
+    .prepare('SELECT ancla, id, clave_mongo, coleccion, base_datos, aliases FROM anclas')
     .all();
   const out: AnclaCatalogRow[] = [];
   for (const raw of rows.results || []) {
@@ -232,10 +259,38 @@ async function loadAnclasCatalog(d1: D1Database): Promise<AnclaCatalogRow[]> {
       id: String(r.id || ''),
       clave_mongo: String(r.clave_mongo || ''),
       coleccion: String(r.coleccion || ''),
+      base_datos: String(r.base_datos || '').trim(),
       aliases,
     });
   }
   return out;
+}
+
+async function loadProyectoAnclaScope(
+  d1: D1Database,
+  proyectoId: string
+): Promise<ProyectoAnclaScope | null> {
+  const id = String(proyectoId || '').trim();
+  if (!id) return null;
+  const row = await d1
+    .prepare('SELECT base_datos, colecciones FROM proyectos WHERE id = ?')
+    .bind(id)
+    .first<{ base_datos: string | null; colecciones: string | null }>();
+  if (!row) return null;
+  const colecciones = new Set(
+    parseColecciones(row.colecciones).map((c) => c.id).filter(Boolean)
+  );
+  return {
+    baseDatos: String(row.base_datos || '').trim(),
+    colecciones,
+  };
+}
+
+function anclaInProyectoScope(a: AnclaCatalogRow, scope: ProyectoAnclaScope | null): boolean {
+  if (!scope) return false;
+  if (a.coleccion && scope.colecciones.has(a.coleccion)) return true;
+  if (a.base_datos && scope.baseDatos && a.base_datos === scope.baseDatos) return true;
+  return false;
 }
 
 function collectBodyKeys(body: unknown): Record<string, unknown> {
@@ -252,17 +307,42 @@ function collectBodyKeys(body: unknown): Record<string, unknown> {
   return out;
 }
 
-function matchAnclaKey(catalog: AnclaCatalogRow[], key: string): AnclaCatalogRow | null {
+function omitEventoSobreKeys(doc: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(doc)) {
+    if (EVENTO_SOBRE_KEYS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+function rowMatchesAnclaKey(a: AnclaCatalogRow, k: string, norm: string, key: string): boolean {
+  if (a.ancla === k || a.ancla === norm) return true;
+  if (a.id === k || a.id === norm) return true;
+  if (a.clave_mongo && (a.clave_mongo === k || a.clave_mongo === key)) return true;
+  for (const al of a.aliases || []) {
+    if (al === k || normalizeAnclaToken(al) === norm) return true;
+  }
+  return false;
+}
+
+/** Prioriza anclas del proyecto (colecciones / base_datos) antes del match genérico. */
+function matchAnclaKey(
+  catalog: AnclaCatalogRow[],
+  key: string,
+  scope: ProyectoAnclaScope | null = null
+): AnclaCatalogRow | null {
   const k = String(key || '').trim();
   if (!k) return null;
   const norm = normalizeAnclaToken(k);
-  for (const a of catalog) {
-    if (a.ancla === k || a.ancla === norm) return a;
-    if (a.id === k || a.id === norm) return a;
-    if (a.clave_mongo && (a.clave_mongo === k || a.clave_mongo === key)) return a;
-    for (const al of a.aliases || []) {
-      if (al === k || normalizeAnclaToken(al) === norm) return a;
+  if (scope) {
+    for (const a of catalog) {
+      if (!anclaInProyectoScope(a, scope)) continue;
+      if (rowMatchesAnclaKey(a, k, norm, key)) return a;
     }
+  }
+  for (const a of catalog) {
+    if (rowMatchesAnclaKey(a, k, norm, key)) return a;
   }
   return null;
 }
@@ -274,23 +354,39 @@ function matchAnclaKey(catalog: AnclaCatalogRow[], key: string): AnclaCatalogRow
  */
 export async function hidratarAnclasDesdeEvento(
   d1: D1Database,
-  _proyectoId: string,
+  proyectoId: string,
   coleccion: string | null,
   docPlano: Record<string, unknown> | null,
-  evento: EventoDoc
+  evento: EventoDoc,
+  opts?: { pipelineVacio?: boolean }
 ): Promise<Record<string, unknown>> {
   const datos: Record<string, unknown> = {};
   const catalog = await loadAnclasCatalog(d1);
+  const scope = await loadProyectoAnclaScope(d1, proyectoId || evento.proyecto_id);
   const colEvento = String(coleccion || evento.coleccion || '').trim();
+  // Pipeline vacío (o doc = sobre eventos del $match): no mezclar claves de control.
+  const pipelineVacio =
+    opts?.pipelineVacio ??
+    (evento.tipo === 'webhook'
+      ? !docPlano ||
+        String(docPlano._id || '') === String(evento._id || '') ||
+        (docPlano.tipo === 'webhook' && Object.prototype.hasOwnProperty.call(docPlano, 'body'))
+      : false);
 
   if (evento.tipo === 'webhook') {
-    const keys = {
-      ...collectBodyKeys(evento.body),
-      ...(docPlano || {}),
-    };
+    // Pipeline vacío → solo body (el doc del $match es el sobre `eventos` y pisa anclas).
+    // Pipeline con etapas → doc proyectado primero, body después (body gana); sin claves del sobre.
+    const bodyKeys = collectBodyKeys(evento.body);
+    const keys = pipelineVacio
+      ? bodyKeys
+      : {
+          ...omitEventoSobreKeys(docPlano || {}),
+          ...bodyKeys,
+        };
     for (const [k, v] of Object.entries(keys)) {
       if (k === '_id' || k === 'negocio' || k === 'negocio_id') continue;
-      const hit = matchAnclaKey(catalog, k);
+      if (EVENTO_SOBRE_KEYS.has(k)) continue;
+      const hit = matchAnclaKey(catalog, k, scope);
       if (hit) {
         datos[hit.ancla] = v;
         continue;
@@ -308,7 +404,9 @@ export async function hidratarAnclasDesdeEvento(
       docPlano ||
       null;
     if (fuenteDoc && colEvento) {
-      for (const a of catalog) {
+      const scoped = catalog.filter((a) => anclaInProyectoScope(a, scope));
+      const prefer = scoped.length ? scoped : catalog;
+      for (const a of prefer) {
         if (a.coleccion !== colEvento) continue;
         if (!a.clave_mongo) continue;
         const v = getByPath(fuenteDoc, a.clave_mongo);
@@ -335,15 +433,30 @@ async function datosParaCorrida(
   deps: MotorDeps,
   evento: EventoDoc,
   doc: Record<string, unknown> | null,
-  coleccionHint?: string | null
+  coleccionHint?: string | null,
+  opts?: { pipelineVacio?: boolean }
 ): Promise<Record<string, unknown>> {
-  const base = flattenDatos(doc || {});
+  const pipelineVacio =
+    opts?.pipelineVacio ??
+    (evento.tipo === 'webhook'
+      ? !doc ||
+        String(doc._id || '') === String(evento._id || '') ||
+        (doc.tipo === 'webhook' && Object.prototype.hasOwnProperty.call(doc, 'body'))
+      : false);
+  // Webhook sin pipeline de usuario: no aplanar el sobre `eventos` en datos de corrida
+  const base =
+    evento.tipo === 'webhook' && pipelineVacio
+      ? {}
+      : evento.tipo === 'webhook'
+        ? omitEventoSobreKeys(flattenDatos(doc || {}))
+        : flattenDatos(doc || {});
   const hidratados = await hidratarAnclasDesdeEvento(
     deps.dbD1,
     evento.proyecto_id,
     coleccionHint || evento.coleccion,
     doc,
-    evento
+    evento,
+    { pipelineVacio }
   );
   const out: Record<string, unknown> = { ...base, ...hidratados };
   // Preservar _documentos_ de hidratación
@@ -433,10 +546,13 @@ export async function evaluarDisparadoresSobreEvento(
     const corridaIds: string[] = [];
     let firstId: string | null = null;
     let failed: string | null = null;
+    const pipelineVacio = userPipe.length === 0;
     for (const doc of ran.docs) {
       try {
         const negocio = resolveNegocio(d, evento.negocio, doc);
-        const datos = await datosParaCorrida(deps, evento, doc, evento.coleccion);
+        const datos = await datosParaCorrida(deps, evento, doc, evento.coleccion, {
+          pipelineVacio,
+        });
         // Identidad 1:N en cambio_datos
         if (evento.tipo === 'cambio_datos' && evento.documento_id && evento.coleccion) {
           const docsMap =
