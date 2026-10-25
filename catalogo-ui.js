@@ -5059,7 +5059,7 @@ function renderOperativaMapa(el, data) {
   root.className = 'operativa-mapa';
   root.setAttribute('role', 'img');
   root.setAttribute('aria-label', 'Mapa de cableado I/O de skills');
-  root._opMapToken = String(Date.now());
+  root._opMapToken = 't' + String(Date.now());
   root._operativaEnlaces = enlaces;
 
   var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
