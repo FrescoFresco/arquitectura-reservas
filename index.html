@@ -219,6 +219,27 @@ dialog::backdrop{background:#17212f66}
 .skill-conexion-card pre{margin:0;padding:10px 12px;border-radius:8px;background:#17212f;color:#e8eef8;font-size:11px;line-height:1.45;overflow:auto;white-space:pre-wrap}
 .skill-conexion-card code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .operativa-huecos{margin:0}
+#proyOperativaRender.operativa-mapa-host{overflow:visible;background:transparent;border:0;padding:0;min-height:0}
+.operativa-mapa{position:relative;overflow:auto;max-height:min(72vh,680px);padding:4px 2px 12px;margin:0}
+.operativa-mapa-edges{position:absolute;left:0;top:0;z-index:3;pointer-events:none;overflow:visible;max-width:none;height:auto}
+.operativa-mapa-cols{position:relative;z-index:2;display:flex;gap:64px;align-items:flex-start;width:max-content;min-width:100%;padding:10px 8px}
+.operativa-mapa-col{display:flex;flex-direction:column;gap:22px;flex:none}
+.op-skill-node{width:272px;border:1px solid #c9d5e8;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 1px 2px rgba(23,33,47,.04)}
+.op-skill-nombre{appearance:none;display:block;width:100%;margin:0;padding:9px 12px;border:0;border-bottom:1px solid #e5eaf1;background:#f5f8fc;font:inherit;font-size:13px;font-weight:800;letter-spacing:-.01em;color:#17212f;text-align:center;cursor:pointer;overflow-wrap:anywhere}
+.op-skill-nombre:hover{background:#edf3ff;color:#1c63d5}
+.op-skill-nombre:focus-visible{outline:2px solid #1c63d5;outline-offset:-2px}
+.op-skill-io{display:grid;grid-template-columns:1fr 1fr;min-width:0}
+.op-skill-col{padding:8px 8px 10px;min-width:0}
+.op-skill-entradas{border-right:1px solid #e8eef6}
+.op-skill-col-label{margin:0 0 6px;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#677488}
+.op-skill-caps{display:flex;flex-direction:column;gap:3px;align-items:stretch}
+.op-cap{display:block;box-sizing:border-box;width:100%;max-width:100%;font-size:9px;line-height:1.2;padding:2px 5px;border-radius:999px;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.op-cap.is-hueco{background:#fecaca;color:#7f1d1d;border-color:#f0b8b2}
+.op-cap.is-mas{background:#f1f5f9;color:#677488;border-color:#e2e8f0;cursor:default;font-weight:700}
+.op-cap:hover:not(.is-mas){filter:brightness(.97)}
+.op-cap:focus-visible{outline:2px solid #1c63d5;outline-offset:1px}
+.operativa-edge{fill:none;stroke:#7c93b8;stroke-width:1.45}
+.operativa-mapa-vacio{margin:8px 0 0}
 .catalogo-fila.is-warn{border-color:#f0b8b2;background:#fff5f4}
 .catalogo-fila.is-warn .catalogo-fila-titulo{color:#7f1d1d}
 .catalogo-fila.is-ok-tint{border-color:#b7e4c7;background:#f3fbf6}
@@ -725,7 +746,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <button type="button" class="ancla-ficha-tab" role="tab" data-proy-op-sub="huecos" aria-selected="false">Huecos</button>
 <button type="button" class="ancla-ficha-tab" role="tab" data-proy-op-sub="atajos" aria-selected="false">Atajos</button>
 </div>
-<template data-ficha-ayuda data-group="proy-operativa" data-sub="mapa" data-titulo="Operativa · Mapa" data-host="#proyOperativaSubtabs">Cableado I/O de skills: salidas → entradas por ancla compartida. En <span style="color:#b91c1c;font-weight:600">rojo</span>: entradas sin productor. <strong>No</strong> es la lista de flujos.</template>
+<template data-ficha-ayuda data-group="proy-operativa" data-sub="mapa" data-titulo="Operativa · Mapa" data-host="#proyOperativaSubtabs">Cada skill es una caja: nombre arriba, <strong>Entradas | Salidas</strong> en cápsulas. Flechas de cápsula salida → cápsula entrada. En <span style="color:#b91c1c;font-weight:600">rojo</span>: entradas sin productor. <strong>No</strong> es la lista de flujos.</template>
 <template data-ficha-ayuda data-group="proy-operativa" data-sub="huecos" data-titulo="Operativa · Huecos" data-host="#proyOperativaSubtabs">Entradas sin skill productora en esta base. Revisa Anclas o trátalas como entrada externa.</template>
 <template data-ficha-ayuda data-group="proy-operativa" data-sub="atajos" data-titulo="Operativa · Atajos" data-host="#proyOperativaSubtabs">Orquestación ejecutable en <strong>Flujos</strong>; cada <strong>Corrida</strong> vive en la ficha del Flujo. Operativa no lista flujos.</template>
 <div class="asociados-subpane" id="proyOpPaneMapa" data-proy-op-pane="mapa">
@@ -2177,22 +2198,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261025ayuda1"></script>
-<script src="skills-ui.js?v=20261025ayuda1"></script>
-<script src="campos-ancla-ui.js?v=20261025ayuda1"></script>
-<script src="campos-mongodb-ui.js?v=20261025ayuda1"></script>
-<script src="clusters-ui.js?v=20261025ayuda1"></script>
-<script src="proyectos-ui.js?v=20261025ayuda1"></script>
-<script src="colecciones-ui.js?v=20261025ayuda1"></script>
-<script src="agentes-ui.js?v=20261025ayuda1"></script>
-<script src="fundamentos-ui.js?v=20261025ayuda1"></script>
-<script src="system-prompts-ui.js?v=20261025ayuda1"></script>
-<script src="system-prompts-catalog.js?v=20261025ayuda1"></script>
-<script src="ejecutores-ui.js?v=20261025ayuda1"></script>
-<script src="ejecutores-catalog.js?v=20261025ayuda1"></script>
-<script src="catalogo-ui.js?v=20261025ayuda1"></script>
-<script src="flujos-corridas-ui.js?v=20261025ayuda1"></script>
-<script src="ajustes-ui.js?v=20261025ayuda1"></script>
+<script src="color-entidad-ui.js?v=20261025mapa1"></script>
+<script src="skills-ui.js?v=20261025mapa1"></script>
+<script src="campos-ancla-ui.js?v=20261025mapa1"></script>
+<script src="campos-mongodb-ui.js?v=20261025mapa1"></script>
+<script src="clusters-ui.js?v=20261025mapa1"></script>
+<script src="proyectos-ui.js?v=20261025mapa1"></script>
+<script src="colecciones-ui.js?v=20261025mapa1"></script>
+<script src="agentes-ui.js?v=20261025mapa1"></script>
+<script src="fundamentos-ui.js?v=20261025mapa1"></script>
+<script src="system-prompts-ui.js?v=20261025mapa1"></script>
+<script src="system-prompts-catalog.js?v=20261025mapa1"></script>
+<script src="ejecutores-ui.js?v=20261025mapa1"></script>
+<script src="ejecutores-catalog.js?v=20261025mapa1"></script>
+<script src="catalogo-ui.js?v=20261025mapa1"></script>
+<script src="flujos-corridas-ui.js?v=20261025mapa1"></script>
+<script src="ajustes-ui.js?v=20261025mapa1"></script>
 
 </body>
 </html>
