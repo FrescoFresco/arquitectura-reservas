@@ -115,8 +115,9 @@ dialog::backdrop{background:#17212f66}
 .dlg .nota,.dlg .destino{margin:0 0 14px;color:#5f6f84;font-size:13px;line-height:1.5}
 .dlg .destino{color:#17212f;font-weight:700}
 .dlg label{display:block;font-size:13px;font-weight:700;margin:0 0 12px}
-.dlg input[type="text"],.dlg textarea{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white}
+.dlg input[type="text"],.dlg input[type="url"],.dlg input[type="number"],.dlg input[type="datetime-local"],.dlg select,.dlg textarea{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;border:1px solid #d5deec;border-radius:10px;padding:10px 12px;color:#17212f;background:white}
 .dlg textarea{min-height:140px;resize:vertical}
+.dlg select{appearance:auto}
 .dlg input[type="file"]{display:block;margin-top:6px;font-weight:400;font-size:13px}
 .archivo-nombre{margin:6px 0 0;font-weight:400;color:#677488;font-size:12px}
 .dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
@@ -192,8 +193,11 @@ dialog::backdrop{background:#17212f66}
 .skill-conexion-card h4{margin:0 0 6px;font-size:13px;font-weight:700;color:#17212f}
 .skill-conexion-card pre{margin:0;padding:10px 12px;border-radius:8px;background:#17212f;color:#e8eef8;font-size:11px;line-height:1.45;overflow:auto;white-space:pre-wrap}
 .skill-conexion-card code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.operativa-huecos{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
-.operativa-huecos li{margin:0;padding:8px 12px;border-radius:8px;background:#fecaca;color:#7f1d1d;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.operativa-huecos{margin:12px 0 0}
+.catalogo-fila.is-warn{border-color:#f0b8b2;background:#fff5f4}
+.catalogo-fila.is-warn .catalogo-fila-titulo{color:#7f1d1d}
+.catalogo-fila.is-ok-tint{border-color:#b7e4c7;background:#f3fbf6}
+.catalogo-fila.is-err-tint{border-color:#f0b8b2;background:#fff5f4}
 .editar-anclas-top{justify-content:flex-end}
 .ancla-pill{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;line-height:1.25;padding:2px 6px;border-radius:999px;background:#edf3ff;color:#315eb6;border:1px solid #d5e2f7;overflow-wrap:anywhere;max-width:100%}
 .ancla-aliases{display:flex;flex-wrap:wrap;gap:6px}
@@ -385,38 +389,26 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .proy-historial-filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:0 0 12px}
 .proy-historial-filtros label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#5f6f84}
 .proy-historial-filtros select,.proy-historial-filtros input[type="datetime-local"]{font:inherit;font-size:13px;font-weight:500;padding:6px 8px;border:1px solid #d5dde8;border-radius:8px;background:#fff;color:#17212f;min-width:9rem}
-.proy-historial-tabla{width:100%;border-collapse:collapse;font-size:13px}
-.proy-historial-tabla th,.proy-historial-tabla td{text-align:left;padding:8px 10px;border-bottom:1px solid #e5eaf1;vertical-align:top}
-.proy-historial-tabla th{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#677488;background:#f8fafc}
-.proy-historial-tabla tbody tr{cursor:pointer}
-.proy-historial-tabla tbody tr:hover{background:#f4f7fb}
-.proy-historial-tabla tbody tr.is-open{background:#edf3ff}
 .proy-historial-modo,.proy-historial-estado{display:inline-block;font-size:12px;font-weight:600}
 .proy-historial-estado.is-ok{color:#0f7a45}
 .proy-historial-estado.is-err{color:#b42318}
-.proy-historial-resumen{color:#31506e;max-width:28rem;overflow-wrap:anywhere}
 .proy-historial-detalle{margin:12px 0 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#0f172a;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap;overflow:auto;max-height:min(50vh,420px)}
 .proy-historial-pager{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 0}
 .tabla-scroll{overflow:auto}
 .flujo-grafo-ascii{margin:12px 0 0;padding:12px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fafc;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow:auto;color:#17212f}
-.flujo-nodos-lista{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
-.flujo-nodos-lista li{padding:8px 10px;border:1px solid #e5eaf1;border-radius:10px;background:#fff;font-size:13px}
-.flujo-nodos-lista code{font-size:12px;color:#315eb6}
+.flujo-nodos-lista{margin:12px 0 0}
 .flujo-json-edit{width:100%;min-height:10rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;padding:10px;border:1px solid #d5dde8;border-radius:10px;background:#fff;resize:vertical}
 .redactor-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;align-items:stretch}
 @media (max-width:720px){.redactor-grid{grid-template-columns:1fr}}
-.redactor-pane{border:1px solid #d5dde8;border-radius:10px;padding:10px;background:#fafbfd}
-.redactor-pane .historial-titulo{margin:0 0 8px;font-size:0.85rem;letter-spacing:0.02em}
+.redactor-pane{border:1px solid #d5dde8;border-radius:12px;padding:12px;background:#fbfdff}
+.redactor-pane .historial-titulo{margin:0 0 8px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#677488}
+.redactor-pane textarea{min-height:7rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.45}
 .redactor-meta{font-size:12px;line-height:1.45;white-space:pre-wrap;margin:8px 0;padding:8px;border-radius:8px;background:#f3f5f8;border:1px solid #e4eaf2}
 .redactor-meta.is-err{border-color:#e8b4b4;background:#fff5f5}
 .redactor-meta.is-ok{border-color:#b7dfc4;background:#f3fbf6}
-.corrida-timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
-.corrida-paso{padding:10px 12px;border:1px solid #e5eaf1;border-radius:12px;background:#fff}
-.corrida-paso.is-hecho{border-color:#b7e4c7;background:#f3fbf6}
-.corrida-paso.is-error{border-color:#f0b8b2;background:#fff5f4}
-.corrida-paso.is-pendiente{border-color:#c9d5e8;background:#f8fbff}
-.corrida-paso-meta{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12px;color:#5f6f84;margin-top:4px}
-.corrida-paso-titulo{font-weight:700;font-size:14px;color:#17212f}
+.corrida-timeline{margin:0}
+.corrida-paso-wrap{display:flex;flex-direction:column;gap:6px}
+.corrida-paso-wrap .flujo-grafo-ascii{margin:0}
 .corrida-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:6px;background:#edf3ff;color:#1c63d5}
 .corrida-badge.is-terminada,.corrida-badge.is-hecho{background:#e6f6ed;color:#0f7a45}
 .corrida-badge.is-error{background:#fdeceb;color:#b42318}
@@ -635,7 +627,10 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-top-acciones">
-<button type="button" class="btn primary" id="btnCrearBdProyecto" title="Empuja colecciones, validators e índices a Mongo Atlas (o muestra el plan si no hay URI)">Empujar esquema</button>
+<button type="button" class="btn primary btn-anadir" id="btnCrearBdProyecto" title="Empuja colecciones, validators e índices a Mongo Atlas (o muestra el plan si no hay URI)">
+<span class="btn-anadir-svg-wrap" aria-hidden="true"><svg class="btn-anadir-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg></span>
+<span>Empujar esquema</span>
+</button>
 <div class="historial-ancla">
 <button type="button" class="icon-btn" id="btnHistorialProyecto" aria-label="Historial de versiones" title="Historial de versiones" aria-expanded="false" aria-controls="historialProyecto">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
@@ -703,17 +698,20 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ajustes-hint">Cableado I/O de skills (salidas → entradas por ancla). <strong>No</strong> es la lista de flujos. En <span style="color:#b91c1c;font-weight:600">rojo</span>: entradas sin productor. La orquestación ejecutable está en <strong>Flujos</strong>; cada <strong>Corrida</strong> vive en la ficha del Flujo.</p>
 <p class="ancla-ficha-vacio" id="proyOperativaEstado">Cargando operativa…</p>
 <div class="proy-diagrama-render" id="proyOperativaRender" hidden></div>
-<ul class="operativa-huecos" id="proyOperativaHuecos" hidden></ul>
+<div class="operativa-huecos proy-tab-catalogo catalogo-lista" id="proyOperativaHuecos" role="list" hidden></div>
 <p class="operativa-flujo-link" id="proyOperativaFlujosLink" hidden>
-<button type="button" class="btn" id="btnOperativaIrFlujos">Ver Flujos →</button>
-<button type="button" class="btn ghost" id="btnOperativaIrCorridas">Corridas del Flujo →</button>
+<button type="button" class="btn ghost compact" id="btnOperativaIrFlujos">Ver Flujos →</button>
+<button type="button" class="btn ghost compact" id="btnOperativaIrCorridas">Corridas del Flujo →</button>
 </p>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelFlujos" role="tabpanel" aria-labelledby="proyTabFlujos" hidden>
 <p class="ajustes-hint">Grafos de orquestación de esta BD (Inicio / Skill / Decisión / Espera / Subflujo / Fin). Abre un flujo para ver y arrancar sus <strong>Corridas</strong>. El cableado I/O de skills está en <strong>Operativa</strong>.</p>
-<div class="editar-anclas-top" style="margin-bottom:0.75rem">
-<span class="historial-titulo">Flujos</span>
-<button type="button" class="btn" id="btnNuevoFlujo" title="Crear flujo">+ Flujo</button>
+<div class="catalogo-toolbar ficha-catalogo-toolbar">
+<button type="button" class="btn primary btn-anadir" id="btnNuevoFlujo" title="Crear flujo">
+<span class="btn-anadir-plus" aria-hidden="true">+</span>
+<span class="btn-anadir-svg-wrap" aria-hidden="true"><svg class="btn-anadir-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></span>
+<span>Flujo</span>
+</button>
 </div>
 <p class="ancla-ficha-vacio" id="proyFlujosEstado" hidden>Cargando flujos…</p>
 <div id="proyFlujosLista" class="proy-tab-catalogo"></div>
@@ -737,8 +735,11 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="reader-panel ancla-ficha-body" id="proyPanelEmpujar" role="tabpanel" aria-labelledby="proyTabEmpujar" hidden>
 <p class="ajustes-hint">Crea o actualiza en Atlas las colecciones, validators e índices de esta base. Sin URI en el Cluster responde en simulación (dry-run). Usa el botón <strong>Empujar esquema</strong> arriba o el de esta pestaña.</p>
 <p class="proy-empujar-auto-nota" id="proyEmpujarAutoNota" hidden></p>
-<div class="ajustes-actions" style="margin:12px 0">
-<button type="button" class="btn primary" id="btnEmpujarEsquemaTab" title="Empuja colecciones, validators e índices a Mongo Atlas (o muestra el plan si no hay URI)">Empujar esquema</button>
+<div class="catalogo-toolbar ficha-catalogo-toolbar" style="justify-content:flex-start;margin:12px 0">
+<button type="button" class="btn primary btn-anadir" id="btnEmpujarEsquemaTab" title="Empuja colecciones, validators e índices a Mongo Atlas (o muestra el plan si no hay URI)">
+<span class="btn-anadir-svg-wrap" aria-hidden="true"><svg class="btn-anadir-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg></span>
+<span>Empujar esquema</span>
+</button>
 </div>
 <p class="proy-crear-bd-msg" id="proyCrearBdMsg" role="status" hidden></p>
 <div class="proy-empujar-plan" id="proyEmpujarPlan" hidden></div>
@@ -746,6 +747,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelHistorial" role="tabpanel" aria-labelledby="proyTabHistorial" hidden>
 <p class="ajustes-hint">Log de cada empuje de esquema de esta base (manual, dry-run y auto-sync). Clic en una fila para ver el JSON crudo.</p>
+<div class="catalogo-toolbar ficha-catalogo-toolbar" id="proyHistorialToolbar">
 <div class="proy-historial-filtros" id="proyHistorialFiltros">
 <label>Estado
 <select id="proyHistorialEstado" aria-label="Filtrar por estado">
@@ -760,20 +762,14 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <label>Hasta
 <input type="datetime-local" id="proyHistorialHasta" aria-label="Hasta">
 </label>
-<button type="button" class="btn" id="btnProyHistorialFiltrar">Filtrar</button>
+<button type="button" class="btn ghost" id="btnProyHistorialFiltrar">Filtrar</button>
+</div>
 </div>
 <p class="ancla-ficha-vacio" id="proyHistorialEstadoMsg" hidden>Cargando historial…</p>
-<div class="tabla-scroll" id="proyHistorialTablaWrap" hidden>
-<table class="proy-historial-tabla" id="proyHistorialTabla">
-<thead>
-<tr><th>Cuándo</th><th>Modo</th><th>Estado</th><th>Resumen</th><th></th></tr>
-</thead>
-<tbody id="proyHistorialBody"></tbody>
-</table>
-</div>
+<div id="proyHistorialLista" class="proy-tab-catalogo catalogo-lista" role="list" hidden></div>
 <pre class="proy-historial-detalle api-error-raw" id="proyHistorialDetalle" hidden></pre>
 <div class="proy-historial-pager" id="proyHistorialPager" hidden>
-<button type="button" class="btn" id="btnProyHistorialMas" hidden>Cargar más</button>
+<button type="button" class="btn ghost" id="btnProyHistorialMas" hidden>Cargar más</button>
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelInterno" role="tabpanel" aria-labelledby="proyTabInterno" hidden>
@@ -851,14 +847,14 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <p class="ajustes-hint">Grafo del flujo (Mermaid) y lista de nodos/aristas. Editar abre el JSON.</p>
 <div class="proy-diagrama-render" id="flujoGrafoRender"></div>
 <pre class="flujo-grafo-ascii" id="flujoGrafoAscii" hidden></pre>
-<ul class="flujo-nodos-lista" id="flujoNodosLista"></ul>
+<div id="flujoNodosLista" class="proy-tab-catalogo catalogo-lista flujo-nodos-lista" role="list"></div>
 <div id="flujoEditWrap" hidden>
 <p class="historial-titulo" style="margin-top:1rem">Editar (JSON → nueva versión)</p>
 <div class="redactor-grid" id="flujoRedactorGrid" data-redactor-for="flujo">
 <div class="redactor-pane">
 <p class="historial-titulo">REDACTOR · escribe</p>
 <textarea id="flujoRedactorIntencion" class="flujo-json-edit" style="min-height:7rem" spellcheck="true" placeholder='p. ej. flujo de 3 pasos: descubrir negocio, mapear recorrido y fin'></textarea>
-<button type="button" class="btn" id="btnFlujoRedactorGenerar" style="margin-top:8px">Generar</button>
+<button type="button" class="btn primary compact" id="btnFlujoRedactorGenerar" style="margin-top:8px">Generar</button>
 </div>
 <div class="redactor-pane">
 <p class="historial-titulo">DEFINICIÓN (JSON, editable)</p>
@@ -875,8 +871,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <label class="ajustes-hint" for="flujoEditAristas">aristas[]</label>
 <textarea id="flujoEditAristas" class="flujo-json-edit" spellcheck="false"></textarea>
 <p class="proy-crear-bd-msg" id="flujoEditMsg" role="status" hidden></p>
-<div class="ajustes-actions" style="margin-top:8px;flex-wrap:wrap;gap:8px">
-<button type="button" class="btn" id="btnFlujoRedactorProbar">Probar</button>
+<div class="dlg-actions" style="margin-top:8px;flex-wrap:wrap;gap:8px">
+<button type="button" class="btn ghost" id="btnFlujoRedactorProbar">Probar</button>
 <button type="button" class="btn primary" id="btnGuardarFlujoVersion" disabled title="Genera y valida antes de guardar, o edita JSON válido">Guardar versión</button>
 <button type="button" class="btn ghost" id="btnCancelarFlujoEdit">Cancelar</button>
 </div>
@@ -884,7 +880,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelVersiones" role="tabpanel" aria-labelledby="flujoTabVersiones" hidden>
 <p class="ajustes-hint">Versiones pinneadas en D1 (<code>flujo_versions</code>). Las corridas guardan el número de versión al crearse.</p>
-<ul id="flujoVersionesLista" class="flujo-nodos-lista"></ul>
+<div id="flujoVersionesLista" class="proy-tab-catalogo catalogo-lista" role="list"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="flujoPanelDisparadores" role="tabpanel" aria-labelledby="flujoTabDisparadores" hidden>
 <p class="ajustes-hint">Cuándo arranca este flujo. Varios disparadores = «o». Probar no crea corridas; Guardar escribe en D1.</p>
@@ -959,57 +955,67 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="redactor-grid" id="dispRedactorGrid" data-redactor-for="disparador">
 <div class="redactor-pane">
 <p class="historial-titulo">REDACTOR · escribe</p>
-<textarea id="dispRedactorIntencion" class="flujo-json-edit" style="min-height:7rem" spellcheck="true" placeholder='p. ej. cada hora, reservas sin confirmar de hace más de 2 horas'></textarea>
-<button type="button" class="btn primary" id="btnDispRedactorGenerar" style="margin-top:8px">Generar</button>
+<textarea id="dispRedactorIntencion" rows="5" spellcheck="true" placeholder='p. ej. cada hora, reservas sin confirmar de hace más de 2 horas'></textarea>
+<button type="button" class="btn primary compact" id="btnDispRedactorGenerar" style="margin-top:8px">Generar</button>
 </div>
 <div class="redactor-pane">
 <p class="historial-titulo">DEFINICIÓN (JSON, editable)</p>
-<textarea id="dispRedactorDefinicion" class="flujo-json-edit" style="min-height:7rem" spellcheck="false" placeholder='{ "tipo":"horario", … }'></textarea>
+<textarea id="dispRedactorDefinicion" rows="5" spellcheck="false" placeholder='{ "tipo":"horario", … }'></textarea>
 </div>
 </div>
 <div class="redactor-meta" id="dispRedactorMeta" hidden role="status"></div>
-<label class="ajustes-hint" for="flujoDispId">Id</label>
-<input type="text" id="flujoDispId" class="flujo-json-edit" style="min-height:auto;height:2.5rem" autocomplete="off" placeholder="d-07">
-<label class="ajustes-hint" for="flujoDispTipo">Tipo</label>
-<select id="flujoDispTipo" aria-label="Tipo de disparador" style="display:block;margin:4px 0 10px;padding:8px;font:inherit">
+<label for="flujoDispId">Id
+<input type="text" id="flujoDispId" autocomplete="off" placeholder="d-07">
+</label>
+<label for="flujoDispTipo">Tipo
+<select id="flujoDispTipo" aria-label="Tipo de disparador">
 <option value="manual">a mano (manual)</option>
 <option value="horario">horario</option>
 <option value="cambio_datos">cambio datos</option>
 <option value="webhook">webhook</option>
 </select>
+</label>
 <div id="flujoDispCamposHorario" hidden>
-<label class="ajustes-hint" for="flujoDispCron">Cron (5 campos)</label>
-<input type="text" id="flujoDispCron" class="flujo-json-edit" style="min-height:auto;height:2.5rem" placeholder="0 * * * *">
-<label class="ajustes-hint" for="flujoDispColeccionH">Colección</label>
-<input type="text" id="flujoDispColeccionH" class="flujo-json-edit" style="min-height:auto;height:2.5rem" placeholder="reservas">
+<label for="flujoDispCron">Cron (5 campos)
+<input type="text" id="flujoDispCron" placeholder="0 * * * *">
+</label>
+<label for="flujoDispColeccionH">Colección
+<input type="text" id="flujoDispColeccionH" placeholder="reservas">
+</label>
 </div>
 <div id="flujoDispCamposCambio" hidden>
-<label class="ajustes-hint" for="flujoDispColeccionC">Colección</label>
-<input type="text" id="flujoDispColeccionC" class="flujo-json-edit" style="min-height:auto;height:2.5rem" placeholder="negocios">
-<label class="ajustes-hint" for="flujoDispOps">Operaciones (JSON)</label>
-<input type="text" id="flujoDispOps" class="flujo-json-edit" style="min-height:auto;height:2.5rem" value='["crear","actualizar"]'>
+<label for="flujoDispColeccionC">Colección
+<input type="text" id="flujoDispColeccionC" placeholder="negocios">
+</label>
+<label for="flujoDispOps">Operaciones (JSON)
+<input type="text" id="flujoDispOps" value='["crear","actualizar"]'>
+</label>
 </div>
 <div id="flujoDispCamposWebhook" hidden>
 <p class="ajustes-hint" id="flujoDispWebhookUrlHint">URL (tras guardar):</p>
 <div class="editar-anclas-top" style="gap:8px;align-items:center">
 <code id="flujoDispWebhookUrl" style="flex:1;word-break:break-all">—</code>
-<button type="button" class="btn ghost" id="btnFlujoDispCopiarUrl" hidden>Copiar</button>
+<button type="button" class="btn ghost compact" id="btnFlujoDispCopiarUrl" hidden>Copiar</button>
 </div>
 </div>
-<label class="ajustes-hint" for="flujoDispNegocio">Negocio (vacío = todos)</label>
-<input type="text" id="flujoDispNegocio" class="flujo-json-edit" style="min-height:auto;height:2.5rem" autocomplete="off">
-<label class="ajustes-hint" for="flujoDispAnti">Anti-bucle</label>
-<select id="flujoDispAnti" style="display:block;margin:4px 0 10px;padding:8px;font:inherit">
+<label for="flujoDispNegocio">Negocio (vacío = todos)
+<input type="text" id="flujoDispNegocio" autocomplete="off">
+</label>
+<label for="flujoDispAnti">Anti-bucle
+<select id="flujoDispAnti">
 <option value="true">sí</option>
 <option value="false">no</option>
 </select>
-<label class="ajustes-hint" for="flujoDispAgrupar">Agrupar (segundos)</label>
-<input type="number" id="flujoDispAgrupar" class="flujo-json-edit" style="min-height:auto;height:2.5rem" value="0" min="0" step="1">
-<label class="ajustes-hint" for="flujoDispPipeline">Definición JSON (pipeline + extras)</label>
-<textarea id="flujoDispPipeline" class="flujo-json-edit" spellcheck="false" placeholder='[]'></textarea>
+</label>
+<label for="flujoDispAgrupar">Agrupar (segundos)
+<input type="number" id="flujoDispAgrupar" value="0" min="0" step="1">
+</label>
+<label for="flujoDispPipeline">Definición JSON (pipeline + extras)
+<textarea id="flujoDispPipeline" rows="4" spellcheck="false" placeholder='[]'></textarea>
+</label>
 <p class="proy-crear-bd-msg" id="flujoDispFormMsg" role="status" hidden></p>
 <pre class="flujo-grafo-ascii" id="flujoDispProbarOut" hidden style="max-height:12rem;overflow:auto"></pre>
-<div class="ajustes-actions" style="margin-top:8px;flex-wrap:wrap;gap:8px">
+<div class="dlg-actions">
 <button type="button" class="btn ghost" id="btnFlujoDispProbar">Probar</button>
 <button type="button" class="btn primary" id="btnFlujoDispGuardar" disabled title="Valida con Generar o Probar antes de guardar">Guardar</button>
 <button type="button" class="btn ghost" id="btnFlujoDispCancelar">Cancelar</button>
@@ -1044,7 +1050,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-panel ancla-ficha-body" id="corridaPanelPasos" role="tabpanel" aria-labelledby="corridaTabPasos">
 <p class="ajustes-hint" id="corridaPasosHint">Timeline de <code>pasos[]</code>.</p>
-<ul class="corrida-timeline" id="corridaPasosLista"></ul>
+<div class="corrida-timeline proy-tab-catalogo catalogo-lista" id="corridaPasosLista" role="list"></div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="corridaPanelDatos" role="tabpanel" aria-labelledby="corridaTabDatos" hidden>
 <pre class="proy-historial-detalle" id="corridaDatosJson" style="max-height:min(70vh,560px)"></pre>
@@ -1867,8 +1873,8 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <div class="ancla-ficha-fila" id="ejResumenWorkflowNombreFila" hidden><dt>Workflow</dt><dd id="ejResumenWorkflowNombre">—</dd></div>
 <div class="ancla-ficha-fila" id="ejResumenWorkflowIdFila" hidden><dt>workflow_id</dt><dd id="ejResumenWorkflowId">—</dd></div>
 </dl>
-<p id="ejResumenN8nAcciones" class="dlg-actions" style="margin-top:0.75rem" hidden>
-<a class="btn primary" id="ejResumenAbrirN8n" href="#" target="_blank" rel="noopener noreferrer">Abrir workflow en n8n ↗</a>
+<p id="ejResumenN8nAcciones" class="ancla-ficha-acciones" style="margin-top:0.75rem" hidden>
+<a class="btn primary compact" id="ejResumenAbrirN8n" href="#" target="_blank" rel="noopener noreferrer">Abrir workflow en n8n ↗</a>
 </p>
 <p class="historial-titulo" style="margin-top:1rem">Config</p>
 <pre id="ejResumenConfig" class="md" style="white-space:pre-wrap;font-size:0.85em"></pre>
@@ -2123,22 +2129,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261024n8nenl3"></script>
-<script src="skills-ui.js?v=20261024n8nenl3"></script>
-<script src="campos-ancla-ui.js?v=20261024n8nenl3"></script>
-<script src="campos-mongodb-ui.js?v=20261024n8nenl3"></script>
-<script src="clusters-ui.js?v=20261024n8nenl3"></script>
-<script src="proyectos-ui.js?v=20261024n8nenl3"></script>
-<script src="colecciones-ui.js?v=20261024n8nenl3"></script>
-<script src="agentes-ui.js?v=20261024n8nenl3"></script>
-<script src="fundamentos-ui.js?v=20261024n8nenl3"></script>
-<script src="system-prompts-ui.js?v=20261024n8nenl3"></script>
-<script src="system-prompts-catalog.js?v=20261024n8nenl3"></script>
-<script src="ejecutores-ui.js?v=20261024n8nenl3"></script>
-<script src="ejecutores-catalog.js?v=20261024n8nenl3"></script>
-<script src="catalogo-ui.js?v=20261024n8nenl3"></script>
-<script src="flujos-corridas-ui.js?v=20261024n8nenl3"></script>
-<script src="ajustes-ui.js?v=20261024n8nenl3"></script>
+<script src="color-entidad-ui.js?v=20261025adn1"></script>
+<script src="skills-ui.js?v=20261025adn1"></script>
+<script src="campos-ancla-ui.js?v=20261025adn1"></script>
+<script src="campos-mongodb-ui.js?v=20261025adn1"></script>
+<script src="clusters-ui.js?v=20261025adn1"></script>
+<script src="proyectos-ui.js?v=20261025adn1"></script>
+<script src="colecciones-ui.js?v=20261025adn1"></script>
+<script src="agentes-ui.js?v=20261025adn1"></script>
+<script src="fundamentos-ui.js?v=20261025adn1"></script>
+<script src="system-prompts-ui.js?v=20261025adn1"></script>
+<script src="system-prompts-catalog.js?v=20261025adn1"></script>
+<script src="ejecutores-ui.js?v=20261025adn1"></script>
+<script src="ejecutores-catalog.js?v=20261025adn1"></script>
+<script src="catalogo-ui.js?v=20261025adn1"></script>
+<script src="flujos-corridas-ui.js?v=20261025adn1"></script>
+<script src="ajustes-ui.js?v=20261025adn1"></script>
 
 </body>
 </html>

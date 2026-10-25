@@ -4436,10 +4436,24 @@ function cargarProyectoOperativa(proy) {
       if (huecosEl) {
         if (huecos.length) {
           huecosEl.hidden = false;
+          const mkFila = typeof filaCatalogoLista === 'function' ? filaCatalogoLista : null;
           huecos.forEach(function (h) {
-            const li = document.createElement('li');
-            li.textContent = 'Entrada sin productor: ' + h;
-            huecosEl.append(li);
+            let row;
+            if (mkFila) {
+              row = mkFila({
+                icono: 'errores',
+                titulo: String(h),
+                secundario: 'Entrada sin productor',
+                static: true,
+                title: 'Entrada sin productor: ' + h
+              });
+              row.classList.add('is-warn');
+            } else {
+              row = document.createElement('div');
+              row.className = 'catalogo-fila catalogo-fila-static is-warn';
+              row.textContent = 'Entrada sin productor: ' + h;
+            }
+            huecosEl.append(row);
           });
         } else {
           huecosEl.hidden = true;
@@ -4995,18 +5009,30 @@ function pintarPlanEmpujarEsquema(data, proy) {
   planEl.append(meta);
 
   if (cols.length) {
-    const ul = document.createElement('ul');
-    ul.className = 'proy-empujar-lista';
+    const lista = document.createElement('div');
+    lista.className = 'proy-tab-catalogo catalogo-lista';
+    lista.setAttribute('role', 'list');
+    const mkFila = typeof filaCatalogoLista === 'function' ? filaCatalogoLista : null;
     cols.forEach(function (c) {
-      const li = document.createElement('li');
       const nIdx = Array.isArray(c.indexes) ? c.indexes.length : 0;
       const hasVal = !!(c.validator && (c.validator.$jsonSchema || c.validator));
-      li.textContent = (c.id || '—')
-        + (hasVal ? ' · validator' : '')
+      const sec = (hasVal ? 'validator' : 'sin validator')
         + (nIdx ? (' · ' + nIdx + (nIdx === 1 ? ' índice' : ' índices')) : ' · sin índices');
-      ul.append(li);
+      if (mkFila) {
+        lista.append(mkFila({
+          icono: 'coleccion',
+          titulo: c.id || '—',
+          secundario: sec,
+          static: true
+        }));
+      } else {
+        const li = document.createElement('div');
+        li.className = 'catalogo-fila catalogo-fila-static';
+        li.textContent = (c.id || '—') + ' · ' + sec;
+        lista.append(li);
+      }
     });
-    planEl.append(ul);
+    planEl.append(lista);
   }
 
   if (!dry) {
@@ -5121,49 +5147,60 @@ function labelEmpujeModo(modo) {
 }
 
 function pintarProyectoHistorialTabla() {
-  const body = document.getElementById('proyHistorialBody');
-  const wrap = document.getElementById('proyHistorialTablaWrap');
+  const lista = document.getElementById('proyHistorialLista');
   const vacio = document.getElementById('proyHistorialEstadoMsg');
   const pager = document.getElementById('proyHistorialPager');
   const btnMas = document.getElementById('btnProyHistorialMas');
   const detalle = document.getElementById('proyHistorialDetalle');
   const st = state.proyectos.empujes;
-  if (!body) return;
-  body.replaceChildren();
+  if (!lista) return;
+  lista.replaceChildren();
   const items = st.items || [];
   if (!items.length) {
-    if (wrap) wrap.hidden = true;
+    lista.hidden = true;
     if (vacio && !st.loading) {
       vacio.hidden = false;
       vacio.textContent = 'Sin empujes todavía para esta base.';
     }
   } else {
-    if (wrap) wrap.hidden = false;
+    lista.hidden = false;
     if (vacio) vacio.hidden = true;
+    const mkFila = typeof filaCatalogoLista === 'function' ? filaCatalogoLista : null;
     items.forEach(function (e) {
-      const tr = document.createElement('tr');
-      tr.dataset.empujeId = e.id;
-      if (st.openId === e.id) tr.classList.add('is-open');
-      const tdCuando = document.createElement('td');
-      tdCuando.textContent = formatEmpujeCuando(e.ts);
-      const tdModo = document.createElement('td');
-      const modoSpan = document.createElement('span');
-      modoSpan.className = 'proy-historial-modo';
-      modoSpan.textContent = labelEmpujeModo(e.modo);
-      tdModo.append(modoSpan);
-      const tdEstado = document.createElement('td');
-      const estSpan = document.createElement('span');
-      estSpan.className = 'proy-historial-estado ' + (e.ok ? 'is-ok' : 'is-err');
-      estSpan.textContent = e.ok ? 'ok' : 'error';
-      tdEstado.append(estSpan);
-      const tdRes = document.createElement('td');
-      tdRes.className = 'proy-historial-resumen';
-      tdRes.textContent = e.resumen || '—';
-      const tdOpen = document.createElement('td');
-      tdOpen.textContent = st.openId === e.id ? '▾' : '▸';
-      tdOpen.setAttribute('aria-label', 'Ver detalle');
-      tr.append(tdCuando, tdModo, tdEstado, tdRes, tdOpen);
-      body.append(tr);
+      const abierto = st.openId === e.id;
+      const secundario = labelEmpujeModo(e.modo)
+        + ' · '
+        + (e.ok ? 'ok' : 'error')
+        + (e.resumen ? ' · ' + e.resumen : '');
+      let row;
+      if (mkFila) {
+        row = mkFila({
+          icono: 'historial',
+          titulo: formatEmpujeCuando(e.ts),
+          secundario: secundario,
+          open: abierto,
+          title: e.resumen || formatEmpujeCuando(e.ts),
+          ariaLabel: 'Empuje ' + formatEmpujeCuando(e.ts),
+          dataset: { empujeId: e.id },
+          onClick: function () {
+            st.openId = st.openId === e.id ? null : e.id;
+            pintarProyectoHistorialTabla();
+          }
+        });
+      } else {
+        row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'catalogo-fila' + (abierto ? ' is-open' : '');
+        row.dataset.empujeId = e.id;
+        row.textContent = formatEmpujeCuando(e.ts) + ' — ' + secundario;
+        row.addEventListener('click', function () {
+          st.openId = st.openId === e.id ? null : e.id;
+          pintarProyectoHistorialTabla();
+        });
+      }
+      if (e.ok) row.classList.add('is-ok-tint');
+      else row.classList.add('is-err-tint');
+      lista.append(row);
     });
   }
   if (pager) pager.hidden = !st.nextCursor;
@@ -7217,11 +7254,13 @@ function wireProyectosUi() {
     if (!proy) return;
     cargarProyectoHistorialEmpujes(proy, { append: true, reset: false });
   });
-  const histBody = document.getElementById('proyHistorialBody');
-  if (histBody) histBody.addEventListener('click', function (e) {
-    const tr = e.target.closest('tr[data-empuje-id]');
-    if (!tr) return;
-    const id = tr.getAttribute('data-empuje-id');
+  const histLista = document.getElementById('proyHistorialLista');
+  if (histLista) histLista.addEventListener('click', function (e) {
+    const row = e.target.closest('[data-empuje-id]');
+    if (!row || !histLista.contains(row)) return;
+    // onClick de filaCatalogoLista ya alterna; este listener cubre el fallback sin helper
+    if (typeof filaCatalogoLista === 'function' && row.classList.contains('catalogo-fila')) return;
+    const id = row.getAttribute('data-empuje-id');
     const st = state.proyectos.empujes;
     st.openId = st.openId === id ? null : id;
     pintarProyectoHistorialTabla();
