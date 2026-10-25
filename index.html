@@ -66,7 +66,7 @@
 .catalogo-vacio-host{margin:0;padding:0;border:0;background:transparent;color:inherit;font:inherit}
 .catalogo-vacio-host > .catalogo-vacio{margin:0}
 .ficha-catalogo-toolbar{margin:0 0 12px}
-.operativa-flujo-link{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.operativa-flujo-link{display:flex;flex-wrap:wrap;gap:8px;margin:0}
 .ancla-ficha-vacio.catalogo-vacio-host{margin:8px 0 0}
 /* Pickers de asociación: mismas filas catalogo-fila que Catálogos */
 .proy-skills-picker,.catalogo-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch;margin:0;max-height:min(50vh,420px);overflow:auto;padding:2px}
@@ -201,14 +201,16 @@ dialog::backdrop{background:#17212f66}
 .agentes-sync{margin-right:auto;font-size:12px;font-weight:600;color:#8a97a8;white-space:nowrap}
 .dlg .reader-tabs{margin:12px 0 0}
 .skill-anclas-list{display:flex;flex-wrap:wrap;gap:5px;margin:0}
-.skill-io-subtabs,.asociados-subtabs{margin:0 0 10px;gap:4px}
+.skill-io-subtabs,.asociados-subtabs,.operativa-subtabs{margin:0 0 10px;gap:4px}
 .asociados-subpane[hidden]{display:none!important}
+.ancla-ficha-tab .pestana-count{display:inline-flex;align-items:center;justify-content:center;min-width:1.35em;height:1.35em;padding:0 5px;margin-left:2px;border-radius:999px;font-size:10px;font-weight:800;line-height:1;background:#fdeceb;color:#b42318;border:1px solid #f0c4c4}
+.ancla-ficha-tab .pestana-count[hidden]{display:none!important}
 .skill-conexion{display:flex;flex-direction:column;gap:14px}
 .skill-conexion-card{margin:0;padding:12px 14px;border:1px solid #e5eaf1;border-radius:12px;background:#f8fbff}
 .skill-conexion-card h4{margin:0 0 6px;font-size:13px;font-weight:700;color:#17212f}
 .skill-conexion-card pre{margin:0;padding:10px 12px;border-radius:8px;background:#17212f;color:#e8eef8;font-size:11px;line-height:1.45;overflow:auto;white-space:pre-wrap}
 .skill-conexion-card code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.operativa-huecos{margin:12px 0 0}
+.operativa-huecos{margin:0}
 .catalogo-fila.is-warn{border-color:#f0b8b2;background:#fff5f4}
 .catalogo-fila.is-warn .catalogo-fila-titulo{color:#7f1d1d}
 .catalogo-fila.is-ok-tint{border-color:#b7e4c7;background:#f3fbf6}
@@ -709,14 +711,26 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelOperativa" role="tabpanel" aria-labelledby="proyTabOperativa" hidden>
-<p class="ajustes-hint">Cableado I/O de skills (salidas → entradas por ancla). <strong>No</strong> es la lista de flujos. En <span style="color:#b91c1c;font-weight:600">rojo</span>: entradas sin productor. La orquestación ejecutable está en <strong>Flujos</strong>; cada <strong>Corrida</strong> vive en la ficha del Flujo.</p>
+<div class="ancla-ficha-tabs reader-tabs asociados-subtabs operativa-subtabs" id="proyOperativaSubtabs" role="tablist" aria-label="Vistas de la operativa">
+<button type="button" class="ancla-ficha-tab is-on" role="tab" data-proy-op-sub="mapa" aria-selected="true">Mapa</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-proy-op-sub="huecos" aria-selected="false">Huecos</button>
+<button type="button" class="ancla-ficha-tab" role="tab" data-proy-op-sub="atajos" aria-selected="false">Atajos</button>
+</div>
+<div class="asociados-subpane" id="proyOpPaneMapa" data-proy-op-pane="mapa">
+<p class="ajustes-hint">Cableado I/O de skills: salidas → entradas por ancla compartida. En <span style="color:#b91c1c;font-weight:600">rojo</span>: entradas sin productor. <strong>No</strong> es la lista de flujos.</p>
 <p class="ancla-ficha-vacio" id="proyOperativaEstado">Cargando operativa…</p>
 <div class="proy-diagrama-render" id="proyOperativaRender" hidden></div>
-<div class="operativa-huecos proy-tab-catalogo catalogo-lista" id="proyOperativaHuecos" role="list" hidden></div>
-<p class="operativa-flujo-link" id="proyOperativaFlujosLink" hidden>
+</div>
+<div class="asociados-subpane" id="proyOpPaneHuecos" data-proy-op-pane="huecos" hidden>
+<div class="operativa-huecos proy-tab-catalogo catalogo-lista" id="proyOperativaHuecos" role="list"></div>
+</div>
+<div class="asociados-subpane" id="proyOpPaneAtajos" data-proy-op-pane="atajos" hidden>
+<p class="ajustes-hint">Orquestación ejecutable en <strong>Flujos</strong>; cada <strong>Corrida</strong> vive en la ficha del Flujo. Operativa no lista flujos.</p>
+<p class="operativa-flujo-link" id="proyOperativaFlujosLink">
 <button type="button" class="btn ghost compact" id="btnOperativaIrFlujos" data-accion-icon="flujo">Ver Flujos</button>
 <button type="button" class="btn ghost compact" id="btnOperativaIrCorridas" data-accion-icon="corrida">Corridas del Flujo</button>
 </p>
+</div>
 </div>
 <div class="reader-panel ancla-ficha-body" id="proyPanelFlujos" role="tabpanel" aria-labelledby="proyTabFlujos" hidden>
 <p class="ajustes-hint">Grafos de orquestación de esta BD (Inicio / Skill / Decisión / Espera / Subflujo / Fin). Abre un flujo para ver y arrancar sus <strong>Corridas</strong>. El cableado I/O de skills está en <strong>Operativa</strong>.</p>
@@ -2143,22 +2157,22 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
   abrir(desdeHash());
 })();
 </script>
-<script src="color-entidad-ui.js?v=20261025icon1"></script>
-<script src="skills-ui.js?v=20261025icon1"></script>
-<script src="campos-ancla-ui.js?v=20261025icon1"></script>
-<script src="campos-mongodb-ui.js?v=20261025icon1"></script>
-<script src="clusters-ui.js?v=20261025icon1"></script>
-<script src="proyectos-ui.js?v=20261025icon1"></script>
-<script src="colecciones-ui.js?v=20261025icon1"></script>
-<script src="agentes-ui.js?v=20261025icon1"></script>
-<script src="fundamentos-ui.js?v=20261025icon1"></script>
-<script src="system-prompts-ui.js?v=20261025icon1"></script>
-<script src="system-prompts-catalog.js?v=20261025icon1"></script>
-<script src="ejecutores-ui.js?v=20261025icon1"></script>
-<script src="ejecutores-catalog.js?v=20261025icon1"></script>
-<script src="catalogo-ui.js?v=20261025icon1"></script>
-<script src="flujos-corridas-ui.js?v=20261025icon1"></script>
-<script src="ajustes-ui.js?v=20261025icon1"></script>
+<script src="color-entidad-ui.js?v=20261025opsub1"></script>
+<script src="skills-ui.js?v=20261025opsub1"></script>
+<script src="campos-ancla-ui.js?v=20261025opsub1"></script>
+<script src="campos-mongodb-ui.js?v=20261025opsub1"></script>
+<script src="clusters-ui.js?v=20261025opsub1"></script>
+<script src="proyectos-ui.js?v=20261025opsub1"></script>
+<script src="colecciones-ui.js?v=20261025opsub1"></script>
+<script src="agentes-ui.js?v=20261025opsub1"></script>
+<script src="fundamentos-ui.js?v=20261025opsub1"></script>
+<script src="system-prompts-ui.js?v=20261025opsub1"></script>
+<script src="system-prompts-catalog.js?v=20261025opsub1"></script>
+<script src="ejecutores-ui.js?v=20261025opsub1"></script>
+<script src="ejecutores-catalog.js?v=20261025opsub1"></script>
+<script src="catalogo-ui.js?v=20261025opsub1"></script>
+<script src="flujos-corridas-ui.js?v=20261025opsub1"></script>
+<script src="ajustes-ui.js?v=20261025opsub1"></script>
 
 </body>
 </html>
