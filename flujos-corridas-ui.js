@@ -225,7 +225,11 @@
     if (!st.flujos.length) {
       if (estado) {
         estado.hidden = false;
-        estado.textContent = 'Sin flujos en esta base. Crea uno o usa la semilla reservas-descubrir-mapear.';
+        if (typeof window.pintarEstadoVacio === 'function') {
+          window.pintarEstadoVacio(estado, { icono: 'flujo', texto: 'Sin flujos en esta base.' });
+        } else {
+          estado.textContent = 'Sin flujos en esta base. Crea uno o usa la semilla reservas-descubrir-mapear.';
+        }
       }
       return;
     }
@@ -274,7 +278,11 @@
     if (!st.catalogFlujos.length) {
       if (estado) {
         estado.hidden = false;
-        estado.textContent = 'Sin flujos. Crea uno desde aquí o desde una Base de datos.';
+        if (typeof window.pintarEstadoVacio === 'function') {
+          window.pintarEstadoVacio(estado, { icono: 'flujo', texto: 'Sin flujos todavía.' });
+        } else {
+          estado.textContent = 'Sin flujos. Crea uno desde aquí o desde una Base de datos.';
+        }
       }
       return;
     }
@@ -724,7 +732,11 @@
       if (pager) pager.hidden = true;
       if (vacio) {
         vacio.hidden = false;
-        vacio.textContent = 'Sin corridas de este flujo.';
+        if (typeof window.pintarEstadoVacio === 'function') {
+          window.pintarEstadoVacio(vacio, { icono: 'corrida', texto: 'Sin corridas de este flujo.' });
+        } else {
+          vacio.textContent = 'Sin corridas de este flujo.';
+        }
       }
       return;
     }
@@ -796,9 +808,13 @@
     var versiones = (f.versiones || []).slice().reverse();
     if (!versiones.length) {
       var empty = document.createElement('p');
-      empty.className = 'ancla-ficha-vacio';
-      empty.textContent = 'Sin versiones.';
-      lista.append(empty);
+      if (typeof window.pintarEstadoVacio === 'function') {
+        lista.append(window.pintarEstadoVacio(null, { icono: 'versiones', texto: 'Sin versiones.' }));
+      } else {
+        empty.className = 'ancla-ficha-vacio';
+        empty.textContent = 'Sin versiones.';
+        lista.append(empty);
+      }
       return;
     }
     versiones.forEach(function (v) {
@@ -939,7 +955,11 @@
     if (!list.length) {
       if (estado) {
         estado.hidden = false;
-        estado.textContent = 'Sin disparadores. Usa «+ Añadir disparador».';
+        if (typeof window.pintarEstadoVacio === 'function') {
+          window.pintarEstadoVacio(estado, { icono: 'disparadores', texto: 'Sin disparadores.' });
+        } else {
+          estado.textContent = 'Sin disparadores. Usa «+ Añadir disparador».';
+        }
       }
       lista.hidden = true;
       return;
@@ -1319,7 +1339,14 @@
     st.flujoDispFormOpen = true;
     st.flujoDispEditId = d && d.id ? d.id : null;
     var tit = document.getElementById('flujoDisparadorFormTitulo');
-    if (tit) tit.textContent = d ? 'Editar ' + d.id : 'Nuevo disparador';
+    if (tit) {
+      tit.setAttribute('data-dlg-icon', 'disparadores');
+      tit.textContent = d ? 'Editar ' + d.id : 'Nuevo disparador';
+      if (typeof window.iconizarTituloDlg === 'function') window.iconizarTituloDlg(tit);
+    }
+    if (typeof window.iconizarAccionesPanel === 'function') {
+      window.iconizarAccionesPanel(document.getElementById('dlgDisparador'));
+    }
     var idEl = document.getElementById('flujoDispId');
     if (idEl) {
       idEl.value = d ? d.id : 'd-' + Math.random().toString(36).slice(2, 6);
@@ -1680,7 +1707,11 @@
     if (!list.length) {
       if (estado) {
         estado.hidden = false;
-        estado.textContent = 'Sin eventos recientes.';
+        if (typeof window.pintarEstadoVacio === 'function') {
+          window.pintarEstadoVacio(estado, { icono: 'eventos', texto: 'Sin eventos recientes.' });
+        } else {
+          estado.textContent = 'Sin eventos recientes.';
+        }
       }
       lista.hidden = true;
       return;
@@ -1753,6 +1784,9 @@
         pintarFlujoFicha();
         if (typeof window.iconizarPestanasFicha === 'function') {
           window.iconizarPestanasFicha(document.getElementById('flujoReader'));
+        }
+        if (typeof window.iconizarAccionesPanel === 'function') {
+          window.iconizarAccionesPanel(document.getElementById('flujoReader'));
         }
       })
       .catch(function (err) {
@@ -2052,10 +2086,14 @@
       lista.replaceChildren();
       var pasos = c.pasos || [];
       if (!pasos.length) {
-        var empty = document.createElement('p');
-        empty.className = 'ancla-ficha-vacio';
-        empty.textContent = 'Sin pasos todavía.';
-        lista.append(empty);
+        if (typeof window.pintarEstadoVacio === 'function') {
+          lista.append(window.pintarEstadoVacio(null, { icono: 'pasos', texto: 'Sin pasos todavía.' }));
+        } else {
+          var empty = document.createElement('p');
+          empty.className = 'ancla-ficha-vacio';
+          empty.textContent = 'Sin pasos todavía.';
+          lista.append(empty);
+        }
       }
       var mkFila =
         typeof window.filaCatalogoLista === 'function' ? window.filaCatalogoLista : null;
