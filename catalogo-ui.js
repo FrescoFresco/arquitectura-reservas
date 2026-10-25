@@ -484,7 +484,17 @@ const state = {
     tab: 'resumen',
     asocSub: 'base-datos',
     diagramaToken: 0,
-    _mermaidPromise: null
+    _mermaidPromise: null,
+    datos: {
+      token: 0,
+      docs: [],
+      projection: [],
+      nextAfter: null,
+      hasMore: false,
+      selectedId: null,
+      selectedDoc: null,
+      loading: false
+    }
   },
   clusters: {
     ready: false,
@@ -7497,7 +7507,7 @@ function seleccionarColReaderTab(id) {
     state.colecciones.asocSub = id;
     id = 'asociados';
   }
-  if (id !== 'resumen' && id !== 'diagrama' && id !== 'asociados') {
+  if (id !== 'resumen' && id !== 'diagrama' && id !== 'asociados' && id !== 'datos') {
     id = 'resumen';
   }
   state.colecciones.tab = id;
@@ -7505,7 +7515,8 @@ function seleccionarColReaderTab(id) {
   const panels = {
     resumen: document.getElementById('colPanelResumen'),
     diagrama: document.getElementById('colPanelDiagrama'),
-    asociados: document.getElementById('colPanelAsociados')
+    asociados: document.getElementById('colPanelAsociados'),
+    datos: document.getElementById('colPanelDatos')
   };
   tabs.forEach(function (btn) {
     const on = btn.getAttribute('data-col-tab') === id;
@@ -7517,6 +7528,7 @@ function seleccionarColReaderTab(id) {
   });
   if (id === 'diagrama') cargarColeccionDiagrama(coleccionAbierta());
   if (id === 'asociados') seleccionarColAsocSub(state.colecciones.asocSub || 'base-datos');
+  if (id === 'datos') cargarColeccionDatos(coleccionAbierta(), { reset: true });
 }
 
 function cargarMermaidLib() {
@@ -7821,6 +7833,271 @@ function pintarColeccionCampos(col) {
     });
 }
 
+function resetColeccionDatosState() {
+  state.colecciones.datos = {
+    token: (state.colecciones.datos && state.colecciones.datos.token) || 0,
+    docs: [],
+    projection: [],
+    nextAfter: null,
+    hasMore: false,
+    selectedId: null,
+    selectedDoc: null,
+    loading: false
+  };
+}
+
+function celdaDatosTexto(val) {
+  if (val == null) return '—';
+  if (typeof val === 'object') {
+    try { return JSON.stringify(val); } catch (e) { return String(val); }
+  }
+  return String(val);
+}
+
+function columnasDatos(projection, docs) {
+  const cols = [];
+  const seen = new Set();
+  (projection || []).forEach(function (k) {
+    if (!k || seen.has(k)) return;
+    seen.add(k);
+    cols.push(k);
+  });
+  if (!cols.length) {
+    (docs || []).slice(0, 5).forEach(function (d) {
+      Object.keys(d || {}).forEach(function (k) {
+        if (seen.has(k)) return;
+        seen.add(k);
+        cols.push(k);
+      });
+    });
+  }
+  if (!cols.includes('_id')) cols.unshift('_id');
+  return cols.slice(0, 8);
+}
+
+function pintarColeccionDatosTabla() {
+  const thead = document.getElementById('colDatosThead');
+  const tbody = document.getElementById('colDatosTbody');
+  const wrap = document.getElementById('colDatosTablaWrap');
+  const footer = document.getElementById('colDatosFooter');
+  const estado = document.getElementById('colDatosEstado');
+  const btnMas = document.getElementById('colDatosCargarMas');
+  const datos = state.colecciones.datos || {};
+  if (!thead || !tbody) return;
+
+  const docs = datos.docs || [];
+  if (!docs.length) {
+    if (wrap) wrap.hidden = true;
+    if (footer) footer.hidden = true;
+    return;
+  }
+  if (estado) {
+    estado.hidden = true;
+    estado.replaceChildren();
+  }
+  if (wrap) wrap.hidden = false;
+  if (footer) footer.hidden = !datos.hasMore;
+  if (btnMas) btnMas.disabled = !!datos.loading;
+
+  const cols = columnasDatos(datos.projection, docs);
+  thead.replaceChildren();
+  const trH = document.createElement('tr');
+  cols.forEach(function (k) {
+    const th = document.createElement('th');
+    th.textContent = k;
+    trH.append(th);
+  });
+  thead.append(trH);
+
+  tbody.replaceChildren();
+  docs.forEach(function (doc) {
+    const tr = document.createElement('tr');
+    const id = doc && doc._id != null ? String(doc._id) : '';
+    if (id && datos.selectedId === id) tr.classList.add('is-selected');
+    cols.forEach(function (k) {
+      const td = document.createElement('td');
+      td.textContent = celdaDatosTexto(doc ? doc[k] : null);
+      td.title = td.textContent;
+      tr.append(td);
+    });
+    tr.addEventListener('click', function () {
+      seleccionarDocumentoDatos(doc);
+    });
+    tbody.append(tr);
+  });
+}
+
+function pintarColeccionDatosDetalle(doc) {
+  const aside = document.getElementById('colDatosDetalle');
+  const pre = document.getElementById('colDatosJson');
+  const dlg = document.getElementById('dlgColDatosDetalle');
+  const dlgPre = document.getElementById('dlgColDatosJson');
+  const json = doc ? JSON.stringify(doc, null, 2) : '';
+  const mobile = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 800px)').matches;
+
+  if (pre) pre.textContent = json || '';
+  if (dlgPre) dlgPre.textContent = json || '';
+
+  if (!doc) {
+    if (aside) aside.hidden = true;
+    return;
+  }
+
+  if (mobile) {
+    if (aside) aside.hidden = true;
+    if (dlg && typeof dlg.showModal === 'function') {
+      if (typeof iconizarTituloDlg === 'function') iconizarTituloDlg('dlgColDatosDetalleTitulo', 'datos');
+      const copiar = document.getElementById('dlgColDatosCopiar');
+      if (copiar && typeof iconizarBotonAccion === 'function') iconizarBotonAccion(copiar);
+      dlg.showModal();
+    }
+    return;
+  }
+  if (aside) aside.hidden = false;
+}
+
+function seleccionarDocumentoDatos(doc) {
+  const id = doc && doc._id != null ? String(doc._id) : null;
+  state.colecciones.datos.selectedId = id;
+  state.colecciones.datos.selectedDoc = doc || null;
+  pintarColeccionDatosTabla();
+  pintarColeccionDatosDetalle(doc);
+}
+
+function mostrarEstadoDatos(opts) {
+  const estado = document.getElementById('colDatosEstado');
+  const wrap = document.getElementById('colDatosTablaWrap');
+  const footer = document.getElementById('colDatosFooter');
+  const aside = document.getElementById('colDatosDetalle');
+  if (wrap) wrap.hidden = true;
+  if (footer) footer.hidden = true;
+  if (aside) aside.hidden = true;
+  if (!estado) return;
+  estado.hidden = false;
+  if (typeof pintarEstadoVacio === 'function') {
+    pintarEstadoVacio(estado, {
+      icono: opts && opts.icono ? opts.icono : 'datos',
+      texto: (opts && opts.texto) || 'Sin documentos.'
+    });
+  } else {
+    estado.textContent = (opts && opts.texto) || 'Sin documentos.';
+  }
+}
+
+function cargarColeccionDatos(col, opts) {
+  opts = opts || {};
+  const estado = document.getElementById('colDatosEstado');
+  const btnMas = document.getElementById('colDatosCargarMas');
+  if (!col || !col.proyectoId || !col.id) {
+    mostrarEstadoDatos({ icono: 'datos', texto: 'Sin base de datos padre para leer documentos.' });
+    return;
+  }
+  if (!claveCatalogoEscritura()) {
+    mostrarEstadoDatos({
+      icono: 'agente',
+      texto: 'Necesitas una clave de agente (Ajustes → Agentes) para ver los datos.'
+    });
+    return;
+  }
+
+  const reset = !!opts.reset;
+  const after = opts.after || null;
+  if (reset) {
+    resetColeccionDatosState();
+    pintarColeccionDatosDetalle(null);
+  }
+  const token = ++state.colecciones.datos.token;
+  state.colecciones.datos.loading = true;
+  if (btnMas) btnMas.disabled = true;
+  if (reset && estado) {
+    estado.hidden = false;
+    estado.textContent = 'Cargando documentos…';
+  }
+
+  const qs = new URLSearchParams();
+  qs.set('limit', '50');
+  if (after) qs.set('after', after);
+  const url = '/v1/proyectos/' + encodeURIComponent(col.proyectoId)
+    + '/colecciones/' + encodeURIComponent(col.id)
+    + '/documentos?' + qs.toString();
+
+  apiFetchAuth(url)
+    .then(function (data) {
+      if (token !== state.colecciones.datos.token) return;
+      const abierta = coleccionAbierta();
+      if (!abierta || abierta.key !== col.key) return;
+      const tabOn = document.querySelector('#colReaderTabs [data-col-tab="datos"].is-on');
+      if (!tabOn) return;
+
+      const docs = (data && data.documentos) || [];
+      if (reset) {
+        state.colecciones.datos.docs = docs.slice();
+        state.colecciones.datos.projection = (data && data.projection) || [];
+      } else {
+        state.colecciones.datos.docs = (state.colecciones.datos.docs || []).concat(docs);
+      }
+      state.colecciones.datos.nextAfter = (data && data.nextAfter) || null;
+      state.colecciones.datos.hasMore = !!(data && data.hasMore);
+      state.colecciones.datos.loading = false;
+
+      if (!state.colecciones.datos.docs.length) {
+        mostrarEstadoDatos({ icono: 'datos', texto: 'Sin documentos en esta colección.' });
+        return;
+      }
+      pintarColeccionDatosTabla();
+      if (reset && state.colecciones.datos.docs[0]) {
+        // Desktop: preselecciona primera fila; móvil no abre popup solo.
+        const mobile = typeof window.matchMedia === 'function'
+          && window.matchMedia('(max-width: 800px)').matches;
+        if (!mobile) seleccionarDocumentoDatos(state.colecciones.datos.docs[0]);
+      }
+      if (btnMas) {
+        btnMas.disabled = false;
+        if (typeof iconizarBotonAccion === 'function') iconizarBotonAccion(btnMas);
+      }
+    })
+    .catch(function (err) {
+      if (token !== state.colecciones.datos.token) return;
+      state.colecciones.datos.loading = false;
+      if (btnMas) btnMas.disabled = false;
+      let texto = 'No se pudieron cargar los documentos.';
+      const raw = err && err.data ? err.data : null;
+      if (raw && typeof raw === 'object') {
+        if (raw.error) texto = String(raw.error);
+        if (raw.hint) texto += ' ' + String(raw.hint);
+        if (err && err.status === 503) {
+          texto = (raw.error || 'Mongo no configurado.') + ' Configura la URI en Cluster → Conexión.';
+        }
+      }
+      if (err && (err.status === 401 || err.status === 403)) {
+        texto = 'Necesitas una clave de agente válida (Ajustes → Agentes) para ver los datos.';
+      } else if (err && err.message && !raw) {
+        texto = String(err.message);
+      }
+      mostrarEstadoDatos({ icono: 'errores', texto: texto });
+    });
+}
+
+function onCargarMasDatosColeccion() {
+  const col = coleccionAbierta();
+  const datos = state.colecciones.datos || {};
+  if (!col || !datos.hasMore || !datos.nextAfter || datos.loading) return;
+  cargarColeccionDatos(col, { reset: false, after: datos.nextAfter });
+}
+
+function copiarJsonDatosColeccion(fromDlg) {
+  const doc = state.colecciones.datos && state.colecciones.datos.selectedDoc;
+  if (!doc) return;
+  const text = JSON.stringify(doc, null, 2);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(function () {});
+  }
+  if (fromDlg) {
+    const dlg = document.getElementById('dlgColDatosDetalle');
+    if (dlg && dlg.open) dlg.close();
+  }
+}
+
 function renderColeccionReader(col) {
   const nombre = document.getElementById('colReaderNombre');
   const sub = document.getElementById('colReaderSub');
@@ -7864,7 +8141,8 @@ function abrirFichaColeccion(key, opts) {
 
   state.colecciones.abiertaKey = col.key;
   state.colecciones.volverA = volverA;
-  state.colecciones.tab = 'resumen';
+  state.colecciones.tab = opts.tab || 'resumen';
+  resetColeccionDatosState();
   renderColeccionReader(col);
   const dlgCol = document.getElementById('dlgColeccion');
   openFichaPane(dlgCol);
@@ -7954,6 +8232,17 @@ function wireColeccionesUi() {
       if (!btn) return;
       seleccionarColAsocSub(btn.getAttribute('data-col-asoc-sub'));
     });
+  }
+  const btnMas = document.getElementById('colDatosCargarMas');
+  if (btnMas) btnMas.addEventListener('click', onCargarMasDatosColeccion);
+  const btnCopiar = document.getElementById('colDatosCopiar');
+  if (btnCopiar) {
+    btnCopiar.addEventListener('click', function () { copiarJsonDatosColeccion(false); });
+    if (typeof iconizarBotonAccion === 'function') iconizarBotonAccion(btnCopiar);
+  }
+  const btnCopiarDlg = document.getElementById('dlgColDatosCopiar');
+  if (btnCopiarDlg) {
+    btnCopiarDlg.addEventListener('click', function () { copiarJsonDatosColeccion(true); });
   }
   const dlg = document.getElementById('dlgColeccion');
   if (dlg) dlg.addEventListener('close', alCerrarFichaColeccion);
