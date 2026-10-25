@@ -47,6 +47,9 @@ Reglas:
 - Si falta algo (p. ej. una skill), dilo en explicacion y deja la definicion lo más correcta posible sin inventar.
 - tipo_definicion=disparador → definicion con campos: tipo (manual|horario|cambio_datos|webhook), cron?, coleccion?, operaciones?, pipeline?, anti_bucle?, agrupar_segundos?, negocio?
 - tipo_definicion=flujo → definicion: { "nodos": [...], "aristas": [...] } con nodos inicio/skill/decision/espera/subflujo/fin.
+  - espera: opcional "segundos" (entero ≥0; también minutos/horas/dias) → modo tiempo; sin segundos → espera humana.
+  - decision.condicion: eq|neq|exists|truthy|gt|gte|lt|lte|contains|in|and|or|not|match.
+  - subflujo: "flujo_id" y opcional "sobre_ancla" (ancla con array → una corrida hija por elemento, máx. 50).
 - tipo_definicion=pipeline → definicion: array de etapas de agregación.
 - No envuelvas la respuesta en markdown ni en bloques de código.`;
 
@@ -69,7 +72,18 @@ export function esquemaParaTipo(tipo: TipoDefinicion): Record<string, unknown> {
   }
   if (tipo === 'flujo') {
     return {
-      nodos: [{ id: 'string', tipo: 'inicio|skill|decision|espera|subflujo|fin', skill: '?', condicion: '?' }],
+      nodos: [
+        {
+          id: 'string',
+          tipo: 'inicio|skill|decision|espera|subflujo|fin',
+          skill: '?',
+          condicion:
+            'eq|neq|exists|truthy|gt|gte|lt|lte|contains|in|and|or|not|match',
+          segundos: 'number? (espera por reloj)',
+          sobre_ancla: 'ancla array? (subflujo fan-out)',
+          flujo_id: '?',
+        },
+      ],
       aristas: [{ desde: 'string', hacia: 'string', cuando: 'boolean?' }],
     };
   }

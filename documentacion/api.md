@@ -367,13 +367,19 @@ GET {API_BASE}/v1/ejecutores/:id/ejecuciones?limit=20
 
 **Skill `consultar-datos`** (ejecutor `herramienta-consultar-datos`, `config.funcion = "consultar-datos"`): Aggregation Pipeline de solo lectura en la BD Mongo del proyecto. Entradas `_consulta.coleccion_` + `_consulta.pipeline_`; salidas `_consulta.resultado_` + `_consulta.total_`. Misma allowlist que disparadores (`$out`/`$merge`/`$function` prohibidos); si el pipeline no trae `$limit`, se añade `$limit: 100`. Log en `ejecuciones` con `coste: 0`.
 
-Ejecutores canónicos del hub: `modelo-por-defecto`, `herramienta-consultar-datos`, `aprobacion-humana`, `agente-reservas-pagweb`.
+**Skill `transformar-datos`** (ejecutor `herramienta-transformar-datos`, `config.funcion = "transformar-datos"`): `$addFields` / `$project` en memoria sobre `{…datos, …entradas}` (sin IA, `coste: 0`). Entrada `_consulta.pipeline_`.
+
+**Identidad 1:N:** `corrida.datos._documentos_` mapea colección → `_id` activo. Colecciones `negocios`/`procesos` = `unico_por_negocio`; resto = `multiple` (override `modo_escritura` en `proyectos.colecciones`). Misma corrida reutiliza el mismo doc; otra corrida crea otro.
+
+**Espera por reloj:** nodo `{"tipo":"espera","segundos":N}` → `esperando_tiempo` (Queue delay si N≤900 + cron `corridas-timeout-tick`). `POST …/aprobar` adelanta. Condiciones `decision`: `gt|gte|lt|lte|contains|in|and|or|not|match` (+ eq/neq/exists/truthy). Disparadores hidratan anclas desde body/documento. Subflujo `sobre_ancla` = fan-out (máx. 50).
+
+Ejecutores canónicos del hub: `modelo-por-defecto`, `herramienta-consultar-datos`, `herramienta-transformar-datos`, `aprobacion-humana`, `agente-reservas-pagweb`.
 
 **Control de fallos:** timeout por `timeout_s` (sync AbortSignal + cron `esperando_integracion`); reintentos con backoff; estado `atascada` (cron 5 min, ≥10 min sin lease/actividad). Panel / API:
 
 ```
 POST {API_BASE}/v1/corridas/:id/reintentar   # solo fallida
-POST {API_BASE}/v1/corridas/:id/aprobar      # esperando_humano
+POST {API_BASE}/v1/corridas/:id/aprobar      # esperando_humano | esperando_tiempo (Adelantar)
 POST {API_BASE}/v1/corridas/:id/rechazar
 POST {API_BASE}/v1/corridas/:id/cancelar
 POST {API_BASE}/v1/corridas/:id/reanudar     # atascada | en_curso sin lease

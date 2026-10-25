@@ -2463,10 +2463,23 @@
       est === 'error' ||
       est === 'cancelada';
     set('btnCorridaReintentar', est === 'fallida' || est === 'error');
-    set('btnCorridaAprobar', est === 'esperando_humano' || est === 'esperando');
+    set(
+      'btnCorridaAprobar',
+      est === 'esperando_humano' || est === 'esperando' || est === 'esperando_tiempo'
+    );
     set('btnCorridaRechazar', est === 'esperando_humano' || est === 'esperando');
     set('btnCorridaReanudar', est === 'atascada' || est === 'en_curso');
     set('btnCorridaCancelar', !!c && !terminal);
+    var btnApr = document.getElementById('btnCorridaAprobar');
+    if (btnApr) {
+      if (est === 'esperando_tiempo') {
+        btnApr.textContent = 'Adelantar';
+        btnApr.title = 'Adelantar espera por tiempo';
+      } else {
+        btnApr.textContent = 'Aprobar';
+        btnApr.title = 'Aprobar espera humana';
+      }
+    }
   }
 
   function corridaAccion(path) {

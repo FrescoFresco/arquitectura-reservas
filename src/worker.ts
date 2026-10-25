@@ -71,9 +71,12 @@ import {
 import {
   buildOperativaMermaid,
   findDocForColeccion,
+  findDocForCorrida,
   getByPath,
   normalizeAnclasList,
+  resolveWriteTargetId,
   setByPath,
+  setDocumentoActivo,
   unionAnclas,
   type AnclaMongoMap,
 } from './skill-io';
@@ -104,6 +107,7 @@ import {
   loadEjecutorForSkill,
   logEjecucion,
   processPasoMessage,
+  setLeaseDeadline,
   type PasoQueueMsg,
   type MotorDeps as PasosMotorDeps,
 } from './motor-pasos';
@@ -551,10 +555,37 @@ app.get('/v1/ejecutar/:skillId/entradas', async (c) => {
   const negocio = String(c.req.query('negocio') || '').trim();
   if (!negocio) return jsonError(c, 400, 'Falta query negocio.');
   if (!ID_RE.test(negocio)) return jsonError(c, 400, 'negocio inválido.');
+  const corridaIdQ = String(c.req.query('corrida_id') || '').trim();
+  let datosCorrida: Record<string, unknown> = {};
+  if (corridaIdQ) {
+    const loaded = await loadCorridaDoc(c.env, corridaIdQ);
+    if (loaded.ok) datosCorrida = loaded.doc.datos || {};
+  }
   const row = await c.env.DB.prepare('SELECT * FROM skills WHERE id = ?').bind(skillId).first();
   if (!row) return jsonError(c, 404, 'Skill no encontrada.');
   const skill = await hydrateSkill(c.env.DB, row as Record<string, unknown>);
   const entradas = (skill.entradas as string[]) || [];
+  // Preferir valores ya en corrida.datos
+  if (Object.keys(datosCorrida).length) {
+    const fromCorrida = await resolveEntradasValores(c.env, entradas, negocio, datosCorrida);
+    const maps = await loadAnclaMongoMaps(c.env.DB, entradas);
+    const baseDatos =
+      maps.find((m) => m.baseDatos)?.baseDatos || (await catalogMongoDbHint(c.env.DB)) || 'software_reservas';
+    const proyectoId = await proyectoIdForBaseDatos(c.env.DB, baseDatos);
+    const resolved = await resolveRuntimeMongo(c.env, baseDatos, proyectoId || undefined);
+    return c.json({
+      ok: true,
+      skill: skillId,
+      negocio,
+      corrida_id: corridaIdQ || null,
+      valores: fromCorrida,
+      mongo: {
+        configured: resolved.meta.configured,
+        db: resolved.meta.db,
+        source: resolved.meta.source,
+      },
+    });
+  }
   const maps = await loadAnclaMongoMaps(c.env.DB, entradas);
   const baseDatos =
     maps.find((m) => m.baseDatos)?.baseDatos || (await catalogMongoDbHint(c.env.DB)) || 'software_reservas';
@@ -572,7 +603,7 @@ app.get('/v1/ejecutar/:skillId/entradas', async (c) => {
           for (const m of maps) {
             const cacheKey = m.coleccion + '|' + m.baseDatos;
             if (!docCache.has(cacheKey)) {
-              docCache.set(cacheKey, await findDocForColeccion(db, m.coleccion, negocio));
+              docCache.set(cacheKey, await findDocForCorrida(db, m.coleccion, negocio, datosCorrida));
             }
             const doc = docCache.get(cacheKey);
             if (!doc) continue;
@@ -626,6 +657,8 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
     valores?: Record<string, unknown>;
     corrida_id?: string;
     nodo_id?: string;
+    documento_id?: string;
+    coleccion?: string;
   };
   const negocio = String(body.negocio || body.negocio_id || '').trim();
   if (!negocio) return jsonError(c, 400, 'Falta negocio.');
@@ -704,70 +737,27 @@ app.post('/v1/ejecutar/:skillId/salidas', async (c) => {
     return c.json(mongoNotConfiguredError(), 503);
   }
 
-  const escritos: string[] = [];
-  const origenEscritura = corridaId ? `corrida:${corridaId}` : 'api';
+  const datosWrite = corridaCtx ? corridaCtx.doc.datos || {} : {};
+  if (body.documento_id && body.coleccion) {
+    setDocumentoActivo(datosWrite, String(body.coleccion).trim(), String(body.documento_id).trim());
+  }
+  let escritos: string[] = [];
   try {
-    await withMongoDb(
-      resolved.env,
-      async (db) => {
-        const docCache = new Map<string, Record<string, unknown> | null>();
-        const antesCache = new Map<string, Record<string, unknown> | null>();
-        for (const m of maps) {
-          const cacheKey = m.coleccion + '|' + m.baseDatos;
-          if (!docCache.has(cacheKey)) {
-            let existing = await findDocForColeccion(db, m.coleccion, negocio);
-            antesCache.set(cacheKey, cloneDoc(existing));
-            let doc = existing ? ({ ...existing } as Record<string, unknown>) : null;
-            if (!doc) {
-              if (m.coleccion === 'negocios') doc = { _id: negocio };
-              else if (m.coleccion === 'procesos') doc = { _id: negocio + '-proceso', negocio_id: negocio };
-              else doc = { _id: negocio + '-' + m.coleccion, negocio_id: negocio };
-            }
-            docCache.set(cacheKey, doc);
-          }
-          const doc = docCache.get(cacheKey);
-          if (!doc) continue;
-          if (!(m.ancla in normalizedValores)) continue;
-          setByPath(doc, m.claveMongo, normalizedValores[m.ancla]);
-          escritos.push(m.ancla);
-        }
-        const proyId =
-          proyectoId ||
-          corridaCtx?.doc.proyecto_id ||
-          (await proyectoIdForBaseDatos(c.env.DB, baseDatos)) ||
-          '';
-        for (const [cacheKey, doc] of docCache) {
-          if (!doc) continue;
-          const coleccion = cacheKey.split('|')[0]!;
-          const id = doc._id;
-          const { _id, ...rest } = doc;
-          const antes = antesCache.get(cacheKey) || null;
-          const operacion = antes ? ('actualizar' as const) : ('crear' as const);
-          await db.collection(coleccion).updateOne(
-            { _id: id ?? negocio },
-            { $set: { ...rest, _id: id ?? negocio } },
-            { upsert: true }
-          );
-          if (SYSTEM_COLLECTIONS.has(coleccion) || !proyId) continue;
-          const despues = cloneDoc(doc);
-          try {
-            await emitCambioDatos(db, motorDeps(c.env), {
-              proyectoId: proyId,
-              coleccion,
-              documentoId: String(id ?? negocio),
-              operacion,
-              antes,
-              despues,
-              origen: origenEscritura,
-              negocio,
-            });
-          } catch (emitErr) {
-            console.error('emitCambioDatos', emitErr);
-          }
-        }
-      },
-      baseDatos
+    escritos = await writeSkillSalidasToMongo(
+      c.env,
+      skillId,
+      negocio,
+      normalizedValores,
+      corridaId || null,
+      datosWrite,
+      { documentoId: body.documento_id ? String(body.documento_id).trim() : null }
     );
+    if (corridaCtx) {
+      corridaCtx.doc.datos = {
+        ...(corridaCtx.doc.datos || {}),
+        ...datosWrite,
+      };
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'escritura Mongo falló';
     if (msg === 'configure MONGODB_URI') return c.json(mongoNotConfiguredError(), 503);
@@ -1621,6 +1611,8 @@ app.post('/v1/corridas', async (c) => {
     negocio_id?: string;
     datos_iniciales?: Record<string, unknown>;
     disparador_id?: string;
+    documento_id?: string;
+    coleccion?: string;
   };
   const flujoId = String(body.flujo_id || '').trim();
   const negocio = String(body.negocio || body.negocio_id || '').trim();
@@ -1648,6 +1640,15 @@ app.post('/v1/corridas', async (c) => {
       if (a) datos[a] = v;
       else datos[k] = v;
     }
+  }
+  // Identidad documento 1:N
+  if (datos._documentos_ && typeof datos._documentos_ === 'object') {
+    /* keep from datos_iniciales */
+  }
+  const coleccion = String(body.coleccion || '').trim();
+  const documentoId = String(body.documento_id || '').trim();
+  if (coleccion && documentoId) {
+    setDocumentoActivo(datos, coleccion, documentoId);
   }
 
   try {
@@ -5128,20 +5129,22 @@ function pasosMotorDeps(env: Env): PasosMotorDeps {
     mongoForProyecto: (proyectoId) => mongoForProyecto(env, proyectoId),
     resolveEntradasValores: (entradas, negocio, datos) =>
       resolveEntradasValores(env, entradas, negocio, datos),
-    writeSalidasMongo: (skillId, negocio, valores, corridaId) =>
-      writeSkillSalidasToMongo(env, skillId, negocio, valores, corridaId),
+    writeSalidasMongo: (skillId, negocio, valores, corridaId, datos) =>
+      writeSkillSalidasToMongo(env, skillId, negocio, valores, corridaId, datos),
     loadFlujoVersion: (flujoId, version) => loadFlujoVersion(env.DB, flujoId, version),
     newCorridaId,
   };
 }
 
-/** Escritura Mongo de salidas de skill (motor + /salidas). */
+/** Escritura Mongo de salidas de skill (motor + /salidas). Respeta 1:N vía `_documentos_`. */
 async function writeSkillSalidasToMongo(
   env: Env,
   skillId: string,
   negocio: string,
   valores: Record<string, unknown>,
-  corridaId: string | null
+  corridaId: string | null,
+  datosCorrida?: Record<string, unknown> | null,
+  opts?: { documentoId?: string | null; coleccionesProyecto?: Array<{ id?: string; modo_escritura?: string }> | null }
 ): Promise<string[]> {
   const keys = Object.keys(valores);
   const maps = await loadAnclaMongoMaps(env.DB, keys);
@@ -5152,6 +5155,8 @@ async function writeSkillSalidasToMongo(
   const proyectoId = await proyectoIdForBaseDatos(env.DB, baseDatos);
   const resolved = await resolveRuntimeMongo(env, baseDatos, proyectoId || undefined);
   if (!mongoUriConfigured(resolved.env)) throw new Error('configure MONGODB_URI');
+  const datos = datosCorrida || {};
+  const coleccionesProyecto = opts?.coleccionesProyecto || null;
   const escritos: string[] = [];
   const origenEscritura = corridaId ? `corrida:${corridaId}` : 'motor';
   await withMongoDb(
@@ -5159,17 +5164,34 @@ async function writeSkillSalidasToMongo(
     async (db) => {
       const docCache = new Map<string, Record<string, unknown> | null>();
       const antesCache = new Map<string, Record<string, unknown> | null>();
+      const targetIds = new Map<string, string>();
       for (const m of maps) {
         const cacheKey = m.coleccion + '|' + m.baseDatos;
         if (!docCache.has(cacheKey)) {
-          let existing = await findDocForColeccion(db, m.coleccion, negocio);
-          antesCache.set(cacheKey, cloneDoc(existing));
-          let doc = existing ? ({ ...existing } as Record<string, unknown>) : null;
-          if (!doc) {
-            if (m.coleccion === 'negocios') doc = { _id: negocio };
-            else if (m.coleccion === 'procesos') doc = { _id: negocio + '-proceso', negocio_id: negocio };
-            else doc = { _id: negocio + '-' + m.coleccion, negocio_id: negocio };
+          const resolvedTarget = resolveWriteTargetId({
+            coleccion: m.coleccion,
+            negocio,
+            corridaId,
+            datos,
+            valores,
+            anclaMaps: maps,
+            coleccionesProyecto,
+            documentoIdBody: opts?.documentoId,
+          });
+          targetIds.set(cacheKey, resolvedTarget.targetId);
+          let existing = await db.collection(m.coleccion).findOne({ _id: resolvedTarget.targetId });
+          if (!existing && resolvedTarget.modo === 'unico_por_negocio') {
+            existing = await findDocForColeccion(db, m.coleccion, negocio);
           }
+          antesCache.set(cacheKey, cloneDoc(existing as Record<string, unknown> | null));
+          let doc = existing
+            ? ({ ...(existing as Record<string, unknown>) } as Record<string, unknown>)
+            : {
+                _id: resolvedTarget.targetId,
+                ...(m.coleccion !== 'negocios' ? { negocio_id: negocio } : {}),
+              };
+          doc._id = resolvedTarget.targetId;
+          if (m.coleccion !== 'negocios') doc.negocio_id = negocio;
           docCache.set(cacheKey, doc);
         }
         const doc = docCache.get(cacheKey);
@@ -5179,24 +5201,31 @@ async function writeSkillSalidasToMongo(
         escritos.push(m.ancla);
       }
       const proyId = proyectoId || '';
+      const now = nowIso();
       for (const [cacheKey, doc] of docCache) {
         if (!doc) continue;
         const coleccion = cacheKey.split('|')[0]!;
-        const id = doc._id;
-        const { _id, ...rest } = doc;
+        const id = targetIds.get(cacheKey) || doc._id;
+        doc._id = id;
         const antes = antesCache.get(cacheKey) || null;
         const operacion = antes ? ('actualizar' as const) : ('crear' as const);
-        await db.collection(coleccion).updateOne(
-          { _id: id ?? negocio },
-          { $set: { ...rest, _id: id ?? negocio } },
-          { upsert: true }
-        );
+        const { _id, ...rest } = doc;
+        const setDoc: Record<string, unknown> = {
+          ...rest,
+          _id: id,
+          actualizado_en: now,
+        };
+        if (coleccion !== 'negocios') setDoc.negocio_id = negocio;
+        if (!antes) setDoc.creado_en = now;
+        else if (antes.creado_en != null) setDoc.creado_en = antes.creado_en;
+        await db.collection(coleccion).updateOne({ _id: id }, { $set: setDoc }, { upsert: true });
+        Object.assign(doc, setDoc);
         if (SYSTEM_COLLECTIONS.has(coleccion) || !proyId) continue;
         try {
           await emitCambioDatos(db, motorDeps(env), {
             proyectoId: proyId,
             coleccion,
-            documentoId: String(id ?? negocio),
+            documentoId: String(id),
             operacion,
             antes,
             despues: cloneDoc(doc),
@@ -5210,6 +5239,7 @@ async function writeSkillSalidasToMongo(
     },
     baseDatos
   );
+  // `_documentos_` queda en `datos` (mutado); el caller persiste la corrida.
   return escritos;
 }
 
@@ -5429,9 +5459,30 @@ async function applyAvanceToCorrida(
 
   if (avance.kind === 'espera') {
     doc.paso_actual = avance.nodo.id;
-    doc.estado = 'esperando_humano';
     doc.hijo_id = null;
     doc.subflujo_nodo_id = null;
+    const segundos = Math.max(0, Math.floor(Number(avance.nodo.segundos) || 0));
+    if (segundos > 0) {
+      const despertarEn = new Date(Date.now() + segundos * 1000).toISOString();
+      doc.estado = 'esperando_tiempo';
+      doc.pasos = ensurePasoPendiente(doc.pasos || [], avance.nodo.id, null, ts).map((p) =>
+        p.nodo_id === avance.nodo.id && p.estado === 'pendiente'
+          ? { ...p, salidas: { _espera_segundos_: segundos, _despertar_en_: despertarEn } }
+          : p
+      );
+      doc.actualizada = ts;
+      await saveCorridaDoc(env, doc);
+      await setLeaseDeadline(env.DB, doc._id, avance.nodo.id, segundos, ts);
+      if (segundos <= 900) {
+        await enqueuePaso(
+          env,
+          { corrida_id: doc._id, nodo_id: avance.nodo.id, intento: 0, despertar: true },
+          { delaySeconds: segundos }
+        );
+      }
+      return doc;
+    }
+    doc.estado = 'esperando_humano';
     doc.actualizada = ts;
     await saveCorridaDoc(env, doc);
     return doc;
@@ -5563,7 +5614,10 @@ async function resolveEntradasValores(
           for (const m of maps) {
             const cacheKey = m.coleccion + '|' + m.baseDatos;
             if (!docCache.has(cacheKey)) {
-              docCache.set(cacheKey, await findDocForColeccion(db, m.coleccion, negocio));
+              docCache.set(
+                cacheKey,
+                await findDocForCorrida(db, m.coleccion, negocio, datos)
+              );
             }
             const doc = docCache.get(cacheKey);
             if (!doc) continue;

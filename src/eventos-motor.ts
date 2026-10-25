@@ -11,6 +11,7 @@ import {
   type OperacionCambio,
 } from './disparadores';
 import type { CorridaDoc } from './corridas';
+import { getByPath, normalizeAnclaToken } from './skill-io';
 
 export const EVENTOS_COLLECTION = 'eventos';
 export const SYSTEM_COLLECTIONS = new Set(['corridas', 'eventos']);
@@ -204,6 +205,153 @@ function flattenDatos(doc: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
+type AnclaCatalogRow = {
+  ancla: string;
+  id: string;
+  clave_mongo: string;
+  coleccion: string;
+  aliases: string[];
+};
+
+async function loadAnclasCatalog(d1: D1Database): Promise<AnclaCatalogRow[]> {
+  const rows = await d1
+    .prepare('SELECT ancla, id, clave_mongo, coleccion, aliases FROM anclas')
+    .all();
+  const out: AnclaCatalogRow[] = [];
+  for (const raw of rows.results || []) {
+    const r = raw as Record<string, unknown>;
+    let aliases: string[] = [];
+    try {
+      const parsed = typeof r.aliases === 'string' ? JSON.parse(r.aliases) : r.aliases;
+      if (Array.isArray(parsed)) aliases = parsed.map((a) => String(a));
+    } catch {
+      aliases = [];
+    }
+    out.push({
+      ancla: String(r.ancla || ''),
+      id: String(r.id || ''),
+      clave_mongo: String(r.clave_mongo || ''),
+      coleccion: String(r.coleccion || ''),
+      aliases,
+    });
+  }
+  return out;
+}
+
+function collectBodyKeys(body: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return out;
+  const o = body as Record<string, unknown>;
+  Object.assign(out, o);
+  if (o.valores && typeof o.valores === 'object' && !Array.isArray(o.valores)) {
+    Object.assign(out, o.valores as Record<string, unknown>);
+  }
+  if (o.datos && typeof o.datos === 'object' && !Array.isArray(o.datos)) {
+    Object.assign(out, o.datos as Record<string, unknown>);
+  }
+  return out;
+}
+
+function matchAnclaKey(catalog: AnclaCatalogRow[], key: string): AnclaCatalogRow | null {
+  const k = String(key || '').trim();
+  if (!k) return null;
+  const norm = normalizeAnclaToken(k);
+  for (const a of catalog) {
+    if (a.ancla === k || a.ancla === norm) return a;
+    if (a.id === k || a.id === norm) return a;
+    if (a.clave_mongo && (a.clave_mongo === k || a.clave_mongo === key)) return a;
+    for (const al of a.aliases || []) {
+      if (al === k || normalizeAnclaToken(al) === norm) return a;
+    }
+  }
+  return null;
+}
+
+/**
+ * Traduce body/documento del evento a anclas en `datos` de la corrida.
+ * Webhook: claves del body → anclas por id/ancla/clave_mongo/alias.
+ * cambio_datos/horario: campos del doc vía clave_mongo de anclas de esa colección.
+ */
+export async function hidratarAnclasDesdeEvento(
+  d1: D1Database,
+  _proyectoId: string,
+  coleccion: string | null,
+  docPlano: Record<string, unknown> | null,
+  evento: EventoDoc
+): Promise<Record<string, unknown>> {
+  const datos: Record<string, unknown> = {};
+  const catalog = await loadAnclasCatalog(d1);
+  const colEvento = String(coleccion || evento.coleccion || '').trim();
+
+  if (evento.tipo === 'webhook') {
+    const keys = {
+      ...collectBodyKeys(evento.body),
+      ...(docPlano || {}),
+    };
+    for (const [k, v] of Object.entries(keys)) {
+      if (k === '_id' || k === 'negocio' || k === 'negocio_id') continue;
+      const hit = matchAnclaKey(catalog, k);
+      if (hit) {
+        datos[hit.ancla] = v;
+        continue;
+      }
+      // Claves tipo `_x.y_` o `x.y`
+      if (k.includes('.') || (k.startsWith('_') && k.endsWith('_'))) {
+        const norm = normalizeAnclaToken(k);
+        if (norm) datos[norm] = v;
+      }
+    }
+  } else {
+    // cambio_datos | horario
+    const fuenteDoc =
+      (evento.tipo === 'cambio_datos' ? (evento.despues as Record<string, unknown> | null) : null) ||
+      docPlano ||
+      null;
+    if (fuenteDoc && colEvento) {
+      for (const a of catalog) {
+        if (a.coleccion !== colEvento) continue;
+        if (!a.clave_mongo) continue;
+        const v = getByPath(fuenteDoc, a.clave_mongo);
+        if (v !== undefined) datos[a.ancla] = v;
+      }
+      const docId = String(fuenteDoc._id || evento.documento_id || '').trim();
+      if (docId) {
+        datos._documentos_ = { [colEvento]: docId };
+        datos._documento_id = docId;
+      }
+    }
+  }
+
+  // Identidad documento desde evento si aún no hay
+  if (evento.documento_id && colEvento && !datos._documentos_) {
+    datos._documentos_ = { [colEvento]: String(evento.documento_id) };
+    datos._documento_id = String(evento.documento_id);
+  }
+
+  return datos;
+}
+
+async function datosParaCorrida(
+  deps: MotorDeps,
+  evento: EventoDoc,
+  doc: Record<string, unknown> | null,
+  coleccionHint?: string | null
+): Promise<Record<string, unknown>> {
+  const base = flattenDatos(doc || {});
+  const hidratados = await hidratarAnclasDesdeEvento(
+    deps.dbD1,
+    evento.proyecto_id,
+    coleccionHint || evento.coleccion,
+    doc,
+    evento
+  );
+  const out: Record<string, unknown> = { ...base, ...hidratados };
+  // Preservar _documentos_ de hidratación
+  if (hidratados._documentos_) out._documentos_ = hidratados._documentos_;
+  if (hidratados._documento_id) out._documento_id = hidratados._documento_id;
+  return out;
+}
+
 function resolveNegocio(
   d: DisparadorDoc,
   fallback: string,
@@ -288,10 +436,21 @@ export async function evaluarDisparadoresSobreEvento(
     for (const doc of ran.docs) {
       try {
         const negocio = resolveNegocio(d, evento.negocio, doc);
+        const datos = await datosParaCorrida(deps, evento, doc, evento.coleccion);
+        // Identidad 1:N en cambio_datos
+        if (evento.tipo === 'cambio_datos' && evento.documento_id && evento.coleccion) {
+          const docsMap =
+            datos._documentos_ && typeof datos._documentos_ === 'object'
+              ? { ...(datos._documentos_ as Record<string, unknown>) }
+              : {};
+          docsMap[evento.coleccion] = String(evento.documento_id);
+          datos._documentos_ = docsMap;
+          datos._documento_id = String(evento.documento_id);
+        }
         const started = await deps.startCorrida({
           flujoId: d.flujo_id,
           negocio,
-          datos: flattenDatos(doc),
+          datos,
           disparadorId: d.id,
           eventoId: evento._id,
           proyectoId: evento.proyecto_id,
@@ -624,10 +783,20 @@ export async function runHorarioTick(
           for (const doc of ran.docs) {
             try {
               const negocio = resolveNegocio(d, evento.negocio, doc);
+              const datos = await datosParaCorrida(deps, evento, doc, d.coleccion);
+              if (doc._id != null && d.coleccion) {
+                const docsMap =
+                  datos._documentos_ && typeof datos._documentos_ === 'object'
+                    ? { ...(datos._documentos_ as Record<string, unknown>) }
+                    : {};
+                docsMap[d.coleccion] = String(doc._id);
+                datos._documentos_ = docsMap;
+                datos._documento_id = String(doc._id);
+              }
               const started = await deps.startCorrida({
                 flujoId: d.flujo_id,
                 negocio,
-                datos: flattenDatos(doc),
+                datos,
                 disparadorId: d.id,
                 eventoId: evento._id,
                 proyectoId: flujo.proyecto_id,
@@ -658,10 +827,11 @@ export async function runHorarioTick(
         }
       } else {
         try {
+          const datosBase = await datosParaCorrida(deps, evento, null, d.coleccion);
           const started = await deps.startCorrida({
             flujoId: d.flujo_id,
             negocio: resolveNegocio(d, evento.negocio, null),
-            datos: { _horario: true, _disparador_id: d.id },
+            datos: { ...datosBase, _horario: true, _disparador_id: d.id },
             disparadorId: d.id,
             eventoId: evento._id,
             proyectoId: flujo.proyecto_id,

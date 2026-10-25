@@ -489,7 +489,7 @@ dialog.dlg-wide::backdrop{background:#17212f66}
 .corrida-badge.is-terminada,.corrida-badge.is-hecho{background:#e6f6ed;color:#0f7a45}
 .corrida-badge.is-error{background:#fdeceb;color:#b42318}
 .corrida-badge.is-en_curso,.corrida-badge.is-pendiente{background:#edf3ff;color:#1c63d5}
-.corrida-badge.is-esperando{background:#fff6e5;color:#9a6700}
+.corrida-badge.is-esperando,.corrida-badge.is-esperando_humano,.corrida-badge.is-esperando_tiempo,.corrida-badge.is-esperando_integracion,.corrida-badge.is-esperando_hijo{background:#fff6e5;color:#9a6700}
 @media(max-width:800px){.ancla-ficha-fila{grid-template-columns:1fr}}
 
 /* Ficha a panel completo: hub fijo, detalle ocupa el main */
@@ -1005,6 +1005,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 <option value="en_curso">en_curso</option>
 <option value="esperando_integracion">esperando_integracion</option>
 <option value="esperando_humano">esperando_humano</option>
+<option value="esperando_tiempo">esperando_tiempo</option>
 <option value="atascada">atascada</option>
 <option value="completada">completada</option>
 <option value="fallida">fallida</option>
@@ -1129,7 +1130,7 @@ dialog.ficha-pane[open] .ficha-atras-bar{background:#fbfdff}
 </div>
 <div class="reader-top-acciones ancla-ficha-acciones" id="corridaAccionesFallos">
 <button type="button" class="btn compact ghost" id="btnCorridaReintentar" hidden title="Reencolar el paso fallido">Reintentar</button>
-<button type="button" class="btn compact primary" id="btnCorridaAprobar" hidden title="Aprobar espera humana">Aprobar</button>
+<button type="button" class="btn compact primary" id="btnCorridaAprobar" hidden title="Aprobar / Adelantar espera">Aprobar</button>
 <button type="button" class="btn compact ghost" id="btnCorridaRechazar" hidden title="Rechazar espera humana">Rechazar</button>
 <button type="button" class="btn compact ghost" id="btnCorridaReanudar" hidden title="Reanudar corrida atascada">Reanudar</button>
 <button type="button" class="btn compact ghost" id="btnCorridaCancelar" hidden title="Cancelar corrida">Cancelar</button>
