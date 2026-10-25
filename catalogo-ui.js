@@ -503,6 +503,7 @@ const state = {
     abiertaNumero: null,
     historial: false,
     asocSub: 'cluster',
+    opSub: 'mapa',
     reabrirColeccionKey: null,
     reabrirColeccionTab: null,
     fetchToken: 0,
@@ -1537,6 +1538,9 @@ function iconoDePestanaFicha(tabId) {
     colecciones: 'coleccion',
     diagrama: 'diagrama',
     operativa: 'entradas-salidas',
+    mapa: 'diagrama',
+    huecos: 'errores',
+    atajos: 'zap',
     campos: 'mongo',
     skills: 'skills',
     'system-prompts': 'system-prompt',
@@ -1601,16 +1605,29 @@ function iconizarPestanasFicha(root) {
         || btn.getAttribute('data-sp-asoc-sub')
         || btn.getAttribute('data-flujo-asoc-sub')
         || btn.getAttribute('data-flujo-corr-sub')
+        || btn.getAttribute('data-proy-op-sub')
         || btn.getAttribute('data-ej-tab')
         || btn.getAttribute('data-skill-io-sub')
         || btn.getAttribute('data-ajuste');
     }
     const tipo = iconoDePestanaFicha(tabId) || tabId;
     if (!tipo) return;
-    const label = (btn.textContent || '').trim();
+    const countEl = btn.querySelector('.pestana-count');
+    let label = '';
+    btn.childNodes.forEach(function (node) {
+      if (node.nodeType === 3) label += node.textContent || '';
+    });
+    label = label.trim();
+    if (!label) {
+      label = (btn.textContent || '').trim();
+      if (countEl && countEl.textContent) {
+        label = label.replace(String(countEl.textContent).trim(), '').trim();
+      }
+    }
     btn.textContent = '';
     btn.append(svgPestanaCatalogo(tipo));
     if (label) btn.append(document.createTextNode(label));
+    if (countEl) btn.append(countEl);
   });
 }
 
@@ -4502,6 +4519,46 @@ function proyAsociadosVisible() {
   return !!document.querySelector('#proyReaderTabs [data-proy-tab="asociados"].is-on');
 }
 
+function proyOpSubActivo() {
+  const on = document.querySelector('#proyOperativaSubtabs [data-proy-op-sub].is-on');
+  return (on && on.getAttribute('data-proy-op-sub')) || (state.proyectos && state.proyectos.opSub) || 'mapa';
+}
+
+function seleccionarProyOpSub(id) {
+  if (id !== 'mapa' && id !== 'huecos' && id !== 'atajos') id = 'mapa';
+  if (state.proyectos) state.proyectos.opSub = id;
+  const tabs = document.querySelectorAll('#proyOperativaSubtabs [data-proy-op-sub]');
+  tabs.forEach(function (btn) {
+    const on = btn.getAttribute('data-proy-op-sub') === id;
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('#proyPanelOperativa [data-proy-op-pane]').forEach(function (pane) {
+    pane.hidden = pane.getAttribute('data-proy-op-pane') !== id;
+  });
+}
+
+function actualizarOperativaHuecosBadge(n) {
+  const btn = document.querySelector('#proyOperativaSubtabs [data-proy-op-sub="huecos"]');
+  if (!btn) return;
+  let badge = btn.querySelector('.pestana-count');
+  const count = Math.max(0, Number(n) || 0);
+  if (count > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'pestana-count';
+      btn.append(badge);
+    }
+    badge.hidden = false;
+    badge.textContent = String(count);
+    badge.setAttribute('aria-label', count + (count === 1 ? ' hueco' : ' huecos'));
+  } else if (badge) {
+    badge.hidden = true;
+    badge.textContent = '';
+    badge.removeAttribute('aria-label');
+  }
+}
+
 function seleccionarProyAsocSub(id) {
   if (id !== 'cluster' && id !== 'colecciones' && id !== 'campos' && id !== 'skills') id = 'cluster';
   state.proyectos.asocSub = id;
@@ -4563,7 +4620,10 @@ function seleccionarProyReaderTab(id) {
   if (id === 'asociados') seleccionarProyAsocSub(proyAsocSubActivo());
   if (id === 'documento') pintarVersionProyecto(versionProyectoAbierta(proy));
   if (id === 'diagrama') cargarProyectoDiagrama(proy);
-  if (id === 'operativa') cargarProyectoOperativa(proy);
+  if (id === 'operativa') {
+    seleccionarProyOpSub(proyOpSubActivo() || 'mapa');
+    cargarProyectoOperativa(proy);
+  }
   if (id === 'flujos') {
     if (window.FlujosCorridasUI && typeof window.FlujosCorridasUI.cargarFlujos === 'function') {
       window.FlujosCorridasUI.cargarFlujos(proy);
@@ -4584,16 +4644,15 @@ function cargarProyectoOperativa(proy) {
   if (!proy || !proy.id) return;
   if (estado) {
     estado.hidden = false;
+    estado.className = 'ancla-ficha-vacio';
     estado.textContent = 'Cargando operativa…';
   }
   if (render) {
     render.hidden = true;
     render.replaceChildren();
   }
-  if (huecosEl) {
-    huecosEl.hidden = true;
-    huecosEl.replaceChildren();
-  }
+  if (huecosEl) huecosEl.replaceChildren();
+  actualizarOperativaHuecosBadge(0);
   apiFetch('/v1/proyectos/' + encodeURIComponent(proy.id) + '/operativa')
     .then(function (data) {
       if (!data || !data.ok) throw new Error((data && data.error) || 'Sin operativa');
@@ -4603,9 +4662,10 @@ function cargarProyectoOperativa(proy) {
         renderMermaidEn(render, data.mermaid || 'flowchart LR\n  vacio["Sin skills"]');
       }
       const huecos = data.huecos || [];
+      actualizarOperativaHuecosBadge(huecos.length);
       if (huecosEl) {
+        huecosEl.replaceChildren();
         if (huecos.length) {
-          huecosEl.hidden = false;
           const mkFila = typeof filaCatalogoLista === 'function' ? filaCatalogoLista : null;
           huecos.forEach(function (h) {
             let row;
@@ -4625,17 +4685,34 @@ function cargarProyectoOperativa(proy) {
             }
             huecosEl.append(row);
           });
+        } else if (typeof pintarEstadoVacio === 'function') {
+          pintarEstadoVacio(huecosEl, {
+            icono: 'errores',
+            texto: 'Sin huecos: toda entrada tiene productor en esta BD.'
+          });
         } else {
-          huecosEl.hidden = true;
+          const vacio = document.createElement('p');
+          vacio.className = 'ancla-ficha-vacio';
+          vacio.textContent = 'Sin huecos: toda entrada tiene productor en esta BD.';
+          huecosEl.append(vacio);
         }
       }
-      const linkEl = document.getElementById('proyOperativaFlujosLink');
-      if (linkEl) linkEl.hidden = false;
     })
     .catch(function (err) {
+      actualizarOperativaHuecosBadge(0);
       if (estado) {
         estado.hidden = false;
+        estado.className = 'ancla-ficha-vacio';
         estado.textContent = (err && err.message) || 'No se pudo cargar la operativa.';
+      }
+      if (huecosEl) {
+        huecosEl.replaceChildren();
+        if (typeof pintarEstadoVacio === 'function') {
+          pintarEstadoVacio(huecosEl, {
+            icono: 'errores',
+            texto: 'No se pudieron cargar los huecos.'
+          });
+        }
       }
     });
 }
@@ -7457,6 +7534,12 @@ function wireProyectosUi() {
     const btn = e.target.closest('[data-proy-asoc-sub]');
     if (!btn) return;
     seleccionarProyAsocSub(btn.getAttribute('data-proy-asoc-sub'));
+  });
+  const proyOpTabs = document.getElementById('proyOperativaSubtabs');
+  if (proyOpTabs) proyOpTabs.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-proy-op-sub]');
+    if (!btn) return;
+    seleccionarProyOpSub(btn.getAttribute('data-proy-op-sub'));
   });
   const editarProyTabs = document.getElementById('editarProyTabs');
   if (editarProyTabs) editarProyTabs.addEventListener('click', function (e) {
