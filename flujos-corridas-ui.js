@@ -531,18 +531,36 @@
     }
     if (lista) {
       lista.replaceChildren();
+      var mkFila =
+        typeof window.filaCatalogoLista === 'function' ? window.filaCatalogoLista : null;
       (f.nodos || []).forEach(function (n) {
-        var li = document.createElement('li');
-        var parts = ['[' + n.tipo + ']', n.id];
-        if (n.skill) parts.push('skill=' + n.skill);
-        if (n.flujo_id) parts.push('flujo_id=' + n.flujo_id);
-        if (n.condicion) parts.push('cond=' + JSON.stringify(n.condicion));
-        li.innerHTML = parts
-          .map(function (p, i) {
-            return i === 1 ? '<code>' + esc(p) + '</code>' : esc(p);
-          })
-          .join(' ');
-        lista.append(li);
+        var partes = [];
+        if (n.tipo) partes.push(n.tipo);
+        if (n.skill) partes.push('skill=' + n.skill);
+        if (n.flujo_id) partes.push('flujo_id=' + n.flujo_id);
+        if (n.condicion) partes.push('cond=' + JSON.stringify(n.condicion));
+        var icono = 'flujo';
+        if (n.tipo === 'skill') icono = 'skills';
+        else if (n.tipo === 'subflujo') icono = 'flujos';
+        else if (n.tipo === 'espera') icono = 'historial';
+        else if (n.tipo === 'decision' || n.tipo === 'decisión') icono = 'diagrama';
+        else if (n.tipo === 'fin' || n.tipo === 'inicio') icono = 'pasos';
+        if (mkFila) {
+          lista.append(
+            mkFila({
+              icono: icono,
+              titulo: n.id || '—',
+              secundario: partes.join(' · ') || '—',
+              static: true,
+              title: (n.tipo || 'nodo') + ' ' + (n.id || '')
+            })
+          );
+        } else {
+          var fallback = document.createElement('div');
+          fallback.className = 'catalogo-fila catalogo-fila-static';
+          fallback.textContent = '[' + (n.tipo || '') + '] ' + (n.id || '');
+          lista.append(fallback);
+        }
       });
     }
   }
@@ -773,38 +791,43 @@
     var f = st.flujoAbierto;
     if (!lista || !f) return;
     lista.replaceChildren();
-    (f.versiones || [])
-      .slice()
-      .reverse()
-      .forEach(function (v) {
-        var li = document.createElement('li');
+    var mkFila =
+      typeof window.filaCatalogoLista === 'function' ? window.filaCatalogoLista : null;
+    var versiones = (f.versiones || []).slice().reverse();
+    if (!versiones.length) {
+      var empty = document.createElement('p');
+      empty.className = 'ancla-ficha-vacio';
+      empty.textContent = 'Sin versiones.';
+      lista.append(empty);
+      return;
+    }
+    versiones.forEach(function (v) {
+      if (mkFila) {
+        lista.append(
+          mkFila({
+            icono: 'versiones',
+            titulo: formatVersionLabel(v.numero, v.fecha),
+            secundario: v.hash || '',
+            open: v.numero === f.version,
+            dataset: { numero: String(v.numero) },
+            title: 'Abrir versión ' + v.numero,
+            onClick: function () {
+              abrirFlujo(f.id, v.numero);
+            }
+          })
+        );
+      } else {
         var b = document.createElement('button');
         b.type = 'button';
-        b.className = 'catalogo-fila';
-        b.style.width = '100%';
+        b.className = 'catalogo-fila' + (v.numero === f.version ? ' is-open' : '');
         b.dataset.numero = String(v.numero);
-        var main = document.createElement('span');
-        main.className = 'catalogo-fila-main';
-        var tit = document.createElement('span');
-        tit.className = 'catalogo-fila-titulo';
-        tit.textContent = formatVersionLabel(v.numero, v.fecha);
-        var cod = document.createElement('span');
-        cod.className = 'catalogo-fila-codigo';
-        cod.textContent = v.hash || '';
-        main.append(tit, cod);
-        b.append(main);
-        if (v.numero === f.version) b.classList.add('is-open');
+        b.textContent = formatVersionLabel(v.numero, v.fecha);
         b.addEventListener('click', function () {
           abrirFlujo(f.id, v.numero);
         });
-        li.append(b);
-        lista.append(li);
-      });
-    if (!(f.versiones || []).length) {
-      var empty = document.createElement('li');
-      empty.textContent = 'Sin versiones.';
-      lista.append(empty);
-    }
+        lista.append(b);
+      }
+    });
   }
 
   function rellenarEditorFlujo() {
@@ -2029,23 +2052,40 @@
       lista.replaceChildren();
       var pasos = c.pasos || [];
       if (!pasos.length) {
-        var empty = document.createElement('li');
-        empty.className = 'ajustes-hint';
+        var empty = document.createElement('p');
+        empty.className = 'ancla-ficha-vacio';
         empty.textContent = 'Sin pasos todavía.';
         lista.append(empty);
       }
+      var mkFila =
+        typeof window.filaCatalogoLista === 'function' ? window.filaCatalogoLista : null;
       pasos.forEach(function (p) {
-        var li = document.createElement('li');
-        li.className = 'corrida-paso is-' + (p.estado || '');
-        var tit = document.createElement('div');
-        tit.className = 'corrida-paso-titulo';
-        tit.textContent = (p.nodo_id || '—') + (p.skill ? ' · ' + p.skill : '');
-        var meta = document.createElement('div');
-        meta.className = 'corrida-paso-meta';
-        meta.append(document.createTextNode(p.estado || '—'));
-        if (p.inicio) meta.append(document.createTextNode(' · ini ' + formatCuando(p.inicio)));
-        if (p.fin) meta.append(document.createTextNode(' · fin ' + formatCuando(p.fin)));
-        li.append(tit, meta);
+        var wrap = document.createElement('div');
+        wrap.className = 'corrida-paso-wrap';
+        var secParts = [p.estado || '—'];
+        if (p.inicio) secParts.push('ini ' + formatCuando(p.inicio));
+        if (p.fin) secParts.push('fin ' + formatCuando(p.fin));
+        var titulo = (p.nodo_id || '—') + (p.skill ? ' · ' + p.skill : '');
+        var row;
+        if (mkFila) {
+          row = mkFila({
+            icono: 'pasos',
+            titulo: titulo,
+            secundario: secParts.join(' · '),
+            static: true,
+            title: titulo
+          });
+        } else {
+          row = document.createElement('div');
+          row.className = 'catalogo-fila catalogo-fila-static';
+          row.textContent = titulo + ' — ' + secParts.join(' · ');
+        }
+        if (p.estado === 'hecho' || p.estado === 'ok' || p.estado === 'completado') {
+          row.classList.add('is-ok-tint');
+        } else if (p.estado === 'error' || p.estado === 'fallida' || p.estado === 'fallido') {
+          row.classList.add('is-err-tint');
+        }
+        wrap.append(row);
         if (p.salidas) {
           var pre = document.createElement('pre');
           pre.className = 'flujo-grafo-ascii';
@@ -2054,9 +2094,9 @@
           } catch (e) {
             pre.textContent = String(p.salidas);
           }
-          li.append(pre);
+          wrap.append(pre);
         }
-        lista.append(li);
+        lista.append(wrap);
       });
     }
     var datosEl = document.getElementById('corridaDatosJson');
