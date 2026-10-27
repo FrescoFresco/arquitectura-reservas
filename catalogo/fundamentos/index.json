@@ -3,6 +3,90 @@
   "nombre": "Fundamentos",
   "fundamentos": [
     {
+      "id": "01-vision-y-recorrido",
+      "nombre": "01 · Visión general y recorrido de un dato",
+      "descripcion": "Modelo mental, plantilla multi-empresa, D1 vs Mongo, mapa de 4 capas y recorrido de un dato de punta a punta.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-27",
+          "ruta": "catalogo/fundamentos/01-vision-y-recorrido/v1.md",
+          "nombreArchivo": "01-vision-y-recorrido.md",
+          "hash": "0ef5491ab4f7ac8a92aa904668a6f4e18f50a64453f4a4025dcd14c9ecb0b485"
+        }
+      ]
+    },
+    {
+      "id": "02-capa-de-datos",
+      "nombre": "02 · Capa de datos: Clusters, Bases de datos, Colecciones, Campos y Anclas",
+      "descripcion": "Objetos 1–5: Cluster, Base de datos, Colección, Campo MongoDB y Campo ancla; dónde viven y cómo se enlazan.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-27",
+          "ruta": "catalogo/fundamentos/02-capa-de-datos/v1.md",
+          "nombreArchivo": "02-capa-de-datos.md",
+          "hash": "f8ccc330dcbece17e6cf80fbe891c134b598edbf524afb6c249a28c939dca11e"
+        }
+      ]
+    },
+    {
+      "id": "03-capa-de-trabajo",
+      "nombre": "03 · Capa de trabajo: System prompts, Skills y Ejecutores",
+      "descripcion": "Objetos 6–8: System prompt, Skill (entradas/salidas) y Ejecutor (modelo, n8n, humano, agente externo).",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-27",
+          "ruta": "catalogo/fundamentos/03-capa-de-trabajo/v1.md",
+          "nombreArchivo": "03-capa-de-trabajo.md",
+          "hash": "d707415e4bc4b50df20a5e90405e1ac6eae2f664837ce78aa205a3c7b430df59"
+        }
+      ]
+    },
+    {
+      "id": "04-capa-de-automatizacion",
+      "nombre": "04 · Capa de automatización: Flujos, Disparadores, Eventos, Corridas y Ejecuciones",
+      "descripcion": "Objetos 9–13: Flujo, Disparador, Evento, Corrida y Ejecución; cola de pasos y estados del motor.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-27",
+          "ruta": "catalogo/fundamentos/04-capa-de-automatizacion/v1.md",
+          "nombreArchivo": "04-capa-de-automatizacion.md",
+          "hash": "7fd8cf8d6e2e1eccfac572cffbc3a8221a530c72c96bef1786a6646ce105a22b"
+        }
+      ]
+    },
+    {
+      "id": "05-diseno-y-seguridad",
+      "nombre": "05 · Herramientas de diseño y seguridad: Redactor, Agentes y Fundamentos",
+      "descripcion": "Objetos 14–16: Redactor, Agentes (invite Bearer) y Fundamentos; diseño asistido y acceso al hub.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-27",
+          "ruta": "catalogo/fundamentos/05-diseno-y-seguridad/v1.md",
+          "nombreArchivo": "05-diseno-y-seguridad.md",
+          "hash": "6b8de490e11c18fbbf55696cade520d176031da1750c9675a09c0ef4a4ecfda2"
+        }
+      ]
+    },
+    {
+      "id": "06-guia-practica-n8n",
+      "nombre": "06 · Guía práctica: Conexión con n8n y recetas de producción",
+      "descripcion": "Conexión con n8n (integración, webhook, agente externo) y recetas de producción para operar el hub.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-27",
+          "ruta": "catalogo/fundamentos/06-guia-practica-n8n/v1.md",
+          "nombreArchivo": "06-guia-practica-n8n.md",
+          "hash": "f5299c060483c6753c148fae701136c0a88dc95dbd7dced809ab5f44861f8d65"
+        }
+      ]
+    },
+    {
       "id": "campo-ancla",
       "nombre": "Campo ancla",
       "descripcion": "Dato con nombre fijo (_ruta_) que une skills, Mongo y el recorrido.",
@@ -17,16 +101,37 @@
       ]
     },
     {
-      "id": "skill",
-      "nombre": "Skill",
-      "descripcion": "Instrucción versionada que un agente sigue para un trabajo concreto.",
+      "id": "catalogo-objetos",
+      "nombre": "Catálogo de objetos y conexiones",
+      "descripcion": "Plantilla uniforme de 6 puntos (qué es, dónde vive, campos, conexiones, cuándo actúa y ejemplo real) para los 14 objetos de Campos ancla.",
       "versiones": [
         {
           "numero": 1,
-          "fecha": "2026-10-20",
-          "ruta": "catalogo/fundamentos/skill/v1.md",
-          "nombreArchivo": "skill.md",
-          "hash": "c4c94075ab3b1505172fb396c86122a5c4fa44111045a510d4cfd479b1ad8f30"
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/catalogo-objetos/v1.md",
+          "nombreArchivo": "catalogo-objetos.md",
+          "hash": "52d736bb71e877dd8b596a66458a468b62235594bf2c395b4710d00d12de8e91"
+        }
+      ]
+    },
+    {
+      "id": "conexion-n8n",
+      "nombre": "Conexión con n8n",
+      "descripcion": "Cómo conectar n8n con Campos ancla: ejecutor integracion (enlace editor_url/workflow + selector API), disparador webhook y agente_externo.",
+      "versiones": [
+        {
+          "numero": 1,
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/conexion-n8n/v1.md",
+          "nombreArchivo": "conexion-n8n.md",
+          "hash": "2f5f11202e712634852d1a47e2bc9270de35e95d8a1a0f48628ccb08c13819fa"
+        },
+        {
+          "numero": 2,
+          "fecha": "2026-10-24",
+          "ruta": "catalogo/fundamentos/conexion-n8n/v2.md",
+          "nombreArchivo": "conexion-n8n.md",
+          "hash": "594b0a33a847e86f84465db356292e9e70fd4ba33e18aba0ec282651f957bf9f"
         }
       ]
     },
@@ -115,37 +220,16 @@
       ]
     },
     {
-      "id": "catalogo-objetos",
-      "nombre": "Catálogo de objetos y conexiones",
-      "descripcion": "Plantilla uniforme de 6 puntos (qué es, dónde vive, campos, conexiones, cuándo actúa y ejemplo real) para los 14 objetos de Campos ancla.",
+      "id": "skill",
+      "nombre": "Skill",
+      "descripcion": "Instrucción versionada que un agente sigue para un trabajo concreto.",
       "versiones": [
         {
           "numero": 1,
-          "fecha": "2026-10-24",
-          "ruta": "catalogo/fundamentos/catalogo-objetos/v1.md",
-          "nombreArchivo": "catalogo-objetos.md",
-          "hash": "52d736bb71e877dd8b596a66458a468b62235594bf2c395b4710d00d12de8e91"
-        }
-      ]
-    },
-    {
-      "id": "conexion-n8n",
-      "nombre": "Conexión con n8n",
-      "descripcion": "Cómo conectar n8n con Campos ancla: ejecutor integracion (enlace editor_url/workflow + selector API), disparador webhook y agente_externo.",
-      "versiones": [
-        {
-          "numero": 1,
-          "fecha": "2026-10-24",
-          "ruta": "catalogo/fundamentos/conexion-n8n/v1.md",
-          "nombreArchivo": "conexion-n8n.md",
-          "hash": "2f5f11202e712634852d1a47e2bc9270de35e95d8a1a0f48628ccb08c13819fa"
-        },
-        {
-          "numero": 2,
-          "fecha": "2026-10-24",
-          "ruta": "catalogo/fundamentos/conexion-n8n/v2.md",
-          "nombreArchivo": "conexion-n8n.md",
-          "hash": "594b0a33a847e86f84465db356292e9e70fd4ba33e18aba0ec282651f957bf9f"
+          "fecha": "2026-10-20",
+          "ruta": "catalogo/fundamentos/skill/v1.md",
+          "nombreArchivo": "skill.md",
+          "hash": "c4c94075ab3b1505172fb396c86122a5c4fa44111045a510d4cfd479b1ad8f30"
         }
       ]
     }
