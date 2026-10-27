@@ -2619,11 +2619,13 @@ app.get('/v1/proyectos/:id/mongo-config', async (c) => {
   let connected = false;
   let probeError: string | undefined;
   let probeMongo: ReturnType<typeof mongoDriverErrorBody>['mongo'] | undefined;
+  let connectHint: string | undefined;
   if (resolved.meta.configured && mongoUriConfigured(resolved.env)) {
     const status = await probeMongoStatus(resolved.env, resolved.meta.db);
     connected = status.connected ? true : false;
     if (status.error) probeError = status.error;
     if (status.mongo) probeMongo = status.mongo;
+    if (status.connectHint) connectHint = status.connectHint;
   }
   return c.json({
     ok: true,
@@ -2639,6 +2641,7 @@ app.get('/v1/proyectos/:id/mongo-config', async (c) => {
     ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
     ...(probeError ? { error: probeError } : {}),
     ...(probeMongo ? { mongo: probeMongo } : {}),
+    ...(connectHint ? { connectHint } : {}),
     updatedAt: clusterMeta?.updatedAt || undefined,
     deprecatedWrite:
       'La URI se guarda en el Cluster. Usa GET|POST|DELETE /v1/clusters/:clusterId/mongo-config.',
@@ -2672,11 +2675,13 @@ app.get('/v1/clusters/:id/mongo-config', async (c) => {
   let connected = false;
   let probeError: string | undefined;
   let probeMongo: ReturnType<typeof mongoDriverErrorBody>['mongo'] | undefined;
+  let connectHint: string | undefined;
   if (resolved.meta.configured && mongoUriConfigured(resolved.env)) {
     const status = await probeMongoStatus(resolved.env, resolved.meta.db);
     connected = status.connected ? true : false;
     if (status.error) probeError = status.error;
     if (status.mongo) probeMongo = status.mongo;
+    if (status.connectHint) connectHint = status.connectHint;
   }
   const lastSync = parseLastSyncRow(row);
   return c.json({
@@ -2693,6 +2698,7 @@ app.get('/v1/clusters/:id/mongo-config', async (c) => {
     ...(resolved.decryptError ? { error: resolved.decryptError } : {}),
     ...(probeError ? { error: probeError } : {}),
     ...(probeMongo ? { mongo: probeMongo } : {}),
+    ...(connectHint ? { connectHint } : {}),
     updatedAt: clusterMeta?.updatedAt || undefined,
   });
 });
@@ -3805,6 +3811,7 @@ app.post('/v1/clusters/:id/mongo-config', async (c) => {
       db: status.db,
       ...(status.error ? { error: status.error } : {}),
       ...(status.mongo ? { mongo: status.mongo } : {}),
+      ...(status.connectHint ? { connectHint: status.connectHint } : {}),
     });
   }
   const saved = await saveClusterStoredUri(c.env.DB, key, id, uri, dbName || undefined);
@@ -3820,6 +3827,7 @@ app.post('/v1/clusters/:id/mongo-config', async (c) => {
     updatedAt: saved.updatedAt,
     ...(status.error ? { error: status.error } : {}),
     ...(status.mongo ? { mongo: status.mongo } : {}),
+    ...(status.connectHint ? { connectHint: status.connectHint } : {}),
   });
 });
 

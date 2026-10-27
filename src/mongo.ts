@@ -58,6 +58,7 @@ export function mongoDriverErrorBody(err: unknown): {
   ok: false;
   error: string;
   mongo: MongoDriverErrorBody;
+  connectHint?: string;
 } {
   const rawMsg =
     err instanceof Error
@@ -75,7 +76,8 @@ export function mongoDriverErrorBody(err: unknown): {
   } else if (err instanceof Error && err.name) {
     mongo.name = err.name;
   }
-  return { ok: false, error: message, mongo };
+  const connectHint = mongoConnectHintFromError(message);
+  return { ok: false, error: message, mongo, ...(connectHint ? { connectHint } : {}) };
 }
 
 /** Short health label for /health — never probes the cluster. */
@@ -89,7 +91,47 @@ export type MongoStatus = {
   db: string;
   error?: string;
   mongo?: MongoDriverErrorBody;
+  /** Actionable next step when connect fails (never secrets). Distinct from host `hint`. */
+  connectHint?: string;
 };
+
+/**
+ * Map common Workers↔Atlas driver failures to a short Spanish next-step.
+ * Does not change Atlas; only explains what the human should check.
+ */
+export function mongoConnectHintFromError(message: string): string | undefined {
+  const m = String(message || '').toLowerCase();
+  if (!m) return undefined;
+  // Cloudflare TCP sockets: destination refused / disallowed / unreachable via connect().
+  // Docs: https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/
+  // Workers TCP egress is NOT in cloudflare.com/ips — Atlas must allow 0.0.0.0/0 (or a fixed proxy).
+  if (
+    m.includes('proxy request failed') ||
+    m.includes('cannot connect to the specified address') ||
+    m.includes('connection timed out') ||
+    m.includes('server selection timed out') ||
+    m.includes('enotfound') ||
+    m.includes('econnrefused')
+  ) {
+    return (
+      'Atlas → Network Access → Add IP Address → Allow Access from Anywhere (0.0.0.0/0). ' +
+      'El egress TCP de Workers no usa las IPs públicas de Cloudflare; sin /0 el ping falla. ' +
+      'La URI mongodb+srv sin nombre de base en el path es válida (el hub elige la BD del esquema).'
+    );
+  }
+  if (
+    m.includes('authentication failed') ||
+    m.includes('bad auth') ||
+    m.includes('auth failed') ||
+    m.includes('scode: 18')
+  ) {
+    return (
+      'Usuario/contraseña Atlas incorrectos o sin URL-encoding (caracteres especiales en el password). ' +
+      'authSource suele ser admin (incluido en SRV TXT).'
+    );
+  }
+  return undefined;
+}
 
 /**
  * Status without leaking the URI. If configured, tries a lightweight ping.
@@ -112,12 +154,14 @@ export async function probeMongoStatus(env: MongoEnv, dbHint?: string): Promise<
     return { configured: true, connected: true, db };
   } catch (err) {
     const body = mongoDriverErrorBody(err);
+    const connectHint = mongoConnectHintFromError(body.error);
     return {
       configured: true,
       connected: false,
       db,
       error: body.error,
       mongo: body.mongo,
+      ...(connectHint ? { connectHint } : {}),
     };
   } finally {
     if (client) {

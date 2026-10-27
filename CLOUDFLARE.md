@@ -40,9 +40,11 @@ Cada proyecto de catálogo es un **software** con `baseDatos` propia (p. ej. `so
 
 ## MongoDB Atlas (por Cluster)
 
-El Worker habla con Atlas con el **driver oficial `mongodb`** (TCP). No uses Data API. **No pegues la URI en el chat.**
+El Worker habla con Atlas con el **driver oficial `mongodb`** (TCP). No uses Data API. **No pegues la URI en el chat.** Hyperdrive **no** soporta MongoDB.
 
-**Producto:** ficha **Cluster → Conexión** → `POST /v1/clusters/:id/mongo-config`. Se cifra en D1 (`mongo_config_cluster`, AES-GCM) con secret `ENCRYPTION_KEY`. La URI **nunca** se reexpone en GET. **No hay** pestaña Ajustes → Conexiones ni URI por Base de datos.
+**Red Atlas (imprescindible):** el egress TCP de Workers **no** sale por las [IPs públicas de Cloudflare](https://www.cloudflare.com/ips/). En Atlas → **Network Access** hay que permitir `0.0.0.0/0` (Allow Access from Anywhere) para que Probar / Empujar funcionen; whitelistear solo las IPs CDN de CF **no** basta. Sin eso el driver suele devolver `MongoServerSelectionError` / `proxy request failed, cannot connect to the specified address`.
+
+**Producto:** ficha **Cluster → Conexión** → `POST /v1/clusters/:id/mongo-config`. Se cifra en D1 (`mongo_config_cluster`, AES-GCM) con secret `ENCRYPTION_KEY`. La URI **nunca** se reexpone en GET. **No hay** pestaña Ajustes → Conexiones ni URI por Base de datos. Path `/` sin nombre de BD en la URI es válido; el hub usa `baseDatos` del esquema.
 
 | Secret / var | Obligatorio | Dónde |
 |--------------|-------------|--------|
